@@ -1,0 +1,220 @@
+{
+ "meta": {
+  "seed": 24,
+  "module": "cp1_v4_damping",
+  "oracle": "R16/R18/R22 in-vitro(单 k、在壳、符号空间)",
+  "discipline": "预写自检,不跑 L2 门,不触 cp1_v4_L1*"
+ },
+ "calibration": {
+  "mu_z": 0.08064746402118418,
+  "kappa1": 0.7289372167610391,
+  "rho_step_pred": 0.5206369015340354,
+  "beta_star": 0.5006124053211879,
+  "margin": 0.04,
+  "mu_choice": "mid",
+  "mu_plateau": [
+   0.0762822421386988,
+   0.08501268590366956
+  ],
+  "mu_stab_max": 0.09346084112080912,
+  "sigma2_min": 3.0123522031914116,
+  "sigma2_max": 27.199900364602176,
+  "kappa_cond": 9.029455564918825,
+  "n_sigma2": 2044,
+  "gamma_fallback": 0.06619830797164757,
+  "reference": {
+   "gamma_rate_step": 0.8005873811340638,
+   "cheb_gammas": [
+    0.21586100457072394,
+    0.06619830797164757,
+    0.03909358877115305
+   ],
+   "cheb_rate_3step": 0.2470314150744413,
+   "rho_discreteBZ": 0.5206369015340356
+  }
+ },
+ "r22_crosscheck": {
+  "skipped": false,
+  "sigma2_delta": [
+   0.0,
+   0.0
+  ],
+  "mu_delta": 6.581991186005443e-05,
+  "k1_delta": 0.0006627832389609623,
+  "rho_delta": 0.0006369015340352835,
+  "r22_op": {
+   "mu": 0.08071328393304424,
+   "k1": 0.7296,
+   "rho": 0.5200000000000001
+  },
+  "ok": true
+ },
+ "dynamics": [
+  {
+   "k": [
+    0.5,
+    0.0,
+    0.0
+   ],
+   "omega": 0.24803931406979848,
+   "gate": {
+    "rate_meas": 0.5249054665952678,
+    "rate_pred": 0.5206369015340354,
+    "floored": false,
+    "tail_rate": 0.8566298725214754,
+    "stalled": false,
+    "final_over_initial": 8.965394633927526e-18,
+    "ok": true
+   },
+   "tt_err": 7.771561172376096e-15,
+   "ok": true
+  },
+  {
+   "k": [
+    0.35,
+    0.35,
+    0.35
+   ],
+   "omega": 0.3027186801844327,
+   "gate": {
+    "rate_meas": 0.5245915937399569,
+    "rate_pred": 0.5206369015340355,
+    "floored": false,
+    "tail_rate": 1.1145510048318779,
+    "stalled": false,
+    "final_over_initial": 5.535026431297729e-17,
+    "ok": true
+   },
+   "tt_err": 8.326672684688674e-15,
+   "ok": true
+  },
+  {
+   "k": [
+    0.7,
+    0.2,
+    -0.4
+   ],
+   "omega": 0.41157359040117303,
+   "gate": {
+    "rate_meas": 0.5064518588178925,
+    "rate_pred": 0.5206369015340355,
+    "floored": false,
+    "tail_rate": 1.0693735040529788,
+    "stalled": false,
+    "final_over_initial": 1.0057828751238816e-16,
+    "ok": true
+   },
+   "tt_err": 1.0880185641326534e-14,
+   "ok": true
+  }
+ ],
+ "regressions": {
+  "timeslot": {
+   "baseline_gate": {
+    "K_at_TT": 2.3494179384739523e-17,
+    "K_at_gauge": 4.152861604663936e-17,
+    "tt_ok": true,
+    "gauge_ok": true,
+    "expect_gauge_zero": true,
+    "pass": true
+   },
+   "bug_gate": {
+    "K_at_TT": 2.3494179384739523e-17,
+    "K_at_gauge": 0.13723557276578902,
+    "tt_ok": true,
+    "gauge_ok": false,
+    "expect_gauge_zero": true,
+    "pass": false
+   },
+   "bug_dyn_gate": {
+    "rate_meas": 1.0000091949956582,
+    "rate_pred": 0.26449549629936486,
+    "floored": false,
+    "tail_rate": 1.0,
+    "stalled": true,
+    "final_over_initial": 0.09345806938077944,
+    "ok": false
+   },
+   "healthy_dyn_gate": {
+    "rate_meas": null,
+    "rate_pred": 0.26449549629936503,
+    "floored": true,
+    "tail_rate": 0.968413977391075,
+    "stalled": false,
+    "final_over_initial": 8.072416585255224e-17,
+    "ok": true
+   },
+   "detected_static": true,
+   "detected_dyn": true,
+   "no_false_alarm": true,
+   "detected": true
+  },
+  "hprev": {
+   "bug_gate": {
+    "rate_meas": 0.7032347119004636,
+    "rate_pred": 0.5206369015340355,
+    "floored": false,
+    "tail_rate": 0.9953272429683354,
+    "stalled": false,
+    "final_over_initial": 5.951042095502678e-17,
+    "ok": false
+   },
+   "healthy_gate": {
+    "rate_meas": 0.5064518588178925,
+    "rate_pred": 0.5206369015340355,
+    "floored": false,
+    "tail_rate": 1.0693735040529788,
+    "stalled": false,
+    "final_over_initial": 1.0057828751238816e-16,
+    "ok": true
+   },
+   "detected": true,
+   "no_false_alarm": true
+  },
+  "refold_re": {
+   "bug_gate": {
+    "rate_meas": 0.87638248897112,
+    "rate_pred": 0.5206369015340355,
+    "floored": false,
+    "tail_rate": 0.9064198014132546,
+    "stalled": false,
+    "final_over_initial": 8.289455671646958e-12,
+    "ok": false
+   },
+   "tt_err": 1.0658141036401503e-14,
+   "detected": true,
+   "no_false_alarm": true
+  },
+  "probe_mismatch": {
+   "detected": true
+  }
+ },
+ "negative_control_static_carrier": {
+  "rho_at_op": 1.4835518189315544,
+  "worst_k": [
+   2.748893571891069,
+   2.748893571891069,
+   2.748893571891069
+  ],
+  "rho_at_worst_k": 1.4835518189315544,
+  "dyn_growth_80steps": 7114415942808.121,
+  "best_reopt": {
+   "mu": 0.06287420652212354,
+   "k1": 0.9417948717948718,
+   "rho_step": 0.798653120822209
+  },
+  "single_gamma_rate": 0.8005873811340638,
+  "pass": true
+ },
+ "z_certificate": {
+  "n_unit_modes": 6,
+  "dim_kerK": 6,
+  "n_contracting": 8,
+  "unit_mode_Z_component_max": 2.4524350752797208e-15,
+  "z_sector_radius": 0.5206369015340363,
+  "z_sector_radius_pred": 0.5206369015340354,
+  "note": "N_prop 只在 chi 扇区的单位模里数;8 个收缩模(含 Z 扇区)不得计入",
+  "pass": true
+ },
+ "all_pass": true
+}
