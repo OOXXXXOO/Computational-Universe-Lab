@@ -1,0 +1,157 @@
+{
+ "part0_oracle_kspace": {
+  "n_k": 123,
+  "worst_KTT": 2.9557321527671604e-16,
+  "worst_Kgauge": 8.522540292004603e-16,
+  "ranks": [
+   4
+  ],
+  "dims_ker_over_gauge": [
+   2
+  ],
+  "worst_dist_TT": 3.650024149988857e-08,
+  "PASS": true
+ },
+ "N": 16,
+ "n_k": 15,
+ "branches": [
+  1,
+  -1
+ ],
+ "part1_symbol_match": {
+  "max_dev_vs_oracle": 7.236509275710987e-16,
+  "max_offmode_residual": 1.2102576786556389e-14,
+  "PASS": true
+ },
+ "gateA": {
+  "worst_KTT": 7.832041159795668e-15,
+  "worst_Kgauge": 7.637828095439788e-15,
+  "realfield_worst": 2.4424906541753444e-15,
+  "PASS": true
+ },
+ "gateB": {
+  "ranks": [
+   4
+  ],
+  "dims_ker_over_gauge": [
+   2
+  ],
+  "worst_dist_TT": 2.9802322387695312e-08,
+  "PASS": true
+ },
+ "neg_controls": {
+  "a_central_integer": {
+   "worst_KTT": 0.22833256922280673,
+   "worst_Kgauge": 0.632054865941927,
+   "dims_ker_over_gauge": [
+    5
+   ],
+   "FAILS_AS_REQUIRED": true
+  },
+  "b_literal_yee": {
+   "worst_KTT": 0.22833256922280673,
+   "worst_Kgauge": 0.7902556797123456,
+   "dims_ker_over_gauge": [
+    5,
+    6
+   ],
+   "FAILS_AS_REQUIRED": true
+  },
+  "c_dict_no_placement": {
+   "worst_KTT": 0.9065563764464984,
+   "worst_Kgauge": 1.2250186885789478,
+   "dims_ker_over_gauge": [
+    5,
+    6
+   ],
+   "FAILS_AS_REQUIRED": true
+  },
+  "teeth_PASS": true
+ },
+ "smoke": {
+  "N": 16,
+  "T": 160,
+  "th0": 1.0471975511965976,
+  "modes": {
+   "(2, 0, 0)": {
+    "tt": {
+     "w_walk": 0.38505787590347806,
+     "w_shell": 0.38505787590347784,
+     "shell_dev": 2.220446049250313e-16,
+     "kappa_null": 6.661338147750939e-16,
+     "relC_first": 0.0,
+     "relC_max": 0.0,
+     "relC_last": 0.0,
+     "relC_pred_oracle": 0.0,
+     "pred_dev": 0.0,
+     "drift": 0.0
+    },
+    "gauge": {
+     "w_walk": 0.38505787590347806,
+     "w_shell": 0.38505787590347784,
+     "shell_dev": 2.220446049250313e-16,
+     "kappa_null": 6.661338147750939e-16,
+     "relC_first": 8.621434171394051e-16,
+     "relC_max": 3.4148071007436143e-15,
+     "relC_last": 3.4148071007436143e-15,
+     "relC_pred_oracle": 8.454371862826903e-16,
+     "pred_dev": 2.5693699144609242e-15,
+     "drift": 2.552821127340633e-15
+    },
+    "generic": {
+     "w_walk": 0.38505787590347806,
+     "w_shell": 0.38505787590347784,
+     "shell_dev": 2.220446049250313e-16,
+     "kappa_null": 6.661338147750939e-16,
+     "relC_first": 0.9870516193769262,
+     "relC_max": 0.9870516193769269,
+     "relC_last": 0.9870516193769268,
+     "relC_pred_oracle": 0.9870516193769263,
+     "pred_dev": NaN,
+     "drift": 1.1102230246251565e-15
+    }
+   },
+   "(2, 2, 2)": {
+    "tt": {
+     "w_walk": 0.802442141522959,
+     "w_shell": 0.6756028564802483,
+     "shell_dev": 0.1268392850427107,
+     "kappa_null": 0.6830186999623924,
+     "relC_first": 2.6286811947345808e-15,
+     "relC_max": 8.179012008754246e-15,
+     "relC_last": 8.11607723448757e-15,
+     "relC_pred_oracle": 1.875213626636284e-16,
+     "pred_dev": 7.991490646090617e-15,
+     "drift": 5.5503308140196655e-15
+    },
+    "gauge": {
+     "w_walk": 0.802442141522959,
+     "w_shell": 0.6756028564802483,
+     "shell_dev": 0.1268392850427107,
+     "kappa_null": 0.6830186999623924,
+     "relC_first": 0.44377614120102593,
+     "relC_max": 0.44377614120102793,
+     "relC_last": 0.4437761412010279,
+     "relC_pred_oracle": 0.44377614120102593,
+     "pred_dev": 1.9984014443252818e-15,
+     "drift": 2.1094237467877974e-15
+    },
+    "generic": {
+     "w_walk": 0.802442141522959,
+     "w_shell": 0.6756028564802483,
+     "shell_dev": 0.1268392850427107,
+     "kappa_null": 0.6830186999623924,
+     "relC_first": 2.4085745530613276,
+     "relC_max": 2.408574553061329,
+     "relC_last": 2.4085745530613285,
+     "relC_pred_oracle": 2.408574553061328,
+     "pred_dev": NaN,
+     "drift": 1.3322676295501878e-15
+    }
+   }
+  },
+  "smoke_PASS": true,
+  "note_oblique_gauge": "oblique gauge floor tracks |kappa.kappa|(w_walk) = the Trotter shell correction of the NON-PALINDROMIC 3D walk (R15 \u00a75 reserved item; walk-core property, not a placement failure)"
+ },
+ "all_pass": true
+}
