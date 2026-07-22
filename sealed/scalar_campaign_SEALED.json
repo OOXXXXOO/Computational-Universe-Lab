@@ -1,0 +1,64 @@
+{
+ "sealed_on": "2026-07-20",
+ "campaign": "scalar coin-field rule-space",
+ "rules": 54083584,
+ "wall_hours": 12.1,
+ "stable_pct": 70.92,
+ "j1j3_pct": 55.92,
+ "raw_lawful_pct": 5.551,
+ "endured_lawful_pct": 4.035,
+ "endured_manifold": [
+  {
+   "op": "Lap",
+   "active": 100.0,
+   "pos": 100.0,
+   "med": 0.1108
+  },
+  {
+   "op": "(grad)^2",
+   "active": 0.0,
+   "pos": 0.0,
+   "med": 0.0
+  },
+  {
+   "op": "rho",
+   "active": 100.0,
+   "pos": 72.0,
+   "med": 0.0026
+  },
+  {
+   "op": "J",
+   "active": 0.0,
+   "pos": 0.0,
+   "med": 0.0
+  },
+  {
+   "op": "th-ref",
+   "active": 3.6,
+   "pos": 0.0,
+   "med": 0.0002
+  },
+  {
+   "op": "damp",
+   "active": 31.7,
+   "pos": 0.0,
+   "med": 0.0021
+  }
+ ],
+ "best": {
+  "coeffs": [
+   0.10451657654430123,
+   0.0,
+   0.006557311493779582,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "univ_dist": 7.12860455109876e-08,
+  "r2": 0.9999979138374329,
+  "saturation": 0.00494,
+  "theta_tt_rms": 0.00018118,
+  "found_at_rules": 35270656
+ },
+ "note": "endurance-corrected (T=2000 re-judge); endured lawful manifold = near-pure Lap+rho (th-ref purged 13.4->3.6%)"
+}

@@ -1,0 +1,270 @@
+{
+ "backend": "numpy",
+ "theta": 1.0471975511965976,
+ "dispersion": {
+  "c1_fit": 1.0000009517362163,
+  "c1_theory_2costh": 1.0000000000000002,
+  "c3_fit": -0.03129907721518509,
+  "flat_band_max_|omega|": 2.281161370909501e-16,
+  "eps_gap_theory": 0.0,
+  "swap_commutator": 1.3145713526238905e-17,
+  "unitary_defect": 4.440892098500626e-16
+ },
+ "dispersion_eps0.2": {
+  "c1_fit": 1.8091801250166433,
+  "c1_theory_2costh": 1.0000000000000002,
+  "c3_fit": -14.324099839984596,
+  "flat_band_max_|omega|": 0.12328546699628457,
+  "eps_gap_theory": 0.2,
+  "swap_commutator": 1.3010426069826053e-17,
+  "unitary_defect": 4.440892098500626e-16
+ },
+ "gauge_certificate_target": {
+  "diffeo_invariance_residual": 1.3322676295501878e-15,
+  "diffeo_invariance_relative": 3.3794127506327295e-16,
+  "pure_gauge_null_residual": 1.3322676295501878e-15,
+  "pure_gauge_field_scale": 5.9135803179574715,
+  "exact_gauge_invariance": true,
+  "gauge_modes_are_null": true
+ },
+ "continuum": {
+  "theta": 1.0471975511965976,
+  "k0": 0.2617993877991494,
+  "N": 256,
+  "T": 110,
+  "dispersion": {
+   "c1_fit": 1.0000009517362163,
+   "c1_theory_2costh": 1.0000000000000002,
+   "c3_fit": -0.03129907721518509,
+   "flat_band_max_|omega|": 2.281161370909501e-16,
+   "eps_gap_theory": 0.0,
+   "swap_commutator": 1.3145713526238905e-17,
+   "unitary_defect": 4.440892098500626e-16
+  },
+  "c_pair": 1.0000009517362163,
+  "tt_energy_fraction": 9.437419319673441e-05,
+  "tt_envelope_speed_over_c": 0.9962090073788807,
+  "tt_phase_speed_over_c": 0.9820962520041964,
+  "tt_dominant_K": -0.5645049299419159,
+  "tt_dominant_K_over_2k0": 1.078125,
+  "box_residual_tt": 0.13266754729404145,
+  "box_residual_long": 0.005484113520732861,
+  "dedonder_ratio_tt_drive": 2.8283873846630314,
+  "einstein": {
+   "E_rms": 0.0013551576230412898,
+   "E_rms_decorrelated_baseline": 0.0008738882206418267,
+   "E_ratio": 1.5507219241907106,
+   "E00_vs_envelope_corr": 0.720774702418387
+  },
+  "dedonder_ratio_decorrelated": 1.841812117182201
+ },
+ "locking": {
+  "s3_of_comoving_branches": [
+   0.9936120055020738,
+   0.993513901710595
+  ],
+  "locked": true,
+  "transverse_coherence2": 0.012832659627145894,
+  "needed_for_helicity2": "s3 pair (+1,-1) with O(1) transverse coherence"
+ },
+ "dirac_probe": {
+  "channel_energy_frac": {
+   "plus  (xx-yy)": 0.49356204544548854,
+   "cross (xy)": 0.4935413400793486,
+   "breathing (xx+yy)": 2.106683738984715e-05,
+   "long (zz)": 4.5204259584855425e-05,
+   "mixed (xz)": 0.006371777691388404,
+   "mixed (yz)": 0.006458565686799736
+  },
+  "tt_energy_frac": 0.9871033855248371,
+  "tt_envelope_speed_over_c": 0.993192018700921,
+  "tt_phase_speed_over_c": 1.0039215686274507,
+  "tt_dominant_K_over_2k0": 0.9375000000000001,
+  "box_residual_tt": 0.005502759794083996,
+  "density_speed_over_c": 0.9930865304087247,
+  "escape_works": true
+ },
+ "judge1": {
+  "c_pair": 1.0000009517362163,
+  "locking": {
+   "s3_of_comoving_branches": [
+    0.9936120055020738,
+    0.993513901710595
+   ],
+   "locked": true,
+   "transverse_coherence2": 0.012832659627145894,
+   "needed_for_helicity2": "s3 pair (+1,-1) with O(1) transverse coherence"
+  },
+  "drives": {
+   "tt": {
+    "plus  (xx-yy)": {
+     "energy_frac": 9.43724825596261e-05,
+     "speed": 0.9962099958057181,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 1.7106371083018937e-09,
+     "speed": NaN,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 8.630697564335613e-05,
+     "speed": 0.9943369516435814,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.9906955576006491,
+     "speed": 0.9931543442130756,
+     "propagating": true
+    },
+    "mixed (xz)": {
+     "energy_frac": 3.64847396151811e-07,
+     "speed": NaN,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.009123396383114749,
+     "speed": 0.9939844784337257,
+     "propagating": false
+    }
+   },
+   "density": {
+    "plus  (xx-yy)": {
+     "energy_frac": 8.987851147889285e-05,
+     "speed": 0.9963704881697403,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 7.057124335482603e-06,
+     "speed": 0.9806841519679027,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 8.426727632030791e-05,
+     "speed": 0.994207491729666,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.9743385634679647,
+     "speed": 0.993182395511681,
+     "propagating": true
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.024923800422624546,
+     "speed": 0.9932241360704611,
+     "propagating": true
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.000556433197276135,
+     "speed": 0.9882320812153608,
+     "propagating": false
+    }
+   },
+   "flat": {
+    "plus  (xx-yy)": {
+     "energy_frac": 8.321069564010803e-05,
+     "speed": 4.176380330017893e-05,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 6.675851271248994e-07,
+     "speed": NaN,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 9.965963159047011e-05,
+     "speed": 3.801847143906783e-08,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.9748518573179457,
+     "speed": 3.780118847000624e-08,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.02491173952032953,
+     "speed": 3.1632733536049605e-08,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 5.2865249367074044e-05,
+     "speed": 1.305304436086439,
+     "propagating": false
+    }
+   },
+   "standing": {
+    "plus  (xx-yy)": {
+     "energy_frac": 0.029826620017587322,
+     "speed": 0.05487776797762689,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 0.029704933981406088,
+     "speed": -0.1813692966982621,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 0.0008464193290203181,
+     "speed": -0.011523704499300735,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.9080500187241705,
+     "speed": 0.02565547108090638,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.02739780694231963,
+     "speed": 0.006553866398670908,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.004174201005496149,
+     "speed": -0.008714262268599303,
+     "propagating": false
+    }
+   }
+  },
+  "propagating_channels": {
+   "long (zz)": 0.9931814502649254,
+   "mixed (xz)": 0.9932231907839796
+  },
+  "n_propagating_dof": 2,
+  "tt_channels_propagating": [],
+  "non_tt_channels_propagating": [
+   "long (zz)",
+   "mixed (xz)"
+  ],
+  "tt_speed_over_c": NaN,
+  "causal_leak_fraction": 0.0,
+  "tt_fraction_of_spatial_h": 9.640376366654845e-05,
+  "pass": false
+ },
+ "judge2": {
+  "rms_radius_start": 5.196152418510473,
+  "rms_radius_end": 8.278545151826203,
+  "dispersal_rate_cells_per_step": 0.15411963666578649,
+  "walker_norm_drift": 2.6756374893466273e-14,
+  "h00_over_phi_median": 0.00022084477969914107,
+  "h00_over_phi_cv": 51.768310816277165,
+  "invr_fit_corr": 0.9885907356893886,
+  "h00_tail_fraction": 0.8271047174145214,
+  "hxx_over_h00_center": 1.0,
+  "hyy_over_h00_center": -0.055674287196357856,
+  "pass": false
+ },
+ "judge3": {
+  "ratio_ray_x": 1.8525411484901773,
+  "ratio_ray_y": 1.0827066352200818,
+  "anisotropy": 0.7698345132700954,
+  "pass": false
+ },
+ "diagnosis": [
+  "SPIN-MOMENTUM LOCKING KILLS PROPAGATING HELICITY-2 (Weyl pair): the two co-moving branch spinors have s3 = (0.994, 0.994) -- BOTH spin-up along the walk axis; a spin-down right-mover does not exist, so the co-moving up,up/down,down coherence that the TT bilinears need is impossible (transverse coherence^2 = 1.28e-02). h_+ exists only as a STANDING wave (see 'standing' drive). This is the lattice image of 'collinear massless 1/2+1/2 maxes at helicity 1'. ESCAPE MEASURED: chirality-doubled (Dirac, 16-comp) pair probe -> TT energy frac 0.987 at v_env/c=0.993, v_ph/c=1.004 (escape_works=True): the obstruction is representation-level, not fundamental.",
+  "DOF COUNT WRONG: non-TT channels ['long (zz)', 'mixed (xz)'] carry propagating energy. Root cause: the bilinear map conflates FIELD and SOURCE -- a single-band walker packet puts its own density rho into h00/hzz (and it advects at c), so longitudinal components propagate. In FP those are constrained (non-radiative). Missing structure: a constraint sector separating T_munu-like bilinears from radiative coherences.",
+  "GAUGE MODES NOT DECOUPLED: de-Donder residual |D^mu hbar_munu| ~ 2.83 of generic (decorrelated baseline 1.84). Root cause: the advected matter envelope in h00/hzz has no compensating h_{0i} current at the right calibration -- the naive sym(sigma x sigma) bilinear is NOT the walk's conserved lattice current (for negative-frequency components it even has the wrong sign), so the measured h fails lattice transversality at O(1).",
+  "NEWTONIAN SECTOR ABSENT: h00 around a static walker blob has no 1/r tail (invr corr 0.989, tail fraction 0.827, h00/phi cv 51.77). Root cause: a FREE local unitary walk has no gapless k^-2 response; the constraint (Poisson) part of FP is not a propagating mode and cannot be a bilinear of a free field. Requires matter->geometry feedback (the engine.py theta-loop, promoted to tensor: h sourced BY the bilinears, i.e. bilinear = T_munu, not h_munu).",
+  "DEFLECTION/ISOTROPY WRONG: ray-x ratio 1.853, ray-y ratio 1.083 (target 2.000 both). Root cause: the spatial part h_ij ~ <sigma_i><sigma_j> rho is set by the INTERNAL polarization of the blob, not by trace-reversed gravity (h_ij = 2 phi delta_ij); rotational covariance is broken by the internal state."
+ ],
+ "all_pass": false
+}

@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campaign Console — Projective Rule-Space</title>
+<style>
+  :root{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6;      /* light / geometry */
+    --matter:#e7a24e;      /* mass / energy   */
+    --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --mono:"SF Mono","JetBrains Mono","Fira Code",ui-monospace,Menlo,Consolas,monospace;
+    --maxw:1180px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+      --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+      --metric:#0f9a8d; --matter:#c1741f;
+      --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6; --matter:#e7a24e; --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+  }
+  :root[data-theme="light"]{
+    --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+    --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+    --metric:#0f9a8d; --matter:#c1741f; --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--ground);color:var(--ink);
+    font-family:var(--serif);font-size:16px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  h1,h2,h3{font-weight:600;letter-spacing:-.01em;line-height:1.15;margin:0}
+  .mono{font-family:var(--mono)}
+  .tnum{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  button{font-family:var(--mono)}
+  a{color:var(--metric)}
+
+  /* ---------- top bar ---------- */
+  header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .bar-inner{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 22px;max-width:var(--maxw);margin:0 auto}
+  .brand{display:flex;flex-direction:column;gap:2px}
+  .brand h1{font-size:19px;letter-spacing:-.02em}
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .spacer{flex:1}
+
+  /* status badge */
+  .badge{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.1em;text-transform:uppercase;font-weight:600;padding:7px 13px;border-radius:3px;
+    border:1px solid transparent}
+  .badge .dot{width:9px;height:9px;border-radius:50%;flex:none;background:currentColor}
+  .badge.running{color:var(--metric);border-color:color-mix(in srgb,var(--metric) 45%,transparent);
+    background:color-mix(in srgb,var(--metric) 12%,transparent)}
+  .badge.running .dot{animation:pulse 1.3s ease-in-out infinite}
+  .badge.paused{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);
+    background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .badge.stopped,.badge.idle{color:var(--muted);border-color:color-mix(in srgb,var(--muted) 40%,transparent);
+    background:color-mix(in srgb,var(--muted) 10%,transparent)}
+  .badge.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);
+    background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .badge.offline{color:var(--ceil);border-color:color-mix(in srgb,var(--ceil) 50%,transparent);
+    background:color-mix(in srgb,var(--ceil) 12%,transparent)}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+  @media (prefers-reduced-motion: reduce){.badge.running .dot{animation:none}}
+
+  .tbtn{background:transparent;color:var(--ink-dim);border:1px solid var(--line);border-radius:3px;
+    font-size:12px;padding:7px 11px;cursor:pointer;letter-spacing:.04em}
+  .tbtn:hover{color:var(--ink);border-color:var(--metric)}
+  .tbtn:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+
+  /* ---------- liveness strip ---------- */
+  .liveness{display:none;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--warn) 9%,var(--panel))}
+  .liveness.show{display:block}
+  .liveness.err{background:color-mix(in srgb,var(--ceil) 10%,var(--panel))}
+  .liveness-inner{max-width:var(--maxw);margin:0 auto;padding:12px 22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .liveness .msg{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim)}
+  .liveness .msg b{color:var(--warn);font-weight:600}
+  .liveness.err .msg b{color:var(--ceil)}
+  .copyfield{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--panel-2)}
+  .copyfield code{font-family:var(--mono);font-size:12px;color:var(--ink);padding:7px 11px;white-space:nowrap}
+  .copyfield button{border:0;border-left:1px solid var(--line);background:transparent;color:var(--metric);
+    font-size:11px;padding:0 12px;cursor:pointer;letter-spacing:.06em}
+  .copyfield button:hover{background:color-mix(in srgb,var(--metric) 14%,transparent)}
+  .copyfield button:focus-visible{outline:2px solid var(--metric);outline-offset:-2px}
+
+  /* ---------- layout ---------- */
+  main{padding:24px 0 64px}
+  .cols{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:start}
+  @media(max-width:940px){.cols{grid-template-columns:1fr}}
+  .stack{display:flex;flex-direction:column;gap:22px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:18px 20px}
+  .card > h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin-bottom:16px;display:flex;align-items:baseline;gap:10px}
+  .card > h2 .hint{font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--muted);font-weight:400;font-family:var(--mono)}
+
+  /* headline counters */
+  .counters{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:560px){.counters{grid-template-columns:repeat(2,1fr)}}
+  .metric .v{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:600;letter-spacing:-.02em;
+    color:var(--metric);display:block;font-variant-numeric:tabular-nums;line-height:1.1}
+  .metric .v.matter{color:var(--matter)}
+  .metric .v.ink{color:var(--ink)}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .ckpt{display:flex;align-items:center;gap:9px;margin-top:16px;font-family:var(--mono);font-size:12px;
+    color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:9px 13px}
+  .ckpt .ck-ico{color:var(--ok);font-size:11px}
+  .ckpt b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .ckpt .safe{color:var(--ok)}
+
+  .prog{margin-top:16px}
+  .prog .track{height:8px;border-radius:5px;background:var(--panel-2);overflow:hidden;border:1px solid var(--line)}
+  .prog .track > span{display:block;height:100%;background:linear-gradient(90deg,var(--metric),color-mix(in srgb,var(--metric) 55%,var(--matter)));
+    width:0;transition:width .5s ease}
+  .prog .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:7px}
+  .prog .lab .tnum{color:var(--ink-dim)}
+
+  /* funnel */
+  .funnel{display:flex;flex-direction:column;gap:11px}
+  .frow{display:grid;grid-template-columns:130px 1fr;gap:12px;align-items:center}
+  .frow .fl{font-family:var(--mono);font-size:12px;color:var(--ink-dim)}
+  .frow .fl small{display:block;color:var(--muted);font-size:10.5px}
+  .fbar{height:26px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line);position:relative;overflow:hidden}
+  .fbar > span{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transition:width .5s ease}
+  .fbar .fv{position:absolute;right:9px;top:0;bottom:0;display:flex;align-items:center;
+    font-family:var(--mono);font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums;z-index:2}
+  .fbar.s > span{background:linear-gradient(90deg,color-mix(in srgb,var(--metric) 70%,transparent),color-mix(in srgb,var(--metric) 40%,transparent))}
+  .fbar.j > span{background:linear-gradient(90deg,color-mix(in srgb,var(--open) 70%,transparent),color-mix(in srgb,var(--open) 40%,transparent))}
+  .fbar.l > span{background:linear-gradient(90deg,color-mix(in srgb,var(--matter) 75%,transparent),color-mix(in srgb,var(--matter) 45%,transparent))}
+
+  /* plots */
+  .plots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.plots{grid-template-columns:1fr}}
+  .plotbox .cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .plotbox .cap .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .plotbox .cap .n{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+  canvas.plot{width:100%;height:64px;display:block;border-radius:3px}
+
+  /* manifold */
+  .mhead{display:grid;grid-template-columns:150px 1fr 1fr;gap:12px;align-items:center;margin-bottom:6px}
+  .mhead div{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .mhead .ml{color:var(--metric)}
+  .op{display:grid;grid-template-columns:150px 1fr 1fr;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .op:last-child{border-bottom:0}
+  .op .nm{font-family:var(--mono);font-size:13px}
+  .op .nm small{display:block;color:var(--muted);font-size:10.5px}
+  .mbar{height:15px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden;border:1px solid var(--line)}
+  .mbar > span{position:absolute;left:0;top:0;bottom:0;transition:width .5s ease}
+  .mbar > span.pos{background:color-mix(in srgb,var(--metric) 55%,transparent)}
+  .mbar > span.neg{background:color-mix(in srgb,var(--ceil) 55%,transparent)}
+  .mbar .pv{position:absolute;right:6px;top:0;bottom:0;display:flex;align-items:center;font-family:var(--mono);
+    font-size:10.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;z-index:2}
+  .op.dead .nm,.op.dead .mbar .pv{color:var(--muted)}
+  .mbar > span.mbl.pos{background:color-mix(in srgb,var(--matter) 60%,transparent)}
+  .mlegend{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:12px;display:flex;gap:16px;flex-wrap:wrap}
+  .mlegend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+  /* best rule */
+  .formula{font-family:var(--mono);background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    padding:14px 16px;font-size:13px;overflow-x:auto;line-height:1.7;color:var(--ink)}
+  .formula em{color:var(--metric);font-style:normal}
+  .formula b{color:var(--matter);font-weight:600}
+  .coefgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:4px;overflow:hidden;margin-top:14px}
+  @media(max-width:560px){.coefgrid{grid-template-columns:repeat(2,1fr)}}
+  .coef{background:var(--panel);padding:9px 11px}
+  .coef .cn{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .coef .cv{font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums;color:var(--ink);margin-top:2px}
+  .coef.on .cv{color:var(--metric)}
+  .coef.on.mat .cv{color:var(--matter)}
+  .bestmeta{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .bestmeta b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+  /* controls */
+  .ctlrow{display:flex;gap:10px;flex-wrap:wrap}
+  .ctl{flex:1;min-width:110px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:4px;
+    font-size:13px;letter-spacing:.03em;padding:12px 10px;cursor:pointer;transition:.15s}
+  .ctl:hover{border-color:var(--metric);color:var(--metric)}
+  .ctl.stop:hover{border-color:var(--ceil);color:var(--ceil)}
+  .ctl:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+  .ctl:disabled{opacity:.45;cursor:not-allowed}
+  .ctl .g{font-size:15px}
+  .ctlnote{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6;
+    border-top:1px dashed var(--line);padding-top:12px}
+  .ctlecho{font-family:var(--mono);font-size:11.5px;margin-top:10px;min-height:1.2em;color:var(--ink-dim)}
+  .ctlecho.ok{color:var(--ok)} .ctlecho.bad{color:var(--ceil)}
+  .hint.live{color:var(--ok)} .hint.dead{color:var(--muted)}
+  .startbox{margin-top:14px;border-top:1px dashed var(--line);padding-top:13px}
+  .sb-lab{font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);margin-bottom:8px}
+  .sb-lab b{color:var(--ink);font-weight:600}
+
+  /* simulation */
+  .simcard{padding:0;overflow:hidden;position:relative}
+  .simhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:16px 20px 12px}
+  .simhead h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .simhead .rl{font-family:var(--mono);font-size:11px;color:var(--metric);letter-spacing:.02em}
+  .simhead .rl.demo{color:var(--warn)}
+  .simhead .siminfo{font-family:var(--mono);font-size:10.5px;color:var(--muted);flex-basis:100%;margin-top:2px}
+  .ctl:disabled{opacity:.4;cursor:not-allowed;border-color:var(--line);color:var(--muted)}
+  .simwrap{position:relative;aspect-ratio:1/1;width:100%;background:#05070a}
+  #simcanvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:auto}
+  .simfoot{padding:11px 20px 16px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center}
+  .simfoot .rampbar{height:9px;flex:1;min-width:150px;border-radius:5px;
+    background:linear-gradient(90deg,#28206b,#2f6f8f,#45d4c6,#dbeff0)}
+  .simfoot .lab{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .simctls{display:flex;gap:8px}
+  .minibtn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:3px;
+    font-size:11px;padding:6px 10px;cursor:pointer;letter-spacing:.04em}
+  .minibtn:hover{color:var(--metric);border-color:var(--metric)}
+  .minibtn:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+
+  .simoverlay{position:absolute;inset:0;display:none;flex-direction:column;gap:10px;padding:22px;
+    background:color-mix(in srgb,#05070a 88%,transparent);color:var(--ink);z-index:5;overflow:auto}
+  .simoverlay.show{display:flex}
+  .simoverlay h3{font-family:var(--mono);font-size:13px;color:var(--ceil);letter-spacing:.06em}
+  .simoverlay pre{font-family:var(--mono);font-size:11px;color:var(--ink-dim);white-space:pre-wrap;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:12px;margin:0}
+  .simoverlay.info h3{color:var(--warn)}
+
+  footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted)}
+  .foot-inner{max-width:var(--maxw);margin:0 auto;padding:0 22px;font-family:var(--mono);font-size:11.5px;
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .live-dotwrap{display:inline-flex;align-items:center;gap:7px}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .live-dot.on{background:var(--ok)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <div class="brand">
+      <h1>Campaign Console</h1>
+      <div class="sub">projective rule-space · coin-field selection</div>
+    </div>
+    <div class="spacer"></div>
+    <div id="badge" class="badge idle"><span class="dot"></span><span id="badgeText">idle</span></div>
+    <button id="themeBtn" class="tbtn" aria-label="Toggle color theme">◐ theme</button>
+  </div>
+</header>
+
+<div id="liveness" class="liveness" role="status" aria-live="polite">
+  <div class="liveness-inner">
+    <div class="msg" id="livenessMsg"></div>
+    <div class="copyfield">
+      <code id="cmdText">nohup python campaign_runner.py run &amp;</code>
+      <button id="copyCmd" type="button">copy</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="cols">
+    <!-- LEFT COLUMN -->
+    <div class="stack">
+      <!-- headline -->
+      <section class="card" aria-label="Live campaign metrics">
+        <h2>Live Metrics <span class="hint" id="updHint">—</span></h2>
+        <div class="counters">
+          <div class="metric"><span class="v" id="cRules">—</span><span class="k">rules screened</span></div>
+          <div class="metric"><span class="v ink" id="cRate">—</span><span class="k">throughput · rules/s</span></div>
+          <div class="metric"><span class="v ink" id="cWall">—</span><span class="k">wall time</span></div>
+        </div>
+        <div class="ckpt" id="ckptChip" title="The runner writes an atomic checkpoint every batch. You can Stop and Resume from here at any time — progress is never lost.">
+          <span class="ck-ico">◆</span><span id="ckptText">no checkpoint yet</span>
+        </div>
+        <div class="prog" id="progWrap" style="display:none">
+          <div class="track"><span id="progBar"></span></div>
+          <div class="lab">
+            <span>progress · <span class="tnum" id="progPct">0%</span> of <span class="tnum" id="progTarget">—</span></span>
+            <span>ETA <span class="tnum" id="progEta">—</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SIMULATION -->
+      <section class="card simcard" aria-label="Live field simulation">
+        <div class="simhead">
+          <h2>Live Field θ(x,y)</h2>
+          <span class="rl" id="simRule">demo rule</span>
+          <span class="siminfo">coefficients a0…a5 applied <b>verbatim</b> from the rule shown — no added damping, restoring or drive terms · activity comes from the matter lumps themselves drifting on slow orbits (ρ̄ is their analytic mean) · cells that hit the θ clamp are tinted rose and counted below</span>
+        </div>
+        <div class="simwrap">
+          <canvas id="simcanvas"></canvas>
+          <div class="simoverlay" id="simOverlay">
+            <h3 id="simOvTitle">shader error</h3>
+            <pre id="simOvBody"></pre>
+          </div>
+        </div>
+        <div class="simfoot">
+          <div style="flex:1;min-width:170px">
+            <div class="rampbar" aria-hidden="true"></div>
+            <div class="lab"><span>c = cos θ — slow / gravity well</span><span>fast / vacuum</span></div>
+          </div>
+          <div class="lab" style="display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--muted)">
+            <span class="sw" style="background:#eb5a6b"></span>
+            <span>clamped · <b id="clampPct" class="tnum" style="color:var(--ink)">—</b></span>
+          </div>
+          <div class="simctls">
+            <button class="minibtn" id="reseedBtn" type="button">↻ reseed</button>
+            <button class="minibtn" id="simToggle" type="button">⏸ pause</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- plots -->
+      <section class="card" aria-label="Throughput and progress history">
+        <h2>History <span class="hint">last <span id="histN">0</span> checkpoints</span></h2>
+        <div class="plots">
+          <div class="plotbox">
+            <div class="cap"><span class="t">throughput</span><span class="n tnum" id="spkRate">—</span></div>
+            <canvas class="plot" id="plotRate" width="400" height="64"></canvas>
+          </div>
+          <div class="plotbox">
+            <div class="cap"><span class="t">rules cumulative</span><span class="n tnum" id="spkRules">—</span></div>
+            <canvas class="plot" id="plotRules" width="400" height="64"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="stack">
+      <!-- controls -->
+      <section class="card" aria-label="Runner controls">
+        <h2>Steer the Runner <span class="hint dead" id="procTag">○ no live process</span></h2>
+        <div class="ctlrow">
+          <button class="ctl" id="btnRun" type="button"><span class="g">▶</span> Resume</button>
+          <button class="ctl" id="btnPause" type="button"><span class="g">⏸</span> Pause</button>
+          <button class="ctl stop" id="btnStop" type="button"><span class="g">⏹</span> Stop</button>
+        </div>
+        <div class="ctlecho" id="ctlEcho" aria-live="polite"></div>
+        <div class="startbox">
+          <div class="sb-lab" id="sbLab">Start the run (also how you resume after a Stop):</div>
+          <div class="copyfield">
+            <code id="startCmd">nohup python campaign_runner.py run --full &amp;</code>
+            <button id="copyStart" type="button">copy</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- funnel -->
+      <section class="card" aria-label="Judge funnel">
+        <h2>Judge Funnel <span class="hint">screen → lawful</span></h2>
+        <div class="funnel">
+          <div class="frow">
+            <div class="fl">stable<small>survives evolution</small></div>
+            <div class="fbar s"><span id="fbS"></span><span class="fv" id="fvS">—</span></div>
+          </div>
+          <div class="frow">
+            <div class="fl">J1 &amp; J3<small>conserved + causal</small></div>
+            <div class="fbar j"><span id="fbJ"></span><span class="fv" id="fvJ">—</span></div>
+          </div>
+          <div class="frow">
+            <div class="fl">lawful<small>equivalence principle</small></div>
+            <div class="fbar l"><span id="fbL"></span><span class="fv" id="fvL">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- manifold -->
+      <section class="card" aria-label="Operator manifold">
+        <h2>Operator Manifold <span class="hint">active %</span></h2>
+        <div class="mhead"><div>operator</div><div>stable set</div><div class="ml">lawful set</div></div>
+        <div id="manifold"></div>
+        <div class="mlegend">
+          <span><span class="sw" style="background:color-mix(in srgb,var(--metric) 55%,transparent)"></span> positive entry</span>
+          <span><span class="sw" style="background:color-mix(in srgb,var(--ceil) 55%,transparent)"></span> negative entry</span>
+          <span><span class="sw" style="background:color-mix(in srgb,var(--matter) 60%,transparent)"></span> lawful bar</span>
+        </div>
+      </section>
+
+      <!-- best rule -->
+      <section class="card" aria-label="Best lawful rule">
+        <h2>Best Lawful Rule</h2>
+        <div class="formula" id="bestFormula">awaiting first lawful hit…</div>
+        <div class="coefgrid" id="coefGrid"></div>
+        <div class="bestmeta">
+          <span>univ_dist <b id="bUniv">—</b></span>
+          <span>r² <b id="bR2">—</b></span>
+          <span>found@ <b id="bFound">—</b> rules</span>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <span>Campaign Console · <span class="mono">/api/state</span> @ 1 Hz · GPGPU field θ in WebGL2</span>
+    <span class="live-dotwrap"><span class="live-dot" id="footDot"></span><span id="footStat">connecting…</span></span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+//============================================================================
+// Operator metadata (order == coeffs[] order)
+//============================================================================
+var OPS = [
+  { key:"Lap",      label:"∇²θ",    sub:"stiffness", matter:false },
+  { key:"(grad)^2", label:"(∇θ)²",  sub:"nonlinear", matter:false },
+  { key:"rho",      label:"ρ",      sub:"matter",    matter:true  },
+  { key:"J",        label:"J",      sub:"momentum",  matter:true  },
+  { key:"th-ref",   label:"θ−θ₀",   sub:"restoring", matter:false },
+  { key:"damp",     label:"damping",sub:"friction",  matter:false }
+];
+var $ = function(id){ return document.getElementById(id); };
+var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+//============================================================================
+// Theme toggle
+//============================================================================
+(function(){
+  try {
+    var saved = localStorage.getItem("cc-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  } catch(e){}
+  $("themeBtn").addEventListener("click", function(){
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var next = cur === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("cc-theme", next); } catch(e){}
+    // canvas sparklines bake CSS colors at draw time — repaint with the new theme
+    // immediately (also covers the offline case where poll() no longer re-renders)
+    if (lastState) render(lastState);
+  });
+})();
+
+//============================================================================
+// Formatters
+//============================================================================
+function fmtInt(n){
+  if (n == null || isNaN(n)) return "—";
+  return Math.round(n).toLocaleString("en-US");
+}
+function fmtRate(n){
+  if (n == null || isNaN(n)) return "—";
+  if (n >= 1000) return (n/1000).toFixed(1) + "k";
+  return Math.round(n).toString();
+}
+function fmtClock(sec){
+  if (sec == null || isNaN(sec)) return "—";
+  sec = Math.max(0, Math.floor(sec));
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  var p = function(x){ return (x<10?"0":"")+x; };
+  return h + ":" + p(m) + ":" + p(s);
+}
+function fmtCoef(x){
+  if (x === 0) return "0";
+  var a = Math.abs(x);
+  if (a >= 0.01) return x.toFixed(4);
+  if (a >= 0.0001) return x.toFixed(5);
+  return x.toExponential(2);
+}
+
+//============================================================================
+// Polling loop
+//============================================================================
+var lastState = null;
+var offline = false;
+
+function setBadge(status, offlineFlag, notLive){
+  var b = $("badge"), t = $("badgeText");
+  b.className = "badge " + (offlineFlag ? "offline" : (status || "idle"));
+  if (offlineFlag) { t.textContent = "server offline"; return; }
+  var txt = status || "idle";
+  if (notLive && status === "running") txt = "running · stale";
+  t.textContent = txt;
+}
+
+function showLiveness(mode, msg){
+  var el = $("liveness"), copy = el.querySelector(".copyfield"), cmd = $("cmdText");
+  if (mode === "none"){ el.className = "liveness"; return; }
+  el.className = "liveness show" + (mode === "err" ? " err" : "");
+  $("livenessMsg").innerHTML = msg;
+  if (mode === "err"){
+    cmd.textContent = "python campaign_server.py";
+    copy.style.display = "";
+  } else {
+    cmd.textContent = "nohup python campaign_runner.py run &";
+    copy.style.display = "";
+  }
+}
+
+$("copyCmd").addEventListener("click", function(){
+  var txt = $("cmdText").textContent;
+  var done = function(){ var b = $("copyCmd"); b.textContent = "copied"; setTimeout(function(){ b.textContent="copy"; }, 1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); done(); });
+  } else { fallbackCopy(txt); done(); }
+});
+function fallbackCopy(txt){
+  try {
+    var ta = document.createElement("textarea");
+    ta.value = txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch(e){}
+}
+
+async function poll(){
+  try {
+    var r = await fetch("/api/state", { cache:"no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    var st = await r.json();
+    offline = false;
+    lastState = st;
+    render(st);
+    $("footDot").classList.add("on");
+    $("footStat").textContent = "connected · /api/state";
+  } catch(e){
+    offline = true;
+    setBadge(null, true, false);
+    showLiveness("err", "<b>server offline</b> — start it with");
+    updateControls(false, lastState);
+    $("footDot").classList.remove("on");
+    $("footStat").textContent = "offline";
+    $("updHint").textContent = "no server";
+  }
+}
+
+//============================================================================
+// Render state
+//============================================================================
+function render(st){
+  var now = Date.now()/1000;
+  var stale = st.updated_at ? (now - st.updated_at) : Infinity;
+  var running = st.status === "running";
+  var notLive = running && stale > 4;
+
+  setBadge(st.status, false, notLive);
+
+  // liveness strip
+  if (notLive){
+    showLiveness("warn", "<b>runner not live</b> — state is " + Math.round(stale) +
+      "s stale though status is “running”. Start a runner with");
+  } else {
+    showLiveness("none");
+  }
+
+  // runner process liveness -> control affordances (your start / stop / resume flow)
+  updateControls((st.status === "running" || st.status === "paused") && stale < 4, st);
+
+  // update hint
+  if (st.updated_at){
+    $("updHint").textContent = "updated " + (stale < 2 ? "just now" : Math.round(stale) + "s ago");
+  } else $("updHint").textContent = "—";
+
+  // counters
+  $("cRules").textContent = fmtInt(st.rules_done);
+  $("cRate").textContent  = (st.rate!=null && !isNaN(st.rate)) ? fmtRate(st.rate) : "—";
+  $("cWall").textContent  = fmtClock(st.wall_seconds);
+
+  // checkpoint reassurance (you can stop/resume from here anytime)
+  var ck = $("ckptText");
+  if (st.batches_done){
+    ck.innerHTML = "checkpoint <b>#" + fmtInt(st.batches_done) + "</b> · " +
+      fmtInt(st.rules_done) + " rules saved " + (stale < 2 ? "just now" : Math.round(stale) + "s ago") +
+      " · <span class='safe'>resumable ✓</span>";
+  } else {
+    ck.textContent = "no checkpoint yet";
+  }
+
+  // progress + ETA
+  if (st.target && st.target > 0){
+    $("progWrap").style.display = "";
+    var frac = Math.min(1, (st.rules_done||0) / st.target);
+    $("progBar").style.width = (frac*100).toFixed(2) + "%";
+    $("progPct").textContent = (frac*100).toFixed(1) + "%";
+    $("progTarget").textContent = fmtInt(st.target);
+    var remain = st.target - (st.rules_done||0);
+    if (running && st.rate && st.rate > 0 && remain > 0){
+      $("progEta").textContent = fmtClock(remain / st.rate);
+    } else if (remain <= 0){
+      $("progEta").textContent = "complete";
+    } else {
+      $("progEta").textContent = "—";
+    }
+  } else {
+    $("progWrap").style.display = "none";
+  }
+
+  // funnel
+  renderFunnel(st);
+  // manifold
+  renderManifold(st);
+  // best rule
+  renderBest(st);
+  // history plots
+  renderPlots(st.history || []);
+
+  // feed sim
+  updateSimRule(st.best);
+}
+
+// runner-process state -> what's actionable, and always-visible start/resume command
+function updateControls(live, st){
+  var tag = $("procTag"), lab = $("sbLab");
+  tag.className = "hint " + (live ? "live" : "dead");
+  tag.textContent = live ? "● live process" : "○ no live process";
+  var status = st ? st.status : null;
+  $("btnRun").disabled   = !(live && status === "paused");
+  $("btnPause").disabled = !(live && status === "running");
+  $("btnStop").disabled  = !live;
+  if (live){
+    lab.innerHTML = status === "paused"
+      ? "Runner is <b>live &amp; paused</b> — press Resume above."
+      : "Runner is <b>live</b> — steer it with the buttons above.";
+  } else {
+    lab.innerHTML = (st && st.batches_done)
+      ? "No live runner. <b>Resume from checkpoint #" + fmtInt(st.batches_done) + "</b> — same command:"
+      : "Start the run (this same command resumes after a Stop):";
+  }
+}
+
+function renderFunnel(st){
+  var rules = st.rules_done || 0;
+  var stable = st.stable || 0, j = st.j1j3 || 0, l = st.lawful || 0;
+  var pS = st.stable_pct != null ? st.stable_pct : (rules? stable/rules*100 : 0);
+  var pJ = rules ? j/rules*100 : 0;
+  var pL = st.lawful_pct != null ? st.lawful_pct : (rules? l/rules*100 : 0);
+  // prefer the ENDURANCE-verified lawful (T=2000 re-judge) as the honest number;
+  // ~30% of the raw T=400 lawful are slow-runaway false positives.
+  var endOn = st.lawful_endured != null;
+  var lE = endOn ? st.lawful_endured : l;
+  var pLE = endOn ? (st.lawful_endured_pct != null ? st.lawful_endured_pct : pL) : pL;
+  $("fbS").style.width = Math.min(100,pS) + "%";
+  $("fbJ").style.width = Math.min(100,pJ) + "%";
+  $("fbL").style.width = Math.min(100,pLE) + "%";
+  $("fvS").textContent = pS.toFixed(1) + "%  ·  " + fmtInt(stable);
+  $("fvJ").textContent = pJ.toFixed(1) + "%  ·  " + fmtInt(j);
+  $("fvL").textContent = pLE.toFixed(2) + "%  ·  " + fmtInt(lE) +
+    (endOn ? "   (T=2000 耐力审; raw " + pL.toFixed(2) + "%)" : "");
+}
+
+function renderManifold(st){
+  var ms = st.manifold_stable || [], ml = st.manifold_lawful || [];
+  var root = $("manifold");
+  if (!root.childElementCount){
+    // build once
+    for (var i=0;i<OPS.length;i++){
+      var row = document.createElement("div");
+      row.className = "op";
+      row.innerHTML =
+        '<div class="nm">'+OPS[i].label+'<small>'+OPS[i].sub+'</small></div>'+
+        '<div class="mbar"><span class="mbs"></span><span class="pv spv"></span></div>'+
+        '<div class="mbar"><span class="mbl"></span><span class="pv lpv"></span></div>';
+      root.appendChild(row);
+    }
+  }
+  var rows = root.children;
+  for (var k=0;k<OPS.length;k++){
+    var row2 = rows[k];
+    var s = ms[k] || {active:0,pos:0}, la = ml[k] || {active:0,pos:0};
+    var sSpan = row2.querySelector(".mbs"), lSpan = row2.querySelector(".mbl");
+    sSpan.style.width = Math.min(100, s.active||0) + "%";
+    sSpan.className = "mbs " + ((s.pos||0) >= 50 ? "pos" : "neg");
+    lSpan.style.width = Math.min(100, la.active||0) + "%";
+    lSpan.className = "mbl pos";  // lawful bar uses matter color via .lawful-b
+    row2.querySelector(".spv").textContent = (s.active||0).toFixed(0)+"%";
+    row2.querySelector(".lpv").textContent = (la.active||0).toFixed(0)+"%";
+    if ((s.active||0) < 1 && (la.active||0) < 1) row2.classList.add("dead");
+    else row2.classList.remove("dead");
+  }
+}
+
+function renderBest(st){
+  var best = st.best;
+  var grid = $("coefGrid");
+  var coeffs = (best && best.coeffs) ? best.coeffs : [0,0,0,0,0,0];
+  // formula
+  if (best && best.coeffs){
+    $("bestFormula").innerHTML =
+      "θ<sub>t+1</sub> = 2θ − θ<sub>t−1</sub> "+
+      "+ <em>"+fmtCoef(coeffs[0])+"</em>·∇²θ "+
+      "+ <b>"+fmtCoef(coeffs[2])+"</b>·(ρ−ρ̄) "+
+      "+ "+fmtCoef(coeffs[4])+"·(θ−θ₀) "+
+      "+ "+fmtCoef(coeffs[5])+"·(θ−θ<sub>t−1</sub>)";
+  } else {
+    $("bestFormula").textContent = "awaiting first lawful hit…";
+  }
+  // coef grid
+  if (!grid.childElementCount){
+    for (var i=0;i<OPS.length;i++){
+      var c = document.createElement("div");
+      c.className = "coef";
+      c.innerHTML = '<div class="cn">a'+i+' · '+OPS[i].label+'</div><div class="cv"></div>';
+      grid.appendChild(c);
+    }
+  }
+  for (var j=0;j<OPS.length;j++){
+    var cell = grid.children[j];
+    var v = coeffs[j] || 0;
+    cell.querySelector(".cv").textContent = fmtCoef(v);
+    cell.className = "coef" + (Math.abs(v)>1e-9 ? " on" : "") + (OPS[j].matter?" mat":"");
+  }
+  $("bUniv").textContent  = (best && best.univ_dist!=null)
+    ? (best.univ_dist !== 0 && best.univ_dist < 1e-3 ? best.univ_dist.toExponential(2) : best.univ_dist.toFixed(4))
+    : "—";
+  $("bR2").textContent    = (best && best.r2!=null) ? best.r2.toFixed(4) : "—";
+  $("bFound").textContent = (best && best.found_at_rules!=null) ? fmtInt(best.found_at_rules) : "—";
+}
+
+//============================================================================
+// Sparkline plots
+//============================================================================
+function cssv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function renderPlots(hist){
+  $("histN").textContent = hist.length;
+  drawSpark($("plotRate"), hist.map(function(h){ return h.rate||0; }), cssv("--metric"), $("spkRate"), function(v){ return fmtRate(v)+"/s"; }, false);
+  drawSpark($("plotRules"), hist.map(function(h){ return h.rules||0; }), cssv("--matter"), $("spkRules"), function(v){ return fmtInt(v); }, true);
+}
+
+function drawSpark(cv, data, color, label, fmt, cumulative){
+  var ctx = cv.getContext("2d");
+  var W = cv.width, H = cv.height, pad = 3;
+  ctx.clearRect(0,0,W,H);
+  if (!data.length){ label.textContent = "—"; return; }
+  var mn = cumulative ? 0 : Math.min.apply(null, data);
+  var mx = Math.max.apply(null, data);
+  if (mx === mn) mx = mn + 1;
+  var n = data.length;
+  var xAt = function(i){ return pad + (n===1?0:(i/(n-1))*(W-2*pad)); };
+  var yAt = function(v){ return H-pad - ((v-mn)/(mx-mn))*(H-2*pad); };
+  // area fill
+  ctx.beginPath();
+  ctx.moveTo(xAt(0), H-pad);
+  for (var i=0;i<n;i++) ctx.lineTo(xAt(i), yAt(data[i]));
+  ctx.lineTo(xAt(n-1), H-pad);
+  ctx.closePath();
+  ctx.fillStyle = color + "22";
+  ctx.fill();
+  // line
+  ctx.beginPath();
+  for (var j=0;j<n;j++){ var x=xAt(j), y=yAt(data[j]); if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+  ctx.lineWidth = 1.6; ctx.strokeStyle = color; ctx.lineJoin="round"; ctx.stroke();
+  // last dot
+  ctx.beginPath();
+  ctx.arc(xAt(n-1), yAt(data[n-1]), 2.4, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.fill();
+  label.textContent = fmt(data[n-1]);
+}
+
+//============================================================================
+// Controls
+//============================================================================
+async function sendControl(cmd){
+  var echo = $("ctlEcho");
+  echo.className = "ctlecho";
+  echo.textContent = "sending “" + cmd + "”…";
+  try {
+    var r = await fetch("/api/control", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ command: cmd })
+    });
+    var j = await r.json();
+    if (r.ok && j.ok){
+      echo.className = "ctlecho ok";
+      echo.textContent = "✓ command “" + (j.command||cmd) + "” written. "+
+        (lastState && lastState.status==="running" ? "" : "Takes effect only if a runner process is alive.");
+    } else {
+      echo.className = "ctlecho bad";
+      echo.textContent = "✗ " + (j.error || ("HTTP " + r.status));
+    }
+  } catch(e){
+    echo.className = "ctlecho bad";
+    echo.textContent = "✗ failed to reach /api/control (server offline?)";
+  }
+}
+$("btnRun").addEventListener("click", function(){ sendControl("run"); });
+$("btnPause").addEventListener("click", function(){ sendControl("pause"); });
+$("btnStop").addEventListener("click", function(){ sendControl("stop"); });
+$("copyStart").addEventListener("click", function(){
+  var txt = $("startCmd").textContent, b = $("copyStart");
+  var done = function(){ b.textContent = "copied"; setTimeout(function(){ b.textContent = "copy"; }, 1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); done(); });
+  } else { fallbackCopy(txt); done(); }
+});
+
+//============================================================================
+// LIVE WebGL2 field simulation
+//============================================================================
+var GRID = 256;
+var THETA0 = 0.45;
+var DEMO_COEFFS = [0.15, 0.0, -0.01, 0.0, 0.0, 0.0];
+
+// Matter = Gaussian lumps that DRIFT on slow circular orbits. This is what keeps
+// the field alive: in the real system matter is a moving wave packet, so moving
+// rho is physical — bending the rule's coefficients is not. cx/cy = orbit centre,
+// orb = orbit radius, w = angular speed (per sim-time unit), s = width, a = peak
+// amplitude. Amplitudes are matched to the REAL campaign's matter scale (the
+// normalised walker packet peaks at rho ≈ 0.04): heavier lumps would drive an
+// undamped rule into near-total clamp saturation, which is initial-data choice,
+// not physics. Whatever clamping still occurs is measured and displayed.
+var LUMPS = [
+  { cx:0.34, cy:0.40, s:0.11, a:0.020, orb:0.070, w: 0.11, ph:0.0 },
+  { cx:0.68, cy:0.62, s:0.08, a:0.015, orb:0.055, w:-0.17, ph:2.1 },
+  { cx:0.55, cy:0.28, s:0.05, a:0.010, orb:0.090, w: 0.23, ph:4.0 }
+];
+// analytic mean of rho over the unit torus: total Gaussian mass / area.
+// independent of lump positions, hence a compile-time constant — exactly the
+// rho-bar the rule subtracts.
+var RHO_MEAN = LUMPS.reduce(function(m,L){ return m + L.a*2*Math.PI*L.s*L.s; }, 0);
+
+var sim = {
+  gl:null, ok:false, running:true,
+  cur:0, fbo:[null,null], tex:[null,null],
+  simProg:null, dispProg:null, quad:null,
+  target:DEMO_COEFFS.slice(), isDemo:true,
+  uSim:{}, uDisp:{}, frame:0, stepCount:0, simTime:0,
+  lumpBuf:new Float32Array(12), readBuf:null
+};
+
+var VERT = "#version 300 es\nin vec2 p;out vec2 uv;void main(){uv=p*0.5+0.5;gl_Position=vec4(p,0.0,1.0);}";
+
+// shared GLSL: rho evaluated analytically from the lump uniforms (torus metric),
+// so both passes see the identical matter field with zero texture churn.
+var RHO_GLSL =
+"uniform vec4 uLump[3];\n"+          // xy = centre, z = 1/(2 s^2), w = mass amplitude
+"float rhoAt(vec2 q){\n"+
+"  float v=0.0;\n"+
+"  for(int i=0;i<3;i++){\n"+
+"    vec2 d=q-uLump[i].xy;\n"+
+"    d-=floor(d+0.5);\n"+            // wrap: shortest displacement on the unit torus
+"    v+=uLump[i].w*exp(-dot(d,d)*uLump[i].z);\n"+
+"  }\n"+
+"  return v;\n"+
+"}\n";
+
+// FAITHFUL update: theta_{t+1} = 2 theta - theta_prev
+//   + a0*Lap + a1*(grad)^2 + a2*(rho - rho_bar) + a4*(theta - theta0) + a5*(theta - theta_prev)
+// with a0..a5 EXACTLY the rule's coefficients (a3 couples to the walker current J,
+// which has no counterpart in this 2D matter illustration; searched rules all have
+// a3 = 0, and the UI warns if one ever doesn't). The clamp to [0.08, 1.25] is the
+// same clamp the search applies (TH_MIN/TH_MAX); where it engages we RECORD it
+// (blue channel) and display it honestly instead of quietly altering the dynamics.
+var SIM_FS = "#version 300 es\nprecision highp float;\n"+
+"in vec2 uv;out vec4 o;\n"+
+"uniform sampler2D uState;\n"+
+"uniform vec2 uTexel;uniform float a0,a1,a2,a4,a5;uniform float uRhoMean,uTheta0;uniform float uStep;\n"+
+RHO_GLSL+
+"void main(){\n"+
+"  vec2 t=uTexel;\n"+
+"  float c=texture(uState,uv).r;\n"+
+"  float cp=texture(uState,uv).g;\n"+
+"  float l=texture(uState,uv+vec2(-t.x,0.)).r;\n"+
+"  float r=texture(uState,uv+vec2( t.x,0.)).r;\n"+
+"  float u=texture(uState,uv+vec2(0., t.y)).r;\n"+
+"  float d=texture(uState,uv+vec2(0.,-t.y)).r;\n"+
+"  float lap=(l+r+u+d-4.0*c);\n"+
+"  float gx=(r-l)*0.5, gy=(u-d)*0.5;\n"+
+"  float grad2=gx*gx+gy*gy;\n"+
+"  float rho=rhoAt(uv);\n"+
+"  float nx=2.0*c-cp + a0*lap + a1*grad2 + a2*(rho-uRhoMean) + a4*(c-uTheta0) + a5*(c-cp);\n"+
+"  float nc=clamp(nx,0.08,1.25);\n"+
+"  float cl=(abs(nc-nx)>1e-7)?1.0:0.0;\n"+   // honest flag: this cell hit the clamp
+"  // uStep: 1.0 advance, 0.0 hold (pause / reduced-motion stepping)\n"+
+"  float outc = mix(c, nc, uStep);\n"+
+"  float outp = mix(cp, c, uStep);\n"+
+"  float outcl = mix(texture(uState,uv).b, cl, uStep);\n"+
+"  o=vec4(outc,outp,outcl,1.0);\n"+
+"}";
+
+var DISP_FS = "#version 300 es\nprecision highp float;\n"+
+"in vec2 uv;out vec4 o;\n"+
+"uniform sampler2D uState;\n"+
+RHO_GLSL+
+"vec3 ramp(float x){\n"+
+"  x=clamp(x,0.0,1.0);\n"+
+"  vec3 indigo=vec3(0.157,0.125,0.420);\n"+
+"  vec3 teal=vec3(0.271,0.831,0.776);\n"+
+"  vec3 pale=vec3(0.858,0.937,0.945);\n"+
+"  if(x<0.5) return mix(indigo,teal,x*2.0);\n"+
+"  return mix(teal,pale,(x-0.5)*2.0);\n"+
+"}\n"+
+"uniform float uTheta0;\n"+
+"void main(){\n"+
+"  vec4 s=texture(uState,uv);\n"+
+"  float th=s.r;\n"+
+"  // display gain only (theta -> colour is monotone in c = cos theta);\n"+
+"  // the integrated dynamics above are untouched\n"+
+"  float x=0.5+(uTheta0-th)*4.0;\n"+
+"  vec3 col=ramp(clamp(x,0.0,1.0));\n"+
+"  float rho=rhoAt(uv);\n"+
+"  // thin amber marker where matter sits (scaled to the physical rho amplitude)\n"+
+"  col += vec3(0.35,0.22,0.06)*clamp((rho-0.006)*45.0,0.0,1.0);\n"+
+"  // clamped cells tinted rose — the legend explains this, nothing is hidden\n"+
+"  col = mix(col, vec3(0.922,0.353,0.420), 0.6*s.b);\n"+
+"  o=vec4(col,1.0);\n"+
+"}";
+
+function glErrorOverlay(title, body, info){
+  var ov = $("simOverlay");
+  ov.className = "simoverlay show" + (info ? " info" : "");
+  $("simOvTitle").textContent = title;
+  $("simOvBody").textContent = body;
+}
+function glClearOverlay(){ $("simOverlay").className = "simoverlay"; }
+
+function compile(gl, type, src){
+  var sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    var log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error("shader compile failed:\n" + log);
+  }
+  return sh;
+}
+function link(gl, vs, fs){
+  var p = gl.createProgram();
+  gl.attachShader(p, vs); gl.attachShader(p, fs);
+  gl.bindAttribLocation(p, 0, "p");
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)){
+    var log = gl.getProgramInfoLog(p);
+    throw new Error("program link failed:\n" + log);
+  }
+  return p;
+}
+
+// lump positions at sim-time t: slow circular drift around each orbit centre.
+// Written into sim.lumpBuf as 3x vec4 (cx, cy, 1/(2 s^2), mass) for uLump[3].
+function lumpData(t){
+  for (var i=0;i<3;i++){
+    var L = LUMPS[i], ang = L.w*t + L.ph;
+    sim.lumpBuf[i*4+0] = L.cx + L.orb*Math.cos(ang);
+    sim.lumpBuf[i*4+1] = L.cy + L.orb*Math.sin(ang);
+    sim.lumpBuf[i*4+2] = 1.0/(2.0*L.s*L.s);
+    sim.lumpBuf[i*4+3] = L.a;
+  }
+  return sim.lumpBuf;
+}
+
+function seedField(gl){
+  // theta = theta0 + small perturbation; both channels seeded
+  var N=GRID, arr=new Float32Array(N*N*4);
+  for (var y=0;y<N;y++){
+    for (var x=0;x<N;x++){
+      var fx=x/N, fy=y/N;
+      var pert = 0.02*Math.sin(fx*18.0)*Math.cos(fy*15.0)
+               + 0.015*(Math.random()-0.5);
+      var th = THETA0 + pert;
+      var idx=(y*N+x)*4;
+      arr[idx]=th; arr[idx+1]=th; arr[idx+2]=0; arr[idx+3]=1;
+    }
+  }
+  for (var t=0;t<2;t++){
+    gl.bindTexture(gl.TEXTURE_2D, sim.tex[t]);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,N,N,0,gl.RGBA,gl.FLOAT,arr);
+  }
+  sim.cur=0;
+}
+
+function makeStateTex(gl){
+  var tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,GRID,GRID,0,gl.RGBA,gl.FLOAT,null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  return tex;
+}
+
+function initSim(){
+  var canvas = $("simcanvas");
+  var gl = canvas.getContext("webgl2", { antialias:false, preserveDrawingBuffer:false });
+  if (!gl){
+    glErrorOverlay("WebGL2 unavailable", "This browser did not provide a WebGL2 context. The live field simulation needs WebGL2. Metrics and controls above still work.", true);
+    return;
+  }
+  sim.gl = gl;
+  var ext = gl.getExtension("EXT_color_buffer_float");
+  if (!ext){
+    glErrorOverlay("Float render targets unavailable",
+      "EXT_color_buffer_float is not supported here, so the field cannot be integrated on the GPU (needs float textures as render targets). The rest of the dashboard is unaffected.", true);
+    return;
+  }
+  try {
+    var vs = compile(gl, gl.VERTEX_SHADER, VERT);
+    var simfs = compile(gl, gl.FRAGMENT_SHADER, SIM_FS);
+    var dispfs = compile(gl, gl.FRAGMENT_SHADER, DISP_FS);
+    sim.simProg = link(gl, vs, simfs);
+    sim.dispProg = link(gl, vs, dispfs);
+  } catch(e){
+    glErrorOverlay("Shader error", String(e.message || e), false);
+    return;
+  }
+
+  // fullscreen quad
+  sim.quad = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sim.quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+  // textures + fbos
+  sim.tex[0] = makeStateTex(gl);
+  sim.tex[1] = makeStateTex(gl);
+  sim.fbo[0] = gl.createFramebuffer();
+  sim.fbo[1] = gl.createFramebuffer();
+  for (var i=0;i<2;i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sim.fbo[i]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sim.tex[i], 0);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  seedField(gl);
+  sim.readBuf = new Float32Array(GRID*GRID*4);   // clamp-rate readback buffer
+
+  // uniform locations
+  var S = sim.simProg;
+  sim.uSim = {
+    uState: gl.getUniformLocation(S,"uState"),
+    uTexel: gl.getUniformLocation(S,"uTexel"),
+    a0: gl.getUniformLocation(S,"a0"), a1: gl.getUniformLocation(S,"a1"),
+    a2: gl.getUniformLocation(S,"a2"), a4: gl.getUniformLocation(S,"a4"),
+    a5: gl.getUniformLocation(S,"a5"),
+    uRhoMean: gl.getUniformLocation(S,"uRhoMean"),
+    uTheta0: gl.getUniformLocation(S,"uTheta0"),
+    uStep: gl.getUniformLocation(S,"uStep"),
+    uLump: gl.getUniformLocation(S,"uLump[0]")
+  };
+  var D = sim.dispProg;
+  sim.uDisp = {
+    uState: gl.getUniformLocation(D,"uState"),
+    uLump: gl.getUniformLocation(D,"uLump[0]"),
+    uTheta0: gl.getUniformLocation(D,"uTheta0")
+  };
+
+  sim.ok = true;
+  glClearOverlay();
+  requestAnimationFrame(simLoop);
+}
+
+function bindQuad(gl){
+  gl.bindBuffer(gl.ARRAY_BUFFER, sim.quad);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+}
+
+function resizeCanvasToDisplay(gl){
+  var c = gl.canvas;
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  var w = Math.max(1, Math.round(c.clientWidth*dpr));
+  var h = Math.max(1, Math.round(c.clientHeight*dpr));
+  if (c.width!==w || c.height!==h){ c.width=w; c.height=h; }
+}
+
+// clamp saturation rate: fraction of cells whose last update hit the theta clamp.
+// Read back every 30 advanced steps — honest bookkeeping, shown next to the field.
+function measureClamp(gl){
+  try {
+    gl.readPixels(0, 0, GRID, GRID, gl.RGBA, gl.FLOAT, sim.readBuf);
+    var n = 0, tot = GRID*GRID;
+    for (var i=0;i<tot;i++){ if (sim.readBuf[i*4+2] > 0.5) n++; }
+    $("clampPct").textContent = (100*n/tot).toFixed(1) + "%";
+  } catch(e){ /* readback unsupported: leave the counter blank */ }
+}
+
+function simLoop(){
+  if (!sim.ok){ return; }
+  var gl = sim.gl;
+
+  // coefficients are applied VERBATIM (no smoothing): what integrates on the GPU
+  // is bit-for-bit the rule the panel claims to show.
+  var a = sim.target;
+
+  // stepping: reduced motion -> advance every ~6th frame; else every frame
+  sim.frame++;
+  var doStep = 1.0;
+  if (sim.running){
+    if (reduceMotion){ doStep = (sim.frame % 6 === 0) ? 1.0 : 0.0; }
+    else doStep = 1.0;
+  } else {
+    doStep = 0.0;
+  }
+
+  var lumps = lumpData(sim.simTime);
+
+  // --- simulation pass: read cur, write into (1-cur) ---
+  var src = sim.cur, dst = 1-sim.cur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sim.fbo[dst]);
+  gl.viewport(0,0,GRID,GRID);
+  gl.useProgram(sim.simProg);
+  bindQuad(gl);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.tex[src]);
+  gl.uniform1i(sim.uSim.uState, 0);
+  gl.uniform2f(sim.uSim.uTexel, 1/GRID, 1/GRID);
+  gl.uniform1f(sim.uSim.a0, a[0]);
+  gl.uniform1f(sim.uSim.a1, a[1]);
+  gl.uniform1f(sim.uSim.a2, a[2]);
+  gl.uniform1f(sim.uSim.a4, a[4]);
+  gl.uniform1f(sim.uSim.a5, a[5]);
+  gl.uniform1f(sim.uSim.uRhoMean, RHO_MEAN);
+  gl.uniform1f(sim.uSim.uTheta0, THETA0);
+  gl.uniform1f(sim.uSim.uStep, doStep);
+  gl.uniform4fv(sim.uSim.uLump, lumps);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  if (doStep > 0.5){
+    sim.cur = dst; sim.simTime += 0.03; sim.stepCount++;
+    if (sim.stepCount % 30 === 0) measureClamp(gl);   // fbo[dst] still bound
+  }
+
+  // --- display pass: render current state to canvas ---
+  resizeCanvasToDisplay(gl);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,gl.canvas.width, gl.canvas.height);
+  gl.useProgram(sim.dispProg);
+  bindQuad(gl);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.tex[sim.cur]);
+  gl.uniform1i(sim.uDisp.uState, 0);
+  gl.uniform4fv(sim.uDisp.uLump, lumps);
+  gl.uniform1f(sim.uDisp.uTheta0, THETA0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  requestAnimationFrame(simLoop);
+}
+
+// feed best.coeffs -> sim target
+function updateSimRule(best){
+  var lab = $("simRule");
+  if (best && best.coeffs && best.coeffs.length>=6){
+    var changed = false;
+    for (var i=0;i<6;i++){ if (Math.abs((best.coeffs[i]||0)-sim.target[i])>1e-9) changed = true; }
+    if (changed) sim.target = best.coeffs.map(function(x){ return x||0; });
+    sim.isDemo = false;
+    lab.className = "rl";
+    lab.textContent = "lawful rule · coefficients verbatim · a0="+fmtCoef(best.coeffs[0])+" a2="+fmtCoef(best.coeffs[2]);
+    if (Math.abs(best.coeffs[3]||0) > 1e-12){
+      // the only term this 2D matter illustration cannot represent
+      lab.textContent += " · ⚠ a3·J term not representable here";
+    }
+  } else {
+    if (!sim.isDemo){ sim.target = DEMO_COEFFS.slice(); }
+    sim.isDemo = true;
+    lab.className = "rl demo";
+    lab.textContent = "demo rule (awaiting first lawful hit)";
+  }
+}
+
+// sim controls
+$("simToggle").addEventListener("click", function(){
+  sim.running = !sim.running;
+  this.textContent = sim.running ? "⏸ pause" : "▶ play";
+});
+$("reseedBtn").addEventListener("click", function(){
+  if (sim.ok && sim.gl) seedField(sim.gl);
+});
+
+//============================================================================
+// Boot
+//============================================================================
+initSim();
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

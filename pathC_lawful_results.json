@@ -1,0 +1,106 @@
+{
+ "stable_manifold": {
+  "n_total": 100000,
+  "n_survivors": 70901,
+  "survival_rate": 0.70901,
+  "terms": {
+   "Lap": {
+    "active_pct": 90.5149433717437,
+    "median_abs": 0.05310617472129664,
+    "frac_positive": 1.0
+   },
+   "(grad)^2": {
+    "active_pct": 0.0,
+    "median_abs": 0.0,
+    "frac_positive": 0.0
+   },
+   "rho": {
+    "active_pct": 79.26122339600288,
+    "median_abs": 0.006875808753370983,
+    "frac_positive": 0.7283306938092781
+   },
+   "J": {
+    "active_pct": 0.0,
+    "median_abs": 0.0,
+    "frac_positive": 0.0
+   },
+   "th-ref": {
+    "active_pct": 79.55035895121367,
+    "median_abs": 0.003835115830147115,
+    "frac_positive": 0.0
+   },
+   "damp": {
+    "active_pct": 61.680371221844545,
+    "median_abs": 0.0108191420674822,
+    "frac_positive": 0.0
+   }
+  },
+  "funnel": {
+   "J3": 56197,
+   "J4": 5621,
+   "lawful": 5621
+  },
+  "seconds": 42.762667208
+ },
+ "lawful_manifold": {
+  "n_total": 100000,
+  "n_survivors": 5621,
+  "survival_rate": 0.05621,
+  "terms": {
+   "Lap": {
+    "active_pct": 99.98220957125066,
+    "median_abs": 0.1411958170648765,
+    "frac_positive": 1.0
+   },
+   "(grad)^2": {
+    "active_pct": 0.0,
+    "median_abs": 0.0,
+    "frac_positive": 0.0
+   },
+   "rho": {
+    "active_pct": 100.0,
+    "median_abs": 0.0027533546747039047,
+    "frac_positive": 0.7100160113858744
+   },
+   "J": {
+    "active_pct": 0.0,
+    "median_abs": 0.0,
+    "frac_positive": 0.0
+   },
+   "th-ref": {
+    "active_pct": 13.698630136986301,
+    "median_abs": 0.0001957544121948688,
+    "frac_positive": 0.0
+   },
+   "damp": {
+    "active_pct": 41.38053727094823,
+    "median_abs": 0.0029622804833035602,
+    "frac_positive": 0.0
+   }
+  },
+  "seconds": 42.762667208,
+  "funnel": {
+   "J3": 56197,
+   "J4": 5621,
+   "lawful": 5621
+  },
+  "breakdown": {
+   "n_total": 100000,
+   "J1_stable": 70901,
+   "J1_and_J3": 56197,
+   "lawful_J1_J3_J4": 5621,
+   "J1_stable_pct": 70.901,
+   "J1_and_J3_pct": 56.197,
+   "lawful_pct": 5.621
+  }
+ },
+ "breakdown": {
+  "n_total": 100000,
+  "J1_stable": 70901,
+  "J1_and_J3": 56197,
+  "lawful_J1_J3_J4": 5621,
+  "J1_stable_pct": 70.901,
+  "J1_and_J3_pct": 56.197,
+  "lawful_pct": 5.621
+ }
+}

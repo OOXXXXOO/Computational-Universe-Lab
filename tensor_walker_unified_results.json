@@ -1,0 +1,203 @@
+{
+ "backend": "numpy",
+ "th0": 1.0471975511965976,
+ "c_pair": 1.0000000000000002,
+ "phase1": {
+  "certificates": {
+   "unitarity_drift": 1.1546319456101628e-14,
+   "continuity_residual": 7.806255641895632e-18,
+   "isotropy_seq_w100_w111": [
+    0.9999499987500741,
+    1.0003678784917625
+   ],
+   "isotropy_sym_w100_w111": [
+    0.9999499987500746,
+    1.0031090885745222
+   ],
+   "isotropy_sym_spread": 0.0031590898244475696
+  },
+  "massive_vg": {
+   "ref4_vg_over_dirac": {
+    "0.5": {
+     "seq": 1.3596403447479404,
+     "sym": 1.0912105052602168
+    },
+    "1.0": {
+     "seq": 1.5465570983128922,
+     "sym": 1.0031909102734171
+    },
+    "1.5": {
+     "seq": 1.4712881158489768,
+     "sym": 0.6630510221377565
+    }
+   },
+   "ref4_k_scan_dm1": [
+    {
+     "kmag": 0.2,
+     "seq_abs": 0.533517399130524,
+     "sym_abs": 0.009120277571938118
+    },
+    {
+     "kmag": 0.1,
+     "seq_abs": 0.5465570983128922,
+     "sym_abs": 0.0031909102734171135
+    },
+    {
+     "kmag": 0.05,
+     "seq_abs": 0.5499352626210035,
+     "sym_abs": 0.006273548206223056
+    },
+    {
+     "kmag": 0.025,
+     "seq_abs": 0.550787502609164,
+     "sym_abs": 0.007044591770783315
+    }
+   ],
+   "walker16_vg_over_dirac": {
+    "0.5": {
+     "seq": 0.8692407492690281,
+     "sym": 0.7941504069192937
+    },
+    "0.8": {
+     "seq": 1.0509314069542612,
+     "sym": 0.9195241883598965
+    },
+    "1.0": {
+     "seq": 1.157747112937739,
+     "sym": 0.9852466265391763
+    }
+   }
+  },
+  "disease_B": {
+   "planewave_stress_mismatch": {
+    "(2, 0, 0)": {
+     "seq": 5.382361223382759e-12,
+     "sym_alt": 5.382361223382759e-12
+    },
+    "(2, 1, 0)": {
+     "seq": 0.041422767169696395,
+     "sym_alt": 0.054313635179775055
+    },
+    "(1, 1, 1)": {
+     "seq": 0.3222721588686236,
+     "sym_alt": 0.3222721588686236
+    },
+    "(2, 1, 1)": {
+     "seq": 1.4823180979212536,
+     "sym_alt": 1.4823180979212536
+    }
+   },
+   "field_divergence_seq": {
+    "energy_onsite": 0.5427155506244655,
+    "energy_telescoped": 1.0637996166142365,
+    "momentum_onsite": 0.5638307216146566
+   },
+   "field_divergence_sym": {
+    "energy_onsite": 0.4941857276415421,
+    "energy_telescoped": 1.0540196774608859,
+    "momentum_onsite": 0.5158851987810451
+   }
+  }
+ },
+ "phase3_emergence": {
+  "configs": {
+   "null bare": {
+    "n_prop_all": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "n_prop": 2,
+    "lightcone_ok": true,
+    "speed": 0.47122761364880733,
+    "stable": true,
+    "c_decay_ratio": 9.89220361560719e-32,
+    "gauge_conversion": 2.3513087944920108e-29,
+    "tt_survival": 1.0085305190106717,
+    "passes_A": true,
+    "passes_B": true,
+    "passes_emergence": true
+   },
+   "null + matter": {
+    "n_prop_all": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "n_prop": 2,
+    "lightcone_ok": true,
+    "speed": 0.47122761364880733,
+    "stable": true,
+    "c_decay_ratio": 0.00011214194859137806,
+    "gauge_conversion": 0.006433738292846328,
+    "tt_survival": 1.009472433321027,
+    "passes_A": true,
+    "passes_B": true,
+    "passes_emergence": true
+   },
+   "spin2 + matter (teeth)": {
+    "n_prop_all": [
+     6,
+     6,
+     6,
+     6
+    ],
+    "n_prop": 6,
+    "lightcone_ok": true,
+    "speed": 0.4979769657340859,
+    "stable": true,
+    "c_decay_ratio": 1.1229498082240368,
+    "gauge_conversion": 0.5123681347443318,
+    "tt_survival": 1.0015985533570044,
+    "passes_A": false,
+    "passes_B": false,
+    "passes_emergence": false
+   }
+  },
+  "N_prop_unified": 2,
+  "unified_passes_A": true,
+  "unified_passes_B": true,
+  "unified_passes_emergence": true
+ },
+ "phase3_newton": {
+  "L": 40,
+  "dm": 1.0,
+  "blob_rms_radius_start": 5.196152418510473,
+  "blob_rms_radius_end": 6.204097757427556,
+  "T00_total": 0.9999999999999981,
+  "T00_negative_fraction": 0.0,
+  "pressure_over_T00": 0.3531111875397659,
+  "trace_3p_over_rho": 0.9806981015910534,
+  "hbar00_over_phi_median": 4.0,
+  "h00_over_phi_median": 2.0,
+  "h00_over_phi_cv": 0.0,
+  "invr_fit_corr": 0.9962362413859109,
+  "eddington_ratio": 1.9998806988544808,
+  "steer_max_dtheta": 0.16602767195278845,
+  "deflection_dy": -0.1762266132253849,
+  "deflection_toward_blob": true,
+  "h00_over_phi_tolman_expected": 3.961396203182107,
+  "pressure_explains_deviation": false,
+  "pass": true
+ },
+ "phase3_loop": {
+  "L": 28,
+  "G": 0.01,
+  "T": 120,
+  "stable": true,
+  "walker_norm_drift": 4.218847493575595e-14,
+  "walker_energy_drift": 4.229949723821886e-14,
+  "field_energy_growth_late": 0.41200122564998065,
+  "well_poisson_corr": -0.47908081536039454,
+  "pass": true
+ },
+ "summary_table": {
+  "TT: 2 propagating DOF at c (proj-free)": true,
+  "Newton: h00/phi -> 2, 1/r, Eddington 2": true,
+  "Emergence A: N_prop==2 under matter": true,
+  "Emergence B: gauge suppression under matter": true,
+  "Closed loop: stable + unitary + well": true
+ }
+}

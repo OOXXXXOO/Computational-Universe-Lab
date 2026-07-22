@@ -1,0 +1,13 @@
+{
+ "A_v_at_saturation_meas": 0.9296822902394386,
+ "A_v_at_saturation_rel": 0.959036372657412,
+ "A_mean_err_vs_relativistic": 0.02507537160533003,
+ "A_mean_err_vs_lattice_exact": 0.001224414707807021,
+ "B_semiclassical_radius": 105.57896271977971,
+ "B_continuum_r_p_over_qB": 100.0,
+ "B_lattice_correction_pct": 5.578962719779711,
+ "B_qca_omega_B0.005": 0.017849958259032916,
+ "B_qca_omega_pred_B0.005": 0.016666666666666666,
+ "B_qca_omega_B0.01": 0.030207621669132625,
+ "B_qca_omega_pred_B0.01": 0.03333333333333333
+}

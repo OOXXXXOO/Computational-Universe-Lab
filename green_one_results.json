@@ -1,0 +1,334 @@
+{
+ "backend": "numpy",
+ "cg2": 0.25,
+ "G_m": 0.02,
+ "verify_fb": {
+  "state_max_diff": 0.0,
+  "packet_max_diff": 0.0,
+  "identical": true
+ },
+ "j1_endurance": {
+  "T": 200,
+  "walker_norm_drift": 6.039613253960852e-14,
+  "norm_final_over_start_full": 1.0000000000000857,
+  "bulk_field_energy_growth_late": 4.3068476953239166e+24,
+  "live_row_conservation_bulk_max": 6.911788849595091e-19,
+  "stable": true,
+  "feedback": true,
+  "sponge_w": 2
+ },
+ "emergence": {
+  "n_prop_all": [
+   2,
+   2,
+   2,
+   2
+  ],
+  "n_prop": 2,
+  "lightcone_ok": true,
+  "stable_A": true,
+  "speed_spread": 0.10508352079373327,
+  "per_k": [
+   {
+    "k": [
+     1.0471975511965976,
+     0.0,
+     0.0
+    ],
+    "k_chord": 0.9999999999999999,
+    "riemann_power": 58.30809647405412,
+    "n_prop": 2,
+    "w_peak": 0.4344755797517799,
+    "v_meas": 0.43447557975178,
+    "sv": [
+     1.0,
+     0.6282173501533778,
+     0.00010364007979501995,
+     3.7129071665818784e-05,
+     1.7228134130387273e-05,
+     1.3673763864933874e-05
+    ],
+    "tt_match": 0.9997478880025387,
+    "peak_prominence": 9770708.743054407
+   },
+   {
+    "k": [
+     0.0,
+     0.0,
+     1.0471975511965976
+    ],
+    "k_chord": 0.9999999999999999,
+    "riemann_power": 62.00363151042319,
+    "n_prop": 2,
+    "w_peak": 0.4344755797517799,
+    "v_meas": 0.43447557975178,
+    "sv": [
+     1.0,
+     0.47192030039104527,
+     6.394929999801911e-05,
+     2.6405445083958742e-05,
+     1.5080660792425972e-05,
+     7.581440387324055e-06
+    ],
+    "tt_match": 0.9997479308931913,
+    "peak_prominence": 9065484.721763737
+   },
+   {
+    "k": [
+     1.0471975511965976,
+     1.0471975511965976,
+     0.0
+    ],
+    "k_chord": 1.414213562373095,
+    "riemann_power": 92.42468799678083,
+    "n_prop": 2,
+    "w_peak": 0.6684239688488921,
+    "v_meas": 0.47264712108067725,
+    "sv": [
+     1.0,
+     0.434484071121782,
+     5.8498914215400975e-05,
+     1.6568697520147742e-05,
+     1.3175296250606171e-05,
+     7.948859931063322e-06
+    ],
+    "tt_match": 0.9999536981538967,
+    "peak_prominence": 372574307.2322606
+   },
+   {
+    "k": [
+     1.0471975511965976,
+     1.0471975511965976,
+     1.0471975511965976
+    ],
+    "k_chord": 1.732050807568877,
+    "riemann_power": 422.7808576652253,
+    "n_prop": 2,
+    "w_peak": 0.8355299610611152,
+    "v_meas": 0.4823934479346325,
+    "sv": [
+     1.0,
+     0.4649241307578561,
+     2.370892849345372e-05,
+     9.218145904239029e-06,
+     5.361592067510345e-06,
+     3.2907099751408467e-06
+    ],
+    "tt_match": 0.9999601155696314,
+    "peak_prominence": 671695641.5018116
+   }
+  ],
+  "c_decay_ratio": 1.494945770365623e-05,
+  "c_decay_orders": 4.8253745612245895,
+  "c_decay_rate": -0.013905151391840365,
+  "gauge_conversion": 0.0008783447247885709,
+  "stable_B": true,
+  "tt_survival": 1.0473256127222137
+ },
+ "anomaly_conservation": {
+  "source_residual_jbar": 5.421010862427522e-19,
+  "source_residual_onsite": 2.0194474509352665,
+  "gauge_anomaly_leak_max": 4.9048150753246384e-18,
+  "leak_ratio_onsite_over_jbar": 3.7252230297707986e+18
+ },
+ "newton": {
+  "h00_over_phi": 2.0119548621847616,
+  "h00_over_phi_cv": 0.003946161388062902,
+  "hbar00_over_phi": 3.9968075697268617,
+  "invr_fit_corr": 0.9730712603133566,
+  "poisson_residual": 0.001640093537608976,
+  "eddington_ratio": 1.9935227283838337,
+  "deflection_toward_blob": true,
+  "deflection_dy": -0.10217806272672192,
+  "tolman_3p_over_rho": 0.0056614810183958615
+ },
+ "j5": {
+  "cg2": 0.25,
+  "c_gw": 0.5015055840071039,
+  "c_matter": 0.993,
+  "gw_ratio": 0.5050408700977884,
+  "gw_analytic": 0.4989961689124756,
+  "cfl_max_cg2_3d_widebox": 0.3333333333333333,
+  "c_gw_at_cfl_cap": 0.5762168274080617,
+  "gw_ratio_at_cfl_cap": 0.5802787788600823
+ },
+ "isotropy": {
+  "axis_speeds": [
+   0.43447557975178,
+   0.43447557975178,
+   0.43447557975178
+  ],
+  "axis_c_spread": 0.0
+ },
+ "falsification": {
+  "tr_sign=0": {
+   "n_prop_all": [
+    5,
+    5,
+    5,
+    5
+   ],
+   "lightcone_ok": true,
+   "c_decay_ratio": 0.335929469354361,
+   "gauge_conversion": 1.1581830176204524,
+   "stable": true,
+   "fails": true,
+   "breaks": "N_prop / gauge suppression"
+  },
+  "no_damping": {
+   "n_prop_all": [
+    5,
+    5,
+    6,
+    5
+   ],
+   "lightcone_ok": true,
+   "c_decay_ratio": 1.2147958675042614,
+   "gauge_conversion": 0.279487061633208,
+   "stable": true,
+   "fails": true,
+   "breaks": "C decay / gauge suppression"
+  },
+  "lagged_damping": {
+   "n_prop_all": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "lightcone_ok": false,
+   "c_decay_ratio": 1.3718057876867582e+36,
+   "gauge_conversion": 17.867437462893356,
+   "stable": false,
+   "fails": true,
+   "breaks": "gauge suppression"
+  },
+  "onsite_source": {
+   "source_residual": 2.0194474509352665,
+   "gauge_anomaly_leak": 18.27153007536634,
+   "fails": true,
+   "breaks": "gauge anomaly (< 1e-10)"
+  },
+  "wrong_sign_source": {
+   "deflection_dy_wrongsign": -0.43011336569720626,
+   "toward_blob_wrongsign": true,
+   "deflection_dy_control": -0.3683887645298789,
+   "toward_blob_control": true,
+   "fails": false,
+   "breaks": "deflection sign (repulsive)"
+  },
+  "battery_has_teeth": false
+ },
+ "calibration": {
+  "reason": "emergence-B C-decay floored by live-source stride-1 injection; lower the linear-probe coupling G_m",
+  "G_m_calib": 0.001,
+  "emergence": {
+   "n_prop_all": [
+    2,
+    2,
+    2,
+    2
+   ],
+   "n_prop": 2,
+   "lightcone_ok": true,
+   "stable_A": true,
+   "speed_spread": 0.10508352079373327,
+   "per_k": [
+    {
+     "k": [
+      1.0471975511965976,
+      0.0,
+      0.0
+     ],
+     "k_chord": 0.9999999999999999,
+     "riemann_power": 58.352241818227725,
+     "n_prop": 2,
+     "w_peak": 0.4344755797517799,
+     "v_meas": 0.43447557975178,
+     "sv": [
+      1.0,
+      0.6283831619170952,
+      6.6775003702917625e-06,
+      4.177308190204516e-06,
+      2.6167781060858414e-06,
+      8.854957538085876e-07
+     ],
+     "tt_match": 0.9997481442477019,
+     "peak_prominence": 10761793.900572812
+    },
+    {
+     "k": [
+      0.0,
+      0.0,
+      1.0471975511965976
+     ],
+     "k_chord": 0.9999999999999999,
+     "riemann_power": 61.97304938985204,
+     "n_prop": 2,
+     "w_peak": 0.4344755797517799,
+     "v_meas": 0.43447557975178,
+     "sv": [
+      1.0,
+      0.4719307729257623,
+      4.766322338329314e-06,
+      3.715848854209796e-06,
+      1.1872268026480226e-06,
+      7.307666475322861e-07
+     ],
+     "tt_match": 0.9997480060200411,
+     "peak_prominence": 10409868.477357281
+    },
+    {
+     "k": [
+      1.0471975511965976,
+      1.0471975511965976,
+      0.0
+     ],
+     "k_chord": 1.414213562373095,
+     "riemann_power": 92.46752373201201,
+     "n_prop": 2,
+     "w_peak": 0.6684239688488921,
+     "v_meas": 0.47264712108067725,
+     "sv": [
+      1.0,
+      0.4348897494989675,
+      6.708537604156511e-06,
+      4.237209817242309e-06,
+      1.9054736583647825e-06,
+      7.17632928986644e-07
+     ],
+     "tt_match": 0.99995371074077,
+     "peak_prominence": 7001233887.814396
+    },
+    {
+     "k": [
+      1.0471975511965976,
+      1.0471975511965976,
+      1.0471975511965976
+     ],
+     "k_chord": 1.732050807568877,
+     "riemann_power": 422.83192190787366,
+     "n_prop": 2,
+     "w_peak": 0.8355299610611152,
+     "v_meas": 0.4823934479346325,
+     "sv": [
+      1.0,
+      0.46521267178652637,
+      3.969446889439792e-06,
+      1.6555566268954488e-06,
+      5.546150611280886e-07,
+      2.660597922502976e-07
+     ],
+     "tt_match": 0.9999601594147306,
+     "peak_prominence": 1544927313.8609302
+    }
+   ],
+   "c_decay_ratio": 3.706937350621346e-08,
+   "c_decay_orders": 7.430984753735573,
+   "c_decay_rate": -0.025965092361186787,
+   "gauge_conversion": 2.209026221357317e-06,
+   "stable_B": true,
+   "tt_survival": 1.047166134224011
+  }
+ }
+}

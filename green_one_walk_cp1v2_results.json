@@ -1,0 +1,269 @@
+{
+ "backend": "numpy",
+ "th0": 1.0471975511965976,
+ "c_matter_costh": 0.5000000000000001,
+ "gamma": 0.05,
+ "N": 16,
+ "T": 512,
+ "trials": 8,
+ "kmodes": [
+  [
+   2,
+   0,
+   0
+  ],
+  [
+   0,
+   0,
+   2
+  ],
+  [
+   2,
+   2,
+   0
+  ],
+  [
+   2,
+   2,
+   2
+  ]
+ ],
+ "cp1v1_reference": {
+  "n_prop_all": [
+   5,
+   5,
+   5,
+   5
+  ],
+  "note": "CP1-v1 forward-template = R17 neg control"
+ },
+ "r17_selfcheck_gate": {
+  "n_k": 63,
+  "dim_ker_over_gauge_YEE": [
+   2
+  ],
+  "dim_ker_over_gauge_UNSHIFTED": [
+   5,
+   6
+  ],
+  "worst_C_gauge_YEE": 9.305364597889227e-16,
+  "dim_single_flavor_YEE": [
+   5,
+   6
+  ],
+  "GATE_PASS": true
+ },
+ "c_matter_ref": {
+  "(2, 0, 0)": {
+   "w_walk": 0.3739991254273563,
+   "k_chord": 0.7653668647301796,
+   "c_matter": 0.48865340617953845
+  },
+  "(0, 0, 2)": {
+   "w_walk": 0.3739991254273563,
+   "k_chord": 0.7653668647301796,
+   "c_matter": 0.48865340617953845
+  },
+  "(2, 2, 0)": {
+   "w_walk": 0.5734653256552796,
+   "k_chord": 1.082392200292394,
+   "c_matter": 0.5298128769778325
+  },
+  "(2, 2, 2)": {
+   "w_walk": 0.7978648009116934,
+   "k_chord": 1.3256542961423672,
+   "c_matter": 0.6018649079427927
+  }
+ },
+ "main": {
+  "per_k": [
+   {
+    "k": [
+     2,
+     0,
+     0
+    ],
+    "n_prop_stock_sink": 5,
+    "n_prop_kappa_raw": 6,
+    "n_prop_kappa_yee": 6,
+    "c_gw": 0.48865340617953845,
+    "c_matter": 0.48865340617953845,
+    "ratio": 1.0,
+    "sv_yee": [
+     1.0,
+     0.6581690007235812,
+     0.4996166511809728,
+     0.3761625890677581,
+     0.287644467067461,
+     0.08363809003845926,
+     0.00045562055502496523,
+     5.175891213963376e-06
+    ],
+    "w_peak_yee": 0.3739991254273563
+   },
+   {
+    "k": [
+     0,
+     0,
+     2
+    ],
+    "n_prop_stock_sink": 6,
+    "n_prop_kappa_raw": 6,
+    "n_prop_kappa_yee": 6,
+    "c_gw": 0.48865340617953845,
+    "c_matter": 0.48865340617953845,
+    "ratio": 1.0,
+    "sv_yee": [
+     1.0,
+     0.8662298733977796,
+     0.6842638294252557,
+     0.6154942165635997,
+     0.35825123869850367,
+     0.23347146956100773,
+     0.0005874199762775874,
+     0.00023630559427618875
+    ],
+    "w_peak_yee": 0.3739991254273563
+   },
+   {
+    "k": [
+     2,
+     2,
+     0
+    ],
+    "n_prop_stock_sink": 5,
+    "n_prop_kappa_raw": 6,
+    "n_prop_kappa_yee": 6,
+    "c_gw": 0.5298128769778325,
+    "c_matter": 0.5298128769778325,
+    "ratio": 1.0,
+    "sv_yee": [
+     1.0,
+     0.6120432809821311,
+     0.3987295255162283,
+     0.2680948926248843,
+     0.16858471789918528,
+     0.14115333992600368,
+     1.2871320782441147e-06,
+     1.743647961031236e-08
+    ],
+    "w_peak_yee": 0.5734653256552796
+   },
+   {
+    "k": [
+     2,
+     2,
+     2
+    ],
+    "n_prop_stock_sink": 5,
+    "n_prop_kappa_raw": 6,
+    "n_prop_kappa_yee": 6,
+    "c_gw": 0.3949738458374577,
+    "c_matter": 0.6018649079427927,
+    "ratio": 0.65625,
+    "sv_yee": [
+     1.0,
+     0.9695736339659228,
+     0.5789491386864957,
+     0.531718059059695,
+     0.2623316971454541,
+     0.16937328172109986,
+     4.339974678600562e-05,
+     2.816544044782794e-05
+    ],
+    "w_peak_yee": 0.5235987755982988
+   }
+  ],
+  "n_prop_stock_all": [
+   5,
+   6,
+   5,
+   5
+  ],
+  "n_prop_kappa_raw_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "n_prop_kappa_yee_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "stable": true,
+  "rms_growth": 0.5340020210242299,
+  "j5_max_dev": 0.34375,
+  "isotropy_spread": 0.0,
+  "N_prop_yee_all_eq_2": false,
+  "J5_within_1e-2": false,
+  "isotropy_within_6pct": true
+ },
+ "falsify_single_flavor": {
+  "n_prop_stock_all": [
+   5,
+   6,
+   5,
+   5
+  ],
+  "n_prop_kappa_yee_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "NPROP_NOT_2": true,
+  "note": "R17 neg control: drop OFFSET book-keeping -> dim 5/6, N_prop!=2"
+ },
+ "falsify_double_cone": {
+  "th_geom": 0.9,
+  "th_matter_ref": 1.0471975511965976,
+  "ratios": [
+   1.2666666666666666,
+   1.2666666666666666,
+   1.2173913043478262,
+   0.875
+  ],
+  "j5_max_dev": 0.2666666666666666,
+  "J5_FAILS": true,
+  "note": "geom cone cos(0.9)=0.6216 vs matter cos(pi/3)=0.5000"
+ },
+ "k_vs_kappa": {
+  "stock_k_dir_all": [
+   5,
+   6,
+   5,
+   5
+  ],
+  "kappa_raw_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "kappa_yee_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "note": "stock uses sin(k); Yee is the placement-consistent count"
+ },
+ "control_no_damping": {
+  "n_prop_stock_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "n_prop_kappa_yee_all": [
+   6,
+   6,
+   6,
+   6
+  ],
+  "stable": true,
+  "note": "un-shift is a phase -> cannot lower rank; must stay ~6"
+ }
+}

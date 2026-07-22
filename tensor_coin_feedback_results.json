@@ -1,0 +1,227 @@
+{
+ "backend": "numpy",
+ "construction": {
+  "th0": 0.45,
+  "unitarity_drift": 5.639932965095795e-14,
+  "axis_speed_measured": [
+   0.9210464414219269,
+   0.8525002562584647,
+   0.7648091180780656
+  ],
+  "axis_speed_target_costh": [
+   0.9210609940028851,
+   0.8525245220595057,
+   0.7648421872844885
+  ],
+  "axis_speed_max_err": 3.3069206422875475e-05,
+  "axis_dispersion_exact_err": 1.1102230246251565e-16,
+  "isotropy_diag_speed_over_c": 1.0018396803019203,
+  "mass_gap_err": 1.1102230246251565e-16,
+  "massive_vg_at_k0": 0.003957737784399118,
+  "massive_vg_mixed_k_max": 0.25608981829982613,
+  "massive_vg_mixed_over_dirac": 1.4862959522299484,
+  "pass": true
+ },
+ "conservation": {
+  "k0": [
+   0.4,
+   0.25,
+   0.15
+  ],
+  "th0": 0.45,
+  "dm": 0.0,
+  "residual_overall": 0.25947560330076624,
+  "residual_per_nu": [
+   0.25556468142926847,
+   0.25923076403853973,
+   0.2276661953781715,
+   0.3808173385430202
+  ],
+  "global_T00_drift": 8.76455290141089e-15,
+  "residual_decorrelated": 1.7379641274269864,
+  "residual_inhomogeneous_theta": 0.5616874168170415,
+  "theta_perturbation_rms": 0.05,
+  "residual_quasi1d": 0.015105117375940042,
+  "rho_current": {
+   "continuity_residual_max": 2.927345865710862e-18,
+   "exact": true
+  },
+  "planewave_worst_mismatch": {
+   "(2, 0, 0)": 5.382361223382759e-12,
+   "(2, 1, 0)": 0.041422767169696395,
+   "(1, 1, 1)": 0.3222721588686236,
+   "(2, 1, 1)": 1.4823180979212536
+  },
+  "pass": false
+ },
+ "newton": {
+  "L": 56,
+  "sigma": 3.0,
+  "dm": 1.5,
+  "th0": 0.45,
+  "blob_rms_radius_start": 5.196152422706633,
+  "blob_rms_radius_end": 9.423713779405746,
+  "T00_total": 0.9651203657134725,
+  "T00_negative_fraction": 8.475693014721037e-13,
+  "pressure_over_T00": 0.005279809206118613,
+  "trace_3p_over_rho": 0.005652568810630052,
+  "relax_steps": 200,
+  "poisson_residual": 0.001489116978908107,
+  "hbar00_over_phi_median": 4.003780902603941,
+  "h00_over_phi_median": 2.0148784044410197,
+  "h00_over_phi_cv": 0.000851858171911185,
+  "h00_over_phi_tolman_expected": 2.0113051376212603,
+  "pressure_explains_deviation": true,
+  "hxx_over_phi_median": 2.002815691717482,
+  "invr_fit_corr": 0.9975694182517388,
+  "eddington_ratio": 1.994476167624875,
+  "steer_max_dtheta": 0.2500040705357967,
+  "deflection_dy": -0.6440242450398088,
+  "deflection_toward_blob": true,
+  "pass": true
+ },
+ "newton_massless_probe": {
+  "h00_over_phi_median": 4.083170371126346,
+  "pressure_over_T00": 0.7998646129775516,
+  "invr_fit_corr": 0.9807932946426445,
+  "note": "radiation-like source; deviation from 2 is physics (rho+3p), not failure"
+ },
+ "closed_loop": {
+  "L": 36,
+  "G": 0.03,
+  "gamma": 0.05,
+  "T": 200,
+  "stable": true,
+  "walker_norm_drift": 2.0805579481475434e-13,
+  "walker_energy_start_mid_end": [
+   0.9651274492187306,
+   0.9651309505368784,
+   0.9651314844823703
+  ],
+  "walker_energy_drift": 4.181068151098104e-06,
+  "field_energy_series_head_tail": [
+   0.006071018865325443,
+   0.00012201284812366705,
+   5.145559937279148e-05
+  ],
+  "field_energy_growth_late": 0.42172279529642864,
+  "h00_min_final": -0.00035499112542978286,
+  "well_poisson_corr": 0.9776150201814569,
+  "well_depth": -0.00035499112542978286,
+  "well_depth_over_2phimin": 1.0486688593162028,
+  "well_vs_source_offset": 0.0,
+  "matter_frac_within_3sig_final": 0.0732953856137943,
+  "causal_reach": 24.5,
+  "causal_leak_fraction": 6.832598677050868e-11,
+  "gamma0_stable": true,
+  "gamma0_field_growth_late": 1.1994070951267641,
+  "gamma0_well_poisson_corr": -0.15654168504265883,
+  "pass": true
+ },
+ "propagation": {
+  "configs": {
+   "spin2 bare": {
+    "n_prop_all": [
+     6,
+     6,
+     6,
+     6
+    ],
+    "n_prop": 6,
+    "lightcone_ok": true,
+    "speed": 0.4979769657340859,
+    "stable": true,
+    "c_decay_ratio": 0.960213297776097,
+    "gauge_conversion": 0.35503963929536797,
+    "tt_survival": 0.9952804671945792,
+    "passes_A": false,
+    "passes_B": false,
+    "passes_emergence": false
+   },
+   "spin2 + matter": {
+    "n_prop_all": [
+     6,
+     6,
+     6,
+     6
+    ],
+    "n_prop": 6,
+    "lightcone_ok": true,
+    "speed": 0.4979769657340859,
+    "stable": true,
+    "c_decay_ratio": 0.9642280027249679,
+    "gauge_conversion": 0.3587652499537915,
+    "tt_survival": 0.994768416314409,
+    "passes_A": false,
+    "passes_B": false,
+    "passes_emergence": false
+   },
+   "null-damped bare": {
+    "n_prop_all": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "n_prop": 2,
+    "lightcone_ok": true,
+    "speed": 0.47122761364880733,
+    "stable": true,
+    "c_decay_ratio": 9.89220361560719e-32,
+    "gauge_conversion": 2.3513087944920108e-29,
+    "tt_survival": 1.0085305190106717,
+    "passes_A": true,
+    "passes_B": true,
+    "passes_emergence": true
+   },
+   "null-damped + matter": {
+    "n_prop_all": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "n_prop": 2,
+    "lightcone_ok": true,
+    "speed": 0.47122761364880733,
+    "stable": true,
+    "c_decay_ratio": 4.516725170685655e-06,
+    "gauge_conversion": 0.0003754890725039293,
+    "tt_survival": 1.0082568154876694,
+    "passes_A": true,
+    "passes_B": true,
+    "passes_emergence": true
+   },
+   "null-damped + matter x100": {
+    "n_prop_all": [
+     2,
+     2,
+     2,
+     2
+    ],
+    "n_prop": 2,
+    "lightcone_ok": true,
+    "speed": 0.4793718370851329,
+    "stable": true,
+    "c_decay_ratio": 0.05921160931179891,
+    "gauge_conversion": 0.9761066363980969,
+    "tt_survival": 1.1111136920790894,
+    "passes_A": true,
+    "passes_B": false,
+    "passes_emergence": false
+   }
+  },
+  "control_passes_without_matter": true,
+  "control_passes_with_matter": true,
+  "matter_C_floor_ratio": 4.516725170685655e-06,
+  "matter_gauge_conversion": 0.0003754890725039293,
+  "pass": true
+ },
+ "diagnosis": [
+  "T_munu NOT LATTICE-CONSERVED at the required level: overall residual 0.259 (baseline 1.738). The bilinear D-current is not the walk's exact conserved current; the mismatch feeds the de-Donder constraint of the sourced field. Fix: derive the exact quasi-local current from the shift structure (the same step (a) tensor_walker prescribes for the 16-comp walker).",
+  "NEWTONIAN SECTOR CLOSED (positive result): the walker's OWN bilinear T_munu sources h00/phi=2.015 (target 2), 1/r corr 0.9976, Eddington 1.994, and the tensor coin deflects a test packet toward the blob (dy=-0.644). The sector a free unitary walk provably lacks is supplied by the feedback loop.",
+  "PROPAGATING SECTOR STILL WRONG ON THE BARE LEAPFROG (N_prop=6, known): the feedback loop does not and cannot fix the DOF count -- that needs the null-compatible operator (emergence_judge positive control) or the 16-comp walker (step0/a). Matter coupling changes N_prop by +0.",
+  "FEEDBACK IS COMPATIBLE WITH THE EMERGENT SECTOR: adding the live walker source + tensor-coin feedback keeps the positive control at N_prop=2 with constraint decay 4.5e-06 and gauge conversion 0.000 (thresholds 1e-3 / 0.05)."
+ ],
+ "all_pass": false
+}

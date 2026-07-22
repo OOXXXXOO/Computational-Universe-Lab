@@ -1,0 +1,61 @@
+{
+ "sigma2_invitro": [
+  0.1522409349774265,
+  39.10199598818925
+ ],
+ "sigma2_realspace": [
+  3.0123522031914116,
+  27.199900364602176
+ ],
+ "stiffness": {
+  "invitro": 256.8428523772998,
+  "realspace": 9.029455564918825
+ },
+ "best_rate": {
+  "invitro": 0.9922433374376676,
+  "realspace": 0.8005873811340638
+ },
+ "TT_residual": 1.0333296143861074e-16,
+ "gauge_residual": 0.9666388566589676,
+ "gamma_max_stable": 0.07352968110878784,
+ "gamma_optimal": 0.06619830797164757,
+ "gamma_scan": [
+  {
+   "gamma": 0.02,
+   "rho_symmetric": 1.000000000000002,
+   "rho_asymmetric": 1.000000000000002
+  },
+  {
+   "gamma": 0.05,
+   "rho_symmetric": 1.0000000000000018,
+   "rho_asymmetric": 1.0000000000000016
+  },
+  {
+   "gamma": 0.07,
+   "rho_symmetric": 1.0000000000000013,
+   "rho_asymmetric": 1.0000000000000018
+  },
+  {
+   "gamma": 0.1,
+   "rho_symmetric": 1.145143273842809,
+   "rho_asymmetric": 1.0000000000000024
+  },
+  {
+   "gamma": 0.15,
+   "rho_symmetric": 2.217714910764213,
+   "rho_asymmetric": 1.0740251485476342
+  },
+  {
+   "gamma": 0.3,
+   "rho_symmetric": 5.435429821528426,
+   "rho_asymmetric": 3.1480502970952675
+  }
+ ],
+ "chebyshev": [
+  0.21586100457072394,
+  0.06619830797164757,
+  0.03909358877115305
+ ],
+ "cheb_worst_factor": 0.2470314150744413,
+ "all_pass": true
+}

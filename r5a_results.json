@@ -1,0 +1,13 @@
+{
+ "quasi_secular_slope": 0.000322686843924723,
+ "quasi_max_drift": 2.6282992846131035,
+ "quasi_std": 0.6750755856548498,
+ "ham_secular_slope": 1.3002519292209348e-05,
+ "ham_max_drift": 0.27826660298758576,
+ "ham_std": 0.059722832294143435,
+ "dgrad_secular_slope": 1.3002519292209348e-05,
+ "dgrad_max_drift": 0.27826660298758576,
+ "dgrad_std": 0.059722832294143435,
+ "best_energy_definition": "ham",
+ "ham_vs_quasi_secular_ratio": 24.817255538937413
+}

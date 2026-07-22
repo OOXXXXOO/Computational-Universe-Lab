@@ -1,0 +1,57 @@
+{
+ "backend": "numpy",
+ "fact1_two_polarizations": {
+  "tt_ranks": [
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "tt_rank_all_2": true,
+  "tt_packet_speed": 0.9907635101805058,
+  "tt_packet_speed_over_c": 0.9907635101805058,
+  "tt_speed_lattice_theory_over_c": 0.9935630467528723,
+  "causal_leak_fraction": 2.155650004104076e-05,
+  "polarization_tt_fraction": {
+   "plus  (xx-yy)": 1.0,
+   "cross (xy)": 1.0,
+   "breathing (xx+yy)": 0.0,
+   "long (zz)": 0.0,
+   "mixed (xz)": 0.0,
+   "mixed (yz)": 0.0
+  },
+  "n_propagating_dof": 2,
+  "pass": true
+ },
+ "fact2_newtonian": {
+  "hbar00_over_phi": 4.0,
+  "h00_over_phi": 2.0,
+  "invr_fit_slope": -613.383419028441,
+  "invr_fit_corr": 0.9995023330002957,
+  "self_energy_finite": -26853.59562105889,
+  "pass": true
+ },
+ "fact3_deflection": {
+  "convergence": [
+   {
+    "phi_max": 0.46921167539308484,
+    "ratio": 1.7566157511512808
+   },
+   {
+    "phi_max": 0.04692116753930848,
+    "ratio": 1.9672789614131891
+   },
+   {
+    "phi_max": 0.004692116753930849,
+    "ratio": 1.9966096843770436
+   }
+  ],
+  "ratio_weakfield": 1.9966096843770436,
+  "pathB_ratio": 1.9966096843770436,
+  "matches_pathB": true,
+  "pass": true
+ },
+ "all_pass": true
+}

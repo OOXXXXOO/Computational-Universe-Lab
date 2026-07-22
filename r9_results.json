@@ -1,0 +1,11 @@
+{
+ "A_continuity_max_residual": 1.0408340855860843e-17,
+ "A_total_momentum_drift": 2.3314683517128287e-14,
+ "B_symbolic_theorem": true,
+ "C_balance_max_residual": 1.3258183206897936e-17,
+ "C_total_force": -0.010148430541209274,
+ "C_gradth_weight": 0.01441528916402907,
+ "D_bridge_exact_residual": 1.6046192152785466e-17,
+ "D_bridge_naive_residual": 0.007255845133365295,
+ "theorem_1d": true
+}

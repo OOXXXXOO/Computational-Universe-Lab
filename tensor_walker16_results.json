@@ -1,0 +1,548 @@
+{
+ "backend": "numpy",
+ "theta": 1.0471975511965976,
+ "dispersion16": {
+  "c1_fit": 1.000000951736218,
+  "c1_theory_2costh": 1.0000000000000002,
+  "c3_fit": -0.03129907721518493,
+  "flat_band_max_|omega|": 5.637851296924624e-16,
+  "swap_commutator": 1.3877787807814457e-17,
+  "unitary_defect": 1.1102230246251565e-15
+ },
+ "continuity_1d": 1.474514954580286e-17,
+ "continuity_3d": 4.445228907190568e-18,
+ "continuum": {
+  "theta": 1.0471975511965976,
+  "k0": 0.2617993877991494,
+  "N": 256,
+  "T": 110,
+  "c_pair": 1.0000000000000002,
+  "tt_energy_fraction": 0.9871033855248373,
+  "tt_envelope_speed_over_c": 0.9931920187009216,
+  "tt_phase_speed_over_c": 1.0039215686274507,
+  "tt_dominant_K_over_2k0": 0.9375000000000001,
+  "box_residual_tt": 0.005502759794083998,
+  "dedonder_tt_naive": 2.0,
+  "dedonder_tt_conserved": 1.2934225088057594,
+  "dedonder_tt_decorrelated": 2.0000014470859275,
+  "einstein_tt": {
+   "E_rms": 8.222293916906755e-05,
+   "E_rms_decorrelated_baseline": 0.00042159302622706533,
+   "E_ratio": 0.19502917281364893,
+   "E00_vs_envelope_corr": 0.8544078407772375
+  },
+  "density_naive_h_rms": 0.0,
+  "density_conserved_h_rms": 0.003703191688300089,
+  "density_envelope_speed_over_c": 0.9930865304087247,
+  "dedonder_density_conserved": 0.018452000461135373,
+  "dedonder_density_decorrelated": 2.0000200234278784,
+  "density_riemann_ratio": 0.012628856992478066,
+  "density_riemann_rms": 1.1365973611142009e-07,
+  "density_riemann_decorrelated": 9.000001835408977e-06,
+  "dedonder_tt_k0_scan": [
+   {
+    "k0": 0.5235987755982988,
+    "mixed_over_tt": 0.2333416198602359,
+    "dedonder": 1.73964523019681,
+    "dedonder_over_baseline": 0.8697893171595682
+   },
+   {
+    "k0": 0.2617993877991494,
+    "mixed_over_tt": 0.11521307439423482,
+    "dedonder": 1.2959098023464246,
+    "dedonder_over_baseline": 0.6437109536609834
+   },
+   {
+    "k0": 0.1308996938995747,
+    "mixed_over_tt": 0.057663678636840424,
+    "dedonder": 0.6787733679094651,
+    "dedonder_over_baseline": 0.3391728095186556
+   },
+   {
+    "k0": 0.06544984694978735,
+    "mixed_over_tt": 0.029299905853690546,
+    "dedonder": 0.28605351068305196,
+    "dedonder_over_baseline": 0.14302613313298995
+   }
+  ]
+ },
+ "judge1": {
+  "c_pair": 1.0000000000000002,
+  "drives": {
+   "tt": {
+    "plus  (xx-yy)": {
+     "energy_frac": 0.4935620454454886,
+     "speed": 0.9931921018346966,
+     "propagating": true
+    },
+    "cross (xy)": {
+     "energy_frac": 0.4935413400793486,
+     "speed": 0.9931919355625751,
+     "propagating": true
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 2.1066837389847013e-05,
+     "speed": 0.9942074912826039,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 4.5204259584855425e-05,
+     "speed": 0.9952495092087034,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.006371777691388404,
+     "speed": 0.9935145150916407,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.006458565686799736,
+     "speed": 0.9935446234714314,
+     "propagating": false
+    }
+   },
+   "density": {
+    "plus  (xx-yy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    }
+   },
+   "flat": {
+    "plus  (xx-yy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.0,
+     "speed": NaN,
+     "propagating": false
+    }
+   },
+   "standing": {
+    "plus  (xx-yy)": {
+     "energy_frac": 0.48924061968309734,
+     "speed": 0.000356298004562449,
+     "propagating": false
+    },
+    "cross (xy)": {
+     "energy_frac": 0.48922019785637694,
+     "speed": -0.0005262492762054341,
+     "propagating": false
+    },
+    "breathing (xx+yy)": {
+     "energy_frac": 2.2830188253618494e-05,
+     "speed": -0.016720990878428776,
+     "propagating": false
+    },
+    "long (zz)": {
+     "energy_frac": 0.008440328439711145,
+     "speed": -0.05119438498153726,
+     "propagating": false
+    },
+    "mixed (xz)": {
+     "energy_frac": 0.006390968659343323,
+     "speed": -0.008336164373895678,
+     "propagating": false
+    },
+    "mixed (yz)": {
+     "energy_frac": 0.00668505517321778,
+     "speed": -0.011005074019827298,
+     "propagating": false
+    }
+   }
+  },
+  "time_sector": {
+   "tt": {
+    "h00_energy": 2.8173351907272712,
+    "h00_speed_over_c": 0.9932016976602235,
+    "h03_rms": 0.0052036144510671555
+   },
+   "density": {
+    "h00_energy": 2.81733519072727,
+    "h00_speed_over_c": 0.9932016976602238,
+    "h03_rms": 0.005203614451067154
+   },
+   "flat": {
+    "h00_energy": 2.8177163412301387,
+    "h00_speed_over_c": 3.769417697240285e-08,
+    "h03_rms": 2.2775261957890117e-06
+   },
+   "standing": {
+    "h00_energy": 1.4324638872701836,
+    "h00_speed_over_c": -0.0005080245335831651,
+    "h03_rms": 0.003516870452511899
+   }
+  },
+  "propagating_channels": {
+   "plus  (xx-yy)": 0.9931921018346964,
+   "cross (xy)": 0.9931919355625749
+  },
+  "n_propagating_dof": 2,
+  "tt_channels_propagating": [
+   "plus  (xx-yy)",
+   "cross (xy)"
+  ],
+  "non_tt_channels_propagating": [],
+  "tt_speed_over_c": 0.9931920186986356,
+  "causal_leak_fraction": 3.196029008763621e-17,
+  "n_outside_sites": 71,
+  "tt_fraction_of_spatial_h": 0.9869756841262529,
+  "pass": true
+ },
+ "judge2": {
+  "rms_radius_start": 5.1961433922570075,
+  "rms_radius_end": 13.67879109433649,
+  "dispersal_rate_cells_per_step": 0.4241323851039741,
+  "walker_norm_drift": 1.021405182655144e-14,
+  "h00_over_phi_median": 0.008392285488015065,
+  "h00_over_phi_cv": 1.6843829155191319,
+  "invr_fit_corr": 0.9783592445442517,
+  "h00_tail_fraction": 0.5700054212027884,
+  "hxx_over_h00_center": -0.19355363164849673,
+  "hyy_over_h00_center": -0.11038602334005321,
+  "pass": false
+ },
+ "judge3": {
+  "ratio_ray_x": 0.6680739938216347,
+  "ratio_ray_y": 0.829826971590232,
+  "anisotropy": 0.16175297776859732,
+  "pass": false
+ },
+ "emergence": {
+  "judge_A": {
+   "per_k": [
+    {
+     "k": [
+      0.7853981633974483,
+      0.0,
+      0.0
+     ],
+     "k_chord": 0.7653668647301796,
+     "riemann_power": 34.940514589537,
+     "n_prop": 5,
+     "w_peak": 0.772931525883203,
+     "v_meas": 1.0098837061043795,
+     "sv": [
+      1.0,
+      0.5923086887953201,
+      0.3387119281209546,
+      0.2522430489815871,
+      0.1571991539580162,
+      0.014313308789975523,
+      3.4514773274600557e-06,
+      8.19721978492845e-07
+     ],
+     "tt_match": 0.6293454323826687,
+     "peak_prominence": 727972.4400619015
+    },
+    {
+     "k": [
+      0.0,
+      0.0,
+      0.7853981633974483
+     ],
+     "k_chord": 0.7653668647301796,
+     "riemann_power": 39.58589594674732,
+     "n_prop": 5,
+     "w_peak": 0.772931525883203,
+     "v_meas": 1.0098837061043795,
+     "sv": [
+      1.0,
+      0.5970874877033924,
+      0.2886302262523376,
+      0.1249380778163928,
+      0.0983302441506038,
+      0.03636575597101402,
+      2.462648964914108e-06,
+      1.4416812329011986e-06
+     ],
+     "tt_match": 0.6162860969878297,
+     "peak_prominence": 896244.386553891
+    },
+    {
+     "k": [
+      0.7853981633974483,
+      0.7853981633974483,
+      0.0
+     ],
+     "k_chord": 1.082392200292394,
+     "riemann_power": 150.93525265545262,
+     "n_prop": 2,
+     "w_peak": 0.8726646259971648,
+     "v_meas": 0.8062369867053975,
+     "sv": [
+      1.0,
+      0.19341815648234148,
+      0.00030802930054666533,
+      0.00026778080169221165,
+      0.00018489751757271638,
+      0.0001486405979230378,
+      6.974887424185412e-06,
+      4.851695506025249e-06
+     ],
+     "tt_match": 0.025399654324198006,
+     "peak_prominence": 139783.5006843666
+    },
+    {
+     "k": [
+      0.7853981633974483,
+      0.7853981633974483,
+      0.7853981633974483
+     ],
+     "k_chord": 1.3256542961423672,
+     "riemann_power": 323.6635226497267,
+     "n_prop": 4,
+     "w_peak": 1.3713301265669733,
+     "v_meas": 1.034455310526675,
+     "sv": [
+      1.0,
+      0.2837191905246948,
+      0.2070039617723398,
+      0.06981629630817186,
+      0.039822270958091564,
+      0.0018022161760416118,
+      2.443202404303445e-06,
+      2.9692561071083456e-07
+     ],
+     "tt_match": 0.2464990465001183,
+     "peak_prominence": 30007.410267166575
+    }
+   ],
+   "n_prop_all": [
+    5,
+    5,
+    2,
+    4
+   ],
+   "n_prop": 5,
+   "speed_mean": 0.9651149273602079,
+   "speed_spread": 0.23646751008763542,
+   "lightcone_ok": false,
+   "stable": true,
+   "rms_growth": 0.6679834306905237,
+   "pass": false
+  },
+  "judge_B": {
+   "c2_init": 0.0017623954360442646,
+   "c2_final": 0.0010826841608820774,
+   "c_decay_ratio": 0.6143253317270191,
+   "c_decay_rate_per_step": -0.00022188804915688684,
+   "c2_curve": [
+    [
+     1,
+     0.0017623954360442646
+    ],
+    [
+     25,
+     0.0009991354132283348
+    ],
+    [
+     50,
+     0.0011052273933023688
+    ],
+    [
+     75,
+     0.0009863437251922181
+    ],
+    [
+     100,
+     0.0012178434274927518
+    ],
+    [
+     125,
+     0.001047033114563028
+    ],
+    [
+     150,
+     0.0010930101299239238
+    ],
+    [
+     175,
+     0.0010467202121660119
+    ],
+    [
+     200,
+     0.0011852616167079412
+    ],
+    [
+     225,
+     0.0009930633320293474
+    ],
+    [
+     250,
+     0.0011682549477208932
+    ],
+    [
+     275,
+     0.001059821869557942
+    ],
+    [
+     300,
+     0.0011692378123921714
+    ],
+    [
+     325,
+     0.0010248186832793288
+    ],
+    [
+     350,
+     0.0011051423822470848
+    ],
+    [
+     375,
+     0.0010978063354156174
+    ],
+    [
+     400,
+     0.0011130172413856684
+    ],
+    [
+     425,
+     0.0010736004618186132
+    ],
+    [
+     450,
+     0.0010875755784333532
+    ],
+    [
+     475,
+     0.0010826841608820774
+    ]
+   ],
+   "riemann_from_gauge_curve": [
+    [
+     50,
+     59.564376556616445
+    ],
+    [
+     100,
+     55.90051822694083
+    ],
+    [
+     150,
+     58.07186633565652
+    ],
+    [
+     200,
+     57.471084847190625
+    ],
+    [
+     250,
+     58.342589668086596
+    ],
+    [
+     300,
+     56.90924450126131
+    ],
+    [
+     350,
+     60.27294626235251
+    ],
+    [
+     400,
+     55.926986325613775
+    ],
+    [
+     450,
+     57.97073357808046
+    ]
+   ],
+   "riemann_gauge_late": 56.94885995184712,
+   "riemann_generic_late": 40.75088052156109,
+   "gauge_conversion": 1.3974878388631566,
+   "tt_survival": 0.9889742370679768,
+   "stable": true,
+   "pass": false
+  },
+  "passes_emergence": false,
+  "encode_rank": 7,
+  "encode_log": [
+   {
+    "encode_rel_err": 0.00593448099249356,
+    "h0i_target_rms": 1.0000801517563158
+   },
+   {
+    "encode_rel_err": 0.00035800231205845964,
+    "h0i_target_rms": 0.035933228927152394
+   },
+   {
+    "encode_rel_err": 0.0002728588487029524,
+    "h0i_target_rms": 0.05556956065426725
+   },
+   {
+    "encode_rel_err": 0.001376689984155382,
+    "h0i_target_rms": 0.0
+   }
+  ],
+  "chi0_stationarity": 2.2887833992611187e-16,
+  "flux_bg_uniformity": 0.0,
+  "cg2": 0.9925025504901743,
+  "dispersion3d": {
+   "speed_by_dir": {
+    "100": 0.9962442223109074,
+    "001": 0.9962442223120666,
+    "110": 1.0563255180521858,
+    "111": 1.0046359070041118
+   },
+   "anisotropy_spread": 0.05928904777207207,
+   "c_axis": 0.9962442223120666,
+   "unitary_defect": 1.7763568394002505e-15,
+   "matrix_step_agreement": 6.6803351936383615e-15
+  }
+ },
+ "diagnosis": [
+  "JUDGE 1 PASS (was FAIL for the Weyl pair): chirality doubling unlocks the co-moving up,up/down,down coherence; exactly the two TT channels propagate (['plus  (xx-yy)', 'cross (xy)']), non-TT spatial channels are silent because every Gamma bilinear flips BOTH chiralities and is thus blind to single-sector density transport.",
+  "DE-DONDER REPAIR SUCCEEDED (in the continuum limit): the prior failure mode (advected envelope, Weyl-pair residual 2.83 vs baseline 1.0) is repaired: density-drive residual 0.0185 vs baseline 2.00 (>100x below).  The tt-drive residual at the default k0 is 0.65 of baseline, but the k0->0 scan shows it is an O(k0) branch-spinor-tilt artifact of the mixed (xz)/(yz) bilinears, NOT a structural failure: ratio = ['0.87', '0.64', '0.34', '0.14'] at k0 = ['0.524', '0.262', '0.131', '0.065'] (linear in k0 -> vanishes in the continuum limit).  The advected envelope's gauge-invariant Riemann energy is 0.013 of a decorrelated baseline -- (near-)pure gauge, not fake radiation.",
+  "NEWTONIAN SECTOR ABSENT (expected, unchanged): h00 = kappa*rho is the walker's own dispersing density (1/r corr 0.978, tail frac 0.570, h00/phi cv 1.68).  A FREE unitary walk has no k^-2 response; needs matter->geometry feedback (step b, tensor_coin_feedback).",
+  "DEFLECTION WRONG (expected, downstream of judge 2): ray ratios (0.668, 0.830) vs target 2; h_ij around the blob is internal-polarization noise, not trace-reversed gravity.",
+  "EMERGENCE JUDGE A: N_prop=[5, 5, 2, 4] (target 2 at every k), lightcone ok=False (speeds ['1.01', '1.01', '0.81', '1.03'], spread 0.236).  ROOT CAUSE (representation-level, precise): generic random data encodes into ALL 16 internal components; the luminal (+/-2 omega_1) eigenspaces of U16(k) are 4-dim each, and their chirality-flipping bilinear images span breathing/longitudinal/mixed h polarizations besides TT.  A free walk propagates every one of them -- nothing dynamically suppresses the non-TT luminal coherences.  That suppression is a CONSTRAINT structure, i.e. exactly the matter->geometry feedback loop of step b; it cannot come from the free representation alone.",
+  "EMERGENCE JUDGE B: C-decay 6.14e-01 (need <1e-3), gauge->physical conversion 1.40e+00 (need <0.05), TT survival 0.99 (need >0.5).  A free unitary walk cannot damp constraint violations (no dissipation channel) and radiates encoded gauge data as real luminal bilinear waves.  Both are the missing constraint-damping/feedback sector (step b)."
+ ]
+}

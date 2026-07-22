@@ -1,0 +1,8 @@
+{
+ "A_2comp_theta_T5": 1.3010426069826053e-18,
+ "B_2comp_theta_T6": 4.607859233063394e-19,
+ "C_4comp_dirac_T6": 3.3881317890172014e-19,
+ "D_nyquist": 0.0,
+ "symbol_duality": true,
+ "all_pass": true
+}

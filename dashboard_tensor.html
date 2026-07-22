@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tensor Campaign Console — TT 引力波</title>
+<style>
+  :root{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6;      /* light / geometry / TT + */
+    --matter:#e7a24e;      /* mass / energy  / TT ×  */
+    --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --mono:"SF Mono","JetBrains Mono","Fira Code",ui-monospace,Menlo,Consolas,monospace;
+    --maxw:1180px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+      --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+      --metric:#0f9a8d; --matter:#c1741f;
+      --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6; --matter:#e7a24e; --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+  }
+  :root[data-theme="light"]{
+    --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+    --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+    --metric:#0f9a8d; --matter:#c1741f; --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--ground);color:var(--ink);
+    font-family:var(--serif);font-size:16px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .mono{font-family:var(--mono)}
+  .tnum{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  button{font-family:var(--mono)}
+  a{color:var(--metric)}
+
+  /* ---------- top bar ---------- */
+  header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .bar-inner{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 22px;max-width:var(--maxw);margin:0 auto}
+  .brand h1{line-height:1.1}
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .spacer{flex:1}
+  .badge{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+    padding:6px 12px;border-radius:20px;border:1px solid var(--line)}
+  .badge .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .badge.running{color:var(--metric);border-color:color-mix(in srgb,var(--metric) 45%,transparent);
+    background:color-mix(in srgb,var(--metric) 12%,transparent)}
+  .badge.running .dot{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .badge.paused{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent);
+    background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .badge.stopped,.badge.idle{color:var(--muted);border-color:color-mix(in srgb,var(--muted) 40%,transparent);
+    background:color-mix(in srgb,var(--muted) 10%,transparent)}
+  .badge.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);
+    background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .badge.waiting{color:var(--open);border-color:color-mix(in srgb,var(--open) 45%,transparent);
+    background:color-mix(in srgb,var(--open) 12%,transparent)}
+  .badge.offline{color:var(--ceil);border-color:color-mix(in srgb,var(--ceil) 50%,transparent);
+    background:color-mix(in srgb,var(--ceil) 12%,transparent)}
+  @media (prefers-reduced-motion: reduce){.badge.running .dot{animation:none}}
+  .tbtn{background:transparent;color:var(--ink-dim);border:1px solid var(--line);border-radius:3px;
+    font-size:12px;padding:7px 11px;cursor:pointer;letter-spacing:.04em}
+  .tbtn:hover{color:var(--ink);border-color:var(--metric)}
+  .tbtn:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+
+  /* ---------- liveness strip ---------- */
+  .liveness{display:none;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--warn) 9%,var(--panel))}
+  .liveness.show{display:block}
+  .liveness.err{background:color-mix(in srgb,var(--ceil) 10%,var(--panel))}
+  .liveness.wait{background:color-mix(in srgb,var(--open) 10%,var(--panel))}
+  .liveness-inner{max-width:var(--maxw);margin:0 auto;padding:12px 22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .liveness .msg{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim)}
+  .liveness .msg b{color:var(--warn);font-weight:600}
+  .liveness.err .msg b{color:var(--ceil)}
+  .liveness.wait .msg b{color:var(--open)}
+  .copyfield{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--panel-2)}
+  .copyfield code{font-family:var(--mono);font-size:12px;color:var(--ink);padding:7px 11px;white-space:nowrap}
+  .copyfield button{border:0;border-left:1px solid var(--line);background:transparent;color:var(--metric);
+    font-size:12px;padding:7px 11px;cursor:pointer}
+  .copyfield button:hover{background:color-mix(in srgb,var(--metric) 14%,transparent)}
+  .copyfield button:focus-visible{outline:2px solid var(--metric);outline-offset:-2px}
+
+  /* ---------- layout ---------- */
+  main{padding:24px 0 64px}
+  .cols{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:start}
+  @media(max-width:940px){.cols{grid-template-columns:1fr}}
+  .stack{display:flex;flex-direction:column;gap:22px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:18px 20px}
+  .card > h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin-bottom:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .card > h2 .hint{font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--muted);font-weight:400;font-family:var(--mono)}
+  .hint.live{color:var(--ok)} .hint.dead{color:var(--muted)}
+
+  /* headline counters */
+  .counters{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:560px){.counters{grid-template-columns:repeat(2,1fr)}}
+  .metric .v{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:600;letter-spacing:-.02em;
+    color:var(--metric);display:block;font-variant-numeric:tabular-nums;line-height:1.1}
+  .metric .v.matter{color:var(--matter)}
+  .metric .v.ink{color:var(--ink)}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .subcounters{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}
+  .subcounters .v{font-size:clamp(17px,2.6vw,21px)}
+  .ckpt{display:flex;align-items:center;gap:9px;margin-top:16px;font-family:var(--mono);font-size:12px;
+    color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:9px 13px}
+  .ckpt .ck-ico{color:var(--ok);font-size:11px}
+  .ckpt b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .ckpt .safe{color:var(--ok)}
+  .prog{margin-top:16px}
+  .prog .track{height:8px;border-radius:5px;background:var(--panel-2);overflow:hidden;border:1px solid var(--line)}
+  .prog .track > span{display:block;height:100%;background:linear-gradient(90deg,var(--metric),color-mix(in srgb,var(--metric) 55%,var(--matter)));
+    width:0;transition:width .5s ease}
+  .prog .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:7px}
+  .prog .lab .tnum{color:var(--ink-dim)}
+
+  /* funnel (multi-stage) */
+  .funnel{display:flex;flex-direction:column;gap:9px}
+  .frow{display:grid;grid-template-columns:132px 1fr;gap:12px;align-items:center}
+  .frow .fl{font-family:var(--mono);font-size:12px;color:var(--ink-dim)}
+  .frow .fl small{display:block;color:var(--muted);font-size:10px;line-height:1.25}
+  .fbar{height:24px;border-radius:3px;background:var(--panel-2);border:1px solid var(--line);position:relative;overflow:hidden}
+  .fbar > span.fill{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transition:width .5s ease}
+  .fbar .fv{position:absolute;right:9px;top:0;bottom:0;display:flex;align-items:center;
+    font-family:var(--mono);font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums;z-index:2}
+  .fbar.st > span.fill{background:linear-gradient(90deg,color-mix(in srgb,var(--metric) 60%,transparent),color-mix(in srgb,var(--metric) 30%,transparent))}
+  .fbar.s1 > span.fill{background:linear-gradient(90deg,color-mix(in srgb,var(--metric) 72%,transparent),color-mix(in srgb,var(--metric) 42%,transparent))}
+  .fbar.j5 > span.fill{background:linear-gradient(90deg,color-mix(in srgb,var(--open) 70%,transparent),color-mix(in srgb,var(--open) 40%,transparent))}
+  .fbar.scr > span.fill{background:linear-gradient(90deg,color-mix(in srgb,var(--warn) 72%,transparent),color-mix(in srgb,var(--warn) 40%,transparent))}
+  .fbar.law > span.fill{background:linear-gradient(90deg,color-mix(in srgb,var(--matter) 78%,transparent),color-mix(in srgb,var(--matter) 48%,transparent))}
+  .fbar.pending{background:repeating-linear-gradient(45deg,var(--panel-2),var(--panel-2) 6px,color-mix(in srgb,var(--muted) 10%,var(--panel-2)) 6px,color-mix(in srgb,var(--muted) 10%,var(--panel-2)) 12px)}
+  .fbar.pending .fv{right:auto;left:9px;color:var(--muted);font-size:10.5px}
+
+  /* plots */
+  .plots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:560px){.plots{grid-template-columns:1fr}}
+  .plotbox .cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .plotbox .cap .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .plotbox .cap .n{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+  canvas.plot{width:100%;height:64px;display:block;border-radius:3px}
+
+  /* gw histogram */
+  .histwrap{position:relative}
+  canvas.hist{width:100%;height:150px;display:block;border-radius:3px;border:1px solid var(--line);background:var(--panel-2)}
+  .histnote{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.55;
+    border-top:1px dashed var(--line);padding-top:10px}
+  .histnote b{color:var(--ink-dim);font-weight:600}
+  .histlegend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:9px}
+  .histlegend span{display:inline-flex;align-items:center;gap:6px}
+
+  /* manifold (5 params) */
+  .op{display:grid;grid-template-columns:118px 1fr;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+  .op:last-child{border-bottom:0}
+  .op .nm{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .op .nm small{display:block;color:var(--muted);font-size:10px}
+  .mbar{height:16px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden;border:1px solid var(--line)}
+  .mbar > span.fill{position:absolute;left:0;top:0;bottom:0;transition:width .5s ease;
+    background:color-mix(in srgb,var(--metric) 55%,transparent)}
+  .mbar .pv{position:absolute;right:7px;top:0;bottom:0;display:flex;align-items:center;font-family:var(--mono);
+    font-size:10.5px;color:var(--ink-dim);font-variant-numeric:tabular-nums;z-index:2}
+  .mlegend{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:12px;line-height:1.5}
+
+  /* best rule */
+  .coefgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);
+    border-radius:4px;overflow:hidden}
+  @media(max-width:560px){.coefgrid{grid-template-columns:repeat(2,1fr)}}
+  .coef{background:var(--panel);padding:9px 11px}
+  .coef .cn{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .coef .cv{font-family:var(--mono);font-size:15px;font-variant-numeric:tabular-nums;color:var(--metric);margin-top:2px}
+  .bestmeta{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+  .bcell{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+  .bcell .bk{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .bcell .bv{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums;color:var(--ink);margin-top:3px}
+  .bcell .bv.good{color:var(--ok)} .bcell .bv.bad{color:var(--ceil)}
+  .bcell small{color:var(--muted);font-size:10px}
+  .bestempty{font-family:var(--mono);font-size:12.5px;color:var(--muted);padding:6px 0}
+
+  /* simulation (TT wave) */
+  .simcard{padding:0;overflow:hidden;position:relative}
+  .simhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:16px 20px 12px}
+  .simhead h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .simhead .rl{font-family:var(--mono);font-size:11px;color:var(--metric);letter-spacing:.02em}
+  .simhead .rl.demo{color:var(--warn)}
+  .simhead .siminfo{font-family:var(--mono);font-size:10.5px;color:var(--muted);flex-basis:100%;margin-top:2px;line-height:1.5}
+  .simwrap{position:relative;aspect-ratio:1/1;width:100%;background:#05070a}
+  #ttcanvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:auto}
+  .polbadge{position:absolute;left:12px;top:12px;display:flex;gap:8px;z-index:3}
+  .polbadge span{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;
+    background:color-mix(in srgb,#05070a 55%,transparent);border:1px solid color-mix(in srgb,#ffffff 15%,transparent)}
+  .polbadge .pp{color:#7ff0e4} .polbadge .pc{color:#f0c07a}
+  .simfoot{padding:11px 20px 16px;display:flex;flex-direction:column;gap:12px}
+  .dampbox{display:grid;grid-template-columns:1fr 150px;gap:14px;align-items:center;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:11px 13px}
+  @media(max-width:560px){.dampbox{grid-template-columns:1fr}}
+  .dampbox .dl{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.55}
+  .dampbox .dl b.tt{color:var(--metric)} .dampbox .dl b.ntt{color:var(--ceil)}
+  canvas.damp{width:150px;height:56px;display:block}
+  .simfoot .rampbar{height:9px;flex:1;min-width:150px;border-radius:5px;
+    background:linear-gradient(90deg,#e5687a,#2a1830,#05070a,#1a3a3a,#45d4c6)}
+  .simfoot .lab{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .simfootrow{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center}
+  .simctls{display:flex;gap:8px}
+  .minibtn{background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);border-radius:3px;
+    font-size:11px;padding:6px 10px;cursor:pointer;letter-spacing:.04em}
+  .minibtn:hover{color:var(--metric);border-color:var(--metric)}
+  .minibtn:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+  .simoverlay{position:absolute;inset:0;display:none;flex-direction:column;gap:10px;padding:22px;
+    background:color-mix(in srgb,#05070a 88%,transparent);color:var(--ink);z-index:5;overflow:auto}
+  .simoverlay.show{display:flex}
+  .simoverlay h3{font-family:var(--mono);font-size:13px;color:var(--ceil);letter-spacing:.06em}
+  .simoverlay pre{font-family:var(--mono);font-size:11px;color:var(--ink-dim);white-space:pre-wrap;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:12px;margin:0}
+  .simoverlay.info h3{color:var(--warn)}
+
+  /* CLI steer box */
+  .clibox .sb-lab{font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);margin-bottom:8px;line-height:1.55}
+  .clibox .sb-lab b{color:var(--ink);font-weight:600}
+  .clirow{display:flex;flex-direction:column;gap:8px}
+  .clinote{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;
+    border-top:1px dashed var(--line);padding-top:12px}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+  footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted)}
+  .foot-inner{max-width:var(--maxw);margin:0 auto;padding:0 22px;font-family:var(--mono);font-size:11.5px;
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .live-dotwrap{display:inline-flex;align-items:center;gap:7px}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .live-dot.on{background:var(--ok)}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <div class="brand">
+      <h1>Tensor Campaign Console</h1>
+      <div class="sub">spin-2 rule-space · TT gravitational-wave selection · 北极星 M4</div>
+    </div>
+    <div class="spacer"></div>
+    <div id="badge" class="badge idle"><span class="dot"></span><span id="badgeText">idle</span></div>
+    <button id="themeBtn" class="tbtn" aria-label="Toggle color theme">◐ theme</button>
+  </div>
+</header>
+
+<div id="liveness" class="liveness" role="status" aria-live="polite">
+  <div class="liveness-inner">
+    <div class="msg" id="livenessMsg"></div>
+    <div class="copyfield">
+      <code id="cmdText">nohup python tensor_campaign_runner.py run &amp;</code>
+      <button id="copyCmd" type="button">copy</button>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="cols">
+    <!-- LEFT COLUMN -->
+    <div class="stack">
+      <!-- headline -->
+      <section class="card" aria-label="Live campaign metrics">
+        <h2>Live Metrics <span class="hint" id="updHint">—</span></h2>
+        <div class="counters">
+          <div class="metric"><span class="v" id="cRules">—</span><span class="k">tensor rules screened</span></div>
+          <div class="metric"><span class="v ink" id="cRate">—</span><span class="k">throughput · rules/s</span></div>
+          <div class="metric"><span class="v ink" id="cWall">—</span><span class="k">wall time</span></div>
+        </div>
+        <div class="subcounters">
+          <div class="metric"><span class="v ink" id="cScreen">—</span><span class="k">tier-1 screen pass %</span></div>
+          <div class="metric"><span class="v matter" id="cLawful">—</span><span class="k">lawful_tensor % (二级)</span></div>
+        </div>
+        <div class="ckpt" id="ckptChip" title="每 batch 原子 checkpoint 写 run_tensor/state.json — 可随时 stop/resume,进度不丢。">
+          <span class="ck-ico">◆</span><span id="ckptText">no checkpoint yet</span>
+        </div>
+        <div class="prog" id="progWrap" style="display:none">
+          <div class="track"><span id="progBar"></span></div>
+          <div class="lab">
+            <span>progress · <span class="tnum" id="progPct">0%</span> of <span class="tnum" id="progTarget">—</span></span>
+            <span>ETA <span class="tnum" id="progEta">—</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TT WAVE SIMULATION -->
+      <section class="card simcard" aria-label="Live transverse-traceless gravitational wave">
+        <div class="simhead">
+          <h2>Live TT Gravitational Wave h₊ / h×</h2>
+          <span class="rl" id="simRule">demo params</span>
+          <span class="siminfo">In-shader spin-2 field: a chirping quadrupole source (driven by <b>best</b> params) radiates the two
+            transverse-traceless polarizations, which then propagate on the torus at c<sub>gw</sub>=√cg2.
+            <b>Damping (γ) acts on the non-TT sector only</b> — the h₊/h× wave equation carries no friction term, so what you
+            see is genuine propagation, not artificial decay. The γ-damped non-TT envelope is shown below for contrast.</span>
+        </div>
+        <div class="simwrap">
+          <canvas id="ttcanvas"></canvas>
+          <div class="polbadge" aria-hidden="true"><span class="pp">h₊ teal</span><span class="pc">h× amber</span></div>
+          <div class="simoverlay" id="simOverlay">
+            <h3 id="simOvTitle">shader error</h3>
+            <pre id="simOvBody"></pre>
+          </div>
+        </div>
+        <div class="simfoot">
+          <div class="dampbox">
+            <div class="dl">
+              <b class="tt">TT sector (h₊,h×)</b> — frictionless, envelope stays flat.<br>
+              <b class="ntt">non-TT (trace / gauge)</b> — dissipated at rate γ=<span id="dampGamma" class="tnum">—</span>.
+              This is where the rule's damping term lives; the TT wave above never sees it.
+            </div>
+            <canvas class="damp" id="dampCanvas" width="300" height="112"></canvas>
+          </div>
+          <div class="simfootrow">
+            <div style="flex:1;min-width:170px">
+              <div class="rampbar" aria-hidden="true"></div>
+              <div class="lab"><span>h₊ &lt; 0 (rose)</span><span>flat</span><span>h₊ &gt; 0 (teal)</span></div>
+            </div>
+            <div class="lab" style="display:flex;align-items:center;gap:7px">
+              <span>peak |h| <b id="peakH" class="tnum" style="color:var(--ink)">—</b></span>
+            </div>
+            <div class="simctls">
+              <button class="minibtn" id="reseedBtn" type="button">↻ re-emit</button>
+              <button class="minibtn" id="simToggle" type="button">⏸ pause</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- plots -->
+      <section class="card" aria-label="Throughput and lawful history">
+        <h2>History <span class="hint">last <span id="histN">0</span> checkpoints</span></h2>
+        <div class="plots">
+          <div class="plotbox">
+            <div class="cap"><span class="t">throughput</span><span class="n tnum" id="spkRate">—</span></div>
+            <canvas class="plot" id="plotRate" width="400" height="64"></canvas>
+          </div>
+          <div class="plotbox">
+            <div class="cap"><span class="t">lawful_tensor cumulative</span><span class="n tnum" id="spkLawful">—</span></div>
+            <canvas class="plot" id="plotLawful" width="400" height="64"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="stack">
+      <!-- sector funnel -->
+      <section class="card" aria-label="Sector funnel">
+        <h2>Sector Funnel <span class="hint">screen → lawful_tensor</span></h2>
+        <div class="funnel" id="funnel"></div>
+      </section>
+
+      <!-- gw histogram -->
+      <section class="card" aria-label="GW speed distribution">
+        <h2>c<sub>gw</sub>/c Distribution <span class="hint">J5 引力波速</span></h2>
+        <div class="histwrap"><canvas class="hist" id="histCanvas" width="520" height="150"></canvas></div>
+        <div class="histlegend">
+          <span><span class="sw" style="background:var(--ok)"></span> GW170817 剪刀线 (c_gw=c)</span>
+          <span><span class="sw" style="background:color-mix(in srgb,var(--open) 45%,transparent)"></span> tier-1 tol ±0.05</span>
+          <span><span class="sw" style="background:color-mix(in srgb,var(--metric) 55%,transparent)"></span> tier-2 tol ±0.01</span>
+          <span><span class="sw" style="background:var(--matter)"></span> best</span>
+        </div>
+        <div class="histnote" id="histNote"></div>
+      </section>
+
+      <!-- survival manifold -->
+      <section class="card" aria-label="Survival parameter manifold">
+        <h2>Survival Manifold <span class="hint">surv_param_mean</span></h2>
+        <div id="manifold"></div>
+        <div class="mlegend" id="mlegend">条形 = 存活规则参数均值在其先验搜索区间中的相对位置;右侧数字为原始均值。</div>
+      </section>
+
+      <!-- best rule -->
+      <section class="card" aria-label="Best lawful tensor rule">
+        <h2>Best Lawful Tensor Rule</h2>
+        <div id="bestBody">
+          <div class="bestempty" id="bestEmpty">awaiting first lawful_tensor hit…</div>
+          <div class="coefgrid" id="coefGrid" style="display:none"></div>
+          <div class="bestmeta" id="bestMeta" style="display:none">
+            <div class="bcell"><div class="bk">n_prop</div><div class="bv" id="bNprop">—</div><small>propagating dof · 目标 2</small></div>
+            <div class="bcell"><div class="bk">newton_ratio</div><div class="bv" id="bNewton">—</div><small>h00·φ · 目标 2</small></div>
+            <div class="bcell"><div class="bk">deflection</div><div class="bv" id="bDefl">—</div><small>光线偏折 · 目标 2</small></div>
+            <div class="bcell"><div class="bk">gw_speed c_gw/c</div><div class="bv" id="bGw">—</div><small>目标 1.000</small></div>
+          </div>
+          <div class="bestmeta" id="bestMeta2" style="display:none;grid-template-columns:1fr">
+            <div class="bcell"><div class="bk">found @ rules · score</div><div class="bv" id="bFound">—</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLI steer -->
+      <section class="card clibox" aria-label="Steer the tensor runner">
+        <h2>Steer the Runner <span class="hint dead" id="procTag">○ no live process</span></h2>
+        <div class="sb-lab" id="sbLab">张量战役由 CLI 驱动(control 面写 <b>run_tensor/</b>,与标量 dashboard 隔离):</div>
+        <div class="clirow">
+          <div class="copyfield"><code id="cmdRun">nohup python tensor_campaign_runner.py run --target 100000 &amp;</code><button id="copyRun" type="button">copy</button></div>
+          <div class="copyfield"><code id="cmdPause">python tensor_campaign_runner.py pause</code><button id="copyPause" type="button">copy</button></div>
+          <div class="copyfield"><code id="cmdStop">python tensor_campaign_runner.py stop</code><button id="copyStop" type="button">copy</button></div>
+        </div>
+        <div class="clinote">本页只读 <b>/run_tensor/state.json</b>(同源静态路由)@ 1 Hz。控制走 CLI 而非页面按钮:
+          <code>/api/control</code> 写的是标量 <code>run/control.json</code>,不会误触张量 runner。</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <span>Tensor Campaign Console · <span class="mono">/run_tensor/state.json</span> @ 1 Hz · in-shader TT wave (WebGL2)</span>
+    <span class="live-dotwrap"><span class="live-dot" id="footDot"></span><span id="footStat">connecting…</span></span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+//============================================================================
+// Config
+//============================================================================
+var STATE_URL = "/run_tensor/state.json";   // static route; campaign_server serves DIR files
+// allow ?state=... override for alternate deployments, still same-origin
+(function(){
+  try{
+    var q = new URLSearchParams(window.location.search).get("state");
+    if (q && q.charAt(0) === "/") STATE_URL = q;
+  }catch(e){}
+})();
+
+// PARAM_NAMES per lane-A contract: ["cg2","gamma","G","tr_sign","sigma"].
+// Prior ranges (from lane-A tensor_batch回执) used only to normalise the manifold bars.
+var PARAM_META = {
+  cg2:     { label:"cg2",     sub:"波刚度 / c_gw²", lo:0.1,     hi:1.259, log:true },
+  gamma:   { label:"gamma",   sub:"非TT 阻尼",      lo:0.00316, hi:0.158, log:true },
+  G:       { label:"G",       sub:"引力耦合",       lo:0.01,    hi:0.1995,log:true },
+  tr_sign: { label:"tr_sign", sub:"迹反转 {0,1}",   lo:0,       hi:1,     log:false },
+  sigma:   { label:"sigma",   sub:"源宽度",         lo:1.5,     hi:3.5,   log:false }
+};
+
+var $ = function(id){ return document.getElementById(id); };
+var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+//============================================================================
+// Theme toggle
+//============================================================================
+(function(){
+  try {
+    var saved = localStorage.getItem("tc-theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  } catch(e){}
+  $("themeBtn").addEventListener("click", function(){
+    var cur = document.documentElement.getAttribute("data-theme");
+    if (!cur) cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var next = cur === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("tc-theme", next); } catch(e){}
+    if (lastState) render(lastState);
+    drawDamp();
+  });
+})();
+
+//============================================================================
+// Formatters
+//============================================================================
+function fmtInt(n){ if (n==null || isNaN(n)) return "—"; return Math.round(n).toLocaleString("en-US"); }
+function fmtRate(n){ if (n==null || isNaN(n)) return "—"; if (n>=1000) return (n/1000).toFixed(1)+"k"; return Math.round(n).toString(); }
+function fmtClock(sec){
+  if (sec==null || isNaN(sec)) return "—";
+  sec = Math.max(0, Math.floor(sec));
+  var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  var p=function(x){ return (x<10?"0":"")+x; };
+  return h+":"+p(m)+":"+p(s);
+}
+function fmtNum(x, dp){ if (x==null || isNaN(x)) return "—"; return Number(x).toFixed(dp==null?4:dp); }
+function fmtPct(x, dp){ if (x==null || isNaN(x)) return "—"; return Number(x).toFixed(dp==null?2:dp)+"%"; }
+function cssv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+//============================================================================
+// Copy helpers
+//============================================================================
+function fallbackCopy(txt){
+  try {
+    var ta=document.createElement("textarea");
+    ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta);
+  } catch(e){}
+}
+function wireCopy(btnId, codeId){
+  $(btnId).addEventListener("click", function(){
+    var txt=$(codeId).textContent, b=$(btnId);
+    var done=function(){ b.textContent="copied"; setTimeout(function(){ b.textContent="copy"; },1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); done(); });
+    } else { fallbackCopy(txt); done(); }
+  });
+}
+wireCopy("copyCmd","cmdText");
+wireCopy("copyRun","cmdRun");
+wireCopy("copyPause","cmdPause");
+wireCopy("copyStop","cmdStop");
+
+//============================================================================
+// Polling
+//============================================================================
+var lastState = null;
+
+function setBadge(status, mode, notLive){
+  var b=$("badge"), t=$("badgeText");
+  if (mode === "offline"){ b.className="badge offline"; t.textContent="server offline"; return; }
+  if (mode === "waiting"){ b.className="badge waiting"; t.textContent="waiting for data"; return; }
+  var s=status||"idle";
+  b.className="badge "+s;
+  var txt=s;
+  if (notLive && s==="running") txt="running · stale";
+  t.textContent=txt;
+}
+
+function showLiveness(mode, msg){
+  var el=$("liveness"), copy=el.querySelector(".copyfield");
+  if (mode==="none"){ el.className="liveness"; return; }
+  el.className="liveness show "+(mode==="err"?"err":(mode==="wait"?"wait":""));
+  $("livenessMsg").innerHTML=msg;
+  $("cmdText").textContent = (mode==="err") ? "python campaign_server.py" : "nohup python tensor_campaign_runner.py run &";
+  copy.style.display="";
+}
+
+async function poll(){
+  try {
+    var r = await fetch(STATE_URL, { cache:"no-store" });
+    if (r.status === 404){
+      // server up, but the tensor campaign has not written state yet
+      lastState = null;
+      setBadge(null, "waiting", false);
+      showLiveness("wait", "<b>等待张量战役数据</b> — run_tensor/state.json 尚未生成。启动 runner:");
+      updateProc(false, null);
+      renderEmpty();
+      $("footDot").classList.add("on");
+      $("footStat").textContent = "server up · no state";
+      $("updHint").textContent = "no state yet";
+      return;
+    }
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    var st = await r.json();
+    if (!st || st.status === "idle" && st.rules_done == null){
+      // /api/state style idle stub or empty object
+      lastState = null;
+      setBadge(null, "waiting", false);
+      showLiveness("wait", "<b>等待张量战役数据</b> — 尚无 checkpoint。启动 runner:");
+      updateProc(false, null); renderEmpty();
+      $("footDot").classList.add("on"); $("footStat").textContent="server up · no state";
+      return;
+    }
+    lastState = st;
+    render(st);
+    $("footDot").classList.add("on");
+    $("footStat").textContent = "connected · state.json";
+  } catch(e){
+    setBadge(null, "offline", false);
+    showLiveness("err", "<b>server offline</b> — 启动 campaign_server:");
+    updateProc(false, lastState);
+    $("footDot").classList.remove("on");
+    $("footStat").textContent = "offline";
+    $("updHint").textContent = "no server";
+  }
+}
+
+//============================================================================
+// Render
+//============================================================================
+function render(st){
+  var now = Date.now()/1000;
+  var stale = st.updated_at ? (now - st.updated_at) : Infinity;
+  var running = st.status === "running";
+  var notLive = running && stale > 4;
+
+  setBadge(st.status, "live", notLive);
+  if (notLive){
+    showLiveness("wait", "<b>runner not live</b> — 状态 "+Math.round(stale)+"s 未更新但标记为 running。重启 runner:");
+  } else {
+    showLiveness("none");
+  }
+  updateProc((st.status==="running"||st.status==="paused") && stale<4, st);
+
+  $("updHint").textContent = st.updated_at ? ("updated "+(stale<2?"just now":Math.round(stale)+"s ago")) : "—";
+
+  // counters
+  $("cRules").textContent  = fmtInt(st.rules_done);
+  $("cRate").textContent   = (st.rate!=null && !isNaN(st.rate)) ? fmtRate(st.rate) : "—";
+  $("cWall").textContent   = fmtClock(st.wall_seconds);
+  $("cScreen").textContent = (st.screen_pct!=null) ? fmtPct(st.screen_pct,2) : "—";
+  $("cLawful").textContent = (st.lawful_tensor_pct!=null) ? fmtPct(st.lawful_tensor_pct,3) : "—";
+
+  var ck=$("ckptText");
+  if (st.batches_done){
+    ck.innerHTML = "checkpoint <b>#"+fmtInt(st.batches_done)+"</b> · "+fmtInt(st.rules_done)+
+      " rules saved "+(stale<2?"just now":Math.round(stale)+"s ago")+" · <span class='safe'>resumable ✓</span>";
+  } else ck.textContent = "no checkpoint yet";
+
+  // progress + ETA
+  if (st.target && st.target > 0){
+    $("progWrap").style.display="";
+    var frac=Math.min(1,(st.rules_done||0)/st.target);
+    $("progBar").style.width=(frac*100).toFixed(2)+"%";
+    $("progPct").textContent=(frac*100).toFixed(1)+"%";
+    $("progTarget").textContent=fmtInt(st.target);
+    var remain=st.target-(st.rules_done||0);
+    if (running && st.rate>0 && remain>0) $("progEta").textContent=fmtClock(remain/st.rate);
+    else if (remain<=0) $("progEta").textContent="complete";
+    else $("progEta").textContent="—";
+  } else $("progWrap").style.display="none";
+
+  renderFunnel(st);
+  renderHist(st);
+  renderManifold(st);
+  renderBest(st);
+  renderPlots(st.history || []);
+  updateSimRule(st.best);
+}
+
+function renderEmpty(){
+  ["cRules","cRate","cWall","cScreen","cLawful"].forEach(function(id){ $(id).textContent="—"; });
+  $("ckptText").textContent="no checkpoint yet";
+  $("progWrap").style.display="none";
+  renderFunnel({});
+  renderHist({});
+  renderManifold({});
+  renderBest({});
+  renderPlots([]);
+  updateSimRule(null);
+}
+
+function updateProc(live, st){
+  var tag=$("procTag");
+  tag.className="hint "+(live?"live":"dead");
+  tag.textContent=live?"● live process":"○ no live process";
+}
+
+//============================================================================
+// Sector funnel — screened → S1 → S2 → S3 → gwOK → lawful_tensor
+//============================================================================
+var FUNNEL = [
+  { key:"stable",   cls:"st",  label:"stable",         sub:"稳定/幺正/有界" },
+  { key:"tt2",      cls:"s1",  label:"S1 · TT",        sub:"tt_dof=2 传播代理" },
+  { key:"S2",       cls:"s1",  label:"S2 · newton",    sub:"h00·φ=2 · 待 runner 透传", pending:true },
+  { key:"S3",       cls:"s1",  label:"S3 · eddington", sub:"偏折=2 · 待 runner 透传", pending:true },
+  { key:"gw_ok",    cls:"j5",  label:"J5 · gwOK",      sub:"|c_gw/c−1|<0.05" },
+  { key:"screened_pass", cls:"scr", label:"screened",  sub:"S1∧S2∧S3∧J5 快筛总判" },
+  { key:"lawful_tensor", cls:"law", label:"lawful_tensor", sub:"二级全过 · 诚实数" }
+];
+function renderFunnel(st){
+  var root=$("funnel"), rules=st.rules_done||0;
+  if (!root.childElementCount){
+    FUNNEL.forEach(function(f){
+      var row=document.createElement("div"); row.className="frow";
+      row.innerHTML='<div class="fl">'+f.label+'<small>'+f.sub+'</small></div>'+
+        '<div class="fbar '+f.cls+'"><span class="fill"></span><span class="fv"></span></div>';
+      root.appendChild(row);
+    });
+  }
+  var rows=root.children;
+  for (var i=0;i<FUNNEL.length;i++){
+    var f=FUNNEL[i], bar=rows[i].querySelector(".fbar"), fill=bar.querySelector(".fill"), fv=bar.querySelector(".fv");
+    if (f.pending){
+      bar.className="fbar pending"; fill.style.width="0%"; fv.textContent="待 runner 透传";
+      continue;
+    }
+    var v=st[f.key];
+    bar.className="fbar "+f.cls;
+    if (v==null || !rules){ fill.style.width="0%"; fv.textContent="—"; continue; }
+    var pct=100*v/rules;
+    fill.style.width=Math.min(100,pct)+"%";
+    fv.textContent=pct.toFixed(pct<1?2:1)+"%  ·  "+fmtInt(v);
+  }
+}
+
+//============================================================================
+// c_gw/c distribution — GW170817 scissor line + best marker
+//============================================================================
+function renderHist(st){
+  var cv=$("histCanvas"), ctx=cv.getContext("2d");
+  var W=cv.width, H=cv.height, padL=8, padR=8, padT=10, padB=22;
+  var x0=0.35, x1=1.10;                     // domain of c_gw/c (prior gives ~0.42..1.12)
+  var xToPx=function(x){ return padL + (x-x0)/(x1-x0)*(W-padL-padR); };
+  ctx.clearRect(0,0,W,H);
+  var ink=cssv("--ink"), muted=cssv("--muted"), line=cssv("--line");
+  var metric=cssv("--metric"), matter=cssv("--matter"), open=cssv("--open"), ok=cssv("--ok");
+
+  // tolerance bands (tier-1 ±0.05, tier-2 ±0.01) around c_gw=1
+  function band(lo,hi,color,alpha){
+    ctx.fillStyle=color; ctx.globalAlpha=alpha;
+    ctx.fillRect(xToPx(lo),padT,xToPx(hi)-xToPx(lo),H-padT-padB);
+    ctx.globalAlpha=1;
+  }
+  band(0.95,1.05, open, 0.16);
+  band(0.99,1.01, metric, 0.22);
+
+  // optional real distribution if the runner ever transmits it (st.gw_hist = [{x,count}]/bins)
+  var hist = st.gw_hist || null;
+  if (hist && hist.length){
+    var maxc=0; for (var i=0;i<hist.length;i++) maxc=Math.max(maxc, hist[i].count||hist[i][1]||0);
+    maxc=maxc||1;
+    ctx.fillStyle=color_mix(matter,0.55);
+    for (var j=0;j<hist.length;j++){
+      var hx=(hist[j].x!=null?hist[j].x:hist[j][0]);
+      var hc=(hist[j].count!=null?hist[j].count:hist[j][1]);
+      var bh=(hc/maxc)*(H-padT-padB);
+      var bw=Math.max(2,(W-padL-padR)/hist.length-1);
+      ctx.fillRect(xToPx(hx)-bw/2, H-padB-bh, bw, bh);
+    }
+  }
+
+  // axis baseline + ticks
+  ctx.strokeStyle=line; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,H-padB); ctx.lineTo(W-padR,H-padB); ctx.stroke();
+  ctx.fillStyle=muted; ctx.font="10px "+cssv("--mono").replace(/"/g,"")+",monospace";
+  ctx.textAlign="center";
+  [0.4,0.6,0.8,1.0].forEach(function(tk){
+    var px=xToPx(tk);
+    ctx.strokeStyle=line; ctx.beginPath(); ctx.moveTo(px,H-padB); ctx.lineTo(px,H-padB+4); ctx.stroke();
+    ctx.fillText(tk.toFixed(1), px, H-padB+15);
+  });
+
+  // GW170817 scissor line at c_gw = c (x=1.0)
+  var sx=xToPx(1.0);
+  ctx.strokeStyle=ok; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(sx,padT); ctx.lineTo(sx,H-padB); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // markers: survivor mean (√cg2) and best.gw_speed
+  var survCg2 = (st.surv_param_mean && st.surv_param_mean.length) ? st.surv_param_mean[0] : null;
+  var survGw = (survCg2!=null && survCg2>0) ? Math.sqrt(survCg2) : null;
+  var bestGw = (st.best && st.best.gw_speed!=null) ? st.best.gw_speed : null;
+  function needle(x,color,label,up){
+    if (x==null || isNaN(x)) return;
+    var px=xToPx(Math.max(x0,Math.min(x1,x)));
+    ctx.strokeStyle=color; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(px,padT+2); ctx.lineTo(px,H-padB); ctx.stroke();
+    ctx.fillStyle=color; ctx.beginPath();
+    var ty=up?padT+2:H-padB-2;
+    ctx.moveTo(px,ty); ctx.lineTo(px-4,ty+(up?8:-8)); ctx.lineTo(px+4,ty+(up?8:-8)); ctx.closePath(); ctx.fill();
+    ctx.textAlign = px>W-70?"right":"left";
+    ctx.fillText(label, px+(px>W-70?-6:6), up?padT+12:H-padB-8);
+  }
+  needle(survGw, metric, "surv √cḡ2 "+(survGw!=null?survGw.toFixed(3):""), false);
+  needle(bestGw, matter, "best "+(bestGw!=null?bestGw.toFixed(4):""), true);
+
+  var note = "分布竖线为标量摘要:<b>best</b> gw_speed 与存活规则 cg2 均值的 √。逐规则 gw_speed 直方图 <b>待 runner 透传</b>"+
+    "(state 现无 per-rule gw 数组)。绿色剪刀线 = GW170817 的 c_gw=c;注意我们的 δ 是<b>格点测量精度代理</b>(tier-1 ~0.05 / tier-2 ~0.01),"+
+    "并非 |c_gw/c−1|<1e-15 的观测声明 —— 那条线只作叙事锚点。";
+  $("histNote").innerHTML=note;
+}
+function color_mix(hex,a){ return hex; }  // placeholder; bars use solid color at set alpha via fillStyle already
+
+//============================================================================
+// Survival manifold — 5-dim surv_param_mean, normalised into prior range
+//============================================================================
+function renderManifold(st){
+  var names = st.param_names || ["cg2","gamma","G","tr_sign","sigma"];
+  var means = st.surv_param_mean || [];
+  var root=$("manifold");
+  if (root.getAttribute("data-n") != String(names.length)){
+    root.innerHTML=""; root.setAttribute("data-n", String(names.length));
+    for (var i=0;i<names.length;i++){
+      var m=PARAM_META[names[i]] || {label:names[i], sub:""};
+      var row=document.createElement("div"); row.className="op";
+      row.innerHTML='<div class="nm">'+m.label+'<small>'+(m.sub||"")+'</small></div>'+
+        '<div class="mbar"><span class="fill"></span><span class="pv"></span></div>';
+      root.appendChild(row);
+    }
+  }
+  var rows=root.children;
+  for (var k=0;k<names.length;k++){
+    var meta=PARAM_META[names[k]] || {lo:0,hi:1,log:false};
+    var val=means[k];
+    var fill=rows[k].querySelector(".fill"), pv=rows[k].querySelector(".pv");
+    if (val==null || isNaN(val)){ fill.style.width="0%"; pv.textContent="—"; continue; }
+    var frac;
+    if (meta.log && meta.lo>0 && val>0){
+      frac=(Math.log(val)-Math.log(meta.lo))/(Math.log(meta.hi)-Math.log(meta.lo));
+    } else {
+      frac=(val-meta.lo)/(meta.hi-meta.lo);
+    }
+    frac=Math.max(0,Math.min(1,frac));
+    fill.style.width=(frac*100).toFixed(1)+"%";
+    pv.textContent=Number(val).toFixed(val<0.01&&val!==0?4:3);
+  }
+}
+
+//============================================================================
+// Best rule
+//============================================================================
+function renderBest(st){
+  var best=st.best;
+  var grid=$("coefGrid"), meta=$("bestMeta"), meta2=$("bestMeta2"), empty=$("bestEmpty");
+  if (!best || !best.params){
+    empty.style.display=""; grid.style.display="none"; meta.style.display="none"; meta2.style.display="none";
+    return;
+  }
+  empty.style.display="none"; grid.style.display=""; meta.style.display=""; meta2.style.display="";
+  var names=best.param_names || st.param_names || ["cg2","gamma","G","tr_sign","sigma"];
+  if (grid.getAttribute("data-n") != String(names.length)){
+    grid.innerHTML=""; grid.setAttribute("data-n", String(names.length));
+    for (var i=0;i<names.length;i++){
+      var c=document.createElement("div"); c.className="coef";
+      c.innerHTML='<div class="cn">'+names[i]+'</div><div class="cv"></div>';
+      grid.appendChild(c);
+    }
+  }
+  for (var j=0;j<names.length;j++){
+    var v=best.params[j];
+    grid.children[j].querySelector(".cv").textContent = (v==null?"—":Number(v).toFixed(v<0.01&&v!==0?4:4));
+  }
+  $("bNprop").textContent = best.n_prop!=null ? best.n_prop : "—";
+  $("bNprop").className = "bv"+(best.n_prop===2?" good":(best.n_prop!=null?" bad":""));
+  var nr=best.newton_ratio;
+  $("bNewton").textContent = fmtNum(nr,4);
+  $("bNewton").className="bv"+(nr!=null&&Math.abs(nr-2)<0.05?" good":(nr!=null?" bad":""));
+  var df=best.deflection;
+  $("bDefl").textContent = fmtNum(df,4);
+  $("bDefl").className="bv"+(df!=null&&Math.abs(df-2)<0.05?" good":(df!=null?" bad":""));
+  var gw=best.gw_speed;
+  $("bGw").textContent = fmtNum(gw,4);
+  $("bGw").className="bv"+(gw!=null&&Math.abs(gw-1)<0.01?" good":(gw!=null?" bad":""));
+  $("bFound").textContent = (best.found_at_rules!=null?fmtInt(best.found_at_rules):"—")+
+    "  ·  score "+(best.score!=null?best.score.toExponential(2):"—");
+}
+
+//============================================================================
+// Sparkline plots
+//============================================================================
+function renderPlots(hist){
+  $("histN").textContent = hist.length;
+  drawSpark($("plotRate"), hist.map(function(h){ return h.rate||0; }), cssv("--metric"), $("spkRate"), function(v){ return fmtRate(v)+"/s"; }, false);
+  drawSpark($("plotLawful"), hist.map(function(h){ return h.lawful||0; }), cssv("--matter"), $("spkLawful"), function(v){ return fmtInt(v); }, true);
+}
+function drawSpark(cv, data, color, label, fmt, cumulative){
+  var ctx=cv.getContext("2d");
+  var W=cv.width, H=cv.height, pad=3;
+  ctx.clearRect(0,0,W,H);
+  if (!data.length){ label.textContent="—"; return; }
+  var mn=cumulative?0:Math.min.apply(null,data);
+  var mx=Math.max.apply(null,data);
+  if (mx===mn) mx=mn+1;
+  var n=data.length;
+  var xAt=function(i){ return pad+(n===1?0:(i/(n-1))*(W-2*pad)); };
+  var yAt=function(v){ return H-pad-((v-mn)/(mx-mn))*(H-2*pad); };
+  ctx.beginPath(); ctx.moveTo(xAt(0),H-pad);
+  for (var i=0;i<n;i++) ctx.lineTo(xAt(i),yAt(data[i]));
+  ctx.lineTo(xAt(n-1),H-pad); ctx.closePath();
+  ctx.fillStyle=color+"22"; ctx.fill();
+  ctx.beginPath();
+  for (var j=0;j<n;j++){ var x=xAt(j),y=yAt(data[j]); if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+  ctx.lineWidth=1.6; ctx.strokeStyle=color; ctx.lineJoin="round"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(xAt(n-1),yAt(data[n-1]),2.4,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+  label.textContent=fmt(data[n-1]);
+}
+
+//============================================================================
+// LIVE WebGL2 TT gravitational-wave field
+//   State texture RGBA = (h+ current, h+ prev, h× current, h× prev)
+//   Both polarizations obey an UNDAMPED leapfrog wave equation (TT = frictionless).
+//   The rule's damping γ is deliberately absent from this integrator; it lives only
+//   in the non-TT contrast meter below. A chirping quadrupole source (best params)
+//   injects a finite burst, then the TT wave rings on forever — real propagation.
+//============================================================================
+var GRID = 256;
+var SUB2 = 0.25;                 // mirror of runner's sub-cycle (physical cg2<4/3 stable)
+var BURST = 520;                 // source-active steps (finite injection -> bounded, honest)
+
+var sim = {
+  gl:null, ok:false, running:true,
+  cur:0, fbo:[null,null], tex:[null,null],
+  simProg:null, dispProg:null, quad:null,
+  uSim:{}, uDisp:{}, frame:0, stepCount:0, simTime:0,
+  readBuf:null,
+  params:null, isDemo:true,
+  c2:0.25, omega0:0.5, amp:0.03, gamma:0.05
+};
+// demo params [cg2,gamma,G,tr_sign,sigma]
+var DEMO_PARAMS = [1.0, 0.05, 0.05, 1.0, 2.5];
+
+var VERT = "#version 300 es\nin vec2 p;out vec2 uv;void main(){uv=p*0.5+0.5;gl_Position=vec4(p,0.0,1.0);}";
+
+var SIM_FS = "#version 300 es\nprecision highp float;\n"+
+"in vec2 uv;out vec4 o;\n"+
+"uniform sampler2D uState;\n"+
+"uniform vec2 uTexel;\n"+
+"uniform float uC2;\n"+          // CFL-scaled c_gw^2
+"uniform float uStep;\n"+        // 1 advance, 0 hold
+"uniform float uTime;\n"+
+"uniform float uOmega;\n"+
+"uniform float uAmp;\n"+
+"uniform float uActive;\n"+      // source envelope (0..1)
+"uniform float uSrcW;\n"+        // source width (1/(2 s^2))
+"void main(){\n"+
+"  vec2 t=uTexel;\n"+
+"  vec4 s=texture(uState,uv);\n"+
+"  float hp=s.r, hpp=s.g, hc=s.b, hcp=s.a;\n"+
+"  float pl=texture(uState,uv+vec2(-t.x,0.)).r;\n"+
+"  float pr=texture(uState,uv+vec2( t.x,0.)).r;\n"+
+"  float pu=texture(uState,uv+vec2(0., t.y)).r;\n"+
+"  float pd=texture(uState,uv+vec2(0.,-t.y)).r;\n"+
+"  float lapP=pl+pr+pu+pd-4.0*hp;\n"+
+"  float cl=texture(uState,uv+vec2(-t.x,0.)).b;\n"+
+"  float cr=texture(uState,uv+vec2( t.x,0.)).b;\n"+
+"  float cu=texture(uState,uv+vec2(0., t.y)).b;\n"+
+"  float cd=texture(uState,uv+vec2(0.,-t.y)).b;\n"+
+"  float lapC=cl+cr+cu+cd-4.0*hc;\n"+
+"  // UNDAMPED leapfrog wave: TT modes carry NO friction term (by construction).\n"+
+"  float npNext=2.0*hp-hpp+uC2*lapP;\n"+
+"  float ncNext=2.0*hc-hcp+uC2*lapC;\n"+
+"  // chirping quadrupole source (finite burst): h+ ~ cos(2wt), h× ~ sin(2wt)\n"+
+"  vec2 d=uv-vec2(0.5); d-=floor(d+0.5);\n"+
+"  float ring=exp(-dot(d,d)*uSrcW);\n"+
+"  float drive=uAmp*ring*uActive;\n"+
+"  npNext+=uStep*drive*cos(2.0*uOmega*uTime);\n"+
+"  ncNext+=uStep*drive*sin(2.0*uOmega*uTime);\n"+
+"  float outp = mix(hp, npNext, uStep);\n"+
+"  float outpp= mix(hpp, hp,    uStep);\n"+
+"  float outc = mix(hc, ncNext, uStep);\n"+
+"  float outcp= mix(hcp, hc,    uStep);\n"+
+"  o=vec4(outp,outpp,outc,outcp);\n"+
+"}";
+
+var DISP_FS = "#version 300 es\nprecision highp float;\n"+
+"in vec2 uv;out vec4 o;\n"+
+"uniform sampler2D uState;\n"+
+"uniform float uGain;\n"+
+"vec3 diverge(float x){\n"+          // x in [-1,1] -> rose / dark / teal
+"  x=clamp(x,-1.0,1.0);\n"+
+"  vec3 neg=vec3(0.898,0.407,0.478);\n"+
+"  vec3 mid=vec3(0.020,0.031,0.043);\n"+
+"  vec3 pos=vec3(0.271,0.831,0.776);\n"+
+"  if(x<0.0) return mix(mid,neg,-x);\n"+
+"  return mix(mid,pos,x);\n"+
+"}\n"+
+"void main(){\n"+
+"  vec4 s=texture(uState,uv);\n"+
+"  float hp=s.r, hc=s.b;\n"+
+"  vec3 col=diverge(hp*uGain);\n"+
+"  // cross polarization adds an amber shimmer where |h×| is large\n"+
+"  col += vec3(0.902,0.635,0.306)*clamp(abs(hc)*uGain*0.9,0.0,1.0)*0.55;\n"+
+"  // faint source ring marker at centre\n"+
+"  vec2 d=uv-vec2(0.5); d-=floor(d+0.5); float r=length(d);\n"+
+"  col += vec3(0.30)*smoothstep(0.028,0.020,abs(r-0.02));\n"+
+"  o=vec4(col,1.0);\n"+
+"}";
+
+function glErrorOverlay(title, body, info){
+  var ov=$("simOverlay");
+  ov.className="simoverlay show"+(info?" info":"");
+  $("simOvTitle").textContent=title;
+  $("simOvBody").textContent=body;
+}
+function glClearOverlay(){ $("simOverlay").className="simoverlay"; }
+
+function compile(gl, type, src){
+  var sh=gl.createShader(type);
+  gl.shaderSource(sh,src); gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+    var log=gl.getShaderInfoLog(sh); gl.deleteShader(sh);
+    throw new Error("shader compile failed:\n"+log);
+  }
+  return sh;
+}
+function link(gl, vs, fs){
+  var p=gl.createProgram();
+  gl.attachShader(p,vs); gl.attachShader(p,fs);
+  gl.bindAttribLocation(p,0,"p"); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("program link failed:\n"+gl.getProgramInfoLog(p));
+  return p;
+}
+function makeStateTex(gl){
+  var tex=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,GRID,GRID,0,gl.RGBA,gl.FLOAT,null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  return tex;
+}
+function seedField(gl){
+  var N=GRID, arr=new Float32Array(N*N*4);  // flat spacetime: all channels 0
+  for (var t=0;t<2;t++){
+    gl.bindTexture(gl.TEXTURE_2D, sim.tex[t]);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,N,N,0,gl.RGBA,gl.FLOAT,arr);
+  }
+  sim.cur=0; sim.stepCount=0; sim.simTime=0;
+}
+
+function initSim(){
+  var canvas=$("ttcanvas");
+  var gl=null;
+  try { gl=canvas.getContext("webgl2", { antialias:false, preserveDrawingBuffer:false }); } catch(e){}
+  if (!gl){
+    glErrorOverlay("WebGL2 unavailable", "此浏览器未提供 WebGL2 上下文。TT 引力波实时场需要 WebGL2。上方指标与漏斗仍可用。", true);
+    return;
+  }
+  sim.gl=gl;
+  if (!gl.getExtension("EXT_color_buffer_float")){
+    glErrorOverlay("Float render targets unavailable",
+      "EXT_color_buffer_float 不受支持,场无法在 GPU 上以浮点纹理积分。仪表盘其余部分不受影响。", true);
+    return;
+  }
+  try {
+    var vs=compile(gl, gl.VERTEX_SHADER, VERT);
+    sim.simProg=link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, SIM_FS));
+    sim.dispProg=link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, DISP_FS));
+  } catch(e){
+    glErrorOverlay("Shader error", String(e.message||e), false);
+    return;
+  }
+  sim.quad=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sim.quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  sim.tex[0]=makeStateTex(gl); sim.tex[1]=makeStateTex(gl);
+  sim.fbo[0]=gl.createFramebuffer(); sim.fbo[1]=gl.createFramebuffer();
+  for (var i=0;i<2;i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sim.fbo[i]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sim.tex[i], 0);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  seedField(gl);
+  sim.readBuf=new Float32Array(GRID*GRID*4);
+  var S=sim.simProg;
+  sim.uSim={
+    uState:gl.getUniformLocation(S,"uState"), uTexel:gl.getUniformLocation(S,"uTexel"),
+    uC2:gl.getUniformLocation(S,"uC2"), uStep:gl.getUniformLocation(S,"uStep"),
+    uTime:gl.getUniformLocation(S,"uTime"), uOmega:gl.getUniformLocation(S,"uOmega"),
+    uAmp:gl.getUniformLocation(S,"uAmp"), uActive:gl.getUniformLocation(S,"uActive"),
+    uSrcW:gl.getUniformLocation(S,"uSrcW")
+  };
+  var D=sim.dispProg;
+  sim.uDisp={ uState:gl.getUniformLocation(D,"uState"), uGain:gl.getUniformLocation(D,"uGain") };
+  sim.ok=true; glClearOverlay();
+  requestAnimationFrame(simLoop);
+}
+
+function bindQuad(gl){
+  gl.bindBuffer(gl.ARRAY_BUFFER, sim.quad);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+}
+function resizeCanvasToDisplay(gl){
+  var c=gl.canvas, dpr=Math.min(window.devicePixelRatio||1,2);
+  var w=Math.max(1,Math.round(c.clientWidth*dpr)), h=Math.max(1,Math.round(c.clientHeight*dpr));
+  if (c.width!==w || c.height!==h){ c.width=w; c.height=h; }
+}
+function measurePeak(gl){
+  try {
+    gl.readPixels(0,0,GRID,GRID,gl.RGBA,gl.FLOAT,sim.readBuf);
+    var mx=0, tot=GRID*GRID;
+    for (var i=0;i<tot;i++){
+      var hp=Math.abs(sim.readBuf[i*4]), hc=Math.abs(sim.readBuf[i*4+2]);
+      var m=Math.sqrt(hp*hp+hc*hc); if (m>mx) mx=m;
+    }
+    $("peakH").textContent = mx.toFixed(4);
+  } catch(e){}
+}
+
+function simLoop(){
+  if (!sim.ok) return;
+  var gl=sim.gl;
+  sim.frame++;
+  var doStep=0.0;
+  if (sim.running){
+    if (reduceMotion) doStep=(sim.frame%6===0)?1.0:0.0;
+    else doStep=1.0;
+  }
+  // chirp: omega ramps up over the burst (inspiral), envelope ramps then cuts.
+  var sc=sim.stepCount;
+  var env=0.0, omega=sim.omega0;
+  if (sc < BURST){
+    var u=sc/BURST;
+    env = Math.min(1, sc/120) * (1.0 - Math.max(0,(u-0.7))/0.3);  // ramp in, taper out
+    env = Math.max(0, env);
+    omega = sim.omega0*(0.6 + 1.4*u);                             // chirp up
+  }
+
+  var src=sim.cur, dst=1-sim.cur;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sim.fbo[dst]);
+  gl.viewport(0,0,GRID,GRID);
+  gl.useProgram(sim.simProg);
+  bindQuad(gl);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.tex[src]);
+  gl.uniform1i(sim.uSim.uState,0);
+  gl.uniform2f(sim.uSim.uTexel,1/GRID,1/GRID);
+  gl.uniform1f(sim.uSim.uC2, sim.c2);
+  gl.uniform1f(sim.uSim.uStep, doStep);
+  gl.uniform1f(sim.uSim.uTime, sim.simTime);
+  gl.uniform1f(sim.uSim.uOmega, omega);
+  gl.uniform1f(sim.uSim.uAmp, sim.amp);
+  gl.uniform1f(sim.uSim.uActive, env);
+  gl.uniform1f(sim.uSim.uSrcW, sim.srcW);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  if (doStep>0.5){
+    sim.cur=dst; sim.simTime+=0.05; sim.stepCount++;
+    if (sim.stepCount%30===0) measurePeak(gl);
+  }
+
+  resizeCanvasToDisplay(gl);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,gl.canvas.width, gl.canvas.height);
+  gl.useProgram(sim.dispProg);
+  bindQuad(gl);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.tex[sim.cur]);
+  gl.uniform1i(sim.uDisp.uState,0);
+  gl.uniform1f(sim.uDisp.uGain, 6.0);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  requestAnimationFrame(simLoop);
+}
+
+// map best params -> sim source; re-emit a fresh burst on change.
+function updateSimRule(best){
+  var lab=$("simRule");
+  var p = (best && best.params && best.params.length>=5) ? best.params : null;
+  var params = p || DEMO_PARAMS;
+  var changed = !sim.params;
+  if (sim.params){ for (var i=0;i<5;i++){ if (Math.abs((params[i]||0)-sim.params[i])>1e-9) changed=true; } }
+  sim.params = params.slice();
+  // cg2 -> wave speed^2 (CFL-scaled; stable to cg2 ~ 4/3 like the runner)
+  sim.c2 = Math.max(0.02, Math.min(0.45, SUB2*params[0]));
+  sim.gamma = Math.max(0, params[1]);
+  sim.amp = Math.max(0.004, Math.min(0.12, params[2]*0.6));  // G -> strain amplitude
+  sim.srcW = 200.0 / Math.max(1.2, params[4]);               // sigma -> source width
+  sim.omega0 = 0.45;
+  $("dampGamma").textContent = sim.gamma.toFixed(4);
+  if (p){
+    sim.isDemo=false; lab.className="rl";
+    lab.textContent="best · cg2="+params[0].toFixed(3)+" γ="+params[1].toFixed(3)+" G="+params[2].toFixed(3)+
+      (params[3]!==1 ? " · ⚠ tr_sign="+params[3]+" (falsifier)" : "");
+  } else {
+    sim.isDemo=true; lab.className="rl demo";
+    lab.textContent="demo params (awaiting first lawful_tensor hit)";
+  }
+  if (changed && sim.ok && sim.gl){ seedField(sim.gl); }   // re-emit burst for the new rule
+  drawDamp();
+}
+
+// non-TT damping contrast: TT envelope flat, non-TT ~ exp(-gamma*t)
+function drawDamp(){
+  var cv=$("dampCanvas"); if (!cv) return;
+  var ctx=cv.getContext("2d"), W=cv.width, H=cv.height, pad=6;
+  ctx.clearRect(0,0,W,H);
+  var metric=cssv("--metric"), ceil=cssv("--ceil"), line=cssv("--line"), muted=cssv("--muted");
+  // baseline
+  ctx.strokeStyle=line; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  var yTop=pad+2, yBot=H-pad;
+  var yAt=function(v){ return yBot-(v)*(yBot-yTop); };
+  // TT: flat at 1.0
+  ctx.strokeStyle=metric; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(pad,yAt(1)); ctx.lineTo(W-pad,yAt(1)); ctx.stroke();
+  // non-TT: exp(-k x). scale k so gamma in ~[0.003,0.16] spans a visible range.
+  var k = 1.0 + (sim.gamma||0.05)*22.0;
+  ctx.strokeStyle=ceil; ctx.lineWidth=2; ctx.beginPath();
+  var n=60;
+  for (var i=0;i<=n;i++){
+    var x=i/n, v=Math.exp(-k*x);
+    var px=pad+x*(W-2*pad), py=yAt(v);
+    if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+  ctx.fillStyle=muted; ctx.font="9px monospace"; ctx.textAlign="left";
+  ctx.fillText("t →", pad, H-1);
+}
+
+$("simToggle").addEventListener("click", function(){
+  sim.running=!sim.running;
+  this.textContent=sim.running?"⏸ pause":"▶ play";
+});
+$("reseedBtn").addEventListener("click", function(){ if (sim.ok && sim.gl) seedField(sim.gl); });
+
+//============================================================================
+// Boot
+//============================================================================
+sim.srcW = 90.0;
+initSim();
+drawDamp();
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+ "backend": "numpy",
+ "gauge_certificate": {
+  "diffeo_invariance_residual": 1.7763568394002505e-15,
+  "diffeo_invariance_relative": 3.790552513680908e-16,
+  "pure_gauge_null_residual": 1.3322676295501878e-15,
+  "pure_gauge_field_scale": 5.471548769399045,
+  "exact_gauge_invariance": true,
+  "gauge_modes_are_null": true
+ },
+ "judge1_two_polarizations": {
+  "tt_ranks": [
+   2,
+   2,
+   2,
+   2,
+   2,
+   2
+  ],
+  "tt_rank_all_2": true,
+  "tt_packet_speed": 0.9907635101805058,
+  "tt_packet_speed_over_c": 0.9907635101805058,
+  "tt_speed_lattice_theory_over_c": 0.9935630467528723,
+  "causal_leak_fraction": 2.155650004104076e-05,
+  "polarization_tt_fraction": {
+   "plus  (xx-yy)": 1.0,
+   "cross (xy)": 1.0,
+   "breathing (xx+yy)": 0.0,
+   "long (zz)": 0.0,
+   "mixed (xz)": 0.0,
+   "mixed (yz)": 0.0
+  },
+  "polarization_dedonder_C2": {
+   "plus  (xx-yy)": 0.0,
+   "cross (xy)": 0.0,
+   "breathing (xx+yy)": 0.0,
+   "long (zz)": 9.260053031280355,
+   "mixed (xz)": 9.260053031280355,
+   "mixed (yz)": 9.260053031280355
+  },
+  "n_propagating_dof": 2,
+  "pass": true
+ },
+ "judge2_newtonian": {
+  "relax_steps": 400,
+  "poisson_residual": 2.9340167654887807e-06,
+  "hbar00_over_phi": 4.000003074795057,
+  "h00_over_phi": 2.0000015373975284,
+  "hxx_over_phi": 2.0000015373975284,
+  "invr_fit_corr": 0.9938357547556592,
+  "pass": true
+ },
+ "judge3_deflection": {
+  "convergence": [
+   {
+    "well_depth": 0.003,
+    "ratio": 1.9986596996168904
+   },
+   {
+    "well_depth": 0.0003,
+    "ratio": 1.9998657436088563
+   },
+   {
+    "well_depth": 3.0000000000000004e-05,
+    "ratio": 1.999986572093466
+   }
+  ],
+  "evolved_field_ratio": 1.999986572093466,
+  "h00_contribution": -107.48997629732852,
+  "hxx_contribution": -107.48997629732852,
+  "pathB_ratio": 1.9966096843770436,
+  "pass": true
+ },
+ "all_pass": true
+}

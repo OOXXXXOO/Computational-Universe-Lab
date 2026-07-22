@@ -1,0 +1,6 @@
+# Core scientific stack — needed by ALL experiments (exp1-8, rulespace/, rulespace_gpu numpy path)
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+sympy>=1.12
+scikit-learn>=1.3

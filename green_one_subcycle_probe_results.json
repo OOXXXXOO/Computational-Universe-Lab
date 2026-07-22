@@ -1,0 +1,170 @@
+[
+ {
+  "cg2_phys": 1.0,
+  "n": 1,
+  "cg2_sub": 1.0,
+  "n_prop_all": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "stable": false,
+  "lightcone_ok": false,
+  "speed_spread": NaN,
+  "v_meas": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "kind": "plain"
+ },
+ {
+  "cg2_phys": 1.0,
+  "n": 2,
+  "cg2_sub": 0.25,
+  "n_prop_all": [
+   5,
+   6,
+   5,
+   5
+  ],
+  "stable": true,
+  "lightcone_ok": true,
+  "speed_spread": 0.02697289501392107,
+  "v_meas": [
+   0.9607,
+   0.9607,
+   0.9572,
+   0.9832
+  ],
+  "kind": "plain"
+ },
+ {
+  "cg2_phys": 1.0,
+  "n": 3,
+  "cg2_sub": 0.1111111111111111,
+  "n_prop_all": [
+   5,
+   5,
+   5,
+   5
+  ],
+  "stable": true,
+  "lightcone_ok": true,
+  "speed_spread": 0.043760278665413536,
+  "v_meas": [
+   0.917,
+   0.917,
+   0.9572,
+   0.958
+  ],
+  "kind": "plain"
+ },
+ {
+  "cg2_phys": 0.985,
+  "n": 2,
+  "cg2_sub": 0.24625,
+  "n_prop_all": [
+   5,
+   6,
+   5,
+   5
+  ],
+  "stable": true,
+  "lightcone_ok": true,
+  "speed_spread": 0.07018573121415866,
+  "v_meas": [
+   0.917,
+   0.917,
+   0.9572,
+   0.9832
+  ],
+  "kind": "plain"
+ },
+ {
+  "cg2_phys": 0.25,
+  "n": 1,
+  "cg2_sub": 0.25,
+  "n_prop_all": [
+   2,
+   2,
+   2,
+   2
+  ],
+  "stable": true,
+  "lightcone_ok": true,
+  "speed_spread": 0.04877366733145257,
+  "v_meas": [
+   0.4803,
+   0.4803,
+   0.494,
+   0.5042
+  ],
+  "kind": "plain"
+ },
+ {
+  "cg2_phys": 1.0,
+  "n": 2,
+  "cg2_sub": 0.25,
+  "n_prop_all": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "stable": false,
+  "lightcone_ok": false,
+  "speed_spread": NaN,
+  "v_meas": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "kind": "abar_everysub"
+ },
+ {
+  "cg2_phys": 0.985,
+  "n": 2,
+  "cg2_sub": 0.24625,
+  "n_prop_all": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "stable": false,
+  "lightcone_ok": false,
+  "speed_spread": NaN,
+  "v_meas": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "kind": "abar_everysub"
+ },
+ {
+  "cg2_phys": 1.0,
+  "n": 3,
+  "cg2_sub": 0.1111111111111111,
+  "n_prop_all": [
+   0,
+   0,
+   0,
+   0
+  ],
+  "stable": false,
+  "lightcone_ok": false,
+  "speed_spread": NaN,
+  "v_meas": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "kind": "abar_everysub"
+ }
+]

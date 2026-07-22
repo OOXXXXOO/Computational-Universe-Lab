@@ -1,0 +1,14 @@
+{
+ "C1_disp_dev": 1.3109930079458626e-13,
+ "C1_J5_dev": 1.6734980068378036e-10,
+ "C2": {
+  "walk_prop": 2,
+  "walk_total": 2,
+  "box_prop": 4
+ },
+ "C3": {
+  "offbranch_walk": 4.597894980430999e-08,
+  "offbranch_box": 0.0010007632104155786
+ },
+ "all_pass": true
+}

@@ -1,0 +1,8 @@
+{
+ "t_base": 164.0,
+ "dt_kappa+0.05": 20.0,
+ "well_kappa+0.05": 0.28563236106140816,
+ "dt_kappa-0.05": -10.0,
+ "well_kappa-0.05": -0.2856323610613557,
+ "sign_dictionary_confirmed": true
+}

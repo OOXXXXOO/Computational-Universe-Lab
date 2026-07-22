@@ -1,0 +1,11 @@
+{
+ "B1_staggered_exact": true,
+ "B1_naive_conserved": false,
+ "B2_secular_slope_naive": 0.000357731727362857,
+ "B2_maxdrift_naive": 1.4541621794379724,
+ "B2_secular_slope_symmetric": -0.00023969018912784514,
+ "B2_maxdrift_symmetric": 0.8178255192620401,
+ "B2_symmetrization_gain": 1.492475468706194,
+ "B2_field_sector_exact": true,
+ "B2_joint_closure": "OPEN: needs symplectic walker-field co-integrator"
+}

@@ -1,0 +1,58 @@
+{
+ "part1_continuum_identities": [
+  {
+   "identity": "F - tan(theta)*omega*(1 - m^2/omega^2)",
+   "simplify": "0",
+   "is_zero": true
+  },
+  {
+   "identity": "(1 - m^2/omega^2) - (v_g/c)^2",
+   "simplify": "0",
+   "is_zero": true
+  },
+  {
+   "identity": "F - tan(theta)*T00*(v_g/c)^2  [capstone]",
+   "simplify": "0",
+   "is_zero": true
+  }
+ ],
+ "part2_small_epsilon": {
+  "R_exact": "(-2*sin(theta)*cos(k)*cos(theta) + 2*sin(theta)*cos(theta))/(sqrt(1 - (sin(theta)**2 + cos(k)*cos(theta)**2)**2)*tan(theta)*acos(sin(theta)**2 + cos(k)*cos(theta)**2))",
+  "R_series_in_k": "1 + k**2*cos(theta)**2/12 + O(k**4)",
+  "leading_term": "1",
+  "leading_is_one": true,
+  "shadow_coeff_k2": "cos(theta)**2/12"
+ },
+ "part3_numeric_R_table": [
+  {
+   "k": 0.15,
+   "R": 1.001522495718105,
+   "report": 1.002,
+   "abs_diff": 0.0004775042818949693,
+   "match": true
+  },
+  {
+   "k": 0.3,
+   "R": 1.0061169270115367,
+   "report": 1.006,
+   "abs_diff": 0.00011692701153664942,
+   "match": true
+  },
+  {
+   "k": 0.5,
+   "R": 1.0171706616924219,
+   "report": 1.017,
+   "abs_diff": 0.0001706616924219695,
+   "match": true
+  },
+  {
+   "k": 0.8,
+   "R": 1.0451018093431867,
+   "report": 1.045,
+   "abs_diff": 0.00010180934318682056,
+   "match": true
+  }
+ ],
+ "shadow_coeff_k2": "cos(theta)**2/12",
+ "capstone": "F = tan(theta)*T00*(1 - m^2/omega^2) = tan(theta)*T00*(v_g/c)^2"
+}

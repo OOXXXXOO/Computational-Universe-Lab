@@ -1,0 +1,16 @@
+# 环境与缓存(可由 setup_env.sh 重建)
+.venv/
+__pycache__/
+*.pyc
+.env
+activate_backend.sh
+
+# 系统杂项
+.DS_Store
+
+# 运行时日志(run/ 的 JSON 状态照常入库,日志不入)
+run/runner.log
+*.log
+
+# 可重建的中间缓存
+exp4_cache.npz
