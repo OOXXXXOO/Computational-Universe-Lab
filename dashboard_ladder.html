@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CP1-v4 装配阶梯 · 总控面板</title>
+<style>
+  :root{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6;      /* 几何 / 运行中 */
+    --matter:#e7a24e;      /* 物质 / 复核中 */
+    --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --mono:"SF Mono","JetBrains Mono","Fira Code",ui-monospace,Menlo,Consolas,monospace;
+    --maxw:1180px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+      --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+      --metric:#0f9a8d; --matter:#c1741f;
+      --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1013; --panel:#111b22; --panel-2:#0e171d; --line:#1e2c35;
+    --ink:#dde6ec; --ink-dim:#aebac4; --muted:#7f909d;
+    --metric:#45d4c6; --matter:#e7a24e; --ok:#5fd08a; --ceil:#e5687a; --open:#7aa2d6; --warn:#e7a24e;
+  }
+  :root[data-theme="light"]{
+    --ground:#f4f6f5; --panel:#ffffff; --panel-2:#eef2f2; --line:#d9e0e1;
+    --ink:#16232b; --ink-dim:#3f5058; --muted:#647079;
+    --metric:#0f9a8d; --matter:#c1741f; --ok:#2f9b5c; --ceil:#c34459; --open:#3d6db0; --warn:#c1741f;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--ground);color:var(--ink);
+    font-family:var(--serif);font-size:16px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  h1{font-size:19px;font-weight:600;letter-spacing:-.01em}
+  .mono{font-family:var(--mono)}
+  .tnum{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  button{font-family:var(--mono)}
+  a{color:var(--metric)}
+
+  /* ---------- 顶栏 ---------- */
+  header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 88%,transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .bar-inner{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 22px;max-width:var(--maxw);margin:0 auto}
+  .brand h1{line-height:1.1}
+  .brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .spacer{flex:1}
+  .badge{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;
+    padding:6px 12px;border-radius:20px;border:1px solid var(--line)}
+  .badge .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .badge.live{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);
+    background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .badge.running{color:var(--metric);border-color:color-mix(in srgb,var(--metric) 45%,transparent);
+    background:color-mix(in srgb,var(--metric) 12%,transparent)}
+  .badge.running .dot{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .badge.offline{color:var(--ceil);border-color:color-mix(in srgb,var(--ceil) 50%,transparent);
+    background:color-mix(in srgb,var(--ceil) 12%,transparent)}
+  @media (prefers-reduced-motion: reduce){.badge.running .dot,.node.running .nd{animation:none}}
+  .tbtn{background:transparent;color:var(--ink-dim);border:1px solid var(--line);border-radius:3px;
+    font-size:12px;padding:7px 11px;cursor:pointer;letter-spacing:.04em}
+  .tbtn:hover{color:var(--ink);border-color:var(--metric)}
+  .tbtn:focus-visible{outline:2px solid var(--metric);outline-offset:2px}
+
+  /* ---------- 提示条(fetch 失败) ---------- */
+  .liveness{display:none;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--ceil) 10%,var(--panel))}
+  .liveness.show{display:block}
+  .liveness.wait{background:color-mix(in srgb,var(--open) 10%,var(--panel))}
+  .liveness-inner{max-width:var(--maxw);margin:0 auto;padding:12px 22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .liveness .msg{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim)}
+  .liveness .msg b{color:var(--ceil);font-weight:600}
+  .liveness.wait .msg b{color:var(--open)}
+  .copyfield{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--panel-2)}
+  .copyfield code{font-family:var(--mono);font-size:12px;color:var(--ink);padding:7px 11px;white-space:nowrap}
+  .copyfield button{border:0;border-left:1px solid var(--line);background:transparent;color:var(--metric);
+    font-size:12px;padding:7px 11px;cursor:pointer}
+  .copyfield button:hover{background:color-mix(in srgb,var(--metric) 14%,transparent)}
+
+  main{padding:24px 0 64px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:18px 20px;margin-bottom:22px}
+  .card > h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin-bottom:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .card > h2 .hint{font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--muted);font-weight:400;font-family:var(--mono)}
+
+  /* ---------- 头部计数 ---------- */
+  .counters{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:640px){.counters{grid-template-columns:repeat(2,1fr)}}
+  .metric .v{font-family:var(--mono);font-size:clamp(20px,3vw,27px);font-weight:600;letter-spacing:-.02em;
+    color:var(--metric);display:block;font-variant-numeric:tabular-nums;line-height:1.15}
+  .metric .v.ok{color:var(--ok)} .metric .v.warn{color:var(--warn)} .metric .v.ink{color:var(--ink)}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;color:var(--muted);margin-top:4px}
+
+  /* ---------- 阶梯轨道 ---------- */
+  .rail{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:8px 2px 4px}
+  .node{display:flex;flex-direction:column;align-items:center;min-width:86px;flex:1;position:relative;text-align:center}
+  .node .nd{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);background:var(--panel);z-index:2}
+  .node .lbl{font-family:var(--mono);font-size:12.5px;font-weight:600;margin-top:8px;color:var(--ink-dim)}
+  .node .st{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:2px;white-space:nowrap}
+  .node::before{content:"";position:absolute;top:9px;left:-50%;width:100%;height:2px;background:var(--line);z-index:1}
+  .node:first-child::before{display:none}
+  .node.pass .nd{border-color:var(--ok);background:var(--ok)}
+  .node.pass .lbl{color:var(--ok)}
+  .node.review .nd{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 45%,var(--panel))}
+  .node.review .lbl{color:var(--warn)}
+  .node.running .nd{border-color:var(--metric);background:color-mix(in srgb,var(--metric) 30%,var(--panel));animation:pulse 1.6s ease-in-out infinite}
+  .node.running .lbl{color:var(--metric)}
+  .node.fail .nd{border-color:var(--ceil);background:var(--ceil)}
+  .node.fail .lbl{color:var(--ceil)}
+  .node.done-prev::before{background:var(--ok)}
+  .node.mini{min-width:64px;flex:.6}
+  .node.mini .nd{width:11px;height:11px;margin-top:3px;border-style:dashed}
+  .node.mini::before{top:8px}
+  .node.mini .lbl{font-size:10.5px;font-weight:400}
+
+  /* ---------- 级卡片 ---------- */
+  .lv{border:1px solid var(--line);border-radius:5px;background:var(--panel-2);padding:14px 16px;margin-bottom:14px}
+  .lv-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .lv-head .nm{font-family:var(--mono);font-size:15px;font-weight:700}
+  .lv-head .parts{font-size:13.5px;color:var(--ink-dim)}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 9px;border-radius:12px;border:1px solid var(--line);white-space:nowrap}
+  .tag.pass{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 50%,transparent);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .tag.fail{color:var(--ceil);border-color:color-mix(in srgb,var(--ceil) 50%,transparent);background:color-mix(in srgb,var(--ceil) 12%,transparent)}
+  .tag.run{color:var(--metric);border-color:color-mix(in srgb,var(--metric) 50%,transparent);background:color-mix(in srgb,var(--metric) 12%,transparent)}
+  .tag.wait{color:var(--muted)}
+  .tag.review{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .tag.info{color:var(--open);border-color:color-mix(in srgb,var(--open) 50%,transparent);background:color-mix(in srgb,var(--open) 10%,transparent)}
+
+  .gtbl-wrap{overflow-x:auto;margin-top:10px}
+  table.gtbl{width:100%;border-collapse:collapse;font-size:13px}
+  .gtbl th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    text-align:left;padding:5px 10px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+  .gtbl td{padding:6px 10px;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);vertical-align:top}
+  .gtbl td.v{font-family:var(--mono);font-size:12.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .gtbl td.thr{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+  .gtbl tr:last-child td{border-bottom:0}
+  .pf{font-family:var(--mono);font-size:11.5px;font-weight:700;white-space:nowrap}
+  .pf.p{color:var(--ok)} .pf.f{color:var(--ceil)} .pf.w{color:var(--muted);font-weight:400}
+
+  .cannons{margin-top:12px}
+  .cannons .cap{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-family:var(--mono);font-size:11.5px;padding:4px 10px;border-radius:3px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink-dim)}
+  .chip b{font-weight:600}
+  .chip.fired{border-color:color-mix(in srgb,var(--ok) 45%,transparent);color:var(--ok)}
+  .chip.dud{border-color:color-mix(in srgb,var(--ceil) 55%,transparent);color:var(--ceil)}
+  .chip.pending{border-style:dashed;color:var(--muted)}
+  .chip.ctrl{border-color:color-mix(in srgb,var(--open) 45%,transparent);color:var(--open)}
+  .chip .why{color:var(--muted);font-size:10.5px}
+
+  .freeze{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .freeze .step{white-space:nowrap}
+  .freeze .arrow{color:var(--muted)}
+  .freeze .on{color:var(--warn);font-weight:600}
+  .freeze .done{color:var(--ok)}
+  .lv .note{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .lv .note code{font-family:var(--mono);font-size:11.5px}
+
+  /* 里程碑小卡 */
+  .mrow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.mrow{grid-template-columns:1fr}}
+  .mcard{border:1px solid var(--line);border-radius:5px;background:var(--panel-2);padding:12px 14px}
+  .mcard .nm{font-family:var(--mono);font-weight:700;font-size:14px;margin-bottom:4px;display:flex;gap:10px;align-items:baseline}
+  .mcard p{font-size:13px;color:var(--ink-dim)}
+
+  /* ---------- 零件证书 ---------- */
+  .parts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(max-width:760px){.parts-grid{grid-template-columns:1fr}}
+  .pcard{border:1px solid var(--line);border-radius:5px;background:var(--panel-2);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+  .pcard .ph{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .pcard .ph .id{font-family:var(--mono);font-weight:700;font-size:14px}
+  .pcard .ph .role{font-size:12.5px;color:var(--muted)}
+  .pcard ul{list-style:none;display:flex;flex-direction:column;gap:3px}
+  .pcard li{font-family:var(--mono);font-size:12px;color:var(--ink-dim);display:flex;justify-content:space-between;gap:12px}
+  .pcard li .kk{color:var(--muted)}
+  .pcard li .vv{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .pcard .one{font-size:13px;color:var(--ink);border-left:2px solid var(--line);padding-left:10px}
+  .pcard .src{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:auto}
+
+  footer{border-top:1px solid var(--line);padding:14px 0;color:var(--muted);font-family:var(--mono);font-size:11.5px}
+  .foot-inner{max-width:var(--maxw);margin:0 auto;padding:0 22px;display:flex;gap:18px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-inner">
+    <div class="brand">
+      <h1>CP1-v4 装配阶梯 · 总控面板</h1>
+      <div class="sub">投影规则空间纲领 · 车道B · 阶梯 L1→L4 → M3→M5(预注册,只许收紧)</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="badge offline" id="connBadge"><span class="dot"></span><span id="connTxt">连接中…</span></span>
+    <button class="tbtn" id="btnRefresh">手动刷新</button>
+    <button class="tbtn" id="btnTheme">明暗切换</button>
+  </div>
+</header>
+
+<div class="liveness" id="liveness">
+  <div class="liveness-inner">
+    <span class="msg" id="livenessMsg"></span>
+    <span class="copyfield"><code id="cmdText">python -m http.server 8000</code><button id="btnCopy">复制</button></span>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+
+    <!-- 头部计数 -->
+    <section class="card">
+      <h2>装配态势 <span class="hint" id="updHint">—</span></h2>
+      <div class="counters">
+        <div class="metric"><span class="v ink" id="cStage">—</span><span class="k">当前所在级</span></div>
+        <div class="metric"><span class="v" id="cGates">—</span><span class="k">本级门判据 通过/总数</span></div>
+        <div class="metric"><span class="v" id="cCannons">—</span><span class="k">本级证伪炮 已响/应响</span></div>
+        <div class="metric"><span class="v ok" id="cParts">4 / 4</span><span class="k">零件证书(R19–R22)已定稿</span></div>
+      </div>
+    </section>
+
+    <!-- 阶梯轨道 -->
+    <section class="card">
+      <h2>阶梯视图 <span class="hint">L1 数值表 → 评审 24h 复核 → 冻结 → L2 → 光子正控 → L3 → L4 → M3 全表+九炮+endurance → M4 → M5</span></h2>
+      <div class="rail" id="rail"></div>
+    </section>
+
+    <!-- 各级详情 -->
+    <section class="card">
+      <h2>逐级门判据与证伪炮 <span class="hint">预注册于 预注册-CP1v4-装配阶梯与证伪炮.md;任何一级失败停在该级写归因矩阵</span></h2>
+      <div id="levels"></div>
+
+      <div class="mrow" id="milestones"></div>
+
+      <p class="note" style="margin-top:14px;font-size:12.5px;color:var(--muted)">
+        通用工程条款(全级适用,R20 修复清单):时间槽按 OFFSET 分量化(h̄₀₀ fwd / h̄₀ᵢ bwd),退役 hprev;
+        折返不许只写 Re;γ 系按 certified 谱(参考 γ*=0.0509 一族,装配层重测);斜 k 用回文轴序或按 oracle 预测规范残余;
+        自检门直查 |K@TT|≈0 且 |K@gauge|≈0,不许只数 dim。
+      </p>
+    </section>
+
+    <!-- 九炮参考清单 -->
+    <section class="card">
+      <h2>证伪炮组(九件全表 + 一件正控) <span class="hint">每次全绿必须全放,九件全部应 FAIL;第 10 件是正控应 PASS</span></h2>
+      <div class="chips" id="allCannons"></div>
+    </section>
+
+    <!-- 零件证书区 -->
+    <section class="card">
+      <h2>零件证书 · R19–R22 四线收束 <span class="hint">已定稿静态内嵌 · 详见 战役报告-R19-R22-四线并行收束.md</span></h2>
+      <div class="parts-grid" id="partsGrid"></div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <span id="footConn">未连接</span>
+    <span id="footMeta"></span>
+    <span style="margin-left:auto">对外口径(M3 过线前):线性层全部零件各自过证书,装配未过</span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================================
+ * 数据接线约定(与装配脚本对齐用;找不到的字段一律显示 "—",不报错)
+ * ----------------------------------------------------------------------------
+ * 每级结果文件:cp1_v4_L{n}_results.json(n=1..4,与本文件同目录)。
+ * 由 fetch 轮询读取;file:// 或文件缺失时该级显示「运行中/待开始」。
+ *
+ * 注意:python json.dump 默认 allow_nan=True 会写出 NaN / Infinity / -Infinity
+ * 裸 token(L1 实测文件里就有),严格 JSON.parse 会炸——本面板做了容错替换,
+ * 装配脚本不必改输出。
+ *
+ * 通用字段(L1 已实测存在,L2–L4 建议同构):
+ *   L{n}_PASS            : bool     —— 该级总判定(必须有,面板以它定级色)
+ *   gates                : object   —— 门判据布尔/数值表。L1 实测键名:
+ *                            G1_Nprop2_gate_k, G2_J5_lt_1e-6, G2_j5_max_dev,
+ *                            G3_constraint, G4_SV_hard_gate, G5_stability,
+ *                            diag_222_oracle_matched, cannons_all_fire, count_teeth_ok
+ *   cannons              : object   —— 证伪炮结果,键=炮名(如 F1_double_cone),值含:
+ *                            breaks   : [string] 断在哪些判据(非空=按要求 FAIL ✓)
+ *                            expected : string   (对照组用,如 control_no_slave)
+ *   cannons_all_fire     : bool     —— 炮组全响(gates 里或顶层皆可)
+ *   B0_probe_enforce_eq_measure : {same_function_object, norm_Kmeas_minus_Kenf, PASS}
+ *   B1_cert_onshell      : {worst_KTT, worst_Kgauge, realfield_worst, PASS}
+ *   backend, main:{N,T,trials}, total_seconds, script_sha256 —— 元信息
+ *   main.runA_per_k / runB_per_k : {"(kx, ky, kz)": {n_prop, sv3, tt_match,
+ *                            c_gw, c_matter, j5_ratio, ...}} —— 逐 k 明细
+ *   main.runA_monitor    : {relC_max, relC_last, relC_tail_rate,
+ *                            rms_full_tail_slope_rel, ...}
+ *
+ * 复核/冻结(可选;装配脚本或人工评审后补写,面板才认"已冻结"):
+ *   review : { status: "in_review" | "passed" | "failed",
+ *              frozen: bool, note: string, reviewed_at: string }
+ *   缺省逻辑:L{n}_PASS==true 且无 review → 显示「数值表已出·待评审 24h 复核」。
+ *
+ * L2 建议键名(尚未定稿,面板按候选名模糊匹配,详见 LEVELS 定义):
+ *   gates.G1_constraint_floor(relC_last<1e-12)、gates.G2_TT_preserved、
+ *   gates.G3_gauge_decay_expected、gates.G4_r20_regressions、
+ *   gates.G5_Nprop_excl_Z、L2_PASS
+ * L3 建议键名:gates.G1_leak_reduction(泄漏比 ≥100)、
+ *   gates.G2_deDonder_src_resid(<1e-10)、gates.G3_T_conservation(<1e-12)、L3_PASS
+ * L4 建议键名:gates.G1_reflection(<1e-3)、gates.G2_energy_budget(<1e-6)、
+ *   gates.G3_replay_L1L3(重放不回退)、L4_PASS
+ * ==========================================================================*/
+
+var $=function(id){return document.getElementById(id);};
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
+
+//---------------------------------------------------------------------------
+// 容错取值工具
+//---------------------------------------------------------------------------
+function getPath(d, path){                 // "a.b.c" → d.a.b.c(容错)
+  if(d==null) return undefined;
+  var cur=d, parts=path.split(".");
+  for(var i=0;i<parts.length;i++){
+    if(cur==null||typeof cur!=="object"||!(parts[i] in cur)) return undefined;
+    cur=cur[parts[i]];
+  }
+  return cur;
+}
+function firstOf(d, paths){                // 依次尝试多个候选路径
+  for(var i=0;i<paths.length;i++){
+    var v=getPath(d,paths[i]);
+    if(v!==undefined) return v;
+  }
+  return undefined;
+}
+function gateByRegex(d, re){               // 在 gates 对象里按正则模糊找布尔门
+  var g=getPath(d,"gates"); if(!g) return undefined;
+  var keys=Object.keys(g);
+  for(var i=0;i<keys.length;i++) if(re.test(keys[i])) return g[keys[i]];
+  return undefined;
+}
+function fmtNum(v){
+  if(v===undefined||v===null) return "—";
+  if(typeof v==="boolean") return v?"true":"false";
+  if(typeof v!=="number") return String(v);
+  if(v===0) return "0";
+  var a=Math.abs(v);
+  if(a>=1e4||a<1e-3) return v.toExponential(2).replace("e-","e−");
+  return (Math.round(v*1e6)/1e6).toString();
+}
+function pfCell(pass){                     // PASS/FAIL/待跑 单元
+  if(pass===true)  return '<span class="pf p">PASS</span>';
+  if(pass===false) return '<span class="pf f">FAIL</span>';
+  return '<span class="pf w">待跑</span>';
+}
+
+// 逐 k 明细聚合(runA/runB per_k):取最差 n_prop / sv3 / tt_match / j5。
+// 门 k 集 = 轴向 + 面斜向(k 元组含 0 分量);全对角 (2,2,2) 类 k 不进硬门,
+// 由 diag_222_oracle_matched 单独把关(见 L1 JSON 的 oblique_choice 声明)——
+// 聚合时照此拆分,diag 单列,避免面板数值与门判定互相矛盾。
+function isDiagK(key){                     // "(2, 2, 2)" → 三分量全非零 = 全对角
+  var nums=String(key).match(/-?\d+/g);
+  if(!nums||nums.length<3) return false;
+  return nums.every(function(x){return parseInt(x,10)!==0;});
+}
+function perKWorst(d){
+  var out={n_prop:undefined, sv3:undefined, tt:undefined, j5dev:undefined,
+           diag_n_prop:undefined};
+  ["main.runA_per_k","main.runB_per_k","per_k"].forEach(function(p){
+    var pk=getPath(d,p); if(!pk) return;
+    Object.keys(pk).forEach(function(k){
+      var e=pk[k]; if(!e||typeof e!=="object") return;
+      if(isDiagK(k)){
+        if(typeof e.n_prop==="number") out.diag_n_prop=(out.diag_n_prop===undefined)?e.n_prop:Math.max(out.diag_n_prop,e.n_prop);
+        return;
+      }
+      if(typeof e.n_prop==="number") out.n_prop=(out.n_prop===undefined)?e.n_prop:Math.max(out.n_prop,e.n_prop);
+      if(typeof e.sv3==="number")    out.sv3  =(out.sv3===undefined)?e.sv3:Math.max(out.sv3,e.sv3);
+      if(typeof e.tt_match==="number") out.tt =(out.tt===undefined)?e.tt_match:Math.min(out.tt,e.tt_match);
+      var j=(typeof e.j5_ratio==="number")?Math.abs(e.j5_ratio-1):undefined;
+      if(j!==undefined) out.j5dev=(out.j5dev===undefined)?j:Math.max(out.j5dev,j);
+    });
+  });
+  return out;
+}
+
+//---------------------------------------------------------------------------
+// 九炮 + 正控 静态字典(预注册编号)
+//---------------------------------------------------------------------------
+var CANNON_DICT={
+  // json 键名 → {no, label}
+  "tr_sign":            {no:1, label:"tr_sign=0 无迹反转"},
+  "no_damping":         {no:2, label:"无阻尼"},
+  "lagged_damping":     {no:3, label:"滞后阻尼(hprev 复活)"},
+  "F4_lagged_projection":{no:3, label:"滞后投影(一步 lag)"},
+  "onsite_source":      {no:4, label:"on-site 双线性源"},
+  "F1_double_cone":     {no:5, label:"θ_g≠θ_m 双锥"},
+  "F2_integer_placement":{no:6, label:"整数格放置(关交错存储)"},
+  "F3_partial_0nu_slave":{no:7, label:"slave 缺 0ν 相位覆盖"},
+  "static_Z_carrier":   {no:8, label:"Z_μ 静止载波"},
+  "k_dir_TT":           {no:9, label:"TT 投影仪用 k 方向替代 κ"},
+  "control_no_slave":   {no:0, label:"对照:自由 walk(预期 N_prop=6)", ctrl:true}
+};
+var ALL_CANNONS=[
+  {no:1,label:"tr_sign=0(无迹反转)"},
+  {no:2,label:"无阻尼"},
+  {no:3,label:"滞后阻尼/投影(hprev 复活)"},
+  {no:4,label:"on-site 双线性源(替代 J̄)"},
+  {no:5,label:"θ_g≠θ_m(双锥 → J5 必 FAIL)"},
+  {no:6,label:"关交错存储/放置簿记(对照 |K@TT|≈0.23)"},
+  {no:7,label:"slave 缺 0ν 相位(复现 5↔6 摇摆,R21)"},
+  {no:8,label:"Z_μ 静止载波(复现 ρ=1.48,R22)"},
+  {no:9,label:"TT 投影仪用 k 方向替代 κ(大 k 失准)"},
+  {no:10,label:"正控:自旋-1 光子对照(应 PASS;符号层 R23 6/6 已过,格点实测排 L2 后)",pos:true}
+];
+
+//---------------------------------------------------------------------------
+// 阶梯定义:每级 = 部件 + 门判据(阈值 + 容错取值器)+ 适用炮
+//---------------------------------------------------------------------------
+var LEVELS=[
+  {
+    id:"L1", file:"cp1_v4_L1_results.json",
+    parts:"walk 核 + K_placed 约束(R19 放置存储;enforce≡measure 同函数 + probe 断言;slave 覆盖 0ν 全部相位自由度)",
+    review24h:true,   // L1 有「评审 24h 复核 → 冻结构造」环节
+    cannonNos:[3,5,6,7],
+    gates:[
+      {name:"N_prop = 2(门 k 集 ≥4 个,含斜向;无投影 Riemann-SVD)", thr:"= 2",
+        val:function(d){var w=perKWorst(d); if(w.n_prop===undefined) return undefined;
+          return "门 k 集最差 n_prop = "+w.n_prop+(w.diag_n_prop!==undefined?"(全对角 k 走 oracle 门,n_prop = "+w.diag_n_prop+")":"");},
+        pass:function(d){return firstOf(d,["gates.G1_Nprop2_gate_k"]) ?? gateByRegex(d,/Nprop.*2|n_prop/i);}},
+      {name:"J5 共锥:c_gw / c_matter ≡ 1", thr:"|r−1| < 1e−6(预注册 ±1e−2)",
+        val:function(d){var v=firstOf(d,["gates.G2_j5_max_dev"]); if(v===undefined){var w=perKWorst(d); v=w.j5dev;} return v!==undefined?("max|r−1| = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G2_J5_lt_1e-6"]) ?? gateByRegex(d,/J5/i);}},
+      {name:"|K@TT| 离壳证书(实空间算子)", thr:"< 1e−12",
+        val:function(d){var v=firstOf(d,["B1_cert_onshell.worst_KTT"]); return v!==undefined?("worst |K@TT| = "+fmtNum(v)+" · |K@gauge| = "+fmtNum(firstOf(d,["B1_cert_onshell.worst_Kgauge"]))):undefined;},
+        pass:function(d){return firstOf(d,["B1_cert_onshell.PASS"]);}},
+      {name:"SV 硬门:第 3 大 SV < 0.05 且 tt_match > 0.95", thr:"sv3<0.05 ∧ tt>0.95",
+        val:function(d){var w=perKWorst(d); if(w.sv3===undefined&&w.tt===undefined) return undefined; return "最差 sv3 = "+fmtNum(w.sv3)+" · 最差 tt_match = "+fmtNum(w.tt);},
+        pass:function(d){return firstOf(d,["gates.G4_SV_hard_gate"]) ?? gateByRegex(d,/SV/i);}},
+      {name:"约束保持(relC 机器零,walk 演化下零漂移)", thr:"机器精度",
+        val:function(d){var v=firstOf(d,["main.runA_monitor.relC_max"]); return v!==undefined?("relC_max = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G3_constraint"]) ?? gateByRegex(d,/constraint/i);}},
+      {name:"稳定性(能量尾段斜率)", thr:"无增长",
+        val:function(d){var v=firstOf(d,["main.runA_monitor.rms_full_tail_slope_rel"]); return v!==undefined?("尾段斜率 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G5_stability"]) ?? gateByRegex(d,/stab/i);}},
+      {name:"enforce ≡ measure(同一函数对象 + probe 断言差=0)", thr:"差 = 0",
+        val:function(d){var v=firstOf(d,["B0_probe_enforce_eq_measure.norm_Kmeas_minus_Kenf"]); return v!==undefined?("‖K_meas−K_enf‖ = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["B0_probe_enforce_eq_measure.PASS"]);}},
+      {name:"斜 k (2,2,2) 规范残余 = oracle 预测(Trotter 壳修正,零欠账)", thr:"oracle 逐点吻合",
+        val:function(d){var v=firstOf(d,["gates.diag_222_oracle_matched"]); return v!==undefined?String(v):undefined;},
+        pass:function(d){return firstOf(d,["gates.diag_222_oracle_matched"]) ?? gateByRegex(d,/222|oracle/i);}},
+      {name:"计数有牙(generic 种子必须破约束)", thr:"对照显著非零",
+        val:function(d){return firstOf(d,["gates.count_teeth_ok","count_teeth_ok"])!==undefined?String(firstOf(d,["gates.count_teeth_ok","count_teeth_ok"])):undefined;},
+        pass:function(d){return firstOf(d,["gates.count_teeth_ok","count_teeth_ok"]);}}
+    ]
+  },
+  {
+    id:"L2", file:"cp1_v4_L2_results.json",
+    parts:"+ Z4c 阻尼(共动载波;装配层重测 σ² 后按平台闭式重定 (μ_z,κ₁),禁抄 R22 数字)",
+    cannonNos:[1,2,3,8],
+    insertAfter:{label:"光子正控", note:"L2 过线后插入光子格点正控(预注册第 10 件的实测半;车道B,不阻塞主线)"},
+    gates:[
+      {name:"约束 C 到机器底(尾段率区分地板 vs 慢衰减,无 6e-4 型地板)", thr:"< 1e−12",
+        val:function(d){var v=firstOf(d,["gates.G1_constraint_floor_val","main.runA_monitor.relC_last","monitor.relC_last"]); return v!==undefined?("relC_last = "+fmtNum(v)+" · 尾段率 = "+fmtNum(firstOf(d,["main.runA_monitor.relC_tail_rate","monitor.relC_tail_rate"]))):undefined;},
+        pass:function(d){return firstOf(d,["gates.G1_constraint_floor"]) ?? gateByRegex(d,/floor|constraint/i);}},
+      {name:"TT 保持 = 1(1e−10 内)", thr:"= 1 ± 1e−10",
+        val:function(d){var v=firstOf(d,["gates.G2_TT_preserved_val","tt_preserved"]); return v!==undefined?("TT 保持 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G2_TT_preserved"]) ?? gateByRegex(d,/TT.*preserv/i);}},
+      {name:"规范模衰减属预期(R18 H3:阻尼不动点=TT,不算 DOF 丢失)", thr:"口径核对",
+        val:function(d){return undefined;},
+        pass:function(d){return firstOf(d,["gates.G3_gauge_decay_expected"]) ?? gateByRegex(d,/gauge.*decay/i);}},
+      {name:"R20 三 bug 回归断言(h̄₀₀ 时间槽 / hprev 滞后 / 折返写全复量)", thr:"3/3 断言过",
+        val:function(d){return undefined;},
+        pass:function(d){return firstOf(d,["gates.G4_r20_regressions"]) ?? gateByRegex(d,/r20|regress/i);}},
+      {name:"N_prop = 2,显式扣除 Z 扇区(R22 §五谱证书方法)", thr:"= 2(扣 Z)",
+        val:function(d){var w=perKWorst(d); return w.n_prop!==undefined?("最差 n_prop = "+w.n_prop):undefined;},
+        pass:function(d){return firstOf(d,["gates.G5_Nprop_excl_Z"]) ?? gateByRegex(d,/Nprop|n_prop/i);}},
+      {name:"enforce ≡ measure(同函数断言,继承 L1)", thr:"差 = 0",
+        val:function(d){var v=firstOf(d,["B0_probe_enforce_eq_measure.norm_Kmeas_minus_Kenf"]); return v!==undefined?("‖ΔK‖ = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["B0_probe_enforce_eq_measure.PASS"]);}}
+    ]
+  },
+  {
+    id:"L3", file:"cp1_v4_L3_results.json",
+    parts:"+ 源 J̄(R10/R13 精确键流,de Donder 相容,按放置给)",
+    cannonNos:[4],
+    gates:[
+      {name:"规范反常泄漏率(∝G)较 on-site 源下降", thr:"≥ 100×",
+        val:function(d){var v=firstOf(d,["gates.G1_leak_reduction_val","leak_reduction_ratio"]); return v!==undefined?("泄漏比 = "+fmtNum(v)+"×"):undefined;},
+        pass:function(d){return firstOf(d,["gates.G1_leak_reduction"]) ?? gateByRegex(d,/leak/i);}},
+      {name:"源处 de Donder 残差", thr:"< 1e−10",
+        val:function(d){var v=firstOf(d,["gates.G2_deDonder_src_resid_val","deDonder_src_resid"]); return v!==undefined?("残差 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G2_deDonder_src_resid"]) ?? gateByRegex(d,/donder|dedonder/i);}},
+      {name:"闭环 T 行守恒(live,体区)", thr:"< 1e−12",
+        val:function(d){var v=firstOf(d,["gates.G3_T_conservation_val","T_conservation"]); return v!==undefined?("守恒差 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G3_T_conservation"]) ?? gateByRegex(d,/conserv/i);}}
+    ]
+  },
+  {
+    id:"L4", file:"cp1_v4_L4_results.json",
+    parts:"+ sponge 出射边界(B4 参数起步)",
+    cannonNos:[],
+    gates:[
+      {name:"反射系数", thr:"< 1e−3",
+        val:function(d){var v=firstOf(d,["gates.G1_reflection_val","reflection"]); return v!==undefined?("反射 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G1_reflection"]) ?? gateByRegex(d,/reflect/i);}},
+      {name:"体区能量记账差", thr:"< 1e−6",
+        val:function(d){var v=firstOf(d,["gates.G2_energy_budget_val","energy_budget"]); return v!==undefined?("记账差 = "+fmtNum(v)):undefined;},
+        pass:function(d){return firstOf(d,["gates.G2_energy_budget"]) ?? gateByRegex(d,/energy|budget/i);}},
+      {name:"全 L1–L3 门重放不回退", thr:"全 PASS",
+        val:function(d){return undefined;},
+        pass:function(d){return firstOf(d,["gates.G3_replay_L1L3"]) ?? gateByRegex(d,/replay/i);}}
+    ]
+  }
+];
+
+var MILESTONES=[
+  {id:"M3", label:"M3 全表", desc:"北极星 M3 判据全表 + 九炮全放(全部应 FAIL)+ 正控应 PASS + endurance T=2000。过线前对外口径不变。"},
+  {id:"M4", label:"M4 战役", desc:"去孤岛战役(照北极星预注册单执行)。"},
+  {id:"M5", label:"M5 收官", desc:"认证收官;之后解冻中程线(非线性完成、旋转协变、反作用超线性区)。"}
+];
+
+//---------------------------------------------------------------------------
+// 零件证书(R19–R22,已定稿,静态内嵌)
+//---------------------------------------------------------------------------
+var PARTS=[
+  {id:"R19", role:"staggered-h 实空间放置(主攻)", tag:{cls:"pass",txt:"✓ 缺口关闭 · 定理级"},
+    kv:[["|K@TT| / |K@gauge|(在壳,实空间)","7.8e−15 / 7.6e−15"],
+        ["dim(ker/gauge)","= 2(rank 4)"],
+        ["负控 (a)/(b)/(c)","0.228 / 0.228 / 0.907 全 FAIL"],
+        ["斜 k 规范残余 vs oracle","偏差 2.0e−15(100% Trotter 壳修正)"]],
+    one:"放置=存储语义:每个分量 h̄_μν 存在自己的交错子晶格上,算子零相位零插值;|K@TT|=0 是代数恒等式,离壳也成立。",
+    src:"定理笔记-R19-staggered-h放置.md"},
+  {id:"R20", role:"6e−4 约束地板归因(2×2×2 矩阵)", tag:{cls:"pass",txt:"✓ 病灶钉死 · 证书级"},
+    kv:[["certified 组机器地板","1.7e−13(400 步)"],
+        ["v2 时间槽组地板","0.11–0.15(ΔK₀₀ = 0.445)"],
+        ["γ*(certified 谱)","0.0509(BZ σ² ∈ [0.152, 39.10])"],
+        ["最慢模到 1e−12","~3550 步(400 步门只 per-k 成立)"]],
+    one:"主犯 = v2 的 h̄₀₀ 时间槽放置(hprev 滞后、折返只写 Re 为帮凶),不是阻尼先后;修好后三硬门全过且对故意失配免疫。归因矩阵保留为标准工具。",
+    src:"小报告-R20-invitro对齐与地板归因.md"},
+  {id:"R21", role:"「5 模=有质量引力子」假设检验", tag:{cls:"fail",txt:"✗ 假设死 · 干净负结果"},
+    kv:[["质量隙 m² 上界","1.6e−15(探测能力富余 11 个量级)"],
+        ["c² 拟合","0.2500000 = cos²θ₀ 精确,残差 5.4e−16"],
+        ["簇内散布","< 9e−15(每 k 单 ω 簇,精确简并)"],
+        ["副产物","slave 只盖 0ν 四实维之一 → 全覆盖入装配单+炮7"]],
+    one:"5 模扇区无隙同速精确简并,不是 Fierz-Pauli:对角核按构造不可能产生分支质量劈裂;负结果照实入册。",
+    src:"小报告-R21-5模质量谱.md"},
+  {id:"R22", role:"Z4c 型约束阻尼 vs 现行方案", tag:{cls:"pass",txt:"✓ 胜出 · 附三硬条件"},
+    kv:[["最坏模收缩(全 BZ)","0.141/3步 vs Chebyshev 0.247 vs 单γ 0.513"],
+        ["每模收缩","恒 = √(1−κ₁),平台内对 μ_z 完全平坦"],
+        ["静止载波消融","ρ = 1.48 直接不稳(共锥共相是必要条件)"],
+        ["硬条件","Z 共锥共相 · N_prop 扣 Z 扇区 · 装配层重测 σ² 重定参"]],
+    one:"Z4c 够格进装配:等价于重球动量加速(κ→√κ),三方案中唯一有参数平台;几何扇区一切辅助结构必须活在物质的光锥上(第二次独立验证)。",
+    src:"小报告-R22-Z4c阻尼对比.md"}
+];
+
+//---------------------------------------------------------------------------
+// 状态机
+//---------------------------------------------------------------------------
+// 每级状态:pass_frozen | pass_review | fail | running | waiting | unknown
+var state={ levels:{}, anyFetchOk:false, fetchBlocked:false, updatedAt:null };
+
+function levelStatus(idx){
+  var lv=LEVELS[idx], d=state.levels[lv.id];
+  if(d && d.__err==="blocked") return "unknown";
+  if(d && !d.__err){
+    var pass=firstOf(d,[lv.id+"_PASS","PASS","pass"]);
+    if(pass===false) return "fail";
+    if(pass===true){
+      var rv=getPath(d,"review");
+      if(rv && (rv.status==="passed"||rv.frozen===true)) return "pass_frozen";
+      if(rv && rv.status==="failed") return "fail";
+      return lv.review24h?"pass_review":"pass_frozen";
+    }
+    return "running";           // 文件在但无总判定 → 视为进行中(可能是半写状态)
+  }
+  // 文件缺失:前一级已冻结(或本级是 L1)→ 运行中;否则待开始
+  if(idx===0) return "running";
+  var prev=levelStatus(idx-1);
+  return (prev==="pass_frozen")?"running":"waiting";
+}
+function statusMeta(st){
+  return {
+    pass_frozen:{cls:"pass",  txt:"通过 · 已冻结"},
+    pass_review:{cls:"review",txt:"数值表 PASS · 评审 24h 复核中"},
+    fail:       {cls:"fail",  txt:"失败 · 停级写归因矩阵"},
+    running:    {cls:"run",   txt:"运行中"},
+    waiting:    {cls:"wait",  txt:"待开始"},
+    unknown:    {cls:"wait",  txt:"状态未知(无法读取)"}
+  }[st];
+}
+
+//---------------------------------------------------------------------------
+// 取数
+//---------------------------------------------------------------------------
+function parseTolerant(txt){
+  // python json.dump 允许 NaN/Infinity 裸 token;严格 JSON 先试,失败再替换。
+  // 1e999 在 JSON 数字语法内且解析为 Infinity;NaN 无对应 → null(容错侧显示 "—")
+  try{ return JSON.parse(txt); }
+  catch(e){
+    var fixed=txt.replace(/-Infinity\b/g,"-1e999").replace(/\bInfinity\b/g,"1e999").replace(/\bNaN\b/g,"null");
+    return JSON.parse(fixed);
+  }
+}
+async function fetchLevel(lv){
+  try{
+    var r=await fetch(lv.file+"?t="+Date.now(),{cache:"no-store"});
+    if(r.status===404){ state.levels[lv.id]={__err:"missing"}; state.anyFetchOk=true; return; }
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var d=parseTolerant(await r.text());
+    state.levels[lv.id]=d; state.anyFetchOk=true;
+  }catch(e){
+    // file:// 下 fetch 抛 TypeError;JSON 半写会抛 SyntaxError → 均按"读不到"处理
+    state.levels[lv.id]={__err:(e instanceof SyntaxError)?"partial":"blocked"};
+  }
+}
+async function poll(){
+  state.anyFetchOk=false;
+  await Promise.all(LEVELS.map(fetchLevel));
+  state.fetchBlocked=!state.anyFetchOk;
+  state.updatedAt=new Date();
+  render();
+}
+
+//---------------------------------------------------------------------------
+// 渲染
+//---------------------------------------------------------------------------
+function renderRail(){
+  var html="", prevPass=false;
+  var nodes=[];
+  LEVELS.forEach(function(lv,i){
+    nodes.push({kind:"lv",idx:i,id:lv.id});
+    if(lv.insertAfter) nodes.push({kind:"mini",label:lv.insertAfter.label,afterIdx:i});
+  });
+  MILESTONES.forEach(function(m){ nodes.push({kind:"ms",id:m.id,label:m.label}); });
+
+  var l4Frozen=(levelStatus(3)==="pass_frozen");
+  nodes.forEach(function(n){
+    var cls="", st="";
+    if(n.kind==="lv"){
+      var s=levelStatus(n.idx), m=statusMeta(s);
+      cls={pass_frozen:"pass",pass_review:"review",fail:"fail",running:"running",waiting:"",unknown:""}[s];
+      st={pass_frozen:"已冻结",pass_review:"复核中",fail:"失败停级",running:"运行中",waiting:"待开始",unknown:"未知"}[s];
+      html+='<div class="node '+cls+(prevPass?' done-prev':'')+'"><div class="nd"></div><div class="lbl">'+n.id+'</div><div class="st">'+st+'</div></div>';
+      prevPass=(s==="pass_frozen");
+    }else if(n.kind==="mini"){
+      var ok=(levelStatus(n.afterIdx)==="pass_frozen");
+      html+='<div class="node mini'+(prevPass?' done-prev':'')+'"><div class="nd"></div><div class="lbl">'+esc(n.label)+'</div><div class="st">'+(ok?"可开工":"排 L2 后")+'</div></div>';
+    }else{
+      html+='<div class="node'+(prevPass?' done-prev':'')+'"><div class="nd"></div><div class="lbl">'+n.id+'</div><div class="st">'+(l4Frozen?"解锁":"待开始")+'</div></div>';
+      prevPass=false;
+    }
+  });
+  $("rail").innerHTML=html;
+}
+
+function renderCannonChips(lv, d){
+  var have={};              // no → {fired, key, breaks}
+  var extra=[];
+  if(d && !d.__err && d.cannons && typeof d.cannons==="object"){
+    Object.keys(d.cannons).forEach(function(key){
+      var e=d.cannons[key]||{};
+      var dict=CANNON_DICT[key];
+      var breaks=Array.isArray(e.breaks)?e.breaks:null;
+      var fired=(breaks&&breaks.length>0);
+      if(dict&&dict.ctrl){ extra.push({ctrl:true,key:key,label:dict.label,expected:e.expected}); return; }
+      var no=dict?dict.no:null;
+      var item={fired:fired,key:key,label:dict?dict.label:key,breaks:breaks};
+      if(no!=null) have[no]=item; else extra.push(item);
+    });
+  }
+  var chips="";
+  lv.cannonNos.forEach(function(no){
+    var def=ALL_CANNONS.filter(function(c){return c.no===no;})[0];
+    var got=have[no];
+    if(got){
+      var why=got.breaks?got.breaks.join("、"):"";
+      chips+='<span class="chip '+(got.fired?'fired':'dud')+'" title="'+esc(got.key)+'"><b>炮'+no+'</b> '+esc(got.label)+' — '
+        +(got.fired?'已放 · 按要求 FAIL ✓ <span class="why">(断:'+esc(why)+')</span>':'已放 · 未 FAIL ✗(炮哑=红灯)')+'</span>';
+      delete have[no];
+    }else{
+      chips+='<span class="chip pending"><b>炮'+no+'</b> '+esc(def?def.label:"")+' — 待放</span>';
+    }
+  });
+  Object.keys(have).forEach(function(no){    // JSON 里有、静态单没列的:照实显示
+    var g=have[no];
+    chips+='<span class="chip '+(g.fired?'fired':'dud')+'" title="'+esc(g.key)+'"><b>炮'+no+'</b> '+esc(g.label)+' — '+(g.fired?'已放 · FAIL ✓':'未 FAIL ✗')+'</span>';
+  });
+  extra.forEach(function(g){
+    if(g.ctrl){
+      chips+='<span class="chip ctrl" title="'+esc(g.key)+'">对照 '+esc(g.label)+(g.expected?' <span class="why">('+esc(g.expected)+')</span>':'')+'</span>';
+    }else{
+      chips+='<span class="chip '+(g.fired?'fired':'dud')+'" title="'+esc(g.key)+'">'+esc(g.label)+' — '+(g.fired?'已放 · FAIL ✓':'未 FAIL ✗')+'</span>';
+    }
+  });
+  if(!chips) chips='<span class="chip pending">本级无专属炮(重放继承组)</span>';
+  return chips;
+}
+
+function renderLevels(){
+  var html="";
+  LEVELS.forEach(function(lv,idx){
+    var d=state.levels[lv.id];
+    var hasData=(d&&!d.__err);
+    var s=levelStatus(idx), m=statusMeta(s);
+
+    var rows="";
+    lv.gates.forEach(function(g){
+      var v=hasData?g.val(d):undefined;
+      var p=hasData?g.pass(d):undefined;
+      if(typeof p!=="boolean") p=undefined;
+      rows+='<tr><td>'+esc(g.name)+'</td><td class="thr">'+esc(g.thr)+'</td><td class="v">'+(v!==undefined?esc(v):"—")+'</td><td>'+pfCell(p)+'</td></tr>';
+    });
+
+    var gp=0,gt=lv.gates.length;
+    if(hasData) lv.gates.forEach(function(g){ if(g.pass(d)===true) gp++; });
+
+    // 冻结/复核链(L1 专属显示 24h 复核环节;其余级只显示 冻结 与否)
+    var freeze="";
+    if(lv.review24h){
+      var st1=hasData&&firstOf(d,[lv.id+"_PASS"])===true, rv=hasData?getPath(d,"review"):null;
+      var frozen=rv&&(rv.status==="passed"||rv.frozen===true);
+      freeze='<div class="freeze">'
+        +'<span class="step '+(st1?'done':(s==="running"?'on':''))+'">① 数值表'+(st1?' ✓':(s==="running"?'(跑数中)':''))+'</span><span class="arrow">→</span>'
+        +'<span class="step '+(frozen?'done':(st1?'on':''))+'">② 评审 24h 复核'+(frozen?' ✓':(st1?'(进行中——车道A oracle 独立复核,回执 PASS/追因)':''))+'</span><span class="arrow">→</span>'
+        +'<span class="step '+(frozen?'done':'')+'">③ 冻结构造,放行 L2'+(frozen?' ✓':'')+'</span>'
+        +(rv&&rv.note?'<span style="color:var(--muted)">· '+esc(rv.note)+'</span>':'')
+        +'</div>';
+    }else{
+      var frozen2=(s==="pass_frozen");
+      freeze='<div class="freeze"><span class="step '+(frozen2?'done':'')+'">冻结状态:'+(frozen2?'已冻结 ✓':(s==="fail"?'失败停级(写归因矩阵,不进下一级)':'未冻结'))+'</span></div>';
+    }
+
+    var meta="";
+    if(hasData){
+      var bk=firstOf(d,["backend"]), N=firstOf(d,["main.N"]), T=firstOf(d,["main.T"]), tr=firstOf(d,["main.trials"]),
+          sec=firstOf(d,["total_seconds"]), sha=firstOf(d,["script_sha256"]);
+      var bits=[];
+      if(bk)bits.push("backend="+bk); if(N)bits.push("N="+N); if(T)bits.push("T="+T); if(tr)bits.push("trials="+tr);
+      if(sec)bits.push("耗时 "+Math.round(sec)+"s"); if(sha)bits.push("hash "+String(sha).slice(0,10));
+      if(bits.length) meta='<p class="note"><code>'+esc(lv.file)+'</code> · '+esc(bits.join(" · "))+'</p>';
+    }else{
+      var why=(d&&d.__err==="blocked")?"无法读取(file:// 或服务未起)":(d&&d.__err==="partial")?"文件半写中(JSON 未完整)":"结果文件未生成";
+      meta='<p class="note"><code>'+esc(lv.file)+'</code> · '+esc(why)+' — 该级按「'+esc(m.txt)+'」显示</p>';
+    }
+
+    var insert="";
+    if(lv.insertAfter){
+      insert='<div class="lv" style="border-style:dashed;background:transparent">'
+        +'<div class="lv-head"><span class="nm" style="color:var(--open)">⊕ '+esc(lv.insertAfter.label)+'</span>'
+        +'<span class="tag info">正控 · 应 PASS</span>'
+        +'<span class="parts">'+esc(lv.insertAfter.note)+'。符号层 R23 已 6/6 PASS(车道A);机器过不了麦克斯韦则 M3 全表无效。</span></div></div>';
+    }
+
+    html+='<div class="lv">'
+      +'<div class="lv-head"><span class="nm">'+lv.id+'</span><span class="tag '+m.cls+'">'+m.txt+'</span>'
+      +(hasData?'<span class="tag '+(gp===gt?'pass':'wait')+'">'+gp+'/'+gt+' 门</span>':'')
+      +'<span class="parts">'+esc(lv.parts)+'</span></div>'
+      +'<div class="gtbl-wrap"><table class="gtbl"><thead><tr><th>门判据</th><th>预注册阈值</th><th>实测</th><th>判定</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      +'<div class="cannons"><div class="cap">本级适用证伪炮(全绿必重放 · 全部必须 FAIL)</div><div class="chips">'+renderCannonChips(lv,d)+'</div></div>'
+      +freeze+meta
+      +'</div>'+insert;
+  });
+  $("levels").innerHTML=html;
+
+  // 里程碑
+  var l4ok=(levelStatus(3)==="pass_frozen");
+  var mh="";
+  MILESTONES.forEach(function(ms){
+    mh+='<div class="mcard"><div class="nm">'+ms.id+' <span class="tag '+(l4ok?'run':'wait')+'">'+(l4ok?"解锁":"待开始(L4 全绿后)")+'</span></div><p>'+esc(ms.desc)+'</p></div>';
+  });
+  $("milestones").innerHTML=mh;
+}
+
+function renderAllCannons(){
+  // 汇总:任何一级 JSON 里放过的炮标绿
+  var firedNos={};
+  LEVELS.forEach(function(lv){
+    var d=state.levels[lv.id];
+    if(d&&!d.__err&&d.cannons){
+      Object.keys(d.cannons).forEach(function(k){
+        var dict=CANNON_DICT[k]; var e=d.cannons[k]||{};
+        if(dict&&!dict.ctrl&&Array.isArray(e.breaks)&&e.breaks.length>0) firedNos[dict.no]=true;
+      });
+    }
+  });
+  var html="";
+  ALL_CANNONS.forEach(function(c){
+    var cls=c.pos?"ctrl":(firedNos[c.no]?"fired":"pending");
+    var suffix=c.pos?"":(firedNos[c.no]?" — 已放 · FAIL ✓":" — 待放");
+    html+='<span class="chip '+cls+'"><b>'+(c.pos?"件10":"炮"+c.no)+'</b> '+esc(c.label)+suffix+'</span>';
+  });
+  $("allCannons").innerHTML=html;
+}
+
+function renderParts(){
+  var html="";
+  PARTS.forEach(function(p){
+    var kv="";
+    p.kv.forEach(function(row){ kv+='<li><span class="kk">'+esc(row[0])+'</span><span class="vv">'+esc(row[1])+'</span></li>'; });
+    html+='<div class="pcard"><div class="ph"><span class="id">'+p.id+'</span><span class="tag '+p.tag.cls+'">'+esc(p.tag.txt)+'</span><span class="role">'+esc(p.role)+'</span></div>'
+      +'<ul>'+kv+'</ul><p class="one">'+esc(p.one)+'</p><div class="src">📄 '+esc(p.src)+'</div></div>';
+  });
+  $("partsGrid").innerHTML=html;
+}
+
+function render(){
+  renderRail(); renderLevels(); renderAllCannons();
+
+  // 顶部计数:当前级 = 第一个未冻结级
+  var cur=null, curIdx=0;
+  for(var i=0;i<LEVELS.length;i++){ var s=levelStatus(i); if(s!=="pass_frozen"){cur=LEVELS[i];curIdx=i;break;} }
+  var stageTxt, stageStat;
+  if(!cur){ stageTxt="M3"; stageStat=null; }
+  else{ stageTxt=cur.id; stageStat=levelStatus(curIdx); }
+  $("cStage").textContent=stageTxt+(stageStat?"("+statusMeta(stageStat).txt.split(" · ")[0]+")":"");
+
+  var d=cur?state.levels[cur.id]:null, hasData=(d&&!d.__err);
+  if(cur&&hasData){
+    var gp=0; cur.gates.forEach(function(g){ if(g.pass(d)===true) gp++; });
+    $("cGates").textContent=gp+" / "+cur.gates.length;
+    $("cGates").className="v "+(gp===cur.gates.length?"ok":"warn");
+    var fired=0, total=0;
+    if(d.cannons){ Object.keys(d.cannons).forEach(function(k){
+      var dict=CANNON_DICT[k]; if(dict&&dict.ctrl) return;
+      total++; var e=d.cannons[k]||{}; if(Array.isArray(e.breaks)&&e.breaks.length>0) fired++;
+    });}
+    $("cCannons").textContent=total?(fired+" / "+total):"—";
+    $("cCannons").className="v "+(total&&fired===total?"ok":"warn");
+  }else{
+    $("cGates").textContent="待跑"; $("cGates").className="v ink";
+    $("cCannons").textContent="待放"; $("cCannons").className="v ink";
+  }
+
+  // 连接徽章与提示条
+  var badge=$("connBadge"), live=$("liveness");
+  if(state.fetchBlocked){
+    badge.className="badge offline"; $("connTxt").textContent="本地文件模式 · 未连接";
+    live.className="liveness show";
+    $("livenessMsg").innerHTML="<b>无法读取 cp1_v4_L*_results.json</b>(file:// 直开或本地服务未起)。在仓库目录起服务后刷新本页——缺文件的级会显示「运行中/待开始」:";
+    $("cmdText").textContent="python -m http.server 8000   # 然后访问 http://localhost:8000/dashboard_ladder.html";
+    $("footConn").textContent="未连接 · 各级状态按静态推断显示";
+  }else{
+    var running=(cur&&levelStatus(curIdx)==="running");
+    badge.className="badge "+(running?"running":"live");
+    $("connTxt").textContent=running?("已连接 · "+cur.id+" 运行中"):"已连接";
+    live.className="liveness";
+    $("footConn").textContent="已连接 · 轮询 cp1_v4_L{1..4}_results.json(5s)";
+  }
+  $("updHint").textContent="更新于 "+state.updatedAt.toLocaleTimeString("zh-CN",{hour12:false});
+  var l1=state.levels.L1;
+  $("footMeta").textContent=(l1&&!l1.__err&&l1.script_sha256)?("L1 hash "+String(l1.script_sha256).slice(0,12)):"";
+}
+
+//---------------------------------------------------------------------------
+// 交互
+//---------------------------------------------------------------------------
+$("btnTheme").addEventListener("click",function(){
+  var r=document.documentElement;
+  var nowDark=r.getAttribute("data-theme")==="dark"||
+    (!r.getAttribute("data-theme")&&window.matchMedia("(prefers-color-scheme: dark)").matches);
+  r.setAttribute("data-theme",nowDark?"light":"dark");
+  try{localStorage.setItem("ladder_theme",nowDark?"light":"dark");}catch(e){}
+});
+try{ var t=localStorage.getItem("ladder_theme"); if(t) document.documentElement.setAttribute("data-theme",t);}catch(e){}
+$("btnRefresh").addEventListener("click",poll);
+$("btnCopy").addEventListener("click",function(){
+  var txt=$("cmdText").textContent.split("#")[0].trim();
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt); }
+  $("btnCopy").textContent="已复制"; setTimeout(function(){$("btnCopy").textContent="复制";},1200);
+});
+
+renderParts();
+poll();
+setInterval(poll,5000);
+</script>
+</body>
+</html>
