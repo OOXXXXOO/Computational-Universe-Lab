@@ -1,0 +1,80 @@
+{
+ "rows": {
+  "axial (2,0,0)": {
+   "tt_ref": 1.1708167478865759,
+   "placed_gauge_max": 7.703719777548943e-33,
+   "ideal_gauge": [
+    0.2316528565790539,
+    0.05568137084762008,
+    0.14366711371333699,
+    0.14366711371333699
+   ],
+   "misread": 4,
+   "N_ideal_judge": 6,
+   "N_placed_judge": 2
+  },
+  "axial (0,3,0)": {
+   "tt_ref": 5.813057379905398,
+   "placed_gauge_max": 0.0,
+   "ideal_gauge": [
+    2.5934773900960892,
+    1.5928595979458362,
+    0.5922418057955826,
+    1.592859597945836
+   ],
+   "misread": 4,
+   "N_ideal_judge": 6,
+   "N_placed_judge": 2
+  },
+  "face  (2,2,0)": {
+   "tt_ref": 4.706530969971616,
+   "placed_gauge_max": 6.162975822039155e-32,
+   "ideal_gauge": [
+    1.830547673689387,
+    0.7918617331456819,
+    0.791861733145682,
+    1.138090379993583
+   ],
+   "misread": 4,
+   "N_ideal_judge": 6,
+   "N_placed_judge": 2
+  },
+  "face  (3,2,0)": {
+   "tt_ref": 12.281248146666327,
+   "placed_gauge_max": 4.683861624749758e-31,
+   "ideal_gauge": [
+    7.738039417334397,
+    2.8025852916440366,
+    3.815574849184093,
+    4.785399852720842
+   ],
+   "misread": 4,
+   "N_ideal_judge": 6,
+   "N_placed_judge": 2
+  },
+  "body  (2,2,2)": {
+   "tt_ref": 10.644406134429527,
+   "placed_gauge_max": 7.314945421315831e-31,
+   "ideal_gauge": [
+    6.099320146926499,
+    3.036040145174032,
+    3.036040145174032,
+    3.036040145174032
+   ],
+   "misread": 4,
+   "N_ideal_judge": 6,
+   "N_placed_judge": 2
+  }
+ },
+ "seq_ideal_naive": [
+  6,
+  6,
+  6,
+  6,
+  6
+ ],
+ "placed_gauge_worst": 7.314945421315831e-31,
+ "E1_hard": true,
+ "monotone": "naive 6 -> R25 4-5 -> shell-consistent 2",
+ "verdict": "\u5361\u70b9\u2466 FAIL is REAL (not instrument) -- but ROOT CAUSE localized: gauge modes carry curvature ONLY under a Riemann judge whose derivative is not shell-matched to the walk. Monotone: naive-ideal 6 -> R25-Wilson 4-5 -> shell-consistent placed 2. N_prop=2 is REACHABLE by shell consistency, NOT a new construction. VERDICT: C-first (cheapest possible). Re-judge \u5361\u70b9\u2466 on lane B's REAL U with placed-kappa Riemann. Three-way: ->2 = pure judge mismatch (done); ->intermediate = walk evolution also needs Wilson co-deformation (medium); unchanged = evolution truly makes gauge curvature (deep=B). Do NOT open an expensive DOF-construction line before this."
+}
