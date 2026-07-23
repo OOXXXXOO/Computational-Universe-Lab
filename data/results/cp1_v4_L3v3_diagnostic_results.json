@@ -1,0 +1,66 @@
+{
+ "status": "STRUCTURAL_FAIL_STOP_BEFORE_INVALID_FULL_RUN",
+ "script_sha256": "2e78bf90e58efbdf207cf29710c1cf82aa1627e59d72c846183afd30f3753733",
+ "kernel": {
+  "formula": "a_v3=(1-q^3)*a_tr+q^3*a_kappa; q=sum_i sin^2(k_i/2)/3",
+  "local_radius_chebyshev": 4,
+  "realspace_symbol_dev_max": 5.6e-16,
+  "static_double_pole_dev": 5.77e-15,
+  "well_in_K_placed": 0.0
+ },
+ "registered_j5": {
+  "max_predicted_relative_deviation": 0.00046481783360774465,
+  "measured_fft_bin_ratios": {
+   "(2,0,0)": 1.0,
+   "(0,2,0)": 1.0,
+   "(0,0,2)": 1.0,
+   "(2,2,0)": 1.0,
+   "(3,1,0)": 1.0,
+   "(2,2,2)": 1.0
+  },
+  "pass": true
+ },
+ "constraint_complex": {
+  "n_prop": {
+   "(2,0,0)": 2,
+   "(0,2,0)": 2,
+   "(0,0,2)": 2,
+   "(2,2,0)": 2,
+   "(3,1,0)": 2,
+   "(2,2,2)": 5
+  },
+  "body_diagonal_bright_per_band": 6,
+  "body_diagonal_sv3": 0.183,
+  "body_diagonal_tt_match": 0.98634,
+  "pass": false
+ },
+ "source_sector_partial_run": {
+  "N": 16,
+  "T": 3584,
+  "exact_relC_last": 3.11e-15,
+  "onsite_relC_last": 2.68e-5,
+  "onsite_over_exact": 8.6e9,
+  "source_KS_live": 4.21e-16,
+  "conservation_worst": 6.6e-15
+ },
+ "uv_diagnostic": {
+  "pure_a_tr_example_N32_mode": [23, 0, 23],
+  "pure_a_tr_stiffness": 0.0014684567892135902,
+  "pure_a_tr_augmented_spectral_radius": 1.028912809174968,
+  "meaning": "the full walk trace has a high-k near-zero foldback; pure a_tr creates a UV static double pole"
+ },
+ "interpolation_no_overlap": {
+  "minimum_walk_shell_fraction_for_J5_lt_1pct_approx": 0.94,
+  "maximum_walk_shell_fraction_for_extra_curvature_sv_lt_0.05_approx": 0.36,
+  "overlap": false
+ },
+ "invalid_run_excluded": {
+  "reason": "N24/N32 sampled spectral calibration missed a narrow UV instability; run was interrupted and no gate verdict was taken",
+  "observed_overflow_is_not_a_physics_gate_result": true
+ },
+ "decision_required": [
+  "co-deform the placed constraint complex with the walk shell",
+  "replace/redesign the matter walk so its macro dispersion matches the certified ideal pair shell",
+  "or explicitly narrow/relax the J5 or DOF claim (not permitted without review)"
+ ]
+}

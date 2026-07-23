@@ -1,0 +1,348 @@
+{
+  "register": "R25-A",
+  "status": "PASS",
+  "checks": {
+    "exact_vs_implementation_lt_1e-12": true,
+    "det_U_identically_one": true,
+    "characteristic_reciprocal": true,
+    "finite_radius_one_trace_support": true,
+    "B0_classical_residual_nonzero": true,
+    "B1_walk_matrix_spectral_factor_exact": true,
+    "Floquet_matrix_factorization_exact": true
+  },
+  "source_sha256": "0df01b2ba3b5e6218dba926b6ad72ebd1de3d087e64b75d3f28ac748a9a66bb1",
+  "frozen_symbol_source": "cp1_v4_L2.walk_symbol",
+  "exact_vs_numeric_max_abs": 7.967651209224979e-16,
+  "det_U": "1",
+  "trace_U": "(-2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(-z_z**2 + 6*z_z + 3) + sqrt(3)*(z_z*(z_z - 3) + z_z + 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I)) + 2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(3*z_z**2 + 6*z_z - 1) - sqrt(3)*(z_z**2 - 2*z_z + 1)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I)) - (2*sqrt(3)*(z_y**2 - 1)*(z_z**2 - 2*z_z + 1) - (3*z_z**2 + 6*z_z - 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I))*(z_x**2 - sqrt(3)*I*z_x**2 + 6*z_x + 2*sqrt(3)*I*z_x + 1 - sqrt(3)*I) + (2*sqrt(3)*(z_y**2 - 1)*(z_z*(z_z - 3) + z_z + 1) + (-z_z**2 + 6*z_z + 3)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I))*(z_x**2 + sqrt(3)*I*z_x**2 + 6*z_x - 2*sqrt(3)*I*z_x + 1 + sqrt(3)*I))/(512*z_x*z_y*z_z)",
+  "P_zt": "z_t**2 + z_t*z_x*z_y*z_z/128 - 7*I*z_t*z_x*z_y*z_z/128 + 3*sqrt(3)*I*z_t*z_x*z_y*z_z/128 + 3*z_t*z_x*z_y/64 - sqrt(3)*I*z_t*z_x*z_y/64 + 3*I*z_t*z_x*z_y/64 + z_t*z_x*z_y/(128*z_z) - sqrt(3)*I*z_t*z_x*z_y/(128*z_z) + I*z_t*z_x*z_y/(128*z_z) - 3*z_t*z_x*z_z/64 + 5*sqrt(3)*I*z_t*z_x*z_z/64 - 9*z_t*z_x/32 - 3*sqrt(3)*I*z_t*z_x/32 - 3*z_t*z_x/(64*z_z) + sqrt(3)*I*z_t*z_x/(64*z_z) + z_t*z_x*z_z/(128*z_y) + 3*sqrt(3)*I*z_t*z_x*z_z/(128*z_y) + 7*I*z_t*z_x*z_z/(128*z_y) + 3*z_t*z_x/(64*z_y) - 3*I*z_t*z_x/(64*z_y) - sqrt(3)*I*z_t*z_x/(64*z_y) + z_t*z_x/(128*z_y*z_z) - sqrt(3)*I*z_t*z_x/(128*z_y*z_z) - I*z_t*z_x/(128*z_y*z_z) - 3*z_t*z_y*z_z/64 + 3*I*z_t*z_y*z_z/64 + sqrt(3)*I*z_t*z_y*z_z/32 - 9*z_t*z_y/32 - 3*I*z_t*z_y/32 - 3*z_t*z_y/(64*z_z) - sqrt(3)*I*z_t*z_y/(32*z_z) + 3*I*z_t*z_y/(64*z_z) - 3*z_t*z_z/32 - 3*sqrt(3)*I*z_t*z_z/16 - 9*z_t/16 - 3*z_t/(32*z_z) + 3*sqrt(3)*I*z_t/(16*z_z) - 3*z_t*z_z/(64*z_y) - 3*I*z_t*z_z/(64*z_y) + sqrt(3)*I*z_t*z_z/(32*z_y) - 9*z_t/(32*z_y) + 3*I*z_t/(32*z_y) - 3*z_t/(64*z_y*z_z) - sqrt(3)*I*z_t/(32*z_y*z_z) - 3*I*z_t/(64*z_y*z_z) + z_t*z_y*z_z/(128*z_x) + I*z_t*z_y*z_z/(128*z_x) + sqrt(3)*I*z_t*z_y*z_z/(128*z_x) + 3*z_t*z_y/(64*z_x) + sqrt(3)*I*z_t*z_y/(64*z_x) + 3*I*z_t*z_y/(64*z_x) + z_t*z_y/(128*z_x*z_z) - 7*I*z_t*z_y/(128*z_x*z_z) - 3*sqrt(3)*I*z_t*z_y/(128*z_x*z_z) - 3*z_t*z_z/(64*z_x) - sqrt(3)*I*z_t*z_z/(64*z_x) - 9*z_t/(32*z_x) + 3*sqrt(3)*I*z_t/(32*z_x) - 3*z_t/(64*z_x*z_z) - 5*sqrt(3)*I*z_t/(64*z_x*z_z) + z_t*z_z/(128*z_x*z_y) - I*z_t*z_z/(128*z_x*z_y) + sqrt(3)*I*z_t*z_z/(128*z_x*z_y) + 3*z_t/(64*z_x*z_y) - 3*I*z_t/(64*z_x*z_y) + sqrt(3)*I*z_t/(64*z_x*z_y) + z_t/(128*z_x*z_y*z_z) - 3*sqrt(3)*I*z_t/(128*z_x*z_y*z_z) + 7*I*z_t/(128*z_x*z_y*z_z) + 1",
+  "a_tr": "z_x*z_y*z_z/128 - 7*I*z_x*z_y*z_z/128 + 3*sqrt(3)*I*z_x*z_y*z_z/128 + 3*z_x*z_y/64 - sqrt(3)*I*z_x*z_y/64 + 3*I*z_x*z_y/64 + z_x*z_y/(128*z_z) - sqrt(3)*I*z_x*z_y/(128*z_z) + I*z_x*z_y/(128*z_z) - 3*z_x*z_z/64 + 5*sqrt(3)*I*z_x*z_z/64 - 9*z_x/32 - 3*sqrt(3)*I*z_x/32 - 3*z_x/(64*z_z) + sqrt(3)*I*z_x/(64*z_z) + z_x*z_z/(128*z_y) + 3*sqrt(3)*I*z_x*z_z/(128*z_y) + 7*I*z_x*z_z/(128*z_y) + 3*z_x/(64*z_y) - 3*I*z_x/(64*z_y) - sqrt(3)*I*z_x/(64*z_y) + z_x/(128*z_y*z_z) - sqrt(3)*I*z_x/(128*z_y*z_z) - I*z_x/(128*z_y*z_z) - 3*z_y*z_z/64 + 3*I*z_y*z_z/64 + sqrt(3)*I*z_y*z_z/32 - 9*z_y/32 - 3*I*z_y/32 - 3*z_y/(64*z_z) - sqrt(3)*I*z_y/(32*z_z) + 3*I*z_y/(64*z_z) - 3*z_z/32 - 3*sqrt(3)*I*z_z/16 + 23/16 - 3/(32*z_z) + 3*sqrt(3)*I/(16*z_z) - 3*z_z/(64*z_y) - 3*I*z_z/(64*z_y) + sqrt(3)*I*z_z/(32*z_y) - 9/(32*z_y) + 3*I/(32*z_y) - 3/(64*z_y*z_z) - sqrt(3)*I/(32*z_y*z_z) - 3*I/(64*z_y*z_z) + z_y*z_z/(128*z_x) + I*z_y*z_z/(128*z_x) + sqrt(3)*I*z_y*z_z/(128*z_x) + 3*z_y/(64*z_x) + sqrt(3)*I*z_y/(64*z_x) + 3*I*z_y/(64*z_x) + z_y/(128*z_x*z_z) - 7*I*z_y/(128*z_x*z_z) - 3*sqrt(3)*I*z_y/(128*z_x*z_z) - 3*z_z/(64*z_x) - sqrt(3)*I*z_z/(64*z_x) - 9/(32*z_x) + 3*sqrt(3)*I/(32*z_x) - 3/(64*z_x*z_z) - 5*sqrt(3)*I/(64*z_x*z_z) + z_z/(128*z_x*z_y) - I*z_z/(128*z_x*z_y) + sqrt(3)*I*z_z/(128*z_x*z_y) + 3/(64*z_x*z_y) - 3*I/(64*z_x*z_y) + sqrt(3)*I/(64*z_x*z_y) + 1/(128*z_x*z_y*z_z) - 3*sqrt(3)*I/(128*z_x*z_y*z_z) + 7*I/(128*z_x*z_y*z_z)",
+  "a_tr_support": [
+    [
+      -1,
+      -1,
+      -1
+    ],
+    [
+      -1,
+      -1,
+      0
+    ],
+    [
+      -1,
+      -1,
+      1
+    ],
+    [
+      -1,
+      0,
+      -1
+    ],
+    [
+      -1,
+      0,
+      0
+    ],
+    [
+      -1,
+      0,
+      1
+    ],
+    [
+      -1,
+      1,
+      -1
+    ],
+    [
+      -1,
+      1,
+      0
+    ],
+    [
+      -1,
+      1,
+      1
+    ],
+    [
+      0,
+      -1,
+      -1
+    ],
+    [
+      0,
+      -1,
+      0
+    ],
+    [
+      0,
+      -1,
+      1
+    ],
+    [
+      0,
+      0,
+      -1
+    ],
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      -1
+    ],
+    [
+      0,
+      1,
+      0
+    ],
+    [
+      0,
+      1,
+      1
+    ],
+    [
+      1,
+      -1,
+      -1
+    ],
+    [
+      1,
+      -1,
+      0
+    ],
+    [
+      1,
+      -1,
+      1
+    ],
+    [
+      1,
+      0,
+      -1
+    ],
+    [
+      1,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      1
+    ],
+    [
+      1,
+      1,
+      -1
+    ],
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      1,
+      1,
+      1
+    ]
+  ],
+  "a_tr_support_size": 27,
+  "a_tr_max_coordinate_radius": 1,
+  "a_tr_coefficients": {
+    "(-1, -1, -1)": "1/128 - 3*sqrt(3)*I/128 + 7*I/128",
+    "(-1, -1, 0)": "3/64 - 3*I/64 + sqrt(3)*I/64",
+    "(-1, -1, 1)": "1/128 - I/128 + sqrt(3)*I/128",
+    "(-1, 0, -1)": "-3/64 - 5*sqrt(3)*I/64",
+    "(-1, 0, 0)": "-9/32 + 3*sqrt(3)*I/32",
+    "(-1, 0, 1)": "-3/64 - sqrt(3)*I/64",
+    "(-1, 1, -1)": "1/128 - 7*I/128 - 3*sqrt(3)*I/128",
+    "(-1, 1, 0)": "3/64 + sqrt(3)*I/64 + 3*I/64",
+    "(-1, 1, 1)": "1/128 + I/128 + sqrt(3)*I/128",
+    "(0, -1, -1)": "-3/64 - sqrt(3)*I/32 - 3*I/64",
+    "(0, -1, 0)": "-9/32 + 3*I/32",
+    "(0, -1, 1)": "-3/64 - 3*I/64 + sqrt(3)*I/32",
+    "(0, 0, -1)": "-3/32 + 3*sqrt(3)*I/16",
+    "(0, 0, 0)": "23/16",
+    "(0, 0, 1)": "-3/32 - 3*sqrt(3)*I/16",
+    "(0, 1, -1)": "-3/64 - sqrt(3)*I/32 + 3*I/64",
+    "(0, 1, 0)": "-9/32 - 3*I/32",
+    "(0, 1, 1)": "-3/64 + 3*I/64 + sqrt(3)*I/32",
+    "(1, -1, -1)": "1/128 - sqrt(3)*I/128 - I/128",
+    "(1, -1, 0)": "3/64 - 3*I/64 - sqrt(3)*I/64",
+    "(1, -1, 1)": "1/128 + 3*sqrt(3)*I/128 + 7*I/128",
+    "(1, 0, -1)": "-3/64 + sqrt(3)*I/64",
+    "(1, 0, 0)": "-9/32 - 3*sqrt(3)*I/32",
+    "(1, 0, 1)": "-3/64 + 5*sqrt(3)*I/64",
+    "(1, 1, -1)": "1/128 - sqrt(3)*I/128 + I/128",
+    "(1, 1, 0)": "3/64 - sqrt(3)*I/64 + 3*I/64",
+    "(1, 1, 1)": "1/128 - 7*I/128 + 3*sqrt(3)*I/128"
+  },
+  "a_tr_directional_IR_series": {
+    "(1, 0, 0)": "epsilon**2*(epsilon**4 - 30*epsilon**2 + 360)/1440",
+    "(1, 1, 0)": "epsilon**2*(-13*epsilon**4 + 30*epsilon**2 + 720)/1440",
+    "(1, 1, 1)": "epsilon**2*(-11*epsilon**4 + 30*epsilon**3*(11 - 9*sqrt(3)) - 120*epsilon**2 + 240*epsilon*(-2 + 3*sqrt(3)) + 1440)/1920",
+    "(3, 1, -2)": "epsilon**2*(772*epsilon**4 + 45*epsilon**3*(-29 + 16*sqrt(3)) - 1965*epsilon**2 + 360*epsilon*(3 - 2*sqrt(3)) + 2520)/720"
+  },
+  "B0": {
+    "scope": "classical R15 symmetric-gradient with the original four scalar placed differences",
+    "q_b0": "-4*z_t + z_x + z_y + z_z + 2 + 1/z_z + 1/z_y + 1/z_x - 4/z_t",
+    "normalization_argument": "zt coefficients force q_b0 = -4 f_walk if the two principal shell polynomials are associates",
+    "exact_residual_q_b0_plus_4_f_walk": "z_x*z_y*z_z/32 - 7*I*z_x*z_y*z_z/32 + 3*sqrt(3)*I*z_x*z_y*z_z/32 + 3*z_x*z_y/16 - sqrt(3)*I*z_x*z_y/16 + 3*I*z_x*z_y/16 + z_x*z_y/(32*z_z) - sqrt(3)*I*z_x*z_y/(32*z_z) + I*z_x*z_y/(32*z_z) - 3*z_x*z_z/16 + 5*sqrt(3)*I*z_x*z_z/16 - z_x/8 - 3*sqrt(3)*I*z_x/8 - 3*z_x/(16*z_z) + sqrt(3)*I*z_x/(16*z_z) + z_x*z_z/(32*z_y) + 3*sqrt(3)*I*z_x*z_z/(32*z_y) + 7*I*z_x*z_z/(32*z_y) + 3*z_x/(16*z_y) - 3*I*z_x/(16*z_y) - sqrt(3)*I*z_x/(16*z_y) + z_x/(32*z_y*z_z) - sqrt(3)*I*z_x/(32*z_y*z_z) - I*z_x/(32*z_y*z_z) - 3*z_y*z_z/16 + 3*I*z_y*z_z/16 + sqrt(3)*I*z_y*z_z/8 - z_y/8 - 3*I*z_y/8 - 3*z_y/(16*z_z) - sqrt(3)*I*z_y/(8*z_z) + 3*I*z_y/(16*z_z) + 5*z_z/8 - 3*sqrt(3)*I*z_z/4 - 1/4 + 5/(8*z_z) + 3*sqrt(3)*I/(4*z_z) - 3*z_z/(16*z_y) - 3*I*z_z/(16*z_y) + sqrt(3)*I*z_z/(8*z_y) - 1/(8*z_y) + 3*I/(8*z_y) - 3/(16*z_y*z_z) - sqrt(3)*I/(8*z_y*z_z) - 3*I/(16*z_y*z_z) + z_y*z_z/(32*z_x) + I*z_y*z_z/(32*z_x) + sqrt(3)*I*z_y*z_z/(32*z_x) + 3*z_y/(16*z_x) + sqrt(3)*I*z_y/(16*z_x) + 3*I*z_y/(16*z_x) + z_y/(32*z_x*z_z) - 7*I*z_y/(32*z_x*z_z) - 3*sqrt(3)*I*z_y/(32*z_x*z_z) - 3*z_z/(16*z_x) - sqrt(3)*I*z_z/(16*z_x) - 1/(8*z_x) + 3*sqrt(3)*I/(8*z_x) - 3/(16*z_x*z_z) - 5*sqrt(3)*I/(16*z_x*z_z) + z_z/(32*z_x*z_y) - I*z_z/(32*z_x*z_y) + sqrt(3)*I*z_z/(32*z_x*z_y) + 3/(16*z_x*z_y) - 3*I/(16*z_x*z_y) + sqrt(3)*I/(16*z_x*z_y) + 1/(32*z_x*z_y*z_z) - 3*sqrt(3)*I/(32*z_x*z_y*z_z) + 7*I/(32*z_x*z_y*z_z)",
+    "residual_support_size": 27,
+    "residual_coefficients": {
+      "(-1, -1, -1)": "1/32 - 3*sqrt(3)*I/32 + 7*I/32",
+      "(-1, -1, 0)": "3/16 - 3*I/16 + sqrt(3)*I/16",
+      "(-1, -1, 1)": "1/32 - I/32 + sqrt(3)*I/32",
+      "(-1, 0, -1)": "-3/16 - 5*sqrt(3)*I/16",
+      "(-1, 0, 0)": "-1/8 + 3*sqrt(3)*I/8",
+      "(-1, 0, 1)": "-3/16 - sqrt(3)*I/16",
+      "(-1, 1, -1)": "1/32 - 7*I/32 - 3*sqrt(3)*I/32",
+      "(-1, 1, 0)": "3/16 + sqrt(3)*I/16 + 3*I/16",
+      "(-1, 1, 1)": "1/32 + I/32 + sqrt(3)*I/32",
+      "(0, -1, -1)": "-3/16 - sqrt(3)*I/8 - 3*I/16",
+      "(0, -1, 0)": "-1/8 + 3*I/8",
+      "(0, -1, 1)": "-3/16 - 3*I/16 + sqrt(3)*I/8",
+      "(0, 0, -1)": "5/8 + 3*sqrt(3)*I/4",
+      "(0, 0, 0)": "-1/4",
+      "(0, 0, 1)": "5/8 - 3*sqrt(3)*I/4",
+      "(0, 1, -1)": "-3/16 - sqrt(3)*I/8 + 3*I/16",
+      "(0, 1, 0)": "-1/8 - 3*I/8",
+      "(0, 1, 1)": "-3/16 + 3*I/16 + sqrt(3)*I/8",
+      "(1, -1, -1)": "1/32 - sqrt(3)*I/32 - I/32",
+      "(1, -1, 0)": "3/16 - 3*I/16 - sqrt(3)*I/16",
+      "(1, -1, 1)": "1/32 + 3*sqrt(3)*I/32 + 7*I/32",
+      "(1, 0, -1)": "-3/16 + sqrt(3)*I/16",
+      "(1, 0, 0)": "-1/8 - 3*sqrt(3)*I/8",
+      "(1, 0, 1)": "-3/16 + 5*sqrt(3)*I/16",
+      "(1, 1, -1)": "1/32 - sqrt(3)*I/32 + I/32",
+      "(1, 1, 0)": "3/16 - sqrt(3)*I/16 + 3*I/16",
+      "(1, 1, 1)": "1/32 - 7*I/32 + 3*sqrt(3)*I/32"
+    },
+    "directional_IR_series": {
+      "(1, 0, 0)": "0",
+      "(1, 1, 0)": "epsilon**4*(6 - epsilon**2)/24",
+      "(1, 1, 1)": "epsilon**3*(-epsilon**3 + 2*epsilon**2*(11 - 9*sqrt(3)) - 32 + 48*sqrt(3))/32",
+      "(3, 1, -2)": "epsilon**3*(25*epsilon**3 + 3*epsilon**2*(-29 + 16*sqrt(3)) - 33*epsilon - 48*sqrt(3) + 72)/12"
+    },
+    "verdict": "NO-GO for B0 only; B1/B2 general Laurent generators remain open"
+  },
+  "B1_seed": {
+    "D_walk": "I_2 - U_walk",
+    "spatial_identity": "D_walk^* D_walk = (2-tr U_walk) I_2",
+    "spatial_residual": "Matrix([[0, 0], [0, 0]])",
+    "F_walk": "z_t I_2 - U_walk",
+    "floquet_identity": "adj(F_walk) F_walk = P(z_t,z) I_2",
+    "floquet_residual": "Matrix([[0, 0], [0, 0]])",
+    "interpretation": "strictly local 2-channel matrix-valued differential / matrix-factorization seed; not yet a rank-4 spin-2 gauge generator"
+  },
+  "uv_scan": {
+    "N": 64,
+    "smallest_nonzero_a_tr": [
+      {
+        "a_tr": 0.000980093066749177,
+        "index": [
+          47,
+          0,
+          47
+        ]
+      },
+      {
+        "a_tr": 0.0012079599082992498,
+        "index": [
+          46,
+          0,
+          47
+        ]
+      },
+      {
+        "a_tr": 0.0012079599082994719,
+        "index": [
+          47,
+          0,
+          46
+        ]
+      },
+      {
+        "a_tr": 0.0012082523037100223,
+        "index": [
+          47,
+          1,
+          47
+        ]
+      },
+      {
+        "a_tr": 0.0012766923761602378,
+        "index": [
+          46,
+          63,
+          46
+        ]
+      },
+      {
+        "a_tr": 0.0014684567892135902,
+        "index": [
+          46,
+          0,
+          46
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          0,
+          0,
+          63
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          0,
+          63,
+          0
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "a_tr": 0.0024076366639005364,
+        "index": [
+          63,
+          0,
+          0
+        ]
+      }
+    ],
+    "interpretation": "diagnostic registry, not an algebraic zero-set proof"
+  }
+}

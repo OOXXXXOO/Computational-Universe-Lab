@@ -1,0 +1,233 @@
+{
+  "register": "R25-C1-auxiliary-Wilson",
+  "status": "PASS",
+  "checks": {
+    "full_BZ_pair_stability_0_lt_a_lt_4": true,
+    "formal_J5_lt_1e-2": true,
+    "augmented_gauge_rank_four": true,
+    "augmented_constraint_rank_eight": true,
+    "on_shell_quotient_dimension_two": true,
+    "mapping_cone_identities_lt_1e-11": true,
+    "old_UV_node_lifted_with_two_cohomology": true,
+    "static_Newton_lift_exactly_constraint_dark": true
+  },
+  "source_sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+  "construction": {
+    "r": "(1/2) q, q=(1/3) sum_i sin^2(k_i/2)",
+    "r_local_radius": 1,
+    "wilson_stiffness": "a_W=2-tr(U_walk)+r^2",
+    "wilson_local_radius": 2,
+    "G_plus": "vertical_stack(G_walk, r I_4)",
+    "C_plus": "horizontal_stack(C_walk, -z_t r I_4)",
+    "D_plus": "horizontal_stack(r H, -H G_walk)",
+    "H": "cubic-symmetric radius-one selector dark on the trace-zero Newton lift",
+    "physical_gauge_rank": 4,
+    "field_count_with_auxiliary": 14
+  },
+  "full_BZ": {
+    "N": 64,
+    "min_nonzero_a_W": 0.002407797683742352,
+    "min_row": {
+      "index": [
+        0,
+        0,
+        1
+      ],
+      "r": 0.00040127277731692615
+    },
+    "max_a_W": 3.8791614444581892,
+    "max_row": {
+      "index": [
+        31,
+        28,
+        16
+      ],
+      "r": 0.4099220215986236
+    }
+  },
+  "formal_gate": [
+    {
+      "index": [
+        2,
+        0,
+        0
+      ],
+      "omega_matter": 0.1954010369107835,
+      "omega_geometry": 0.19550463150714142,
+      "relative_J5": 0.000530164005246414
+    },
+    {
+      "index": [
+        0,
+        0,
+        2
+      ],
+      "omega_matter": 0.1954010369107835,
+      "omega_geometry": 0.19550463150714142,
+      "relative_J5": 0.000530164005246414
+    },
+    {
+      "index": [
+        2,
+        2,
+        0
+      ],
+      "omega_matter": 0.2794203167862593,
+      "omega_geometry": 0.2797119640113585,
+      "relative_J5": 0.0010437581220061887
+    },
+    {
+      "index": [
+        3,
+        1,
+        0
+      ],
+      "omega_matter": 0.3089316354498492,
+      "omega_geometry": 0.3093339251985175,
+      "relative_J5": 0.0013021966755930592
+    },
+    {
+      "index": [
+        2,
+        2,
+        2
+      ],
+      "omega_matter": 0.37321364112164035,
+      "omega_geometry": 0.3737099471374674,
+      "relative_J5": 0.0013298174588032285
+    },
+    {
+      "index": [
+        1,
+        1,
+        1
+      ],
+      "omega_matter": 0.1786331384761469,
+      "omega_geometry": 0.1786980602226662,
+      "relative_J5": 0.00036343618587864057
+    }
+  ],
+  "on_shell_census": {
+    "points_per_branch": 2052,
+    "rank_G_plus": [
+      4
+    ],
+    "rank_K_plus": [
+      8
+    ],
+    "quotient_dim": [
+      2
+    ],
+    "worst_identity_residuals": {
+      "KG": 8.347371121734956e-15,
+      "CG_plus_PwI": 7.193032932635176e-15,
+      "Pw": 8.084928095691562e-16
+    },
+    "smallest_eighth_singular_value_K": 0.01480471907464686
+  },
+  "old_UV_node": [
+    {
+      "branch": -1,
+      "omega_geometry": 0.19076531801642863,
+      "r": 0.19047619047620135,
+      "Pw_abs": 1.3677114791229016e-16,
+      "rank_G": 4,
+      "rank_K": 8,
+      "cohomology": 2
+    },
+    {
+      "branch": 1,
+      "omega_geometry": 0.19076531801642863,
+      "r": 0.19047619047620135,
+      "Pw_abs": 1.198874660937259e-16,
+      "rank_G": 4,
+      "rank_K": 8,
+      "cohomology": 2
+    }
+  ],
+  "static_Newton": {
+    "normal_h_lift": "trace reverse: hbar00=(1+a)^2/(2c), hbar0i=-(1+a)i b_i/(2c), hbarij=(b^2 deltaij-3b_i b_j)/(4c); auxiliary=0",
+    "source_lift": "drive h with h_N(z)*rho; equilibrium is h_N rho/a_W",
+    "locality": "h_N radius 1; no division except the physical 1/a_W Green response",
+    "worst": {
+      "K_newton": 5.44009806969435e-15,
+      "C_newton": 5.44009806969435e-15,
+      "H_newton": 1.9984014443252818e-15
+    },
+    "IR_normal_h_at_k0": [
+      2.0000000000000013,
+      -6.31123713549271e-17,
+      -2.067105307436043e-17,
+      0.0,
+      2.0000000000000013,
+      4.892246917224168e-34,
+      -1.8488927466117475e-32,
+      2.0000000000000013,
+      4.105366594701613e-48,
+      2.0000000000000013
+    ],
+    "gate_rows": [
+      {
+        "index": [
+          1,
+          0,
+          0
+        ],
+        "a_W": 0.009609923725114109,
+        "h00_numerator": 1.9904041778719026,
+        "hii_numerator": [
+          1.9809237324466742,
+          1.995196320100808,
+          1.9950924810682256
+        ],
+        "h00_over_hii": 1.004785870990358
+      },
+      {
+        "index": [
+          1,
+          1,
+          0
+        ],
+        "a_W": 0.019317276665986184,
+        "h00_numerator": 1.9807395741732245,
+        "hii_numerator": [
+          1.9759733451844388,
+          1.9759733451844388,
+          1.990272032150796
+        ],
+        "h00_over_hii": 1.00241209174223
+      },
+      {
+        "index": [
+          1,
+          1,
+          1
+        ],
+        "a_W": 0.031848110770775116,
+        "h00_numerator": 1.9683015686798149,
+        "hii_numerator": [
+          1.970231974836351,
+          1.9669435472449424,
+          1.967729183958151
+        ],
+        "h00_over_hii": 0.9990202137711747
+      },
+      {
+        "index": [
+          2,
+          2,
+          2
+        ],
+        "a_W": 0.13804128317269465,
+        "h00_numerator": 1.8646903052994868,
+        "hii_numerator": [
+          1.8798915193441277,
+          1.8541987337014554,
+          1.8599806628528772
+        ],
+        "h00_over_hii": 0.9919137812537479
+      }
+    ]
+  },
+  "scope_boundary": "Constraint/gauge mapping cone passed. A local augmented Einstein/evolution operator and real-space damping/source realization remain to be constructed."
+}

@@ -1,0 +1,27 @@
+{
+ "null": 7.35170199188412e-16,
+ "cg": 7.35170199188412e-16,
+ "ranks": [
+  1
+ ],
+ "dims": [
+  2
+ ],
+ "dist_transverse": 3.332000937312528e-08,
+ "F_gauge": 0.0,
+ "F_transverse_min": 0.9011515871026481,
+ "transverse_retention": 1.000000000000027,
+ "constraint_decay": 5.409741040345224e-16,
+ "negatives": {
+  "unplaced": {
+   "cg": 0.5211486210511782,
+   "dim": 3
+  },
+  "central": {
+   "cg": 0.03403385441376668,
+   "dim": 3
+  }
+ },
+ "operator_err": 2.775557561562891e-16,
+ "all_pass": true
+}

@@ -1,0 +1,54 @@
+{
+  "register": "R25-C-exceptional-audit",
+  "status": "PASS",
+  "checks": {
+    "slice_common_factor_contains_origin_and_nonzero_root": true,
+    "nonzero_root_on_unit_circle": true,
+    "U_equals_I_exact_at_nonzero_root": true,
+    "numeric_search_recovers_nonzero_root": true,
+    "current_detour_rank_collapses_there": true
+  },
+  "source_sha256": "19618c7de349fbdaf7b7b3c889d296e2fbaf6168177c5723e584806790c8c532",
+  "exact_certificate": {
+    "slice": "z_y=1, z_z=z_x",
+    "gcd_of_entries_U_minus_I": "(z_x - 1)*(z_x + 1/7 + 4*sqrt(3)*I/7)",
+    "nonzero_root_z": "-1/7 - 4*sqrt(3)*I/7",
+    "nonzero_root_k": -1.714143895700262,
+    "unit_circle_residual": "0",
+    "U_minus_I_at_root": "Matrix([[0, 0], [0, 0]])"
+  },
+  "numeric_root_census": [
+    {
+      "k": [
+        5.090208254898698e-10,
+        -1.4824790284251321e-09,
+        -1.041563280068658e-09
+      ],
+      "a": 1.0000000000000004,
+      "U_sign": 1,
+      "bloch_norm": 9.409703654552035e-10,
+      "kappa_norm": 1.8819407309106294e-09,
+      "certified_zero_snap_tolerance": 1e-07,
+      "rank_G": 0,
+      "rank_E": 0,
+      "dim_kerE_mod_imG": 10
+    },
+    {
+      "k": [
+        -1.7141438963057247,
+        -1.1633325414095452e-09,
+        -1.71414389605658
+      ],
+      "a": 1.0,
+      "U_sign": 1,
+      "bloch_norm": 4.2996943958259133e-10,
+      "kappa_norm": 8.599388791651842e-10,
+      "certified_zero_snap_tolerance": 1e-07,
+      "rank_G": 0,
+      "rank_E": 0,
+      "dim_kerE_mod_imG": 10
+    }
+  ],
+  "verdict": "The frozen matter walk has an intrinsic nonzero +I Floquet/Dirac point. The canonical F=z_t I-U presentation vanishes there and its detour complex acquires exceptional UV cohomology.",
+  "next_test": "Search a different Laurent matrix presentation of the same P_walk that vanishes at the IR origin but has rank one at the nonzero singular point; otherwise joint Wilsonization or matter-walk redesign becomes an architectural choice."
+}

@@ -1,0 +1,57 @@
+{
+  "register": "R25-B2-C0",
+  "status": "PASS",
+  "checks": {
+    "kappa_square_equals_minus_P_exact": true,
+    "IR_is_common_i_times_physical_covector": true,
+    "generic_CG_identity_numeric": true,
+    "generic_EG_identity_numeric": true,
+    "generic_BE_identity_numeric": true,
+    "on_shell_rank_G_four": true,
+    "on_shell_rank_C_four": true,
+    "on_shell_rank_E_four": true,
+    "on_shell_detour_cohomology_two": true,
+    "on_shell_residuals_lt_1e-11": true
+  },
+  "source_sha256": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+  "construction": {
+    "F": "z_t I_2-U_walk = kappa_0 I+sum kappa_i sigma_i",
+    "kappa": [
+      "z_t - (-2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(-z_z**2 + 6*z_z + 3) + sqrt(3)*(z_z*(z_z - 3) + z_z + 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I)) + 2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(3*z_z**2 + 6*z_z - 1) - sqrt(3)*(z_z**2 - 2*z_z + 1)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I)) - (2*sqrt(3)*(z_y**2 - 1)*(z_z**2 - 2*z_z + 1) - (3*z_z**2 + 6*z_z - 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I))*(z_x**2 - sqrt(3)*I*z_x**2 + 6*z_x + 2*sqrt(3)*I*z_x + 1 - sqrt(3)*I) + (2*sqrt(3)*(z_y**2 - 1)*(z_z*(z_z - 3) + z_z + 1) + (-z_z**2 + 6*z_z + 3)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I))*(z_x**2 + sqrt(3)*I*z_x**2 + 6*z_x - 2*sqrt(3)*I*z_x + 1 + sqrt(3)*I))/(1024*z_x*z_y*z_z)",
+      "-(2*(z_x**2 - 1)*(2*sqrt(3)*(z_y**2 - 1)*(z_z**2 - 2*z_z + 1) - (3*z_z**2 + 6*z_z - 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I)) - 2*(z_x**2 - 1)*(2*sqrt(3)*(z_y**2 - 1)*(z_z*(z_z - 3) + z_z + 1) + (-z_z**2 + 6*z_z + 3)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I)) + I*(2*(z_y**2 - 1)*(-z_z**2 + 6*z_z + 3) + sqrt(3)*(z_z*(z_z - 3) + z_z + 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I))*(z_x**2 - sqrt(3)*I*z_x**2 + 6*z_x + 2*sqrt(3)*I*z_x + 1 - sqrt(3)*I) - I*(2*(z_y**2 - 1)*(3*z_z**2 + 6*z_z - 1) - sqrt(3)*(z_z**2 - 2*z_z + 1)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I))*(z_x**2 + sqrt(3)*I*z_x**2 + 6*z_x - 2*sqrt(3)*I*z_x + 1 + sqrt(3)*I))/(1024*z_x*z_y*z_z)",
+      "I*(2*(z_x**2 - 1)*(2*sqrt(3)*(z_y**2 - 1)*(z_z**2 - 2*z_z + 1) - (3*z_z**2 + 6*z_z - 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I)) + 2*(z_x**2 - 1)*(2*sqrt(3)*(z_y**2 - 1)*(z_z*(z_z - 3) + z_z + 1) + (-z_z**2 + 6*z_z + 3)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I)) - I*(2*(z_y**2 - 1)*(-z_z**2 + 6*z_z + 3) + sqrt(3)*(z_z*(z_z - 3) + z_z + 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I))*(z_x**2 - sqrt(3)*I*z_x**2 + 6*z_x + 2*sqrt(3)*I*z_x + 1 - sqrt(3)*I) - I*(2*(z_y**2 - 1)*(3*z_z**2 + 6*z_z - 1) - sqrt(3)*(z_z**2 - 2*z_z + 1)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I))*(z_x**2 + sqrt(3)*I*z_x**2 + 6*z_x - 2*sqrt(3)*I*z_x + 1 + sqrt(3)*I))/(1024*z_x*z_y*z_z)",
+      "-(-2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(-z_z**2 + 6*z_z + 3) + sqrt(3)*(z_z*(z_z - 3) + z_z + 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I)) - 2*I*(z_x**2 - 1)*(2*(z_y**2 - 1)*(3*z_z**2 + 6*z_z - 1) - sqrt(3)*(z_z**2 - 2*z_z + 1)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I)) + (2*sqrt(3)*(z_y**2 - 1)*(z_z**2 - 2*z_z + 1) - (3*z_z**2 + 6*z_z - 1)*(z_y**2 - sqrt(3)*I*z_y**2 + 6*z_y + 2*sqrt(3)*I*z_y + 1 - sqrt(3)*I))*(z_x**2 - sqrt(3)*I*z_x**2 + 6*z_x + 2*sqrt(3)*I*z_x + 1 - sqrt(3)*I) + (2*sqrt(3)*(z_y**2 - 1)*(z_z*(z_z - 3) + z_z + 1) + (-z_z**2 + 6*z_z + 3)*(z_y**2 + sqrt(3)*I*z_y**2 + 6*z_y - 2*sqrt(3)*I*z_y + 1 + sqrt(3)*I))*(z_x**2 + sqrt(3)*I*z_x**2 + 6*z_x - 2*sqrt(3)*I*z_x + 1 + sqrt(3)*I))/(1024*z_x*z_y*z_z)"
+    ],
+    "exact_characteristic_identity": "kappa.eta.kappa=-det(F)=-P_walk",
+    "IR_jacobian_columns_omega_kxyz": "Matrix([[-I, 0, 0, 0], [0, I/2, 0, 0], [0, 0, I/2, 0], [0, 0, 0, I/2]])",
+    "maps": "R^4 --Killing G--> R^10 --Einstein E--> R^10 --Bianchi B--> R^4",
+    "locality": "all entries Laurent-polynomial; kappa radius (time,space)=(1,1), E radius <=(2,2)"
+  },
+  "generic_off_shell_identity_census": {
+    "CG_minus_qI": 1.9860273225978185e-15,
+    "EG": 1.2482481913978243e-14,
+    "BE": 8.188600426433447e-15
+  },
+  "on_shell_census": {
+    "points_per_branch": 1028,
+    "rank_G": [
+      4
+    ],
+    "rank_C": [
+      4
+    ],
+    "rank_E": [
+      4
+    ],
+    "dim_kerE_mod_imG": [
+      2
+    ],
+    "worst": {
+      "q_on_shell": 6.715186293250111e-15,
+      "CG": 6.7522059660521646e-15,
+      "EG": 4.56286127863552e-15,
+      "BE": 2.5328329473132834e-15
+    }
+  },
+  "scope_boundary": "Symbol-level detour complex passed. Remaining: exact symbolic curvature compatibility/free resolution, real-space placement/adjoint realization, damping, source/Newton and full-BZ exceptional-ideal audit."
+}

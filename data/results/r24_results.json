@@ -1,0 +1,10 @@
+{
+ "bands": [
+  2
+ ],
+ "eig_mod_dev": 2.220446049250313e-16,
+ "shell_dev": 2.220446049250313e-16,
+ "static_resp_dev": 4.218847493575595e-15,
+ "well_kerK": 0.0,
+ "all_pass": true
+}

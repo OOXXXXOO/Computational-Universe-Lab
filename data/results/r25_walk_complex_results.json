@@ -1,0 +1,121 @@
+{
+  "register": "R25-B1",
+  "status": "PASS",
+  "checks": {
+    "SU2_bloch_identity_exact": true,
+    "bloch_components_star_real": true,
+    "walk_null_polynomial_factor_exact": true,
+    "universal_CG_equals_qI": true,
+    "IR_jacobian_equals_cI": true,
+    "numeric_shell_null_lt_1e-12": true,
+    "numeric_CG_lt_1e-12": true,
+    "rank_C_four": true,
+    "on_shell_dim_kerC_mod_gauge_two": true
+  },
+  "source_sha256": "a19c1313bd0422830ab43faf6ef74b819e1ddcdaf656401cad991ab2d4cc01e4",
+  "construction": {
+    "U_decomposition": "U=a I-i sum_j b_j sigma_j",
+    "kappa": "((zt^-1-zt)/(2i), b_x, b_y, b_z) / c",
+    "IR_b_jacobian": "Matrix([[1/2, 0, 0], [0, 1/2, 0], [0, 0, 1/2]])",
+    "q_factorization": "kappa^2 (before common /c) = (zt+zt^-1-trU)(zt+zt^-1+trU)/4",
+    "shell_ring": "R/(zt+zt^-1-trU), equivalently R/(P_walk)",
+    "locality": "b_j have coordinate radius 1 because U_walk does"
+  },
+  "symbolic_residuals": {
+    "a2_plus_b2_minus_1": "0",
+    "star_b_minus_b": [
+      "0",
+      "0",
+      "0"
+    ],
+    "q_minus_f_times_quotient": "0",
+    "C_G_minus_q_I": "Matrix([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]])"
+  },
+  "numeric_census": {
+    "branches": [
+      {
+        "branch": -1,
+        "points": 516
+      },
+      {
+        "branch": 1,
+        "points": 516
+      }
+    ],
+    "ranks_C": [
+      4
+    ],
+    "dim_kerC_mod_gauge": [
+      2
+    ],
+    "worst": {
+      "null": 6.661338147750939e-15,
+      "cg": 6.729581132760033e-15,
+      "dtt": 3.650024149988857e-08,
+      "imag_b": 3.3306690738754696e-16
+    }
+  },
+  "L3v3_gate_comparison": [
+    {
+      "index": [
+        2,
+        0,
+        0
+      ],
+      "new_abs_kappa2": 4.135580766728708e-15,
+      "old_abs_kappa2": 3.9968028886505635e-15,
+      "new_dim_kerC_mod_gauge": 2
+    },
+    {
+      "index": [
+        0,
+        0,
+        2
+      ],
+      "new_abs_kappa2": 4.440892098500626e-15,
+      "old_abs_kappa2": 3.9968028886505635e-15,
+      "new_dim_kerC_mod_gauge": 2
+    },
+    {
+      "index": [
+        2,
+        2,
+        0
+      ],
+      "new_abs_kappa2": 2.0261570199409107e-15,
+      "old_abs_kappa2": 0.005794325570698311,
+      "new_dim_kerC_mod_gauge": 2
+    },
+    {
+      "index": [
+        3,
+        1,
+        0
+      ],
+      "new_abs_kappa2": 1.9984014443252818e-15,
+      "old_abs_kappa2": 0.003238264143139713,
+      "new_dim_kerC_mod_gauge": 2
+    },
+    {
+      "index": [
+        2,
+        2,
+        2
+      ],
+      "new_abs_kappa2": 1.5543122344752192e-15,
+      "old_abs_kappa2": 0.09399374636582397,
+      "new_dim_kerC_mod_gauge": 2
+    },
+    {
+      "index": [
+        1,
+        1,
+        1
+      ],
+      "new_abs_kappa2": 2.9559688030644793e-15,
+      "old_abs_kappa2": 0.012011824140187491,
+      "new_dim_kerC_mod_gauge": 2
+    }
+  ],
+  "scope_boundary": "This passes the on-shell de Donder/gauge complex. It does not yet construct the off-shell Einstein/detour operator, damping realization, or Newton source response."
+}

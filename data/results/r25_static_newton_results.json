@@ -1,0 +1,60 @@
+{
+  "register": "R25-D0-static-Newton",
+  "status": "PASS",
+  "checks": {
+    "local_stencil_matches_exact_symbol": true,
+    "conjugate_doubling_produces_real_physical_metric": true,
+    "static_equilibrium_exact": true,
+    "Newton_ratio_A_gate": true,
+    "Newton_tail_gate": true
+  },
+  "source_sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+  "reality_structure": "plus xyz sector direct-summed with its conjugate/mirrored sector; h_minus=conj(h_plus), physical h=(h_plus+h_minus)/2",
+  "boxes": [
+    {
+      "N": 24,
+      "sigma": 2.5,
+      "canary": {
+        "A_hbar00": 15.876172032276678,
+        "A_h00": 7.938086016138339,
+        "ratio_A": 2.0,
+        "ratio_B": 158.7617297857033,
+        "tailcorr_h00": 0.9994036640771159,
+        "tailcorr_hbar00": 0.999403664077116,
+        "fit_resid_rel": 0.017427140651612834,
+        "well_not_hill": true,
+        "gate_pass": true
+      },
+      "local_vs_direct_symbol_rel": 4.2987998285302e-16,
+      "single_chiral_sector_max_imaginary": 0.01727203073710696,
+      "doubled_physical_max_imaginary": 0.0,
+      "mirror_conjugacy_residual": 0.0,
+      "equilibrium_fourier_residual_max": 1.5287788238744668e-14,
+      "aW_min_nonzero": 0.017045149697923697,
+      "aW_max": 3.86943870684587
+    },
+    {
+      "N": 32,
+      "sigma": 2.5,
+      "canary": {
+        "A_hbar00": 15.926342342490909,
+        "A_h00": 7.963171171245454,
+        "ratio_A": 2.0,
+        "ratio_B": 159.2634091856507,
+        "tailcorr_h00": 0.9997779021966106,
+        "tailcorr_hbar00": 0.9997779021966106,
+        "fit_resid_rel": 0.013114102279848093,
+        "well_not_hill": true,
+        "gate_pass": true
+      },
+      "local_vs_direct_symbol_rel": 3.8067017119272737e-16,
+      "single_chiral_sector_max_imaginary": 0.018309674935405106,
+      "doubled_physical_max_imaginary": 0.0,
+      "mirror_conjugacy_residual": 0.0,
+      "equilibrium_fourier_residual_max": 5.624043777365635e-14,
+      "aW_min_nonzero": 0.009609923725113887,
+      "aW_max": 3.8788443216187245
+    }
+  ],
+  "scope_boundary": "Exact static oracle with a real-space local source lift; time-domain augmented damping and moving exact-current source remain."
+}

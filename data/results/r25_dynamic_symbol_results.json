@@ -1,0 +1,175 @@
+{
+  "register": "R25-D1-dynamic-symbol",
+  "status": "PASS",
+  "checks": {
+    "K_is_affine_in_time_shift": true,
+    "on_shell_gauge_columns_dark_in_state_operator": true,
+    "stable_mu_exists_with_twelve_unit_modes": true,
+    "full_16BZ_stable": true,
+    "full_16BZ_unit_count_twelve": true
+  },
+  "source_sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+  "affine_z_residual": 7.944109290391274e-15,
+  "gauge_state_dark_residual": 8.510661368555271e-15,
+  "mu_scan": [
+    {
+      "mu": 1e-05,
+      "max_modulus": 1.0000000000000042,
+      "slowest_contracting": 0.9999999968419004,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 1.3923550682035835e-05,
+      "max_modulus": 1.0000000000000038,
+      "slowest_contracting": 0.9999999956028024,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 1.9386526359522056e-05,
+      "max_modulus": 1.0000000000000044,
+      "slowest_contracting": 0.9999999938775376,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 2.6992928231542958e-05,
+      "max_modulus": 1.0000000000000047,
+      "slowest_contracting": 0.9999999914753582,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 3.758374042884443e-05,
+      "max_modulus": 1.0000000000000036,
+      "slowest_contracting": 0.999999988130673,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 5.232991146814947e-05,
+      "max_modulus": 1.0000000000000047,
+      "slowest_contracting": 0.9999999834736811,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 7.286181745132274e-05,
+      "max_modulus": 1.0000000000000047,
+      "slowest_contracting": 0.999999976989496,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.00010144952080687352,
+      "max_modulus": 1.000000000000004,
+      "slowest_contracting": 0.9999999679612079,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0001412537544622754,
+      "max_modulus": 1.000000000000004,
+      "slowest_contracting": 0.9999999553906262,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0001966753809283339,
+      "max_modulus": 1.0000000000000038,
+      "slowest_contracting": 0.9999999378879081,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0002738419634264361,
+      "max_modulus": 1.000000000000004,
+      "slowest_contracting": 0.9999999135179136,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0003812852456636187,
+      "max_modulus": 1.0000000000000044,
+      "slowest_contracting": 0.9999998795862274,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.000530884444230988,
+      "max_modulus": 1.0000000000000049,
+      "slowest_contracting": 0.9999998323412671,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0007391796465554595,
+      "max_modulus": 1.0000000000000042,
+      "slowest_contracting": 0.9999997665595062,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0010292005271944275,
+      "max_modulus": 1.0000000000000042,
+      "slowest_contracting": 0.9999996749679307,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.0014330125702369627,
+      "max_modulus": 1.0000000000000036,
+      "slowest_contracting": 0.9999995474399223,
+      "unit_counts": [
+        12
+      ]
+    },
+    {
+      "mu": 0.001995262314968879,
+      "max_modulus": 1.0000000000000049,
+      "slowest_contracting": 0.9999993698756251,
+      "unit_counts": [
+        12
+      ]
+    }
+  ],
+  "chosen": {
+    "mu": 0.001995262314968879,
+    "max_modulus": 1.0000000000000049,
+    "slowest_contracting": 0.9999993698756251,
+    "unit_counts": [
+      12
+    ]
+  },
+  "full_BZ": {
+    "N": 16,
+    "max_modulus": 1.0000000000000062,
+    "slowest_contracting": 0.9999993698756255,
+    "unit_counts": [
+      12
+    ],
+    "worst_index": [
+      8,
+      8,
+      3
+    ]
+  },
+  "interpretation": "12 unit eigenmodes = two Floquet branches times (4 gauge + 2 physical); curvature quotient is two polarizations per frequency sign.",
+  "scope_boundary": "Direct K^*K damping symbol only; rate quality, sourced static fixed point and real-space adjoint bridge remain."
+}
