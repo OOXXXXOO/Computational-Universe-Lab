@@ -1,0 +1,109 @@
+{
+  "register": "R25-moving-source-symbol",
+  "status": "PASS",
+  "scope": "Symbol-layer certificate only.  PASS certifies the four declared certificates (S1-S4) + reality pairing for the moving exact-current source; it does NOT claim M3 progress and does NOT include real-space integration (blocker ).",
+  "checks": {
+    "S1_symbol_continuity_machine_zero": true,
+    "S1_R10_lineage_1e-15": true,
+    "S2_moving_deDonder_machine_zero": true,
+    "S2_static_bitwise_degeneration": true,
+    "S2_static_full_8row_darkness": true,
+    "S3_source_construction_bounded": true,
+    "S3_no_exact_resonance_gap_positive": true,
+    "S3_no_secular_growth_saturates": true,
+    "S4_centered_slot_machine_zero": true,
+    "S4_frozen_slot_breaks_O1": true,
+    "reality_both_sectors_dark": true,
+    "reality_rank_not_doubled": true
+  },
+  "source_sha256": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+  "frozen_inputs": {
+    "walk_symbol": "cp1_v4_L2.walk_symbol",
+    "C_cone": 0.5000000000000001,
+    "damping_mu": 0.001995262314968879,
+    "static_reference": "r25_auxiliary_wilson.static_newton_lift",
+    "R10_generator": "r10_current_generator (moving 4-comp Dirac pair)"
+  },
+  "construction": {
+    "A_of_z": "(b.b)/(z-a); = 1+a at z=1 (removable), carries source motion",
+    "hbar00": "A^2/(2c)",
+    "hbar0i": "-A i b_i/(2c)",
+    "hbarij": "(b.b delta_ij - 3 b_i b_j)/(4c) [z-independent]",
+    "identity": "(z-a)A = b.b => kappa(z).eta.hbar(z) == 0 for all z",
+    "advection_shell": "z_v(k) = exp(-i v.k)"
+  },
+  "S1_conservation": {
+    "R10_moving_bond_current_continuity": 1.6263032587282567e-18,
+    "symbol_continuity_kappa_dot_S_max": 1.1116099371267112e-15,
+    "R10_lineage_pass": true
+  },
+  "S2_de_donder": {
+    "moving_deDonder_C_residual_max": 1.4043333874306805e-15,
+    "static_z1_bitwise_vs_r25_static_newton": 3.873562128211072e-14,
+    "static_z1_full_8row_K_darkness": 1.2152443797096866e-15,
+    "moving_auxiliary_D_excitation_declared_diagnostic": 0.5640891829928963
+  },
+  "S3_moving_limit": {
+    "per_velocity": [
+      {
+        "v_over_c": 0.1,
+        "source_max_abs_A": 1.9809698831278835,
+        "source_min_z_minus_a": 0.019030116872177816,
+        "resolvent_min_gap": 0.0004967678282832354,
+        "worst_k_resolvent_norm": 1766.0152887618067,
+        "time_domain_norm_mid": 177.00947815719644,
+        "time_domain_norm_final": 261.76184084712105,
+        "final_over_mid_ratio": 1.478801268566301
+      },
+      {
+        "v_over_c": 0.3,
+        "source_max_abs_A": 1.9809698831278835,
+        "source_min_z_minus_a": 0.019030116872177816,
+        "resolvent_min_gap": 4.162880762835441e-06,
+        "worst_k_resolvent_norm": 139525.5409910768,
+        "time_domain_norm_mid": 2087.3220988397284,
+        "time_domain_norm_final": 4171.276632593721,
+        "final_over_mid_ratio": 1.9983866576760685
+      },
+      {
+        "v_over_c": 0.5,
+        "source_max_abs_A": 1.9809698831278835,
+        "source_min_z_minus_a": 0.019030116872177816,
+        "resolvent_min_gap": 0.00013157105654220918,
+        "worst_k_resolvent_norm": 7136.62127268195,
+        "time_domain_norm_mid": 16448.151019238703,
+        "time_domain_norm_final": 32357.63236301307,
+        "final_over_mid_ratio": 1.9672504420202441
+      }
+    ],
+    "source_construction_bounded": 1.9809698831278835,
+    "min_resolvent_gap_all_v": 4.162880762835441e-06,
+    "worst_secular_ratio": 1.9983866576760685
+  },
+  "S4_time_placement": {
+    "centered_half_step_residual": 8.95090418262362e-16,
+    "frozen_integer_slot_residual": 5.921597048713452,
+    "declaration": "momentum rows S0i live at the half-integer time slot (R9 T3 centering = R19 OFFSET[(0,i)]); the density row S00 is integer-placed and row-0 integrated.  The moving time amplitude A(z) must carry the source's own advection phase z_v=e^{-i v.k}; freezing it to z=1 (static slot) breaks de Donder by O(1)."
+  },
+  "reality_pairing": {
+    "star_involution_both_sectors_dark": 8.95090418262362e-16,
+    "augmented_gauge_rank": [
+      4
+    ],
+    "augmented_constraint_rank": [
+      8
+    ],
+    "structural_finding": "For a moving source the static recipe physical=Re(hbar_+) is NOT valid: it annihilates the physical momentum current hbar0i (purely imaginary in one sector).  The reality-real moving source is the explicit plus (+) conjugate/mirror (reversed-axis) sector with position-space hermiticity hbar(-k)=conj(hbar(k)); darkness and the 4-gauge/2-polarization count are preserved (no doubling).  Assembling the real field is a POSITION-SPACE step and is delegated to blocker () -- see interface spec.",
+    "moving_momentum_would_be_lost_by_Re_collapse": true
+  },
+  "interface_spec_for_blocker_1": {
+    "target_signature": "step(h, pi, drive=D)  with D a 14-component field",
+    "drive_definition": "D(x,t) = a_W * h_lift(x,t) on the physical 10 rows, auxiliary 4 rows = 0.  h_lift is the trace-reverse->normal packing of hbar_moving evaluated with the source's local advection time amplitude A(z_v); equilibrium of the damped+source loop is h = h_lift (static limit reproduces r25_static_newton exactly).",
+    "which_sector": "Inject into the plus (ordered-xyz) sector; the conjugate/mirror sector is generated by reality (hbar(-k)=conj(hbar(k))).  Do NOT collapse via Re() -- that destroys the moving momentum current. Physical count stays 4 gauge / 2 polarizations (no doubling).",
+    "which_time_slot": "S00 (density) integer time step; S0i (momentum) half-integer slot = R9 T3 centering J=1/2(F_t+F_{t-1}) = R19 OFFSET[(0,i)].  If the step injects on integer slots only, route S0i through the R13 placement transfer map (R19 sec.6 reserved item); a frozen/integer slot for a moving source breaks de Donder by O(1) (S4).",
+    "three_injection_points": "The 14-vector D enters (i) the pi update, (ii) the h update, and (iii) the K_state proposal z*h_t -> (1-a_W)h + pi + D, consistent with the coordinator's step and with the static fixed point.",
+    "normalization": "D carries the factor a_W = 2 - tr(U_walk) + r^2 so the physical Green response is the single scalar 1/a_W (no other inverse). The source current amplitude uses the SAME /c normalization as base_kappa (C = 0.5).",
+    "conservation_contract": "The injected D satisfies kappa(z).eta.D_phys = 0 to machine zero (S1/S2); the step must preserve this by using the centered time slot.  The de Donder residual is the online health monitor.",
+    "not_done_here": "Real-space finite stencil for the moving lift, the R13 half-step transfer map realization, the explicit mirror-sector real assembly, and the dynamic Newton fixed-point / endurance run belong to blocker () and are OUT OF SCOPE for this symbol file."
+  }
+}
