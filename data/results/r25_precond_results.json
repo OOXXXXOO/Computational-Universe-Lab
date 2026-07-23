@@ -1,0 +1,317 @@
+{
+  "register": "R25-D2-precond-search",
+  "status": "PASS",
+  "verdict": "negative_result_structural_obstruction",
+  "prereg_target": {
+    "worst_rate_leq": 0.997,
+    "steps_to_1e12_leq": 10000.0
+  },
+  "checks": {
+    "slow_mode_is_small_k_physical": true,
+    "sigmin_damped_scales_like_k_squared": true,
+    "direct_gap_scales_like_k_fourth": true,
+    "nonlocal_inverse_gains_two_powers_but_still_vanishes": true,
+    "twelve_unit_modes_exactly_invariant_under_precond": true,
+    "any_family_hits_preregistered_target": false
+  },
+  "source_sha256": "e761fe0d5f455f0b8e823e7c7e881f9f4ffaa8f7a297979a806dd65654ab12c7",
+  "frozen_object": {
+    "file": "r25_dynamic_symbol.py",
+    "sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "mu_direct": 0.001995262314968879
+  },
+  "slow_mode_census": {
+    "worst": {
+      "rate": 0.9999993698756255,
+      "index": [
+        0,
+        1,
+        0
+      ],
+      "aW": 0.038100472116374386,
+      "C_resp": 1.0977240874089813e-13,
+      "D_resp": 0.024666548537708152,
+      "aux_frac": 1.957618911229477e-10,
+      "kmin": 0.39269908169872414
+    },
+    "top15": [
+      {
+        "kmin": 0.39269908169872414,
+        "rate": 0.9999993698756255,
+        "aW": 0.038100472116374386,
+        "C_resp": 1.0977240874089813e-13,
+        "D_resp": 0.024666548537708152,
+        "aux_frac": 1.957618911229477e-10
+      },
+      {
+        "kmin": 0.39269908169872414,
+        "rate": 0.9999993698756251,
+        "aW": 0.038100472116374386,
+        "C_resp": 8.978192383526253e-14,
+        "D_resp": 0.02466654853770815,
+        "aux_frac": 3.030715577391714e-10
+      },
+      {
+        "kmin": 0.3926990816987246,
+        "rate": 0.999999369875625,
+        "aW": 0.038100472116374386,
+        "C_resp": 1.6202806649391217e-13,
+        "D_resp": 0.024666548537708236,
+        "aux_frac": 2.7155996482973096e-10
+      },
+      {
+        "kmin": 0.39269908169872414,
+        "rate": 0.9999993698756249,
+        "aW": 0.038100472116374386,
+        "C_resp": 1.013581354757855e-13,
+        "D_resp": 0.024666548537708152,
+        "aux_frac": 1.6671595195450321e-10
+      },
+      {
+        "kmin": 0.3926990816987246,
+        "rate": 0.9999993698756249,
+        "aW": 0.038100472116374386,
+        "C_resp": 5.705457827753432e-14,
+        "D_resp": 0.024666548537708246,
+        "aux_frac": 1.79176272007807e-10
+      },
+      {
+        "kmin": 0.3926990816987246,
+        "rate": 0.9999993698756232,
+        "aW": 0.038100472116374386,
+        "C_resp": 4.8931839013524386e-14,
+        "D_resp": 0.024666548537708246,
+        "aux_frac": 1.435524771308889e-10
+      },
+      {
+        "kmin": 0.5553603672697958,
+        "rate": 0.9999972424611945,
+        "aW": 0.08817080837429726,
+        "C_resp": 5.436088631549391e-06,
+        "D_resp": 0.047278135393554396,
+        "aux_frac": 0.44585731390285427
+      },
+      {
+        "kmin": 0.5553603672697963,
+        "rate": 0.9999972006722937,
+        "aW": 0.0629434521866027,
+        "C_resp": 6.735545490139282e-06,
+        "D_resp": 0.04698887181393583,
+        "aux_frac": 0.49421367534429356
+      },
+      {
+        "kmin": 0.7853981633974492,
+        "rate": 0.9999911742662192,
+        "aW": 0.147042348556912,
+        "C_resp": 9.001167015532289e-14,
+        "D_resp": 0.08782137176571875,
+        "aux_frac": 3.999988950450468e-12
+      },
+      {
+        "kmin": 0.7853981633974483,
+        "rate": 0.9999911742662185,
+        "aW": 0.147042348556912,
+        "C_resp": 8.766722240839151e-14,
+        "D_resp": 0.08782137176571869,
+        "aux_frac": 9.069454686736796e-12
+      },
+      {
+        "kmin": 0.7853981633974492,
+        "rate": 0.9999911742662184,
+        "aW": 0.14704234855691223,
+        "C_resp": 1.0923854330504537e-13,
+        "D_resp": 0.08782137176571875,
+        "aux_frac": 1.3359196815077284e-11
+      },
+      {
+        "kmin": 0.7853981633974483,
+        "rate": 0.9999911742662183,
+        "aW": 0.147042348556912,
+        "C_resp": 6.713756201492767e-14,
+        "D_resp": 0.0878213717657187,
+        "aux_frac": 2.2750809528138837e-11
+      },
+      {
+        "kmin": 0.7853981633974483,
+        "rate": 0.9999911742662181,
+        "aW": 0.14704234855691245,
+        "C_resp": 1.2511611553770057e-13,
+        "D_resp": 0.08782137176571869,
+        "aux_frac": 1.5605962351695473e-11
+      },
+      {
+        "kmin": 0.7853981633974492,
+        "rate": 0.9999911742662179,
+        "aW": 0.147042348556912,
+        "C_resp": 4.363764143267497e-14,
+        "D_resp": 0.08782137176571873,
+        "aux_frac": 1.3583280639771632e-11
+      },
+      {
+        "kmin": 0.5553603672697963,
+        "rate": 0.9999840329860249,
+        "aW": 0.0777300023694626,
+        "C_resp": 9.040124355980987e-05,
+        "D_resp": 0.11075955983859768,
+        "aux_frac": 0.9606496781951377
+      }
+    ],
+    "count_rate_gt_1_minus_1e-4": 202,
+    "attribution": "slowest modes cluster at the smallest resolvable |k| (2pi/16); de Donder response ~0, only the auxiliary Wilson syzygy rows (D+, coefficient r~q~k^2) see them"
+  },
+  "small_k_scaling": {
+    "rows": [
+      {
+        "t": 0.7853981633974483,
+        "q": 0.048815536468908745,
+        "aW": 0.147042348556912,
+        "sigmin_damped": 0.09405663803669641,
+        "gap_direct": 8.825733781692158e-06,
+        "gap_boundedP": 8.825733782469314e-06,
+        "gap_nonlocal_inverse": 0.06795952765355229
+      },
+      {
+        "t": 0.39269908169872414,
+        "q": 0.012686744581452206,
+        "aW": 0.038100472116374386,
+        "sigmin_damped": 0.025132058930791866,
+        "gap_direct": 6.301243751227759e-07,
+        "gap_boundedP": 6.30124374456642e-07,
+        "gap_nonlocal_inverse": 0.018683384260768543
+      },
+      {
+        "t": 0.19634954084936207,
+        "q": 0.003202453266128259,
+        "aW": 0.009609923725114109,
+        "sigmin_damped": 0.006389522971873923,
+        "gap_direct": 4.0729294381591785e-08,
+        "gap_boundedP": 4.072929449261409e-08,
+        "gap_nonlocal_inverse": 0.004782095716321488
+      },
+      {
+        "t": 0.09817477042468103,
+        "q": 0.0008025455546338523,
+        "aW": 0.002407797683742352,
+        "sigmin_damped": 0.0016041249902167911,
+        "gap_direct": 2.5671204051391783e-09,
+        "gap_boundedP": 2.5671211822952955e-09,
+        "gap_nonlocal_inverse": 0.0012024729181061566
+      }
+    ],
+    "loglog_slopes": {
+      "sigmin_damped": 1.9596762642859473,
+      "gap_direct": 3.9193546547256957,
+      "gap_boundedP": 3.9193545231919535,
+      "gap_nonlocal_inverse": 1.9427839446734607
+    },
+    "reading": "sigmin(K|damped) ~ k^2 (graviton masslessness a_W~k^2); direct AND bounded-local gap ~ mu||P|| sigmin^2 ~ k^4; the EXACT global inverse (K^dag K)^+ only lifts this to ~k^2 -- still ->0. No K-based scheme (local or global) gives a k-independent gap, because the slow modes limit onto the protected physical/gauge kernel."
+  },
+  "families": {
+    "a_chebyshev": {
+      "family": "polynomial/Chebyshev acceleration (R22 blood line)",
+      "locality": "finite cycle of pure-roll F(I-gamma_j K^dag P K); gamma_j host-side constants; loop length = stage count",
+      "achieved_stable": false,
+      "best": {
+        "stages": null,
+        "note": "no stable cycle at n<=9 keeping 12 unit modes",
+        "per_step_rate": 0.9970224348932607,
+        "theoretical": "1-2/(sqrt(kappa)+1); needs ~sqrt(kappa) stages",
+        "sqrt_kappa_stages_needed": 671.0
+      },
+      "kappa": 449824.7578043182,
+      "sqrt_kappa": 670.6897627102402,
+      "theoretical_floor_per_step_rate": 0.9970224348932607,
+      "stages_needed_for_floor": 671.0,
+      "worst_per_step_rate": null,
+      "steps_to_1e12": null,
+      "support_radius": "2m (from P) x stage-count in time; spatial radius <=2 per stage",
+      "hits_target": false,
+      "note": "no stable cycle at n<=9 preserving 12 unit modes; the k^4-small sigma^2_min forces the low Chebyshev edge down and amplifies the long-wavelength modes; reaching the 1-2/sqrt(kappa) floor needs ~sqrt(kappa)~670 stages -> impractical loop AND same k-scaling wall"
+    },
+    "b_heavyball_z4c": {
+      "family": "heavy-ball / Z4c momentum with comoving carrier (R22 sqrt-kappa)",
+      "locality": "one extra 8-field Z carrier; pure-roll; carrier = walk pair",
+      "achieved_stable": false,
+      "best": {
+        "sqrt_beta": 0.9991566556259864,
+        "mu": 0.0019767688159868547,
+        "kappa1": 0.001685977518293913,
+        "rate": 0.9999987518020762,
+        "max_modulus": 2.8473433524903218,
+        "units": [
+          12
+        ],
+        "stable": false
+      },
+      "kappa_estimate": 1176198.7098390234,
+      "sqrt_kappa": 0.9981575768375678,
+      "negative_control_static_carrier": {
+        "rate": 0.9999988430466004,
+        "max_modulus": 2.9647632676712767,
+        "destabilizes": true
+      },
+      "worst_per_step_rate": null,
+      "steps_to_1e12": 22136716.73749024,
+      "obstruction": "F is unitary with many distinct shell frequencies; no single comoving carrier phase co-conic with all; momentum destabilizes the 12 unit modes",
+      "hits_target": false
+    },
+    "c_local_approx_inverse": {
+      "family": "local approximate inverse (q-shaped Hermitian-positive row weights)",
+      "locality": "P = diag(w_C[4], w_D(q)[4]); w_D(q)=wf+w0(1-q)^(2m) is a radius-2m cosine Laurent table; mu K^dag P K stays pure roll",
+      "best_cfg_wC_wf_w0_m": [
+        1.0,
+        2.0,
+        120.0,
+        2
+      ],
+      "mu": 9.532915216122907e-05,
+      "achieved_stable": true,
+      "full_BZ": {
+        "worst_rate": 0.999998178896735,
+        "worst_index": [
+          7,
+          7,
+          4
+        ],
+        "max_modulus": 1.0000000000000087,
+        "unit_counts": [
+          12
+        ],
+        "steps_to_1e12": 15172668.397241665
+      },
+      "worst_per_step_rate": 0.999998178896735,
+      "steps_to_1e12": 15172668.397241665,
+      "support_radius": {
+        "time": 0,
+        "space": "2m (winner m=2)"
+      },
+      "hits_target": false
+    }
+  },
+  "winner": {
+    "family": "c_local_approx_inverse",
+    "worst_rate": 0.999998178896735,
+    "steps_to_1e12": 15172668.397241665,
+    "meets_target": false
+  },
+  "invariant_certificate": {
+    "kerK_modes_exactly_invariant_max_residual": 1.5719191537726757e-14,
+    "unit_eigenvalue_shift_max": 1.3141016636874833e-14,
+    "unit_counts_over_BZ": [
+      12
+    ],
+    "twelve_preserved": true,
+    "propagation_perturbation_lt_1e-12": true
+  },
+  "structural_attribution": "All three strictly-local families fail the pre-registered target by ~3 orders of magnitude in step count (~1.5e7 steps vs 1e4). Root cause: the slowest modes sit at the smallest resolvable |k| and are would-be constraint violations whose constraint response sigma_min(K|damped) ~ k^2 -> 0 -- they continuously connect to the PROTECTED physical/gauge kernel (the omega=0 Newton zero mode and the TT/gauge shell) as k->0. The de Donder rows are exactly dark on them (C_resp~1e-13); only the auxiliary Wilson syzygy rows (D+, coefficient r~q~k^2, tied to a_W~k^2 masslessness) see them, and ever more weakly. Consequences, all certified here: (i) the direct Gram gap ~ mu*sigmin^2 ~ k^4; (ii) any BOUNDED finite-support Hermitian P only rescales by ||P|| -> still ~k^4; (iii) even the EXACT global inverse (K^dag K)^+ (forbidden non-local control) reaches only ~k^2 -- it too fails to give a uniform gap, because damping these modes harder would, by continuity, damp the genuine omega=0 Newton zero mode the invariant certificate must preserve. K simply cannot separate long-wavelength constraint violation from the physical massless/zero modes. This is NOT a tuning failure and NOT merely a locality no-go: no outer K^dag P K contraction can fix it. It says the *constraint complex itself* must be co-deformed so the damped modes acquire a k-independent gap (a genuine constraint-damping mass built INTO the complex, as in the continuum Z4c kappa-terms), consistent with the L3-v3 finding (docs 2.4) that the evolution shell and the gauge/constraint complex must deform together, and with the standing rule (docs 3f) that a preconditioner must not kill the Newton omega=0 zero mode.",
+  "realspace_spec": {
+    "slot": "r25_realspace_step.step(h, pi, precond=P, mu=mu)",
+    "P_contract": "P maps the 8 constraint fields Kx (shape (8,N,N,N)) -> P.Kx; Hermitian positive; finite monomial (Laurent) table so mu K^dag P K stays pure integer-roll; identity by default",
+    "winner_P": "diag over the 8 rows: rows 0..3 (de Donder C+) weight w_C=1; rows 4..7 (auxiliary Wilson syzygy D+) weight w_D = wf + w0 * (1 - q)^(2m), q = (1/3) sum_i sin^2(k_i/2)",
+    "q_as_rolls": "q(x) = (1/3) sum_i (1 - cos k_i)/2 -> real-space stencil q = (1/6) sum_i (2 - roll(+e_i) - roll(-e_i)) acting per field; (1-q)^(2m) is a radius-2m symmetric cosine convolution (host-precomputed integer-shift table, m coefficients per axis)",
+    "support_radius": "spatial 2m (winner m from cfg), time 0; diagonal in the 8 rows so the adjoint is the same real coefficient table",
+    "mu": "recalibrate on the placed K spectrum (do NOT copy this symbol mu); mu = t / lambda_max(K^dag P K), t in [0.8,1.6]",
+    "caveat": "even correctly placed, the small-k rate stays ~1-O(k^4); the preconditioner buys a bounded constant factor (~10x here), not the target. Do NOT ship this as a solution to obstacle #2; ship it only as a constant-factor mitigation while the constraint complex is co-deformed. Recommended: leave precond=P as identity in the real-space step until the complex carries its own k-independent damping mass."
+  },
+  "scope_boundary": "Symbol-level preconditioner census only. The negative result is a locality no-go for K^dag P K contraction; it does not constitute M3 progress and does not touch the real-space file."
+}
