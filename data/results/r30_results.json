@@ -1,0 +1,311 @@
+{
+  "register": "R30-tensor-complex-dynamical-half",
+  "status": "PASS",
+  "backend": "numpy",
+  "mandate": "construct the DYNAMICAL half of a local unitary discrete linearized-Bianchi tensor complex (Yee, not Regge); decide existence by N_prop (three-way). EXISTENCE construction, NOT M3.",
+  "params": {
+    "N": 16,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        3,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "dt": 0.5000000000000001,
+    "T_clean": 320,
+    "trials": 6,
+    "sv_thresh": 0.05,
+    "seed": 30303,
+    "c_cone": 0.5000000000000001
+  },
+  "frozen_inputs_sha256": {
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+    "r16_cp1_invitro.py": "5696d921903043ba91f3c287cba3eba8d2f2f68e1c69a04c482999bcaec26478",
+    "emergence_judge.py": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+    "r28_placed_judge_reverdict.py": "3c10cd669b3f9e49daf91eab362bc249df23d9b25f38d478f66628ac07afabc7"
+  },
+  "complex_identities": {
+    "n_k_on_shell": 342,
+    "div_inc_contracted_Bianchi_kappaG": 5.617047174252467e-15,
+    "div_inc_full_second_Bianchi": 4.378051803668557e-15,
+    "inc_D_riemann_of_gauge": 2.6645352591003757e-15,
+    "maxwell_divcurl_baseline": 1.0269562977782698e-15,
+    "div_inc_realspace_operator_identity": 5.566705740848049e-16
+  },
+  "yee_certificates": {
+    "max_abs_eig_minus_1": 2.220446049250313e-16,
+    "max_det_minus_1": 2.220446049250313e-16,
+    "max_symplectic_defect": 2.220446049250313e-16,
+    "max_freq_minus_shell": 2.220446049250313e-16,
+    "cfl_ok": true,
+    "locality": {
+      "laplacian_stencil": "3-point per axis (rolls +/-1), support radius 1",
+      "curl_stencil": "kappa_i=2 sin(k_i/2) = backward integer-roll difference, support radius 1",
+      "U": "product of two local shears (Stormer-Verlet)"
+    }
+  },
+  "decisive_run": {
+    "per_k": [
+      {
+        "nv": [
+          2,
+          0,
+          0
+        ],
+        "label": "axial",
+        "n_prop": 2,
+        "sv": [
+          1.0,
+          0.786508726498538,
+          9.992290316829462e-16,
+          3.5035581942522707e-16,
+          1.4935904636415515e-16,
+          2.2761077220612067e-18
+        ],
+        "w_peak": 0.4027682889217683,
+        "w_shell": 0.38505787590347784,
+        "dedonder_darkness_max_over_T": 7.658618128468625e-15,
+        "kerK_residual_mean": 3.6055292530357224e-16,
+        "kerK_residual_max": 5.381453619993976e-16
+      },
+      {
+        "nv": [
+          0,
+          3,
+          0
+        ],
+        "label": "axial",
+        "n_prop": 2,
+        "sv": [
+          1.0,
+          0.48223076872823023,
+          8.831530108426603e-16,
+          4.833190424003147e-16,
+          2.0582527295230922e-16,
+          1.8363381108054664e-17
+        ],
+        "w_peak": 0.5638756044904757,
+        "w_shell": 0.5629754252324842,
+        "dedonder_darkness_max_over_T": 5.7421729537394755e-15,
+        "kerK_residual_mean": 5.149862607565843e-16,
+        "kerK_residual_max": 7.376471768657451e-16
+      },
+      {
+        "nv": [
+          2,
+          2,
+          0
+        ],
+        "label": "face-diagonal",
+        "n_prop": 2,
+        "sv": [
+          1.0,
+          0.2743632338728752,
+          1.416267664664522e-15,
+          9.95405164972888e-16,
+          5.580159760469992e-16,
+          1.1809822646720463e-16
+        ],
+        "w_peak": 0.5638756044904757,
+        "w_shell": 0.5480284076203129,
+        "dedonder_darkness_max_over_T": 1.3303456411245996e-14,
+        "kerK_residual_mean": 1.4277652904856827e-15,
+        "kerK_residual_max": 1.792589746992782e-15
+      },
+      {
+        "nv": [
+          2,
+          2,
+          2
+        ],
+        "label": "body-diagonal",
+        "n_prop": 2,
+        "sv": [
+          1.0,
+          0.6059844690875527,
+          1.6423843517654643e-15,
+          9.699226285415624e-16,
+          7.04470014508971e-16,
+          3.6569129647873677e-16
+        ],
+        "w_peak": 0.6847060911670062,
+        "w_shell": 0.6756028564802483,
+        "dedonder_darkness_max_over_T": 1.2072926208984788e-14,
+        "kerK_residual_mean": 1.3305227871439605e-15,
+        "kerK_residual_max": 1.660009819697284e-15
+      }
+    ],
+    "n_prop_seq": [
+      2,
+      2,
+      2,
+      2
+    ]
+  },
+  "positive_controls": {
+    "teeth_all10": {
+      "n_prop": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "sv": [
+        [
+          1.0,
+          0.725,
+          0.527,
+          0.397,
+          0.225
+        ],
+        [
+          1.0,
+          0.67,
+          0.562,
+          0.317,
+          0.274
+        ],
+        [
+          1.0,
+          0.72,
+          0.525,
+          0.357,
+          0.164
+        ],
+        [
+          1.0,
+          0.725,
+          0.639,
+          0.408,
+          0.347
+        ]
+      ],
+      "expect": ">2 (~6): generic 10-comp IC -> full curvature"
+    },
+    "TT_only": {
+      "n_prop": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "sv": [
+        [
+          1.0,
+          0.483,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.616,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.66,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          1.0,
+          0.541,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "expect": "2 with machine-zero cliff"
+    },
+    "gauge_only": {
+      "n_prop": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "sv": [
+        [],
+        [],
+        [],
+        []
+      ],
+      "expect": "0 (no propagating curvature / no peak)"
+    }
+  },
+  "maxwell_comparison": {
+    "field": "A_mu (4) [spin1]  ->  h_mu_nu (10) [spin2]",
+    "curl": "F=kap^A - A^kap  ->  inc(h)=linearized Riemann (double curl)",
+    "div_curl_0": {
+      "maxwell": 1.0269562977782698e-15,
+      "tensor_contracted_Bianchi": 5.617047174252467e-15,
+      "tensor_full_Bianchi": 4.378051803668557e-15
+    },
+    "constraint": "Gauss k.E=0 (1) -> de Donder kappa^m hbar_mn=0 (4)",
+    "gauge": "A+kap xi (1) -> hbar + kap xi + xi kap - eta(kap.xi) (4)",
+    "physical": "2 photon pols  ->  2 TT graviton pols",
+    "evolution": "Yee leapfrog E,B  ->  placed wave leapfrog (h,pi)",
+    "constraint_mechanism": "div curl=0 identity in BOTH (not projection)"
+  },
+  "contrast_walk_R28": {
+    "walk_kerK_residual": [
+      0.469,
+      0.485,
+      0.341,
+      0.389
+    ],
+    "walk_placed_dynamic_Nprop": [
+      4,
+      4,
+      4,
+      4
+    ],
+    "R30_kerK_residual": [
+      3.6055292530357224e-16,
+      5.149862607565843e-16,
+      1.4277652904856827e-15,
+      1.3305227871439605e-15
+    ],
+    "R30_Nprop": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "note": "the walk's failure was NOT an N-N obstruction to the complex existing; it was that the walk is not (yet) of the complex."
+  },
+  "checks": {
+    "identities": true,
+    "yee_unitary_local": true,
+    "dedonder_preserved": true,
+    "kerK_preserved": true,
+    "n_prop_eq_2": true,
+    "positive_controls": true
+  },
+  "verdict_tag": "CONSTRUCTION SUCCESS — tensor complex EXISTS",
+  "verdict": "A LOCAL UNITARY discrete linearized-Bianchi TENSOR complex EXISTS. Bianchi (tensor div curl=0) machine-zero over BZ (5.6e-15, matching Maxwell 1.0e-15); U strictly unitary/symplectic/local (|eig|-1=2.2e-16); de Donder preserved BY CONSTRUCTION (|C|/rms<=1.3e-14) as a COROLLARY of kappa^m G_mn=0, NOT a projection; unit modes stay IN ker K (residual 1.4e-15 vs walk 0.34-0.49); projection-free N_prop = [2, 2, 2, 2] = 2 at ALL k incl. body-diagonal (2,2,2), with a machine-zero cliff. This settles R29's remaining existence theorem AFFIRMATIVELY: the referees' N-N worry does NOT kill the spin-2 complex — the tensor div curl=0 is a polynomial identity in kappa, exactly as for Maxwell. RED LINE: this is an EXISTENCE construction of an ASSEMBLED U; it is NOT M3 and NOT emergence — whether the emergent Dirac walk can be deformed onto this complex (that is M3) remains open and untouched here.",
+  "scope_boundary": "EXISTENCE construction of an ASSEMBLED local unitary tensor complex. NOT M3, NOT emergence. U is hand-built (not the emergent Dirac walk); 卡点④ single-run joint verification untouched. Clean IC on ker K is the declared premise (same as 卡点⑦/R28); the content is that U PRESERVES it (residual ~1e-15) where the walk did not (0.34-0.49).",
+  "source_sha256": "eae6034d8403a93977988d0a56e80c8899b9ffe80fcacc4084fc0244b2d519a4",
+  "total_seconds": 1.402123212814331,
+  "results_sha256": "d15785a20242072e36cb7fafb3ac08b34c7ecd2f74eca7a161f52fae3aba3e26"
+}
