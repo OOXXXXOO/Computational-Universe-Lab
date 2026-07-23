@@ -1,0 +1,179 @@
+{
+ "backend": "numpy",
+ "screen_caliber": {
+  "N": 16,
+  "T": 160,
+  "trials": 4,
+  "kmodes": [
+   [
+    2,
+    0,
+    0
+   ],
+   [
+    2,
+    2,
+    0
+   ]
+  ],
+  "sv_thresh_screen": 0.08,
+  "tt_match_min": 0.9,
+  "j5_tol": 0.01,
+  "cert_KTT_max": 1e-10,
+  "drift_max": 1e-08,
+  "notes": [
+   "J5 由装配算子 2x2 本征相位测(bin-free),非全谱管线",
+   "格点约束执行 = 精确投影极限(L1 获准选项;λ∈{0,1} 二值使能):阻尼参数 (damp_margin,mu_frac) 的牙在符号层——平台合法性(ρ_pred<1)、z_sector_certificate(单位模记账 + 平台收缩半径 √(1-κ₁))、静止载波全BZ 谱半径;真 Z4c 格点率动力学是 L2/M3 保真层,screen 不预支",
+   "探针 k 集不含体对角 (2,2,2)(walk 核属性,族内不变,L1 §八.4)",
+   "screen lawful ≢ M3 全绿;流形代表点须送 M3 全判据复判"
+  ]
+ },
+ "stop_rules": {
+  "lawful_target": 1000,
+  "max_rules": 500000,
+  "max_wall_hours": 48.0
+ },
+ "frozen_L1_sha256": {
+  "measured": "4dad03be4319da896f485d954f0efc97bc0a6f781700f97e3e8120178a5c6035",
+  "expected": "4dad03be4319da896f485d954f0efc97bc0a6f781700f97e3e8120178a5c6035",
+  "match": true
+ },
+ "fidelity": {
+  "walk_maxdiff": 0.0,
+  "K_placed_maxdiff": 0.0,
+  "PASS": true
+ },
+ "frozen_eval": {
+  "params": {
+   "dtheta": 0.0,
+   "damp_margin": 0.04,
+   "mu_frac": 0.5,
+   "G": 0.0
+  },
+  "switches": {
+   "tr_sign": 1,
+   "placement": "staggered",
+   "slave_cov": "full",
+   "lag": 0,
+   "carrier": "comoving",
+   "axis_order": "xyz"
+  },
+  "tr_sign_note": "no dynamical teeth pre-L3 (declared)",
+  "damping": {
+   "mu_z": 0.1838053740372837,
+   "kappa1": 0.27460514589574014,
+   "rho_pred": 0.851701153048568,
+   "lam": 1.0,
+   "mu_plateau": [
+    0.14445883434954776,
+    0.22315191372501966
+   ],
+   "rho_plateau": 0.8517011530485677
+  },
+  "z_sector": [
+   {
+    "k": [
+     2,
+     0,
+     0
+    ],
+    "pass": true,
+    "n_unit": 6,
+    "dim_ker": 6
+   },
+   {
+    "k": [
+     2,
+     2,
+     0
+    ],
+    "pass": true,
+    "n_unit": 6,
+    "dim_ker": 6
+   }
+  ],
+  "j5_dev": 0.0,
+  "j5_ratio": 1.0,
+  "cert_KTT": 2.531698018113677e-15,
+  "stability": {
+   "walk_sector_drift": 4.3298697960381105e-14,
+   "finite": true
+  },
+  "constraint_monitor": {
+   "relC_first": 3.9290564643657335e-16,
+   "relC_tail_max": 2.70395089104323e-16,
+   "relC_max": 3.9290564643657335e-16
+  },
+  "per_k": {
+   "(2, 0, 0)": {
+    "n_prop": 2,
+    "sv3": 0.00024964241157646974,
+    "tt_match": 0.9999981038079278,
+    "w_peak": -0.4133674544197096,
+    "no_peak": false
+   },
+   "(2, 2, 0)": {
+    "n_prop": 2,
+    "sv3": 0.0395782253470209,
+    "tt_match": 0.9947523053353646,
+    "w_peak": -0.5787144361875934,
+    "no_peak": false
+   }
+  },
+  "gates": {
+   "J1_stable": true,
+   "Nprop2": true,
+   "J5": true,
+   "constraint": true,
+   "SV": true,
+   "Z_sector": true
+  },
+  "others_pass": true,
+  "lawful_tensor": true,
+  "n_prop": 2,
+  "sv3": 0.0395782253470209,
+  "tt_match": 0.9947523053353646,
+  "relC_last": 2.6319181854126234e-16
+ },
+ "seconds_per_rule": 1.6972370147705078,
+ "cannons": {
+  "F1_double_cone": {
+   "lawful": false,
+   "broken_gates": [
+    "Nprop2",
+    "J5",
+    "SV"
+   ],
+   "want_broken": "J5",
+   "fired": true
+  },
+  "F2_integer_placement": {
+   "lawful": false,
+   "broken_gates": [
+    "Nprop2",
+    "constraint",
+    "SV"
+   ],
+   "want_broken": "constraint",
+   "fired": true
+  },
+  "F3_partial_slave": {
+   "lawful": false,
+   "broken_gates": [
+    "constraint"
+   ],
+   "want_broken": "constraint",
+   "fired": true
+  },
+  "F8_static_carrier": {
+   "lawful": false,
+   "broken_gates": [
+    "Z_sector"
+   ],
+   "want_broken": "Z_sector",
+   "fired": true
+  }
+ },
+ "selftest_PASS": true,
+ "total_seconds": 8.36895203590393
+}

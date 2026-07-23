@@ -251,6 +251,12 @@
       <div class="chips" id="allCannons"></div>
     </section>
 
+    <!-- M4 J5 剪刀 δ 扫描 -->
+    <section class="card">
+      <h2>M4 · J5 剪刀 δ 扫描 <span class="hint">读 m4_family_scan.jsonl · GW170817 叙事的定量版(M4 判据第 4 条)· 发令条件 = M3 全绿</span></h2>
+      <div id="m4j5"></div>
+    </section>
+
     <!-- 零件证书区 -->
     <section class="card">
       <h2>零件证书 · R19–R22 四线收束 <span class="hint">已定稿静态内嵌 · 详见 战役报告-R19-R22-四线并行收束.md</span></h2>
@@ -560,7 +566,8 @@ var PARTS=[
 // 状态机
 //---------------------------------------------------------------------------
 // 每级状态:pass_frozen | pass_review | fail | running | waiting | unknown
-var state={ levels:{}, anyFetchOk:false, fetchBlocked:false, updatedAt:null };
+var state={ levels:{}, anyFetchOk:false, fetchBlocked:false, updatedAt:null,
+            m4rows:null, m4err:"missing" };
 
 function levelStatus(idx){
   var lv=LEVELS[idx], d=state.levels[lv.id];
@@ -616,9 +623,36 @@ async function fetchLevel(lv){
     state.levels[lv.id]={__err:(e instanceof SyntaxError)?"partial":"blocked"};
   }
 }
+/* ---- M4 J5 剪刀 δ 扫描:m4_family_scan.jsonl(未来 M4 长跑逐 rule 追加)。
+ * 期望的 jsonl 字段(与 cp1_v4_family_eval.SCAN_ROW_FIELDS 一字对应;
+ * 每行一个 JSON object,追加写,末行可能半写 -> 逐行容错解析):
+ *   t            : unix 时间戳
+ *   param_names  : ["dtheta","damp_margin","mu_frac","G"]
+ *   params       : 参数向量(list,顺序同 param_names)
+ *   lawful_tensor: bool —— 全部门(含 J5 @ δ=1e-2)通过
+ *   others_pass  : bool —— 除 J5 外全部门通过(δ 扫描曲线的分母)
+ *   j5_dev       : float —— |c_gw/c_matter − 1|(δ 扫描的横轴量)
+ *   n_prop, sv3, tt_match, relC_last, stable —— 诊断列(面板计数用)
+ * 扫描定义:存活率(δ) = #(others_pass ∧ j5_dev<δ) / #(others_pass);
+ * 先验参照线 = #(j5_dev<δ) / #(全部) —— M4 判据 3 的"先验对照"(防伪影)。 */
+async function fetchM4(){
+  try{
+    var r=await fetch("m4_family_scan.jsonl?t="+Date.now(),{cache:"no-store"});
+    if(r.status===404){ state.m4rows=null; state.m4err="missing"; state.anyFetchOk=true; return; }
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt=await r.text(), rows=[];
+    txt.split("\n").forEach(function(ln){
+      ln=ln.trim(); if(!ln) return;
+      try{ var o=parseTolerant(ln); if(o&&typeof o==="object") rows.push(o); }
+      catch(e){ /* 半写末行,跳过 */ }
+    });
+    state.m4rows=rows; state.m4err=null; state.anyFetchOk=true;
+  }catch(e){ state.m4rows=null; state.m4err="blocked"; }
+}
+
 async function poll(){
   state.anyFetchOk=false;
-  await Promise.all(LEVELS.map(fetchLevel));
+  await Promise.all(LEVELS.map(fetchLevel).concat([fetchM4()]));
   state.fetchBlocked=!state.anyFetchOk;
   state.updatedAt=new Date();
   render();
@@ -795,6 +829,89 @@ function renderAllCannons(){
   $("allCannons").innerHTML=html;
 }
 
+function renderM4J5(){
+  var el=$("m4j5");
+  var rows=state.m4rows;
+  if(!rows||!rows.length){
+    var why=(state.m4err==="blocked")?"无法读取(file:// 或服务未起)":
+            "m4_family_scan.jsonl 不存在";
+    el.innerHTML='<div class="freeze" style="margin-top:0">'
+      +'<span class="step"><span class="tag wait">待 M4 发令</span></span>'
+      +'<span style="color:var(--muted)">'+esc(why)+' — 发令条件 = M3 全绿;'
+      +'长跑开始后本面板自动画 δ 扫描存活率曲线(payload:cp1_v4_family_eval.py,'
+      +'停跑:lawful ≥ 10³ / 评估 ≥ 5×10⁵ / 墙钟 ≥ 48h)</span></div>';
+    return;
+  }
+  // 逐行取数(容错:字段缺失的行不进对应统计)
+  var n=rows.length, nOther=0, nLawful=0, devsAll=[], devsOther=[];
+  rows.forEach(function(o){
+    var d=(typeof o.j5_dev==="number"&&isFinite(o.j5_dev))?o.j5_dev:null;
+    if(o.lawful_tensor===true) nLawful++;
+    if(d!==null) devsAll.push(d);
+    if(o.others_pass===true&&d!==null){ nOther++; devsOther.push(d); }
+  });
+  devsAll.sort(function(a,b){return a-b;}); devsOther.sort(function(a,b){return a-b;});
+  var med=devsOther.length?devsOther[Math.floor(devsOther.length/2)]:null;
+
+  // δ 网格(log,1e-6 → 1)与两条存活率曲线
+  var LO=-6, HI=0, NPT=61;
+  function frac(sorted, thr){            // #(dev < thr)/len(基于已排序数组)
+    if(!sorted.length) return null;
+    var lo=0, hi=sorted.length;
+    while(lo<hi){ var mid=(lo+hi)>>1; if(sorted[mid]<thr) lo=mid+1; else hi=mid; }
+    return lo/sorted.length;
+  }
+  var pts=[],i;
+  for(i=0;i<NPT;i++){
+    var ld=LO+(HI-LO)*i/(NPT-1), thr=Math.pow(10,ld);
+    pts.push({ld:ld, sel:frac(devsOther,thr), pri:frac(devsAll,thr)});
+  }
+  // SVG(主题变量配色;宽自适应,viewBox 固定)
+  var Wv=760, Hv=240, mL=52, mR=14, mT=12, mB=34;
+  var pw=Wv-mL-mR, ph=Hv-mT-mB;
+  function X(ld){ return mL+pw*(ld-LO)/(HI-LO); }
+  function Y(f){ return mT+ph*(1-f); }
+  function path(key){
+    var d="",started=false;
+    pts.forEach(function(p){
+      if(p[key]===null) return;
+      d+=(started?"L":"M")+X(p.ld).toFixed(1)+" "+Y(p[key]).toFixed(1);
+      started=true;
+    });
+    return d;
+  }
+  var grid="",lbl="";
+  for(i=LO;i<=HI;i++){
+    grid+='<line x1="'+X(i)+'" y1="'+mT+'" x2="'+X(i)+'" y2="'+(mT+ph)+'" stroke="var(--line)" stroke-width="1"/>';
+    lbl+='<text x="'+X(i)+'" y="'+(mT+ph+16)+'" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">1e'+i+'</text>';
+  }
+  [0,0.25,0.5,0.75,1].forEach(function(f){
+    grid+='<line x1="'+mL+'" y1="'+Y(f)+'" x2="'+(mL+pw)+'" y2="'+Y(f)+'" stroke="var(--line)" stroke-width="1"/>';
+    lbl+='<text x="'+(mL-6)+'" y="'+(Y(f)+3)+'" text-anchor="end" font-size="10" fill="var(--muted)" font-family="var(--mono)">'+(100*f)+'%</text>';
+  });
+  var xGate=X(-2);   // δ = 1e-2:M3 预注册 J5 门
+  var svg='<div style="overflow-x:auto"><svg viewBox="0 0 '+Wv+' '+Hv+'" style="width:100%;min-width:560px;display:block" role="img" aria-label="J5 剪刀 δ 扫描存活率曲线">'
+    +grid+lbl
+    +'<line x1="'+xGate+'" y1="'+mT+'" x2="'+xGate+'" y2="'+(mT+ph)+'" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="4 3"/>'
+    +'<text x="'+(xGate+4)+'" y="'+(mT+12)+'" font-size="10" fill="var(--warn)" font-family="var(--mono)">δ=1e−2(M3 门)</text>'
+    +'<path d="'+path("pri")+'" fill="none" stroke="var(--matter)" stroke-width="1.5" stroke-dasharray="5 4"/>'
+    +'<path d="'+path("sel")+'" fill="none" stroke="var(--metric)" stroke-width="2.2"/>'
+    +'<text x="'+(mL+pw/2)+'" y="'+(Hv-4)+'" text-anchor="middle" font-size="11" fill="var(--ink-dim)" font-family="var(--mono)">δ 阈值 = |c_gw/c_matter − 1| 上限(log)</text>'
+    +'</svg></div>';
+  el.innerHTML=
+    '<div class="counters" style="margin-bottom:12px">'
+    +'<div class="metric"><span class="v ink tnum">'+n+'</span><span class="k">已评估规则</span></div>'
+    +'<div class="metric"><span class="v tnum">'+nOther+'</span><span class="k">非-J5 门全过(δ 扫描分母)</span></div>'
+    +'<div class="metric"><span class="v ok tnum">'+nLawful+'</span><span class="k">lawful_tensor(δ=1e−2)· 停跑线 10³</span></div>'
+    +'<div class="metric"><span class="v tnum">'+(med!==null?fmtNum(med):"—")+'</span><span class="k">中位 |c_gw/c_matter−1|</span></div>'
+    +'</div>'+svg
+    +'<p class="note" style="margin-top:8px">实线 = 存活率(δ)(非-J5 门全过者中 |r−1|&lt;δ 的比例);'
+    +'虚线 = 先验参照(全部采样中 |r−1|&lt;δ,M4 判据 3 的先验对照,防伪影)。'
+    +'解析预期:|r−1| ≈ tanθ_m·|dθ| = 1.732·|dθ|(dθ ~ U(±0.02))→ 参照线应近似 log-线性段;'
+    +'实线与参照线在 δ&gt;1e−2 处的分离量度 = J5 之外判据的选择强度。'
+    +'GW170817 真实界 |c_gw/c−1| ≲ 1e−15 在本轴左端外(叙事引用,不假装测到)。</p>';
+}
+
 function renderParts(){
   var html="";
   PARTS.forEach(function(p){
@@ -807,7 +924,7 @@ function renderParts(){
 }
 
 function render(){
-  renderRail(); renderLevels(); renderAllCannons();
+  renderRail(); renderLevels(); renderAllCannons(); renderM4J5();
 
   // 顶部计数:当前级 = 第一个未冻结级
   var cur=null, curIdx=0;
@@ -847,7 +964,7 @@ function render(){
     badge.className="badge "+(running?"running":"live");
     $("connTxt").textContent=running?("已连接 · "+cur.id+" 运行中"):"已连接";
     live.className="liveness";
-    $("footConn").textContent="已连接 · 轮询 cp1_v4_L{1..4}_results.json(5s)";
+    $("footConn").textContent="已连接 · 轮询 cp1_v4_L{1..4}_results.json + m4_family_scan.jsonl(5s)";
   }
   $("updHint").textContent="更新于 "+state.updatedAt.toLocaleTimeString("zh-CN",{hour12:false});
   var l1=state.levels.L1;
