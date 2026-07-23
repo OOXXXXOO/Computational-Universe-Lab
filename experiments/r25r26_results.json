@@ -1,0 +1,12 @@
+{
+ "A1_sigma_slope": 0.999809445610114,
+ "A2_diffusion_retained": 0.9999999999999994,
+ "A3_local_P": 1.9999342014418666,
+ "nogo_confirmed": true,
+ "B1_group_speed": 0.4804623481820644,
+ "B1_target_c": 0.5000000000000001,
+ "B2_diffusion_ret": 1.0000000000000004,
+ "B2_hyperbolic_ret": 0.004935348587097097,
+ "B3_physical_block_dev": 0.0,
+ "R26_feasible": true
+}
