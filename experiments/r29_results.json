@@ -1,0 +1,10 @@
+{
+ "gravity_dim_ker_knz": 6,
+ "gravity_dim_ker_k0": 10,
+ "PS_direction_dependence": 2.449489742783178,
+ "maxwell_divcurl": 6.978547361564508e-16,
+ "A_projection_locally_obstructed": true,
+ "B_complex_possible_maxwell_witness": true,
+ "global_no_go": false,
+ "remaining_theorem": "local unitary discrete linearized-Bianchi tensor complex existence (kinematic R.D=0 done; dynamical half open)"
+}
