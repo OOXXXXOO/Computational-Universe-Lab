@@ -1,0 +1,832 @@
+{
+  "register": "R25-E7-emergence-timeseries",
+  "status": "FAIL",
+  "backend": "numpy",
+  "params": {
+    "N": 16,
+    "c2_lightcone": 0.2500000000000001,
+    "kmodes": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "T_clean": 320,
+    "T_dirty": 192,
+    "trials": 6,
+    "sv_thresh": 0.05,
+    "mu": 0.001995262314968879,
+    "seed": 250731
+  },
+  "frozen_inputs_sha256": {
+    "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "emergence_judge.py": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902"
+  },
+  "conventions": {
+    "physical_h_stored_directly": "R25 state h[:10] is the physical metric (cert_C3 h_eq=trace_reverse_packed(hbar)); fed to riemann_series_k WITHOUT trace reversal; count is c-independent",
+    "reality_pairing": "single chiral xyz sector evolved; mirror = exact conjugate (cert_mirror residual 0.0); physical count = sector count, NOT doubled (复盘 §2.3)",
+    "clean_ic": "generic broadband (h,pi) projected onto ker K_state(k) mode-by-mode; the honest premise that keeps obstacle-#2 slow-contraction violation out of the count"
+  },
+  "kernel_certificate": {
+    "seriesk_gauge_null_resid": 1.6653345369377348e-16,
+    "seriesk_gauge_field_scale": 5.092371846298056,
+    "block_gauge_null_resid": 4.440892098500626e-16,
+    "block_gauge_field_scale": 5.882459023850154,
+    "tt_wave_riemann_scale": 0.25,
+    "pass": true
+  },
+  "clean_ic_constraint_darkness_t0": 1.7825555994498284e-11,
+  "dirty_ic_constraint_darkness_t0": 53.87396839630689,
+  "clean_run": {
+    "monitor": {
+      "dark_curve": [
+        [
+          0,
+          1.0910428295357447e-11
+        ],
+        [
+          16,
+          1.2189615190955969e-11
+        ],
+        [
+          32,
+          1.1435982102546658e-11
+        ],
+        [
+          48,
+          1.2619410848697115e-11
+        ],
+        [
+          64,
+          1.1390799280171432e-11
+        ],
+        [
+          80,
+          1.2297850424647477e-11
+        ],
+        [
+          96,
+          1.1353514208995072e-11
+        ],
+        [
+          112,
+          1.2053764472868571e-11
+        ],
+        [
+          128,
+          1.1943827823270551e-11
+        ],
+        [
+          144,
+          1.1471540897866557e-11
+        ],
+        [
+          160,
+          1.307494422856541e-11
+        ],
+        [
+          176,
+          1.3050263379853095e-11
+        ],
+        [
+          192,
+          1.1528966583421544e-11
+        ],
+        [
+          208,
+          1.2541232129167362e-11
+        ],
+        [
+          224,
+          1.2028840959206878e-11
+        ],
+        [
+          240,
+          1.1635761356475728e-11
+        ],
+        [
+          256,
+          1.1411438821603147e-11
+        ],
+        [
+          272,
+          1.240355195849528e-11
+        ],
+        [
+          288,
+          1.1292177811743565e-11
+        ],
+        [
+          304,
+          1.1822828531757582e-11
+        ],
+        [
+          319,
+          1.1324289898261684e-11
+        ]
+      ],
+      "rms_curve": [
+        [
+          0,
+          1.1245200508047075
+        ],
+        [
+          16,
+          1.0880942142647587
+        ],
+        [
+          32,
+          1.0808877101159342
+        ],
+        [
+          48,
+          1.0810976566713302
+        ],
+        [
+          64,
+          1.0773836380387738
+        ],
+        [
+          80,
+          1.0822168417122988
+        ],
+        [
+          96,
+          1.084210404946162
+        ],
+        [
+          112,
+          1.0800769296284132
+        ],
+        [
+          128,
+          1.0719490048669633
+        ],
+        [
+          144,
+          1.0804995821214531
+        ],
+        [
+          160,
+          1.078029763055012
+        ],
+        [
+          176,
+          1.0782269504728168
+        ],
+        [
+          192,
+          1.0834053472898055
+        ],
+        [
+          208,
+          1.0768057311487285
+        ],
+        [
+          224,
+          1.0773792214990625
+        ],
+        [
+          240,
+          1.0758751960083344
+        ],
+        [
+          256,
+          1.0798329140126948
+        ],
+        [
+          272,
+          1.079427804423506
+        ],
+        [
+          288,
+          1.082356597636044
+        ],
+        [
+          304,
+          1.0794920104593266
+        ],
+        [
+          319,
+          1.0799350641795769
+        ]
+      ],
+      "rms_growth": 1.0799350641795769,
+      "stable": true
+    },
+    "per_k": [
+      {
+        "n_prop": 4,
+        "n_raw": 5,
+        "w_peak": 0.4027682889217683,
+        "prominence": 1025951.9524420943,
+        "sv": [
+          1.0,
+          0.5506767140706278,
+          0.39354498830608287,
+          0.13967989239717063,
+          0.015277923010939963,
+          1.2303577160561197e-07
+        ],
+        "sv_raw": [
+          1.0,
+          0.4552691423042076,
+          0.35278169155130684,
+          0.20869804571281406,
+          0.10515879971108263,
+          0.009649428415975679
+        ],
+        "nv": [
+          2,
+          0,
+          0
+        ],
+        "label": "axial",
+        "k_chord": 0.7653668647301796,
+        "a_W": 0.147042348556912,
+        "w_shell": 0.38585012466673574,
+        "v_meas": 0.5262421297318106,
+        "w_meas_vs_shell": 0.016918164255032564
+      },
+      {
+        "n_prop": 4,
+        "n_raw": 5,
+        "w_peak": 0.4027682889217683,
+        "prominence": 1059346.0216683843,
+        "sv": [
+          1.0,
+          0.7207066993565067,
+          0.43143361641266137,
+          0.15234876871470807,
+          0.0033142837722708084,
+          6.546354524807733e-08
+        ],
+        "sv_raw": [
+          1.0,
+          0.7548944409761277,
+          0.5307051477113838,
+          0.21213884329559132,
+          0.1707477679290899,
+          0.001901380631478427
+        ],
+        "nv": [
+          0,
+          0,
+          2
+        ],
+        "label": "axial",
+        "k_chord": 0.7653668647301796,
+        "a_W": 0.14704234855691245,
+        "w_shell": 0.3858501246667363,
+        "v_meas": 0.5262421297318106,
+        "w_meas_vs_shell": 0.01691816425503201
+      },
+      {
+        "n_prop": 5,
+        "n_raw": 6,
+        "w_peak": 0.5638756044904757,
+        "prominence": 16913073.28483458,
+        "sv": [
+          1.0,
+          0.8120212324907241,
+          0.44948690750291076,
+          0.2510434850694166,
+          0.0760601750052458,
+          1.3658474914093335e-05
+        ],
+        "sv_raw": [
+          1.0,
+          0.7809449603284544,
+          0.6581724931264427,
+          0.46931131994203146,
+          0.25959817547921604,
+          0.05203354394625456
+        ],
+        "nv": [
+          2,
+          2,
+          0
+        ],
+        "label": "face-diagonal",
+        "k_chord": 1.082392200292394,
+        "a_W": 0.31672278482092503,
+        "w_shell": 0.5704860129259618,
+        "v_meas": 0.5209531298711799,
+        "w_meas_vs_shell": 0.006610408435486104
+      },
+      {
+        "n_prop": 5,
+        "n_raw": 6,
+        "w_peak": 0.8055365778435366,
+        "prominence": 183917172.9420867,
+        "sv": [
+          1.0,
+          0.5388462996981634,
+          0.25794884819653835,
+          0.1529621979474503,
+          0.10034107557710542,
+          3.0090650046690296e-06
+        ],
+        "sv_raw": [
+          1.0,
+          0.8415587025395673,
+          0.694168359189331,
+          0.41847594070255145,
+          0.3602152653307052,
+          0.15172377891660002
+        ],
+        "nv": [
+          2,
+          2,
+          2
+        ],
+        "label": "body-diagonal",
+        "k_chord": 1.3256542961423672,
+        "a_W": 0.615456155562458,
+        "w_shell": 0.8061637181093542,
+        "v_meas": 0.6076520705191657,
+        "w_meas_vs_shell": 0.0006271402658175607
+      }
+    ]
+  },
+  "dirty_run": {
+    "monitor": {
+      "dark_curve": [
+        [
+          0,
+          14.3226801201045
+        ],
+        [
+          16,
+          4.667691591758751
+        ],
+        [
+          32,
+          4.020986753859024
+        ],
+        [
+          48,
+          3.8845858101988204
+        ],
+        [
+          64,
+          3.795040763914449
+        ],
+        [
+          80,
+          3.3731993213833324
+        ],
+        [
+          96,
+          3.579343131985314
+        ],
+        [
+          112,
+          3.128517302406168
+        ],
+        [
+          128,
+          2.747566467831442
+        ],
+        [
+          144,
+          2.9466480678148628
+        ],
+        [
+          160,
+          2.5116093602681206
+        ],
+        [
+          176,
+          2.3219872996254165
+        ],
+        [
+          191,
+          2.504002765301297
+        ]
+      ],
+      "rms_curve": [
+        [
+          0,
+          1.6859760249542608
+        ],
+        [
+          16,
+          1.4471425215103944
+        ],
+        [
+          32,
+          1.4096479177204893
+        ],
+        [
+          48,
+          1.3729119203454547
+        ],
+        [
+          64,
+          1.337856987631189
+        ],
+        [
+          80,
+          1.345515422986027
+        ],
+        [
+          96,
+          1.3499381442098584
+        ],
+        [
+          112,
+          1.3393040928183104
+        ],
+        [
+          128,
+          1.3272777499220554
+        ],
+        [
+          144,
+          1.341917325581367
+        ],
+        [
+          160,
+          1.3443904248809457
+        ],
+        [
+          176,
+          1.3467743433135646
+        ],
+        [
+          191,
+          1.3394236313602674
+        ]
+      ],
+      "rms_growth": 1.3394236313602674,
+      "stable": true
+    },
+    "per_k": [
+      {
+        "n_prop": 6,
+        "n_raw": 6,
+        "w_peak": 0.40977295481605996,
+        "prominence": 4860.543762235336,
+        "sv": [
+          1.0,
+          0.6744925117972247,
+          0.535324489654354,
+          0.4151958522016351,
+          0.2932598122567678,
+          0.15717433560962113
+        ],
+        "sv_raw": [
+          1.0,
+          0.5917299446224685,
+          0.4345056227458399,
+          0.32894067021002577,
+          0.23963500251821437,
+          0.22539315449599295
+        ],
+        "nv": [
+          2,
+          0,
+          0
+        ],
+        "label": "axial",
+        "k_chord": 0.7653668647301796,
+        "a_W": 0.147042348556912,
+        "w_shell": 0.38585012466673574,
+        "v_meas": 0.5353941667706248,
+        "w_meas_vs_shell": 0.023922830149324226
+      },
+      {
+        "n_prop": 6,
+        "n_raw": 6,
+        "w_peak": 0.40977295481605996,
+        "prominence": 4810.88684743818,
+        "sv": [
+          1.0,
+          0.6171841851626796,
+          0.3901557471723597,
+          0.31362876932353,
+          0.22154323828550346,
+          0.061777267148202
+        ],
+        "sv_raw": [
+          1.0,
+          0.8442467681833208,
+          0.6576541938963847,
+          0.46451329635862243,
+          0.3430297264284256,
+          0.24235465012157176
+        ],
+        "nv": [
+          0,
+          0,
+          2
+        ],
+        "label": "axial",
+        "k_chord": 0.7653668647301796,
+        "a_W": 0.14704234855691245,
+        "w_shell": 0.3858501246667363,
+        "v_meas": 0.5353941667706248,
+        "w_meas_vs_shell": 0.02392283014932367
+      },
+      {
+        "n_prop": 6,
+        "n_raw": 6,
+        "w_peak": 0.5463639397547466,
+        "prominence": 218262.39120198332,
+        "sv": [
+          1.0,
+          0.7562868272884432,
+          0.5187712034336158,
+          0.35285571407821303,
+          0.25729363828962115,
+          0.05419675661595154
+        ],
+        "sv_raw": [
+          1.0,
+          0.791431213028541,
+          0.6786413735366846,
+          0.5658797682752283,
+          0.4098864892554873,
+          0.16092414571987435
+        ],
+        "nv": [
+          2,
+          2,
+          0
+        ],
+        "label": "face-diagonal",
+        "k_chord": 1.082392200292394,
+        "a_W": 0.31672278482092503,
+        "w_shell": 0.5704860129259618,
+        "v_meas": 0.5047744612416402,
+        "w_meas_vs_shell": 0.024122073171215175
+      },
+      {
+        "n_prop": 5,
+        "n_raw": 6,
+        "w_peak": 0.8195459096321199,
+        "prominence": 23021020.27278191,
+        "sv": [
+          1.0,
+          0.664988235293026,
+          0.46586768469621753,
+          0.31829453504711674,
+          0.20286443621435538,
+          0.034209073806898395
+        ],
+        "sv_raw": [
+          1.0,
+          0.8470866593327814,
+          0.7479532353982588,
+          0.5045553138787411,
+          0.37287806083782343,
+          0.3052767712332487
+        ],
+        "nv": [
+          2,
+          2,
+          2
+        ],
+        "label": "body-diagonal",
+        "k_chord": 1.3256542961423672,
+        "a_W": 0.615456155562458,
+        "w_shell": 0.8061637181093542,
+        "v_meas": 0.6182199326151512,
+        "w_meas_vs_shell": 0.013382191522765763
+      }
+    ]
+  },
+  "teeth_bare_wave": {
+    "n_prop_all": [
+      6,
+      6,
+      6,
+      6
+    ],
+    "n_prop": 6,
+    "note": "same Riemann-SVD kernel; bare 10-component wave -> 6 (10 minus 4-dim exact-gauge kernel); proves the kernel is not rigged to output 2"
+  },
+  "symbol_branches": [
+    {
+      "nv": [
+        2,
+        0,
+        0
+      ],
+      "unit_modes": 12,
+      "max_modulus": 1.0000000000000009,
+      "slowest_contracting": 0.9999911742662183,
+      "branches": [
+        {
+          "w": 0.3858501246667352,
+          "n_modes": 6,
+          "curvature_rank": 4,
+          "sv": [
+            1.0,
+            0.6223235461209634,
+            0.45946706281715316,
+            0.1456459708151406,
+            0.011899774343867289,
+            2.068449136572717e-11
+          ]
+        },
+        {
+          "w": 0.38585012466673596,
+          "n_modes": 6,
+          "curvature_rank": 4,
+          "sv": [
+            1.0,
+            0.7790303735037416,
+            0.3895429064706992,
+            0.2732639595802145,
+            0.042525140450638675,
+            4.048502230375216e-11
+          ]
+        }
+      ],
+      "dominant_branch_curvature_rank": 4
+    },
+    {
+      "nv": [
+        0,
+        0,
+        2
+      ],
+      "unit_modes": 12,
+      "max_modulus": 1.0000000000000013,
+      "slowest_contracting": 0.9999911742662181,
+      "branches": [
+        {
+          "w": 0.38585012466673596,
+          "n_modes": 6,
+          "curvature_rank": 4,
+          "sv": [
+            1.0,
+            0.3767548857800178,
+            0.1786576033467041,
+            0.05378930419510951,
+            0.007996394556934235,
+            1.8087875831823293e-12
+          ]
+        },
+        {
+          "w": 0.38585012466673646,
+          "n_modes": 6,
+          "curvature_rank": 4,
+          "sv": [
+            1.0,
+            0.7385191467753769,
+            0.5193418939856551,
+            0.38868349910700595,
+            0.03805902821274481,
+            8.320054000002492e-12
+          ]
+        }
+      ],
+      "dominant_branch_curvature_rank": 4
+    },
+    {
+      "nv": [
+        2,
+        2,
+        0
+      ],
+      "unit_modes": 12,
+      "max_modulus": 1.000000000000001,
+      "slowest_contracting": 0.999796700138441,
+      "branches": [
+        {
+          "w": 0.5704860129259609,
+          "n_modes": 6,
+          "curvature_rank": 5,
+          "sv": [
+            1.0,
+            0.5577486404397186,
+            0.4227830980052077,
+            0.22507635779053156,
+            0.14451954262442407,
+            1.4851600226953434e-13
+          ]
+        },
+        {
+          "w": 0.5704860129259615,
+          "n_modes": 6,
+          "curvature_rank": 5,
+          "sv": [
+            1.0,
+            0.6222373056300426,
+            0.32875590275556804,
+            0.1990557821642562,
+            0.09346915786876948,
+            1.9391747206956965e-14
+          ]
+        }
+      ],
+      "dominant_branch_curvature_rank": 5
+    },
+    {
+      "nv": [
+        2,
+        2,
+        2
+      ],
+      "unit_modes": 12,
+      "max_modulus": 1.000000000000001,
+      "slowest_contracting": 0.9988314187181616,
+      "branches": [
+        {
+          "w": 0.8061637181093546,
+          "n_modes": 6,
+          "curvature_rank": 5,
+          "sv": [
+            1.0,
+            0.7093589823787001,
+            0.47448621179863026,
+            0.25755044522038145,
+            0.1610469306779038,
+            8.916985771054504e-14
+          ]
+        },
+        {
+          "w": 0.8061637181093555,
+          "n_modes": 6,
+          "curvature_rank": 5,
+          "sv": [
+            1.0,
+            0.5638304678682894,
+            0.3589035776089766,
+            0.18262343437763245,
+            0.08323062395276846,
+            1.078981498379731e-13
+          ]
+        }
+      ],
+      "dominant_branch_curvature_rank": 5
+    }
+  ],
+  "certificates": {
+    "E7-1_projection_free_dynamical_Nprop_equals_2_all_k": false,
+    "E7-2_distinction_machinery_sound_teeth_6_control_2": true,
+    "E7-3_timeseries_matches_symbol_prediction": true,
+    "twelve_unit_modes_matches_C2": true,
+    "clean_ic_dark_t0_lt_1e-10": true,
+    "clean_ic_dark_maintained_lt_1e-6": true
+  },
+  "distinction_summary": {
+    "dynamical_quotient_Nprop_clean": [
+      4,
+      4,
+      5,
+      5
+    ],
+    "raw_metric_directions_clean": [
+      5,
+      5,
+      6,
+      6
+    ],
+    "symbol_dominant_branch_rank": [
+      4,
+      4,
+      5,
+      5
+    ],
+    "bare_wave_kernel_teeth": [
+      6,
+      6,
+      6,
+      6
+    ],
+    "positive_control_null_damped": "validated separately == 2 at all k (crisp sv gap ~1e4); this pipeline reproduces the emergence_judge reference (null_damped->2, spin2->6)",
+    "dirty_ic_Nprop": [
+      6,
+      6,
+      6,
+      5
+    ],
+    "reading": "The projection-free Riemann-SVD (dynamical quotient) of the frozen R25 step on clean, constraint-satisfying, evolution-invariant IC is 4-5 (body-diagonal 5), NOT 2.  The SAME kernel returns 2 on genuine Fierz-Pauli and 6 on the bare wave, so the count is trustworthy.  R25's SYMBOL homology of 2 is a gauge-cohomology number that does NOT survive as a dynamical count: 4-5 unit modes carry independent gauge-invariant curvature.  This is exactly the L3-v3 disease recorded in 复盘 §2.2 (body-diagonal N_prop back to 5) and precisely what obstacle #7 (§2.4) exists to detect: symbol homology = 2 does not substitute for the projection-free dynamical count.  'TT projection = 2' (measurement-time) and 'dynamical quotient' are thereby explicitly separated -- the latter is 4-5."
+  },
+  "verdict": "FAIL (honest): projection-free dynamical N_prop = [4, 4, 5, 5] (NOT 2). R25's propagating curvature DOF exceeds the graviton's 2; the symbol homology of 2 is refuted as a DYNAMICAL statement.",
+  "scope_boundary": "Projection-free dynamical DOF count only (obstacle #7). Clean IC is the declared premise (unit-modulus eigenspace: constraint-satisfying AND evolution-invariant, |K x|/rms ~1e-11 for all t, so this is NOT a slow-contraction artifact). Violated-IC pollution is obstacle #4 (R26). No M3 / no 'emergence' claim.",
+  "source_sha256": "ccb3de344eaba5593526fc06e13a709c52967e61bbbd3d16127f0e70ae3b9594",
+  "total_seconds": 476.3154191970825,
+  "results_sha256": "1f625c7b44802b513ca0d7921afc61068fcbbdb5a9b88e6ce2c5e6b2bdcab78b"
+}
