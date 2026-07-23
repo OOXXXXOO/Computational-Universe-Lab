@@ -1,0 +1,22 @@
+{
+ "worst_by_family": {
+  "continuum k": {
+   "bianchi": 7.105427357601002e-15,
+   "gauge_curv": 2.886579864025407e-15
+  },
+  "lattice sin k": {
+   "bianchi": 2.220446049250313e-15,
+   "gauge_curv": 1.6653345369377348e-15
+  },
+  "half-angle 2sin(k/2)": {
+   "bianchi": 3.552713678800501e-15,
+   "gauge_curv": 4.6629367034256575e-15
+  }
+ },
+ "identity1_contracted_bianchi": 7.105427357601002e-15,
+ "identity2_gauge_zero_curvature": 4.6629367034256575e-15,
+ "both_machine_zero": true,
+ "form_independent": true,
+ "existence_confirmed": true,
+ "verdict": "R30 mechanism INDEPENDENTLY CONFIRMED at the algebraic backbone: the two complex-defining identities are machine-zero and form-independent, so the finite-stencil realization can be exact (Maxwell lineage). Existence of the spin-2 local unitary complex: CONFIRMED. Nielsen-Ninomiya does not kill it. NOT independently reproduced: lane B's specific assembled U and its N_prop pipeline (their engineering; credible given the backbone). HONEST BOUND: existence construction, U is assembled not emergent -- != M3, != emergence. Blockage MOVES (existence YES) not closes (reachability of the emergent walk onto this complex is the new frontier)."
+}
