@@ -196,7 +196,7 @@ def tier2_gw(params, c_matter=C_MATTER_WALKER, tol=TIER2_GW_TOL,
 if __name__ == "__main__":
     import time
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "tier2_gw_selftest.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "tier2_gw_selftest.json"))
     args = ap.parse_args()
 
     if B.NAME != "numpy":

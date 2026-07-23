@@ -55,8 +55,8 @@ from . import emergence_judge as ej
 from . import tensor_qca as tq
 
 # lane-A modules (read-only reuse)
-import r10_current_generator as r10
-import r13_stride_bridge as r13
+from experiments import r10_current_generator as r10
+from experiments import r13_stride_bridge as r13
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 PK = ej.PK
@@ -634,7 +634,7 @@ def _verdict(out):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "green_m2_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "green_m2_results.json"))
     ap.add_argument("--full", action="store_true")
     args = ap.parse_args()
 

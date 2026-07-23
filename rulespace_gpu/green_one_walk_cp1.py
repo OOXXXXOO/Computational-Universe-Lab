@@ -60,7 +60,7 @@ IDX10 = ej.IDX10
 NU0_ROWS = gw.NU0_ROWS
 
 # ---- r15 symbol certificate (READ-ONLY import of the repo-root module) -------
-_r15_path = os.path.join(DIR, "..", "r15_walk_dedonder.py")
+_r15_path = os.path.join(DIR, "..", "experiments", "r15_walk_dedonder.py")
 _spec = importlib.util.spec_from_file_location("r15_walk_dedonder", _r15_path)
 r15 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(r15)
@@ -342,7 +342,7 @@ def _fmt(x):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default=os.path.join(
-        DIR, "..", "green_one_walk_cp1_results.json"))
+        DIR, "..", "data", "results", "green_one_walk_cp1_results.json"))
     ap.add_argument("--N", type=int, default=16)
     ap.add_argument("--T", type=int, default=512)
     ap.add_argument("--trials", type=int, default=8)

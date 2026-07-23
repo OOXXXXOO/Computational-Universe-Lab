@@ -64,6 +64,7 @@ import importlib.util
 import json
 import math
 import os
+import sys
 
 import numpy as np
 
@@ -77,9 +78,10 @@ PK = ej.PK
 
 # ---- read-only import of the repo-root symbol modules (self-check gate) ------
 def _load(name):
-    p = os.path.join(DIR, "..", name + ".py")
+    p = os.path.join(DIR, "..", "experiments", name + ".py")
     spec = importlib.util.spec_from_file_location(name, p)
     m = importlib.util.module_from_spec(spec)
+    sys.modules[name] = m
     spec.loader.exec_module(m)
     return m
 
@@ -634,7 +636,7 @@ def _fmt(x):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default=os.path.join(
-        DIR, "..", "green_one_walk_cp1v2_results.json"))
+        DIR, "..", "data", "results", "green_one_walk_cp1v2_results.json"))
     ap.add_argument("--N", type=int, default=16)
     ap.add_argument("--T", type=int, default=512)
     ap.add_argument("--trials", type=int, default=8)

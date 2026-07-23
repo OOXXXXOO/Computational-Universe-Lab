@@ -70,6 +70,6 @@ cat <<EOF
  then, e.g.:
      python -m rulespace_gpu.benchmark      # measure your GPU throughput
      python -m rulespace_gpu.campaign       # batched rule search
-     python exp1_dirac_qca.py               # any CPU experiment
+     python experiments/exp1_dirac_qca.py   # any standalone CPU experiment
 =========================================================
 EOF

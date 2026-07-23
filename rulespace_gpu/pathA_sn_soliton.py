@@ -193,7 +193,7 @@ if __name__ == "__main__":
             else:
                 print(f"\n(fit range [{a.fitlo},{a.fithi}] has <2 points; skipped)")
 
-        json.dump(out, open(os.path.join(os.path.dirname(__file__), "..", a.out), "w"))
+        json.dump(out, open(os.path.join(os.path.dirname(__file__), "..", "data", "results", a.out), "w"))
     else:
         ts, ws = run(L=a.L, ndim=a.ndim, T=a.T, g=150.0)
         _, wf = run(L=a.L, ndim=a.ndim, T=a.T, g=0.0)

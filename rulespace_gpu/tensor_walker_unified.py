@@ -93,7 +93,7 @@ DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(DIR)
 if _REPO_ROOT not in os.sys.path:
     os.sys.path.insert(0, _REPO_ROOT)
-from r10_current_generator import Walk as _R10Walk   # lane-A generator (import-only)
+from experiments.r10_current_generator import Walk as _R10Walk   # lane-A generator (import-only)
 IDX10 = tw16.IDX10
 _I10 = tw16._I10
 PK = ej.PK
@@ -1226,7 +1226,7 @@ def _js(o):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..",
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results",
                                                    "tensor_walker_unified_results.json"))
     ap.add_argument("--full", action="store_true")
     args = ap.parse_args()

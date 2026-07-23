@@ -203,7 +203,7 @@ def run_cp1v3_konly(N=16, gamma=0.045, T=2000, trials=8, th0=TH0):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "green_one_walk_cp1v3_konly_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "green_one_walk_cp1v3_konly_results.json"))
     ap.add_argument("--N", type=int, default=16)
     ap.add_argument("--T", type=int, default=2000)
     ap.add_argument("--gamma", type=float, default=0.045)

@@ -1168,7 +1168,7 @@ def _diagnose(res):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..",
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results",
                                                    "tensor_coin_feedback_results.json"))
     args = ap.parse_args()
 

@@ -371,7 +371,7 @@ def run_all():
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "spin2_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "spin2_results.json"))
     args = ap.parse_args()
 
     print(f"backend = {B.NAME}   device = {B.device_info()}")

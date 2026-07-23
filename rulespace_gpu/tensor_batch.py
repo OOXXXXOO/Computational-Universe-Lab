@@ -345,7 +345,7 @@ if __name__ == "__main__":
     ok = (bool(res["passes_screen"][0]) and not bool(res["S2_newton"][1])
           and not bool(res["gw_speed_ok"][2]) and not bool(res["stable"][3]))
     json.dump({k: v.tolist() for k, v in res.items()},
-              open(os.path.join(DIR, "..", "tensor_batch_selftest.json"), "w"), indent=1)
+              open(os.path.join(DIR, "..", "data", "results", "tensor_batch_selftest.json"), "w"), indent=1)
     print("\nDISCRIMINATION:", "PASS (good passes; falsifier/slow-gw/CFL killed)"
           if ok else "CHECK — see table")
     # mini funnel over the shipped prior (the shape the campaign will see)

@@ -331,7 +331,7 @@ def _fmt(x):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..",
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results",
                                                     "green_one_walk_cp0_results.json"))
     ap.add_argument("--N", type=int, default=16)
     ap.add_argument("--T", type=int, default=512)

@@ -87,7 +87,7 @@ def _save_field3d(state, shape, L, tag):
             "slice_y": [[round(float(cloc[i, c, k]), 4) for k in range(L)] for i in range(L)],
             "slice_x": [[round(float(cloc[c, j, k]), 4) for k in range(L)] for j in range(L)],
             "c_min": float(cloc.min()), "c_max": float(cloc.max())}
-    path = os.path.join(os.path.dirname(__file__), f"..", f"r7_star_{tag}.json")
+    path = os.path.join(os.path.dirname(__file__), "..", "data", "results", f"r7_star_{tag}.json")
     json.dump(data, open(path, "w"))
     print(f"  saved 3D field ({len(pts)} matter pts) -> r7_star_{tag}.json "
           f"(load in 3d_gravity_well.html)")
@@ -104,4 +104,4 @@ if __name__ == "__main__":
     print(f"backend = {B.NAME}   device = {B.device_info()}   grid = {a.L}^3 x {a.T} steps\n")
     res = run(L=a.L, T=a.T, kappa=a.kappa, dm=a.dm, save=a.save, tag=B.NAME)
     json.dump({k: v for k, v in res.items() if k in ("binding_ratio", "bound")},
-              open(os.path.join(os.path.dirname(__file__), "..", "r7_results.json"), "w"), indent=1)
+              open(os.path.join(os.path.dirname(__file__), "..", "data", "results", "r7_results.json"), "w"), indent=1)

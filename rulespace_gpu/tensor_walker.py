@@ -1058,7 +1058,7 @@ def _diagnose(res):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "tensor_walker_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "tensor_walker_results.json"))
     args = ap.parse_args()
 
     print(f"backend = {B.NAME}   device = {B.device_info()}")

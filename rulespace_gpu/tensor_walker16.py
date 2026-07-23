@@ -1003,7 +1003,7 @@ def _js(o):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--json",
-                    default=os.path.join(DIR, "..", "tensor_walker16_results.json"))
+                    default=os.path.join(DIR, "..", "data", "results", "tensor_walker16_results.json"))
     ap.add_argument("--full-emergence", action="store_true")
     args = ap.parse_args()
 

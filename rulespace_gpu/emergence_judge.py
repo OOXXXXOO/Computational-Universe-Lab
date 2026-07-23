@@ -787,7 +787,7 @@ def _fmt(x, w=9, p=2):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "emergence_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "emergence_results.json"))
     ap.add_argument("--quick", action="store_true")
     args = ap.parse_args()
 

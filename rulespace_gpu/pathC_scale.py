@@ -113,10 +113,10 @@ if __name__ == "__main__":
         }
         print(f"\n-- LAWFUL (J1&J3&J4) manifold  [{len(lawful)} rules] --")
         _print_manifold(lawrep)
-        out = os.path.join(os.path.dirname(__file__), "..", "pathC_lawful_results.json")
+        out = os.path.join(os.path.dirname(__file__), "..", "data", "results", "pathC_lawful_results.json")
         json.dump({"stable_manifold": rep, "lawful_manifold": lawrep,
                    "breakdown": lawrep["breakdown"]},
                   open(out, "w"), indent=1)
         print(f"\nwrote {out}")
     else:
-        json.dump(rep, open(os.path.join(os.path.dirname(__file__), "..", "pathC_results.json"), "w"), indent=1)
+        json.dump(rep, open(os.path.join(os.path.dirname(__file__), "..", "data", "results", "pathC_results.json"), "w"), indent=1)

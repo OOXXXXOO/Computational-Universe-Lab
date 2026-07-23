@@ -99,4 +99,4 @@ if __name__ == "__main__":
     print(f"     {'PASS' if ok2 else 'CHECK'}: weak-field ratio {r['ratio_weakfield']:.4f} "
           f"= factor-2 tensor signature (scalar R7 would give 1.0)")
     json.dump({"ranks": ranks, "bending": r},
-              open(os.path.join(os.path.dirname(__file__), "..", "pathB_results.json"), "w"), indent=1)
+              open(os.path.join(os.path.dirname(__file__), "..", "data", "results", "pathB_results.json"), "w"), indent=1)

@@ -62,8 +62,8 @@ from . import tensor_coin_feedback as tcf
 from . import tensor_qca as tq
 from . import tier2_gw as t2
 
-import r10_current_generator as r10
-import r13_stride_bridge as r13
+from experiments import r10_current_generator as r10
+from experiments import r13_stride_bridge as r13
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 PK = ej.PK
@@ -620,7 +620,7 @@ def _checktable(out):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=os.path.join(DIR, "..", "green_one_results.json"))
+    ap.add_argument("--json", default=os.path.join(DIR, "..", "data", "results", "green_one_results.json"))
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--smoke", action="store_true", help="tiny fast sanity run")
     ap.add_argument("--cg2", type=float, default=0.25)
