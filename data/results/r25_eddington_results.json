@@ -1,0 +1,182 @@
+{
+  "register": "R25-E5-eddington-deflection",
+  "status": "PASS",
+  "primary_box": {
+    "N": 64,
+    "sigma": 2.5,
+    "b_list": [
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24
+    ],
+    "eddington_median": 2.0000304087073544,
+    "eddington_spread_over_b": 0.0009103712626892246,
+    "eddington_per_b": [
+      {
+        "b": 8,
+        "alpha_tensor": -0.000514535105943242,
+        "alpha_scalar": -0.0002571505437152327,
+        "eddington": 2.0009100447908668
+      },
+      {
+        "b": 10,
+        "alpha_tensor": -0.00040132255935454073,
+        "alpha_scalar": -0.00020064209349066495,
+        "eddington": 2.0001912478709887
+      },
+      {
+        "b": 12,
+        "alpha_tensor": -0.00032138339534761625,
+        "alpha_scalar": -0.0001606856690475471,
+        "eddington": 2.0000750362654833
+      },
+      {
+        "b": 14,
+        "alpha_tensor": -0.00026196433421856315,
+        "alpha_scalar": -0.0001309791242268409,
+        "eddington": 2.0000464636247743
+      },
+      {
+        "b": 16,
+        "alpha_tensor": -0.00021526991340638918,
+        "alpha_scalar": -0.00010763332020812669,
+        "eddington": 2.0000304087073544
+      },
+      {
+        "b": 18,
+        "alpha_tensor": -0.00017690484421031773,
+        "alpha_scalar": -8.845157903244043e-05,
+        "eddington": 2.0000190629206998
+      },
+      {
+        "b": 20,
+        "alpha_tensor": -0.0001442197677886236,
+        "alpha_scalar": -7.210949923203537e-05,
+        "eddington": 2.0000106688378234
+      },
+      {
+        "b": 22,
+        "alpha_tensor": -0.00011550801641363627,
+        "alpha_scalar": -5.7753881940828535e-05,
+        "eddington": 2.0000043725542027
+      },
+      {
+        "b": 24,
+        "alpha_tensor": -8.960638350514346e-05,
+        "alpha_scalar": -4.480319906606276e-05,
+        "eddington": 1.9999996735281775
+      }
+    ],
+    "invb_corr_tensor": 0.9983633074686721,
+    "invb_corr_scalar": 0.9983475593605576,
+    "invb_R2_tensor_A_over_b": 0.9152428297479283,
+    "hxx_over_h00": 1.004845045384641,
+    "hspace_over_h00": 1.0,
+    "canary": {
+      "A_hbar00": 15.974318291688949,
+      "A_h00": 7.987159145844474,
+      "ratio_A": 2.0,
+      "ratio_B": 159.74318291688957,
+      "tailcorr_h00": 0.9999567432342121,
+      "tailcorr_hbar00": 0.9999567432342121,
+      "fit_resid_rel": 0.007585110214110741,
+      "well_not_hill": true,
+      "gate_pass": true
+    },
+    "frozen_step_fixed_point_drift_T16": NaN,
+    "scalar_counterfactual_eddington": 1.0,
+    "checks": {
+      "E5_1_eddington_2_pm_0p02": true,
+      "E5_2_deflection_invb_or_tail_gt_0p99": true,
+      "E5_3_ratioA_2_pm_0p02": true,
+      "E5_3_tail_ge_0p999": true
+    },
+    "status": "PASS"
+  },
+  "c3_box_crosscheck": {
+    "N": 24,
+    "sigma": 2.5,
+    "b_list": [
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "eddington_median": 2.0024973462124507,
+    "eddington_spread_over_b": 0.0066022664342644255,
+    "eddington_per_b": [
+      {
+        "b": 5,
+        "alpha_tensor": -0.0008424833969715147,
+        "alpha_scalar": -0.00041973666400260516,
+        "eddington": 2.007171327225981
+      },
+      {
+        "b": 6,
+        "alpha_tensor": -0.0007175072336352492,
+        "alpha_scalar": -0.0003579512579140322,
+        "eddington": 2.0044830623491485
+      },
+      {
+        "b": 7,
+        "alpha_tensor": -0.0005784556820708958,
+        "alpha_scalar": -0.00028886714040595075,
+        "eddington": 2.0024973462124507
+      },
+      {
+        "b": 8,
+        "alpha_tensor": -0.0004444826552184655,
+        "alpha_scalar": -0.00022210299427205082,
+        "eddington": 2.0012456683678246
+      },
+      {
+        "b": 9,
+        "alpha_tensor": -0.0003214696800735673,
+        "alpha_scalar": -0.00016068911909811653,
+        "eddington": 2.0005690607917166
+      }
+    ],
+    "invb_corr_tensor": 0.9854002674714574,
+    "invb_corr_scalar": 0.9850846882794012,
+    "invb_R2_tensor_A_over_b": 0.8694596085085992,
+    "hxx_over_h00": 1.0148116996962684,
+    "hspace_over_h00": 1.0,
+    "canary": {
+      "A_hbar00": 15.876171130268968,
+      "A_h00": 7.938085565134484,
+      "ratio_A": 2.0,
+      "ratio_B": 158.76171130268972,
+      "tailcorr_h00": 0.9994036648919826,
+      "tailcorr_hbar00": 0.9994036648919826,
+      "fit_resid_rel": 0.0174271255698198,
+      "well_not_hill": true,
+      "gate_pass": true
+    },
+    "frozen_step_fixed_point_drift_T16": 2.184161194915614e-14,
+    "scalar_counterfactual_eddington": 1.0,
+    "checks": {
+      "E5_1_eddington_2_pm_0p02": true,
+      "E5_2_deflection_invb_or_tail_gt_0p99": true,
+      "E5_3_ratioA_2_pm_0p02": true,
+      "E5_3_tail_ge_0p999": true,
+      "E5_3_frozen_step_fixed_point": true
+    },
+    "status": "PASS"
+  },
+  "source_sha256": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+  "frozen_inputs_sha256": {
+    "r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+    "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+    "pathB_spin2.py": "a9cb039445caa90ab944449215d1c3459d59b88e06883d3eba0d7ef6e5dc2cd7"
+  },
+  "methodology": "reused pathB_spin2._deflection (Eddington Born straight-path deflection judge) on the frozen r25_static_newton equilibrium metric; Eddington = alpha(n=1-(h00+hxx)/2) / alpha(n=1-h00/2)",
+  "tier": "实证 (MEASURED on THIS construction). NOT M3, NOT emergence, NOT non-linear GR. R25 = existence construction; certificates E5-1..3 only.",
+  "scope_boundary": "Static weak-field Born deflection on the frozen static well only. No dynamic Newton, no moving source, no M3 claim."
+}
