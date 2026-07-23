@@ -1,0 +1,310 @@
+{
+ "schema": "r25_eval/v1",
+ "provenance_sha256": {
+  "r25_laurent_complex.py": "0df01b2ba3b5e6218dba926b6ad72ebd1de3d087e64b75d3f28ac748a9a66bb1",
+  "r25_walk_dedonder_complex.py": "a19c1313bd0422830ab43faf6ef74b819e1ddcdaf656401cad991ab2d4cc01e4",
+  "r25_detour_complex.py": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+  "r25_uv_exceptional_audit.py": "19618c7de349fbdaf7b7b3c889d296e2fbaf6168177c5723e584806790c8c532",
+  "r25_auxiliary_wilson_complex.py": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+  "r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+  "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+  "cp1_v4_L2.py": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67"
+ },
+ "fidelity_walk_symbol_maxdiff": 0.0,
+ "base_eval": {
+  "schema": "r25_eval/v1",
+  "params": {
+   "alpha_W": 0.5,
+   "sel_gain": 0.75,
+   "sel_trace": 3.0,
+   "mu_damp": 0.001995262314968879
+  },
+  "switches": {
+   "wilson_form": "q",
+   "selector_family": "cubic",
+   "pairing": "conjugate",
+   "axis_order": "xyz",
+   "damp_order": "contract_then_free"
+  },
+  "columns": {
+   "shell_J5": {
+    "layer": "symbol",
+    "status": "PASS",
+    "max_relative_J5": 0.0013298174588032285,
+    "threshold": 0.01,
+    "gate_rows": [
+     {
+      "index": [
+       2,
+       0,
+       0
+      ],
+      "omega_matter": 0.1954010369107835,
+      "omega_geometry": 0.19550463150714142,
+      "relative_J5": 0.000530164005246414
+     },
+     {
+      "index": [
+       0,
+       0,
+       2
+      ],
+      "omega_matter": 0.1954010369107835,
+      "omega_geometry": 0.19550463150714142,
+      "relative_J5": 0.000530164005246414
+     },
+     {
+      "index": [
+       2,
+       2,
+       0
+      ],
+      "omega_matter": 0.2794203167862593,
+      "omega_geometry": 0.2797119640113585,
+      "relative_J5": 0.0010437581220061887
+     },
+     {
+      "index": [
+       3,
+       1,
+       0
+      ],
+      "omega_matter": 0.3089316354498492,
+      "omega_geometry": 0.3093339251985175,
+      "relative_J5": 0.0013021966755930592
+     },
+     {
+      "index": [
+       2,
+       2,
+       2
+      ],
+      "omega_matter": 0.37321364112164035,
+      "omega_geometry": 0.3737099471374674,
+      "relative_J5": 0.0013298174588032285
+     },
+     {
+      "index": [
+       1,
+       1,
+       1
+      ],
+      "omega_matter": 0.1786331384761469,
+      "omega_geometry": 0.1786980602226662,
+      "relative_J5": 0.00036343618587864057
+     }
+    ],
+    "certificate": "r25_auxiliary_wilson_results.json/formal_gate"
+   },
+   "cohomology": {
+    "layer": "symbol",
+    "status": "PASS",
+    "points_per_branch": 54,
+    "rank_G_plus": [
+     4
+    ],
+    "rank_K_plus": [
+     8
+    ],
+    "quotient_dim": [
+     2
+    ],
+    "expected": {
+     "rank_G_plus": 4,
+     "rank_K_plus": 8,
+     "quotient_dim": 2
+    },
+    "worst_identity_residuals": {
+     "KG": 6.388185562239878e-15,
+     "CG_plus_PwI": 5.859401859713929e-15,
+     "Pw_on_shell": 5.8846770604934425e-16
+    },
+    "smallest_eighth_singular_value_K": 0.025132058930791887,
+    "certificate": "r25_auxiliary_wilson_results.json/on_shell_census"
+   },
+   "uv_audit": {
+    "layer": "symbol",
+    "status": "PASS",
+    "node_k": [
+     -1.714143895700328,
+     0.0,
+     -1.714143895700328
+    ],
+    "rows": [
+     {
+      "branch": -1,
+      "omega_geometry": 0.19076531801642863,
+      "r": 0.19047619047620135,
+      "a_W": 0.036281179138325695,
+      "Pw_abs": 1.3677114791229016e-16,
+      "rank_G": 4,
+      "rank_K": 8,
+      "cohomology": 2
+     },
+     {
+      "branch": 1,
+      "omega_geometry": 0.19076531801642863,
+      "r": 0.19047619047620135,
+      "a_W": 0.036281179138325695,
+      "Pw_abs": 1.198874660937259e-16,
+      "rank_G": 4,
+      "rank_K": 8,
+      "cohomology": 2
+     }
+    ],
+    "expected": {
+     "rank_G": 4,
+     "rank_K": 8,
+     "cohomology": 2
+    },
+    "certificate": "r25_uv_exceptional_results.json + r25_auxiliary_wilson_results.json/old_UV_node"
+   },
+   "static_newton": {
+    "layer": "symbol",
+    "status": "PASS",
+    "bz_N": 24,
+    "min_nonzero_a_W": 0.017045149697923697,
+    "max_a_W": 3.86943870684587,
+    "stability_window": "0 < a_W < 4",
+    "newton_lift_constraint_dark_worst": 4.084790175002802e-15,
+    "dark_threshold": 1e-11,
+    "h00bar_over_h00_minus_2_worst": 4.440892098500626e-16,
+    "certificate": "r25_static_newton_results.json(实空间 canary ratio_A=2.000000、尾相关 0.9994/0.9998 为其 D0 对应件)"
+   },
+   "contraction_rate": {
+    "layer": "symbol",
+    "status": "PASS",
+    "mu": 0.001995262314968879,
+    "points": 30,
+    "max_modulus": 1.0000000000000038,
+    "unit_counts": [
+     12
+    ],
+    "expected_unit_count": 12,
+    "slowest_contracting_bound": 0.9999993698756251,
+    "rate_note": "直接收缩率界;基点 ~0.9999994/步,达机器底需不可接受步数 -> 实际率列 pending 卡点②预条件化胜者",
+    "certificate": "r25_dynamic_symbol_results.json"
+   },
+   "reality_pairing": {
+    "layer": "symbol",
+    "status": "PASS",
+    "points": 16,
+    "physical_metric_relative_imag": 0.0,
+    "threshold": 1e-12,
+    "structure": "有序 xyz 走子是手征复 stencil;物理实度规 = 与共轭/镜像扇区直和后取 (h+conj h)/2,不翻倍 gauge rank 或偏振数",
+    "certificate": "r25_static_newton_results.json/reality_structure"
+   },
+   "dof_dynamic": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "constraint_floor_rate": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "moving_source": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "newton_dynamic": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "eddington": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "conservation": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "sponge_endurance": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   },
+   "cannons_replay": {
+    "layer": "realspace",
+    "status": "PENDING",
+    "blocked_by": "卡点①(实空间 time-step/伴随桥)",
+    "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+   }
+  },
+  "symbol_green": true,
+  "realspace_green": false,
+  "m3_ready": false,
+  "claim_discipline": "R25 = 约束合成/存在性构造;symbol_green ≠ M3;'涌现'表述须待 M4(含非 GR 候选的族去孤岛)",
+  "seconds": 0.3625490665435791
+ },
+ "negative_controls": {
+  "N1_no_wilson_alpha0": {
+   "symbol_green": false,
+   "red_columns": [
+    "cohomology",
+    "uv_audit",
+    "contraction_rate"
+   ],
+   "want_red": "uv_audit",
+   "fired": true
+  },
+  "N2_selector_trace_off": {
+   "symbol_green": false,
+   "red_columns": [
+    "static_newton"
+   ],
+   "want_red": "static_newton",
+   "fired": true
+  },
+  "N3_no_elimination_syzygy": {
+   "symbol_green": false,
+   "red_columns": [
+    "cohomology",
+    "uv_audit",
+    "contraction_rate"
+   ],
+   "want_red": "cohomology",
+   "fired": true
+  },
+  "N4_single_chiral_sector": {
+   "symbol_green": false,
+   "red_columns": [
+    "reality_pairing"
+   ],
+   "want_red": "reality_pairing",
+   "fired": true
+  },
+  "N5_axis_order_zyx": {
+   "symbol_green": false,
+   "red_columns": [
+    "shell_J5"
+   ],
+   "want_red": "shell_J5",
+   "fired": true
+  },
+  "N6_overdamped_mu": {
+   "symbol_green": false,
+   "red_columns": [
+    "contraction_rate"
+   ],
+   "want_red": "contraction_rate",
+   "fired": true
+  }
+ },
+ "schema_written": "/Users/prismer/workspace/science/ca-universe-lab/data/runtime/r25_eval_schema.json",
+ "selftest_PASS": true,
+ "total_seconds": 0.8023951053619385,
+ "claim_discipline": "R25 = 约束合成/存在性构造;symbol_green ≠ M3;'涌现'表述须待 M4(含非 GR 候选的族去孤岛)"
+}

@@ -1,0 +1,243 @@
+{
+  "register": "R25-E1-realspace-step",
+  "status": "FAIL",
+  "checks": {
+    "C1_symbol_equals_realspace_lt_1e-12": true,
+    "C2_twelve_unit_modes_all_nonzero_k": true,
+    "C2_spectral_radius_le_1p1e-14": true,
+    "C2_rate_matches_symbol_1e-9": true,
+    "C3_ratio_A_2_pm_0p02": true,
+    "C3_tail_ge_0p999": true,
+    "C3_sourced_fixed_point_drift_lt_1e-9": true,
+    "C3_constraint_darkness_lt_1e-11": true,
+    "C4_free_energy_drift_lt_1e-10": true,
+    "C4_k0_jordan_zero_mode_law_exact": true,
+    "C4_damped_bounded_no_secular_growth": false,
+    "C4_negative_control_grows": true,
+    "C5_stencil_symbol_match_lt_1e-11": true,
+    "C5_node_stable_twelve_units": true,
+    "C5_radius_within_declaration": true,
+    "adjoint_probe_lt_1e-13": true,
+    "mirror_pairing_exact": true
+  },
+  "source_sha256": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+  "frozen_inputs_sha256": {
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "r25_auxiliary_wilson_complex.py": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+    "r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+    "cp1_v4_L2.py": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67"
+  },
+  "mu": 0.001995262314968879,
+  "field_layout": {
+    "state": "(h, pi) x 14 components: 10 packed normal h (r15.SYM) + 4 auxiliary Wilson",
+    "time": "leapfrog: h integer slices, pi half-integer slices (dynamic-symbol staggering)",
+    "space": "R19 staggered storage semantics (samples of (mu,nu) at x+(e_mu+e_nu)/2); operators are placement-transparent integer-roll stencils; the R25 Bloch-scalar complex carries no placement phase",
+    "reality": "single chiral xyz sector; mirror sector = exact conjugate (step_minus); physical h = (h_plus + conj(h_plus))/2"
+  },
+  "operator_structure": {
+    "monomial_counts": {
+      "Kh": 21,
+      "Kpi": 5,
+      "K1": 5
+    },
+    "max_monomial_degree_K": 3,
+    "step": "x -> F (I - mu K_state^dag P K_state) x + source",
+    "primitives": "a, b_i (frozen matter macro-walk entries), q/r Wilson cosine stencil; all Hermitian scalar convolutions"
+  },
+  "adjoint_probe": 1.3090102266060927e-15,
+  "C1": {
+    "table_vs_frozen_K_state": 1.0741085019148343e-14,
+    "points": [
+      {
+        "index": [
+          2,
+          0,
+          0
+        ],
+        "max_abs_diff": 8.926193119838711e-14,
+        "off_mode_leak": 8.937295350420159e-14
+      },
+      {
+        "index": [
+          0,
+          0,
+          2
+        ],
+        "max_abs_diff": 8.926193119700327e-14,
+        "off_mode_leak": 8.937295350676815e-14
+      },
+      {
+        "index": [
+          2,
+          2,
+          0
+        ],
+        "max_abs_diff": 1.0491607582868242e-13,
+        "off_mode_leak": 1.0491607604841813e-13
+      },
+      {
+        "index": [
+          3,
+          1,
+          0
+        ],
+        "max_abs_diff": 1.0869083416644095e-13,
+        "off_mode_leak": 1.08759365092114e-13
+      },
+      {
+        "index": [
+          2,
+          2,
+          2
+        ],
+        "max_abs_diff": 9.081624342075451e-14,
+        "off_mode_leak": 9.090835335779058e-14
+      },
+      {
+        "index": [
+          1,
+          1,
+          1
+        ],
+        "max_abs_diff": 8.781864125620923e-14,
+        "off_mode_leak": 8.792966380595083e-14
+      },
+      {
+        "index": [
+          8,
+          8,
+          3
+        ],
+        "max_abs_diff": 3.4727776222883605e-13,
+        "off_mode_leak": 3.542134154489975e-13
+      },
+      {
+        "index": [
+          5,
+          7,
+          2
+        ],
+        "max_abs_diff": 2.6956215037924095e-13,
+        "off_mode_leak": 2.80802773047051e-13
+      },
+      {
+        "index": [
+          1,
+          3,
+          5
+        ],
+        "max_abs_diff": 1.2656542539614797e-13,
+        "off_mode_leak": 1.307925899008371e-13
+      }
+    ],
+    "worst_diff": 3.4727776222883605e-13,
+    "worst_off_mode": 3.542134154489975e-13
+  },
+  "C2": {
+    "N": 16,
+    "unit_counts": [
+      12
+    ],
+    "max_modulus": 1.0000000000000062,
+    "worst_index": [
+      6,
+      7,
+      4
+    ],
+    "slowest_contracting": 0.9999993698756264,
+    "slowest_index": [
+      0,
+      1,
+      0
+    ],
+    "k0_unit_count": 5,
+    "k0_max_modulus": 1.0000000284588293,
+    "symbol_reference": {
+      "N": 16,
+      "max_modulus": 1.0000000000000062,
+      "slowest_contracting": 0.9999993698756255,
+      "unit_counts": [
+        12
+      ],
+      "worst_index": [
+        8,
+        8,
+        3
+      ]
+    }
+  },
+  "C3": {
+    "N": 24,
+    "sigma": 2.5,
+    "canary": {
+      "A_hbar00": 15.876171130268968,
+      "A_h00": 7.938085565134484,
+      "ratio_A": 2.0,
+      "ratio_B": 158.76171130268972,
+      "tailcorr_h00": 0.9994036648919826,
+      "tailcorr_hbar00": 0.9994036648919826,
+      "fit_resid_rel": 0.0174271255698198,
+      "well_not_hill": true,
+      "gate_pass": true
+    },
+    "aw_stencil_vs_fft_equilibrium": 1.7596896653180063e-14,
+    "constraint_darkness_rel": 5.380616546728256e-14,
+    "fixed_point_T": 64,
+    "fixed_point_drift": 1.4613880882644217e-14,
+    "fixed_point_drift_max": 2.3879141462602517e-14,
+    "reference": {
+      "ratio_A_D0": 2.0,
+      "tail_D0": 0.9994036640771159
+    }
+  },
+  "C4": {
+    "N": 16,
+    "T": 2048,
+    "sector": "zero-mean (k=0 excluded, as in the symbol certificate)",
+    "k0_jordan_law_residual": 3.374061111111651e-13,
+    "free_energy_drift": 8.870232559510127e-15,
+    "damped_max_over_initial": 1.6923044567342185,
+    "damped_final_over_initial": 1.3872400642079374,
+    "damped_mean_last512_over_first512": 1.0107144030252704,
+    "damped_envelope_slope_per_step_diagnostic": -6.076520277266972e-06,
+    "measured_K_rate_last512": 0.999589635148218,
+    "negative_control_antidamping_growth": 4.736638933077319e+89
+  },
+  "C5": {
+    "k_node": [
+      -1.714143895700328,
+      0.0,
+      -1.714143895700328
+    ],
+    "a_W_at_node": 0.036281179138325695,
+    "wilson_r_at_node": 0.19047619047620135,
+    "max_monomial_degree_K": 3,
+    "declared_radius": 8,
+    "measured_radius": 8,
+    "stencil_box_N": 20,
+    "stencil_vs_symbol_at_node": 4.461183003918361e-15,
+    "unit_modes_at_node": 12,
+    "max_modulus_at_node": 1.0000000000000007,
+    "slowest_contracting_at_node": 0.9994207084548353,
+    "neighbourhood_unit_counts": [
+      12
+    ],
+    "neighbourhood_max_modulus": 1.0000000000000044
+  },
+  "mirror": {
+    "T": 8,
+    "pairing_residual": 0.0,
+    "physical_field_max_imag": 0.0
+  },
+  "contraction_rate_baseline": {
+    "realspace_16BZ_slowest": 0.9999993698756264,
+    "symbol_16BZ_slowest": 0.9999993698756255,
+    "timedomain_last512_rate": 0.999589635148218,
+    "note": "obstacle #2 (rate ~0.9999994 too slow) is NOT solved here; these are the real-space baselines a preconditioner must beat"
+  },
+  "interfaces": {
+    "preconditioner": "step(..., precond=P): P maps the 8 constraint fields locally (finite stencil) between K and K^dag; identity by default",
+    "source": "step(..., drive=D): 14-component drive enters pi-update, h-update and the K_state proposal; static fixed point certified in C3; moving exact-current source is obstacle #3"
+  },
+  "scope_boundary": "Real-space step + adjoint bridge only (pre-M3 instrument). No M3 claim: DOF/J5 replay, moving source, dynamic Newton, Eddington, sponge/endurance and falsification battery all remain."
+}
