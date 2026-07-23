@@ -259,7 +259,7 @@
   <div class="liveness-inner">
     <div class="msg" id="livenessMsg"></div>
     <div class="copyfield">
-      <code id="cmdText">nohup python tensor_campaign_runner.py run &amp;</code>
+      <code id="cmdText">nohup python tools/tensor_campaign_runner.py run &amp;</code>
       <button id="copyCmd" type="button">copy</button>
     </div>
   </div>
@@ -281,7 +281,7 @@
           <div class="metric"><span class="v ink" id="cScreen">—</span><span class="k">tier-1 screen pass %</span></div>
           <div class="metric"><span class="v matter" id="cLawful">—</span><span class="k">lawful_tensor % (二级)</span></div>
         </div>
-        <div class="ckpt" id="ckptChip" title="每 batch 原子 checkpoint 写 run_tensor/state.json — 可随时 stop/resume,进度不丢。">
+        <div class="ckpt" id="ckptChip" title="每 batch 原子 checkpoint 写 data/runtime/run_tensor/state.json — 可随时 stop/resume,进度不丢。">
           <span class="ck-ico">◆</span><span id="ckptText">no checkpoint yet</span>
         </div>
         <div class="prog" id="progWrap" style="display:none">
@@ -401,14 +401,14 @@
       <!-- CLI steer -->
       <section class="card clibox" aria-label="Steer the tensor runner">
         <h2>Steer the Runner <span class="hint dead" id="procTag">○ no live process</span></h2>
-        <div class="sb-lab" id="sbLab">张量战役由 CLI 驱动(control 面写 <b>run_tensor/</b>,与标量 dashboard 隔离):</div>
+        <div class="sb-lab" id="sbLab">张量战役由 CLI 驱动(control 面写 <b>data/runtime/run_tensor/</b>,与标量 dashboard 隔离):</div>
         <div class="clirow">
-          <div class="copyfield"><code id="cmdRun">nohup python tensor_campaign_runner.py run --target 100000 &amp;</code><button id="copyRun" type="button">copy</button></div>
-          <div class="copyfield"><code id="cmdPause">python tensor_campaign_runner.py pause</code><button id="copyPause" type="button">copy</button></div>
-          <div class="copyfield"><code id="cmdStop">python tensor_campaign_runner.py stop</code><button id="copyStop" type="button">copy</button></div>
+          <div class="copyfield"><code id="cmdRun">nohup python tools/tensor_campaign_runner.py run --target 100000 &amp;</code><button id="copyRun" type="button">copy</button></div>
+          <div class="copyfield"><code id="cmdPause">python tools/tensor_campaign_runner.py pause</code><button id="copyPause" type="button">copy</button></div>
+          <div class="copyfield"><code id="cmdStop">python tools/tensor_campaign_runner.py stop</code><button id="copyStop" type="button">copy</button></div>
         </div>
-        <div class="clinote">本页只读 <b>/run_tensor/state.json</b>(同源静态路由)@ 1 Hz。控制走 CLI 而非页面按钮:
-          <code>/api/control</code> 写的是标量 <code>run/control.json</code>,不会误触张量 runner。</div>
+        <div class="clinote">本页只读 <b>/data/runtime/run_tensor/state.json</b>(同源静态路由)@ 1 Hz。控制走 CLI 而非页面按钮:
+          <code>/api/control</code> 写的是标量 <code>data/runtime/run/control.json</code>,不会误触张量 runner。</div>
       </section>
     </div>
   </div>
@@ -416,7 +416,7 @@
 
 <footer>
   <div class="foot-inner">
-    <span>Tensor Campaign Console · <span class="mono">/run_tensor/state.json</span> @ 1 Hz · in-shader TT wave (WebGL2)</span>
+    <span>Tensor Campaign Console · <span class="mono">/data/runtime/run_tensor/state.json</span> @ 1 Hz · in-shader TT wave (WebGL2)</span>
     <span class="live-dotwrap"><span class="live-dot" id="footDot"></span><span id="footStat">connecting…</span></span>
   </div>
 </footer>
@@ -426,7 +426,7 @@
 //============================================================================
 // Config
 //============================================================================
-var STATE_URL = "/run_tensor/state.json";   // static route; campaign_server serves DIR files
+var STATE_URL = "/data/runtime/run_tensor/state.json";
 // allow ?state=... override for alternate deployments, still same-origin
 (function(){
   try{
@@ -529,7 +529,7 @@ function showLiveness(mode, msg){
   if (mode==="none"){ el.className="liveness"; return; }
   el.className="liveness show "+(mode==="err"?"err":(mode==="wait"?"wait":""));
   $("livenessMsg").innerHTML=msg;
-  $("cmdText").textContent = (mode==="err") ? "python campaign_server.py" : "nohup python tensor_campaign_runner.py run &";
+  $("cmdText").textContent = (mode==="err") ? "python tools/campaign_server.py" : "nohup python tools/tensor_campaign_runner.py run &";
   copy.style.display="";
 }
 
@@ -540,7 +540,7 @@ async function poll(){
       // server up, but the tensor campaign has not written state yet
       lastState = null;
       setBadge(null, "waiting", false);
-      showLiveness("wait", "<b>等待张量战役数据</b> — run_tensor/state.json 尚未生成。启动 runner:");
+      showLiveness("wait", "<b>等待张量战役数据</b> — data/runtime/run_tensor/state.json 尚未生成。启动 runner:");
       updateProc(false, null);
       renderEmpty();
       $("footDot").classList.add("on");

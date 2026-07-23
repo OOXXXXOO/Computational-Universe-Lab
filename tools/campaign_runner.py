@@ -7,24 +7,26 @@ rule-space survival + equivalence-principle funnel (rulespace_gpu.campaign.sweep
 which we KNOW converges — so the harness is validated against known-good physics.
 
 Design contract (everything the dashboard/server rely on):
-  run/state.json    written ATOMICALLY every checkpoint (tmp + os.replace)
-  run/control.json  {"command": "run"|"pause"|"stop"} — polled every batch
-  run/best_rule.json a representative lawful rule's 6 coefficients (for live viz)
+  data/runtime/run/state.json    written ATOMICALLY every checkpoint
+  data/runtime/run/control.json  {"command": "run"|"pause"|"stop"}
+  data/runtime/run/best_rule.json a representative lawful rule's coefficients
 
 Resume is EXACT: batch i always uses coupling seed = i, so total progress is a pure
 function of `batches_done`. Continuous run == chunked run == resumed run.
 
 CLI:
-  python campaign_runner.py run [--fresh] [--target N] [--batch B] [--full/--j1]
-  python campaign_runner.py pause | resume | stop        (writes control.json)
-  python campaign_runner.py status                        (prints state.json)
-  python campaign_runner.py reset                         (wipe run/ state)
+  python tools/campaign_runner.py run [--fresh] [--target N] [--batch B] [--full/--j1]
+  python tools/campaign_runner.py pause | resume | stop
+  python tools/campaign_runner.py status
+  python tools/campaign_runner.py reset
 """
 import os, sys, json, time, signal, argparse, tempfile
 import numpy as np
 
-DIR = os.path.dirname(os.path.abspath(__file__))
-RUN = os.path.join(DIR, "run")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+RUN = os.path.join(PROJECT_ROOT, "data", "runtime", "run")
 STATE = os.path.join(RUN, "state.json")
 CONTROL = os.path.join(RUN, "control.json")
 BEST = os.path.join(RUN, "best_rule.json")
@@ -331,12 +333,12 @@ def main():
         set_control("run"); print("[ctl] -> run")
     elif a.cmd == "status":
         s = read_json(STATE)
-        print(json.dumps(s, indent=2) if s else "no state yet (run/ empty)")
+        print(json.dumps(s, indent=2) if s else "no state yet (data/runtime/run/ empty)")
     elif a.cmd == "reset":
         for p in (STATE, CONTROL, BEST, os.path.join(RUN, "_acc.json")):
             if os.path.exists(p):
                 os.remove(p)
-        print("[ctl] run/ state wiped")
+        print("[ctl] data/runtime/run/ state wiped")
 
 
 if __name__ == "__main__":

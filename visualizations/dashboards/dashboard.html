@@ -257,7 +257,7 @@
   <div class="liveness-inner">
     <div class="msg" id="livenessMsg"></div>
     <div class="copyfield">
-      <code id="cmdText">nohup python campaign_runner.py run &amp;</code>
+      <code id="cmdText">nohup python tools/campaign_runner.py run &amp;</code>
       <button id="copyCmd" type="button">copy</button>
     </div>
   </div>
@@ -347,7 +347,7 @@
         <div class="startbox">
           <div class="sb-lab" id="sbLab">Start the run (also how you resume after a Stop):</div>
           <div class="copyfield">
-            <code id="startCmd">nohup python campaign_runner.py run --full &amp;</code>
+            <code id="startCmd">nohup python tools/campaign_runner.py run --full &amp;</code>
             <button id="copyStart" type="button">copy</button>
           </div>
         </div>
@@ -493,7 +493,7 @@ function showLiveness(mode, msg){
     cmd.textContent = "python campaign_server.py";
     copy.style.display = "";
   } else {
-    cmd.textContent = "nohup python campaign_runner.py run &";
+    cmd.textContent = "nohup python tools/campaign_runner.py run &";
     copy.style.display = "";
   }
 }

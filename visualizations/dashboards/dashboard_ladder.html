@@ -427,7 +427,7 @@ var ALL_CANNONS=[
 //---------------------------------------------------------------------------
 var LEVELS=[
   {
-    id:"L1", file:"cp1_v4_L1_results.json",
+    id:"L1", file:"/data/results/cp1_v4_L1_results.json",
     parts:"walk 核 + K_placed 约束(R19 放置存储;enforce≡measure 同函数 + probe 断言;slave 覆盖 0ν 全部相位自由度)",
     review24h:true,   // L1 有「评审 24h 复核 → 冻结构造」环节
     cannonNos:[3,5,6,7],
@@ -463,7 +463,7 @@ var LEVELS=[
     ]
   },
   {
-    id:"L2", file:"cp1_v4_L2_results.json",
+    id:"L2", file:"/data/results/cp1_v4_L2_results.json",
     parts:"+ Z4c 阻尼(共动载波;装配层重测 σ² 后按平台闭式重定 (μ_z,κ₁),禁抄 R22 数字)",
     cannonNos:[1,2,3,8],
     insertAfter:{label:"光子正控", note:"L2 过线后插入光子格点正控(预注册第 10 件的实测半;车道B,不阻塞主线)"},
@@ -489,7 +489,7 @@ var LEVELS=[
     ]
   },
   {
-    id:"L3", file:"cp1_v4_L3_results.json",
+    id:"L3", file:"/data/results/cp1_v4_L3_results.json",
     parts:"+ 源 J̄(R10/R13 精确键流,de Donder 相容,按放置给)",
     cannonNos:[4],
     gates:[
@@ -505,7 +505,7 @@ var LEVELS=[
     ]
   },
   {
-    id:"L4", file:"cp1_v4_L4_results.json",
+    id:"L4", file:"/data/results/cp1_v4_L4_results.json",
     parts:"+ sponge 出射边界(B4 参数起步)",
     cannonNos:[],
     gates:[
@@ -956,7 +956,7 @@ function render(){
   if(state.fetchBlocked){
     badge.className="badge offline"; $("connTxt").textContent="本地文件模式 · 未连接";
     live.className="liveness show";
-    $("livenessMsg").innerHTML="<b>无法读取 cp1_v4_L*_results.json</b>(file:// 直开或本地服务未起)。在仓库目录起服务后刷新本页——缺文件的级会显示「运行中/待开始」:";
+    $("livenessMsg").innerHTML="<b>无法读取 /data/results/cp1_v4_L*_results.json</b>(file:// 直开或本地服务未起)。在仓库目录起服务后刷新本页——缺文件的级会显示「运行中/待开始」:";
     $("cmdText").textContent="python -m http.server 8000   # 然后访问 http://localhost:8000/dashboard_ladder.html";
     $("footConn").textContent="未连接 · 各级状态按静态推断显示";
   }else{
@@ -964,7 +964,7 @@ function render(){
     badge.className="badge "+(running?"running":"live");
     $("connTxt").textContent=running?("已连接 · "+cur.id+" 运行中"):"已连接";
     live.className="liveness";
-    $("footConn").textContent="已连接 · 轮询 cp1_v4_L{1..4}_results.json + m4_family_scan.jsonl(5s)";
+    $("footConn").textContent="已连接 · 轮询 /data/results/cp1_v4_L{1..4}_results.json(5s)";
   }
   $("updHint").textContent="更新于 "+state.updatedAt.toLocaleTimeString("zh-CN",{hour12:false});
   var l1=state.levels.L1;

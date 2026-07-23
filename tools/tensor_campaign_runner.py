@@ -13,10 +13,15 @@ real kernel when it lands -- nothing else changes.
 Resume is EXACT: batch i uses prior seed = i, so progress is a pure function of
 batches_done (continuous run == chunked == resumed).
 
-CLI mirrors campaign_runner: run [--fresh --target N --batch B] | pause|resume|stop|status|reset
+CLI: python tools/tensor_campaign_runner.py run [--fresh --target N --batch B]
+     python tools/tensor_campaign_runner.py pause|resume|stop|status|reset
 """
-import os, json, time, signal, argparse, tempfile
+import os, sys, json, time, signal, argparse, tempfile
 import numpy as np
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 # ---- level 1: lane-A's real batch screen kernel (tensor_batch) ----
 from rulespace_gpu.tensor_batch import PARAM_NAMES, sample_tensor_prior, screen_tensor_rules
@@ -43,8 +48,7 @@ def full_rejudge(params_batch):
     return {"lawful_tensor": np.array(law), "n_prop": np.array(npr),
             "newton_ratio": np.array(newt), "deflection": np.array(defl), "n_err": err}
 
-DIR = os.path.dirname(os.path.abspath(__file__))
-RUN = os.path.join(DIR, "run_tensor")
+RUN = os.path.join(PROJECT_ROOT, "data", "runtime", "run_tensor")
 STATE = os.path.join(RUN, "state.json")
 CONTROL = os.path.join(RUN, "control.json")
 BEST = os.path.join(RUN, "best_rule.json")
@@ -222,7 +226,7 @@ def main():
     elif a.cmd == "reset":
         for p in (STATE, CONTROL, BEST, ACC):
             if os.path.exists(p): os.remove(p)
-        print("[ctl] run_tensor/ wiped")
+        print("[ctl] data/runtime/run_tensor/ wiped")
 
 
 if __name__ == "__main__":

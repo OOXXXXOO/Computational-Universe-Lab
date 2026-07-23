@@ -1,25 +1,25 @@
 """campaign_server — stdlib-only control+observability server for the runner.
 
 Decoupled from the runner (separate process, robust): the runner writes files in
-run/, this server just reads them and lets the dashboard write control commands.
+data/runtime/run/, this server just reads them and lets the dashboard write control commands.
 No third-party deps.
 
-  python campaign_server.py [--port 8765]
+  python tools/campaign_server.py [--port 8765]
   then open  http://localhost:8765/
 
 Routes:
-  GET  /                -> dashboard.html
-  GET  /api/state       -> run/state.json        (live metrics + manifold + history)
-  GET  /api/best        -> run/best_rule.json     (representative lawful rule coeffs)
-  POST /api/control     {"command":"run"|"pause"|"stop"}  -> writes run/control.json
-  GET  /<file>          -> static files in this directory (e.g. dashboard.html assets)
+  GET  /                -> visualizations/dashboards/dashboard.html
+  GET  /api/state       -> data/runtime/run/state.json
+  GET  /api/best        -> data/runtime/run/best_rule.json
+  POST /api/control     {"command":"run"|"pause"|"stop"}
+  GET  /<file>          -> static files below the project root
 """
 import os, json, time, tempfile, argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, unquote
 
-DIR = os.path.realpath(os.path.dirname(os.path.abspath(__file__)))
-RUN = os.path.join(DIR, "run")
+PROJECT_ROOT = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RUN = os.path.join(PROJECT_ROOT, "data", "runtime", "run")
 
 
 def atomic_write(path, obj):
@@ -67,14 +67,12 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, self._file(os.path.join(RUN, "state.json")) or {"status": "idle"})
         if p == "/api/best":
             return self._send(200, self._file(os.path.join(RUN, "best_rule.json")) or {})
-        rel = "dashboard.html" if p == "/" else p.lstrip("/")
-        # containment: no dotfiles (.env!) and resolved path must live INSIDE DIR.
-        # note: plain startswith(DIR) is wrong — it also matches sibling dirs like
-        # DIR + "-other"; compare against DIR + os.sep, and realpath to kill symlinks.
+        rel = "visualizations/dashboards/dashboard.html" if p == "/" else p.lstrip("/")
+        # containment: no dotfiles (.env!) and resolved path must live inside project root.
         if any(part.startswith(".") for part in rel.split("/")):
             return self._send(404, {"error": "not found", "path": rel})
-        full = os.path.realpath(os.path.join(DIR, rel))
-        if not full.startswith(DIR + os.sep) or not os.path.isfile(full):
+        full = os.path.realpath(os.path.join(PROJECT_ROOT, rel))
+        if not full.startswith(PROJECT_ROOT + os.sep) or not os.path.isfile(full):
             return self._send(404, {"error": "not found", "path": rel})
         ctype = {"html": "text/html", "js": "text/javascript", "css": "text/css",
                  "json": "application/json"}.get(rel.rsplit(".", 1)[-1], "application/octet-stream")
@@ -105,7 +103,7 @@ def main():
     a = ap.parse_args()
     os.makedirs(RUN, exist_ok=True)
     srv = ThreadingHTTPServer(("127.0.0.1", a.port), H)
-    print(f"[server] http://localhost:{a.port}/   (serving {DIR}, control -> run/control.json)")
+    print(f"[server] http://localhost:{a.port}/   (serving project root, control -> data/runtime/run/control.json)")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
