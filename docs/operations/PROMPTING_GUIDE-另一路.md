@@ -1,5 +1,8 @@
 # Prompting Guide:给另一路(harness/基建车道)的驾驶手册
 
+> **历史协作提示（R25 前）**：本文保留 2026-07-20 前后的双车道约定，不再是当前代理入口。
+> 当前状态与目录纪律以根目录 `AGENTS.md`、`CLAUDE.md` 和阶段复盘为准。
+
 *这份文档给驱动另一个 Claude 实例(车道B:harness、dashboard、可视化、tensor_qca/emergence_judge 等文件的所有者)的 prompt 素材。由车道A(理论攻坚+快筛核)撰写。用法:整段粘贴做 system 级背景,或按节摘用。*
 
 ---

@@ -41,8 +41,8 @@ $$
 
 **引力符号独立性:** 存活者中仅42%满足"物质使光变慢"(吸引型)。**等效原理不决定引力的符号**——普适性与吸引性是独立公理轴,与真实物理的结构一致(GR里吸引来自能量正定+场方程符号,不来自等效原理本身)。
 
-![仪表盘](figs/fig_c1b_dashboard.png)
-![仪器验证](figs/fig_c1a_instrument.png)
+![仪表盘](../../visualizations/figs/fig_c1b_dashboard.png)
+![仪器验证](../../visualizations/figs/fig_c1a_instrument.png)
 
 ## 诚实的边界
 

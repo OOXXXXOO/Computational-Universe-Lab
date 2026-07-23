@@ -28,7 +28,7 @@
 
 **结果B之前漂移得那么厉害,根源是配错了能量伴侣。** 场的正确守恒搭档是行走哈密顿能量 $\langle\psi\|H_w\|\psi\rangle$(它在静态θ下精确守恒,因为 $[U,H_w]=0$),不是准能量。这是一个真诊断:找到了正确的守恒量。
 
-![单模诊断](figs/fig_r5a_single_mode.png)
+![单模诊断](../../visualizations/figs/fig_r5a_single_mode.png)
 
 ## 结果二(定理):结果B以阴影守恒关闭
 
@@ -41,7 +41,7 @@ $$
 \boxed{\text{漂移}\ \sim\ s^{2.78}\quad\Rightarrow\quad\text{连续极限精确守恒}}
 $$
 
-![阴影守恒](figs/fig_r5b_shadow.png)
+![阴影守恒](../../visualizations/figs/fig_r5b_shadow.png)
 
 **而且这不只是数值:** 我用的是对称(Strang)耦合格式,而**对称分裂法守恒修正能量到O(ε²)是后向误差分析的标准定理**(Hairer–Lubich–Wanner,《Geometric Numerical Integration》)。所以阴影阶≥2有定理保证,实测2.78与之相容(额外抑制来自振幅也∝s)。纲领特有的输入只有两条,都已备好:正确的守恒哈密顿(结果一)+ 场扇区交错能量精确守恒(第四波符号证明)。
 

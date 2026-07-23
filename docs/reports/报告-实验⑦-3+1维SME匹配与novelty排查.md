@@ -29,7 +29,7 @@
 
 **核心结果:字典在3+1维由手征结构接管,四个通道四种教科书指纹。**
 
-![3+1维通道](figs/fig7a_channels_3d.png)
+![3+1维通道](../../visualizations/figs/fig7a_channels_3d.png)
 
 | 泄漏通道Γ | 手征结构 | 生成的SME算符 | 数值验证(斜率/系数) | 命运 |
 |---|---|---|---|---|
@@ -42,11 +42,11 @@
 
 **基线各向异性(与Mlodinow-Brun对接)。**
 
-![各向异性](figs/fig7c_anisotropy.png)
+![各向异性](../../visualizations/figs/fig7c_anisotropy.png)
 
 纯3D Weyl行走的方向速度差随|k|线性增长(斜率0.98),系数0.19——这是Mlodinow-Brun光子扇区各向异性(RMS系数0.35)的费米子版,意味着他们的光学腔式分析可平移过来独立约束我们的ε。两条约束正交:**各向异性约束格距ε,通道字典约束泄漏代数**——完整的(ε, g, Γ)三维排除结构,文献中不存在。
 
-![SME标度](figs/fig7b_sme_scaling.png)
+![SME标度](../../visualizations/figs/fig7b_sme_scaling.png)
 
 ---
 

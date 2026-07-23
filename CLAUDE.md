@@ -1,103 +1,71 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件给 Claude Code 提供仓库级工作约束。先读同目录的 `AGENTS.md`；两者冲突时，以
+`AGENTS.md` 和用户最新指令为准。
 
-## What this is
+## 项目是什么
 
-A computational-physics research lab — the **Projective Rule-Space Program** (投影规则空间纲领). The
-question: which inhomogeneous quantum cellular automaton (QCA) rules produce *law-like* emergent
-physics (an emergent metric, causality, gravity-like matter coupling, the equivalence principle)?
-The workflow is a scientific campaign, not a product: each experiment is a self-contained script
-that runs a simulation, writes a `*_results.json`, drops figures into `figs/`, and feeds a
-written report (the Chinese-language `报告-*.md` / `战役报告-*.md` files at the repo root — these
-are the lab notebook and the record of what has and hasn't worked).
+这是“投影规则空间纲领”的计算物理实验仓库，不是产品工程。研究目标是在局域 QCA 规则空间中，
+用数学自洽、Maxwell/Einstein/Yang–Mills 与真实 3+1D 实验做 QA 剪枝，寻找投影后涌现场论的
+规则等价类，同时保留可诊断的高维投影残差。
 
-Not a git repo, no test framework, no build step. "Correctness testing" means running the physics
-verification suite (see below); "running tests" means reproducing validated physics results.
+当前状态是 **R25 pre-M3**，不是 M3 完成：
 
-## Environment & commands
+- 一般 walk 壳上的 Laurent/de Donder/detour complex 已闭合；
+- auxiliary Wilson 与静态 Newton 有候选证书；
+- 完整实空间 step、可用约束收缩率、moving source、动态 Newton/Eddington、live conservation、
+  sponge/endurance、证伪炮和 M4 参数族尚未完成；
+- R25 是 GR-compatible 存在性构造，不得写成“GR 已从宽规则空间涌现”。
+
+当前权威入口：`docs/status/阶段复盘-2026-07-24-M3与主线校准.md`。
+
+## 诚实边界
+
+- 这是一个 Git 仓库；工作树可能包含用户尚未提交的实验资产，禁止擅自清理或重置。
+- 没有统一的传统单元测试框架。验证分为语法/导入检查、符号证书、物理门和长跑复现。
+- `data/results/*_results.json` 的 `PASS` 通常只代表该文件声明的局部门，不代表 M3。
+- `visualizations/dashboards/dashboard_tensor.html` 和旧 tensor campaign 使用旧五参数 surrogate
+  `(cg2,gamma,G,tr_sign,sigma)`，不能给 R25 背书。
+- 固定 3+1D 是当前投影标定面，不是宇宙本体维度假设；动态维度排在固定 3+1D M3/M4 之后。
+
+## 目录
+
+- `rulespace/`：CPU/numpy 参考物理包。为保持导入契约暂留顶层。
+- `rulespace_gpu/`：MLX/JAX/numpy 多后端包。为保持 `python -m rulespace_gpu...` 暂留顶层。
+- `experiments/`：历史与当前独立实验脚本；保持平铺以保护脚本间 import 和冻结 SHA。
+- `data/results/`：JSON 结果真文件；`data/campaigns/`、`data/sealed/`、`data/runtime/` 分别存战役、
+  封存数据和可恢复运行状态。
+- `visualizations/`：dashboards、图件和图片资产。
+- `docs/`：status、reports、preregistration、operations、engineering。
+- `tools/`：campaign runner、server 等运维入口。
+
+`experiments/` 中的 JSON、`figs`、`campaigns`、`rulespace*` 符号链接是迁移兼容层，不是重复数据。
+不要把链接展开成副本，也不要在没有迁移证书计划时批量改写冻结科学脚本。
+
+## 常用命令
 
 ```bash
-bash setup_env.sh            # create ./.venv, install core stack + GPU backend (auto-detected)
-bash setup_env.sh mlx        # force Apple Silicon GPU  | cuda = NVIDIA | cpu = numpy reference
+bash setup_env.sh
 source .venv/bin/activate
-export RULESPACE_BACKEND=mlx  # or: source activate_backend.sh   (mlx | jax | numpy | auto)
+export RULESPACE_BACKEND=jax
+
+python -m rulespace_gpu.verify
+python -m rulespace_gpu.benchmark
+python experiments/exp1_dirac_qca.py
+python experiments/r25_laurent_complex.py
+
+python tools/campaign_server.py
+python tools/campaign_runner.py status
+python tools/tensor_campaign_runner.py status
 ```
 
-`RULESPACE_BACKEND` selects the compute device for the `rulespace_gpu` package. `auto` picks the
-first available of mlx → jax → numpy. `.env` / `activate_backend.sh` record the last setup choice.
+机器精度证书用 jax/numpy fp64；MLX 主要用于大规模动力学，不能用 fp32 结果宣称 `1e-12` 级门。
 
-```bash
-python -m rulespace_gpu.verify       # correctness suite — RUN THIS FIRST after any engine change
-python -m rulespace_gpu.benchmark    # measure GPU throughput (grid-updates/s)
-python -m rulespace_gpu.campaign     # batched rule search (thousands of rules in parallel)
-python exp1_dirac_qca.py             # standalone CPU experiments run directly, no args
-python -m rulespace_gpu.pathA_sn_soliton --L 96 --T 4000 --scan   # GPU experiments take CLI args
-```
+## 工作规则
 
-`rulespace_gpu.verify` is the acceptance gate: it checks 3+1D T⁰⁰ conservation (~1e-14), the
-emergent metric (packet speed = cos θ), and the causal light cone. Any change to the engine must
-keep all three PASS on both `numpy` and `mlx`/`jax` backends (they are validated bit-for-bit
-identical). See `RUN_GPU_三条路.md` for the current active experiment set (paths A/B/C) and the
-exact commands + expected numbers.
-
-## Architecture
-
-**The physical model** (defined in `rulespace/core.py`, mirrored in `rulespace_gpu/engine.py`):
-a 2-spinor split-step Dirac/Weyl walker with a *local* coin angle `theta(x,t)`. The emergent
-light speed is `c(x) = cos theta(x)` — so θ *is* the metric. θ is itself a dynamical field updated
-by a second-order (leapfrog) rule driven by a library of local operators (Laplacian stiffness,
-gradient², matter density `rho`, momentum `J`, restoring, damping) weighted by a **coupling vector
-`a`**. A "rule" = a choice of `a`. Matter (the walker) sources geometry (θ); geometry steers matter
-— a closed feedback loop. `dm` is a mass-gap knob taking the walker off the Weyl line.
-
-**`rulespace/` — CPU reference package** (numpy, the physics is authored here first):
-- `core.py` — the walker + dynamical coin field + coupled run loop (`run_coupled`). Start here.
-- `judges.py` — the **law-likeness funnel** J1–J5, the heart of the program: J1 stability,
-  J2 causality (perturbation front ≤ light cone), J3 matter-response, J4 **universality /
-  equivalence principle** (the observer's reduced law must have state-independent coefficients —
-  "THE law detector"), J5 gravity sign (matter slows light). An experiment "passes" by surviving
-  the funnel.
-- `campaign.py` — samples rules from a physics-shaped sparse prior, runs the funnel, appends
-  results to `campaigns/*.jsonl`.
-- `discover.py` — SINDy-style sparse regression (STLSQ): recover the sparsest θ_tt = Σ cᵢ Oᵢ that
-  explains a trajectory (a control/inverse-problem layer).
-- `render.py` — figure helpers.
-
-**`rulespace_gpu/` — device-agnostic scaled engine** (the same physics, big grids/batches):
-- `backend.py` — one NumPy-like API over mlx / jax / numpy, chosen by `RULESPACE_BACKEND`. Smooths
-  over conj/angle naming, lazy-eval `sync`, host transfer, and `jit`. **All physics code is written
-  against this shim (`B.xp`, `B.roll`, `B.jit`, …), never against a backend directly** — that is
-  what keeps one source running on four devices. MLX is fp32-native; jax/numpy use fp64.
-- `engine.py` — the compute core: 1/2/3-D walker, dynamical θ, T⁰⁰, sources (`rho`/`T00`/`capstone`
-  = tan(θ)·T⁰⁰). Every function is **pure (no in-place mutation)** so it JIT-compiles. `make_stepper`
-  returns a jitted one-macro-step closure.
-- `states.py` — grid/packet init, 2×2 mode operator (small eig on host, then transferred).
-- `observables.py` — device-side measurements (center-of-mass, ⟨k⟩, FFT-Poisson static field).
-- `campaign.py` — batched (batch-axis-parallel) 1+1D rule screening — the GPU version of the CPU
-  judge funnel.
-- `pathA_sn_soliton.py`, `pathB_spin2.py`, `pathC_scale.py`, `r7_selfbind_3d.py` — current GPU
-  experiments (self-gravity solitons, linearized spin-2 graviton, 10⁵-rule survival-manifold scan).
-
-**Standalone scripts at repo root** — the experiment history, each writes `<name>_results.json` +
-figures to `figs/`:
-- `exp1`–`exp8*` — the foundational sequence (Dirac QCA, pruning, projection, residual spectrum,
-  quantum projection, KK dispersion, 3D Weyl+SME, gauge/Lorentz emergence).
-- `r2`–`r7`, `c1*`, `pathA/B/C`, `anim*` — later "campaign waves"; naming maps to the wave reports.
-Convention: import numpy, `matplotlib.use("Agg")`, write JSON + PNG under `figs/`. When adding an
-experiment, follow this pattern and pair it with a report entry.
-
-## Working conventions
-
-- **Author physics in `rulespace/` (CPU/numpy) first, then port to `rulespace_gpu/`** for scale.
-  The two must stay physically consistent; `rulespace_gpu.verify` is the cross-check.
-- **Keep engine functions pure** — no in-place array writes, or JIT breaks under jax/mlx.
-- Build static host arrays (fftfreq, small eigenvectors) once on the host and transfer; don't
-  recompute them inside the device step.
-- Reports are the source of truth for *why* a rule was kept or killed and what the next wave tests.
-  Read the relevant `报告-*.md` / `战役报告-*.md` before extending an experiment line.
-- The current frontier (per `rulespace_gpu/README.md`): upgrading the scalar θ field to a symmetric
-  tensor `h_μν` (spin-2 tensor gravity), which is why the GPU engine exists.
-
-
-所有UI和汇报文档都用中文
+1. 先读当前阶段复盘、北极星计划、相关预注册和结果总账，再改科学代码。
+2. 新候选只有同时具备符号证书、统一实空间 evaluator、state schema/dashboard，才可进入 M 阶段。
+3. 报告区分定理/符号证书、数值实证、代理判据和工程状态；负结果同样入总账。
+4. 科学脚本原则上写入 `data/results/`；旧脚本通过 `experiments/` 兼容链接落到该目录。
+5. UI、阶段汇报和项目文档使用中文。
+6. 改 engine 后至少运行 numpy/jax 验证；长跑前先做小规模 compose 和负控。

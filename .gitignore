@@ -8,9 +8,10 @@ activate_backend.sh
 # 系统杂项
 .DS_Store
 
-# 运行时日志(run/ 的 JSON 状态照常入库,日志不入)
-run/runner.log
+# 运行时状态位于 data/runtime/ 并照常入库；日志不入库
+data/logs/
 *.log
 
-# 可重建的中间缓存
+# 可重建的中间缓存（兼容 experiments/ 下的链接名）
+data/cache/
 exp4_cache.npz

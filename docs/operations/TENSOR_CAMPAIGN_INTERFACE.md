@@ -50,7 +50,7 @@ harness 对快筛幸存者逐条(或小批)调用现成的:
 
 ## 界面 ③:harness → dashboard 的 state.json(车道B 内部,已定)
 
-harness 每 checkpoint 原子写 `run_tensor/state.json`,字段镜像标量版 + 张量列:
+harness 每 checkpoint 原子写 `data/runtime/run_tensor/state.json`,字段镜像标量版 + 张量列:
 `status/rules_done/wall/batches, screened, stable, tt2(=tt_dof==2), gw_ok, lawful_tensor(二级全过), *_pct, manifold(存活参数分布), best(参数+各判据数值), history[]`。
 dashboard(车道B)读它;live viz 用 best 的参数在浏览器 GPU 实时演化 TT 引力波(h₊/h×)。
 

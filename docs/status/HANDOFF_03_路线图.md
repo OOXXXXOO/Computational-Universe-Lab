@@ -2,6 +2,20 @@
 
 *配套 `HANDOFF_00_交接总纲.md`。前三份讲"到哪了",这份讲"往哪去"。*
 
+> **2026-07-24 路线覆盖**：当前状态与唯一行动线见
+> [`阶段复盘-2026-07-24-M3与主线校准.md`](阶段复盘-2026-07-24-M3与主线校准.md)第七节。
+> 下面“建议三步走”保留为历史路线，不再是当前执行清单。
+
+## 当前恢复顺序（R25 pre-M3）
+
+1. 封存 R25 当前符号、UV、静态与动力学符号证书，不继续无仪表微调；
+2. 先补 `evaluate_r25_candidate`、统一 state schema 和 R25 dashboard；
+3. 再实现同一实空间 step，依次接 moving exact source、约束率、Newton/Eddington、sponge/endurance 与证伪炮；
+4. M3 全绿后才开 R25 参数族战役与 M4 去孤岛；固定 3+1D 闭合后才展开动态维度。
+
+旧 GPU/dashboard 基建仍可复用，但其旧五参数 payload 不认识 R25 的 walk shell、Laurent complex、
+UV exceptional set 或 auxiliary sector，必须先换 evaluator/schema，不能直接重跑旧 campaign。
+
 ---
 
 ## 第一优先级:自旋2张量引力从规则涌现(真前沿)
