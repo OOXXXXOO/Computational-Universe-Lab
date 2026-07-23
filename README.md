@@ -5,16 +5,27 @@ Einstein/自旋 2 通道通过完整动力学 QA；Maxwell 是正控，Yang–Mi
 
 ## 当前状态
 
-**R25 pre-M3，不是 M3 已完成。** 一般 walk 壳上的局域规范复形、auxiliary Wilson 和静态
-Newton 已有候选证书；完整实空间闭环、moving source、动态 Newton/Eddington、约束率、
-sponge/endurance、证伪炮与 M4 参数族仍未完成。
+**R25 pre-M3，M3 未过；DOF 轴为具名开放阻塞（2026-07-24 固化）。** 第二波已把实空间
+step+伴随桥、约束违反双曲清除（R26）、运动源镜像 sector、静态 Newton/Eddington=2.00
+张量签名各自证书化；但 M3 的定义性门（涌现 A：无投影动力学 N_prop=2）**未过**——
+唯一开放阻塞已陈述到可开战役的精度：
+
+> R25 复形同调=2，但 walk 演化的 12 单位模有 34–49% 能量落在 ker K（=placed 规范⊕TT，
+> 6 维）之外的约束行空间，于是动力学无投影传播 **4 个曲率 DOF 而非 2**。验收判据精确：
+> 单位模能量在 ker K 内的残差 → 0 ⟺ N_prop=2。定位 = 43f 结构定理的最后一块（约束/规范
+> 已共享同一离散微分，演化核 walk 尚未共享到「保持 ker K」）。
+
+沿途正结果与该开放问题的完整封存见下方「先读」第 1 项。下一战役（构造层让单位模压进
+ker K，碰 R25 核心复形）由 PI 单独起、单独定范围；卡点④ 单次联验在 N_prop=2 解决前无意义，
+按住。
 
 先读：
 
-1. [阶段复盘](docs/status/阶段复盘-2026-07-24-M3与主线校准.md)
-2. [北极星实施计划](docs/status/主线-实施计划-北极星.md)
-3. [结果总账](docs/status/HANDOFF_02_结果总账.md)
-4. [工程布局说明](docs/engineering/REPOSITORY_LAYOUT.md)
+1. [阶段封存：DOF 开放阻塞 + 正结果封存](docs/status/阶段封存-2026-07-24-DOF开放阻塞.md)（当前权威结论）
+2. [阶段复盘：M3 与主线校准](docs/status/阶段复盘-2026-07-24-M3与主线校准.md)
+3. [北极星实施计划](docs/status/主线-实施计划-北极星.md)
+4. [结果总账](docs/status/HANDOFF_02_结果总账.md)
+5. [工程布局说明](docs/engineering/REPOSITORY_LAYOUT.md)
 
 ## 目录
 
