@@ -1,0 +1,819 @@
+{
+ "backend": "numpy",
+ "th0": 1.0471975511965976,
+ "c_cone": 0.5000000000000001,
+ "G_frozen": 0.05,
+ "T_ramp": 128,
+ "dm_moving": 0.3,
+ "dm_star": 0.5235987755982988,
+ "frozen_L1_sha256": "4dad03be4319da896f485d954f0efc97bc0a6f781700f97e3e8120178a5c6035",
+ "frozen_L2_sha256": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+ "frozen_damping_sha256": "0b868b0ffda835ff3cfdf0306952e71fc83599b4d25526756098736c1784c8ab",
+ "seeds": {
+  "A": 1,
+  "B": 2,
+  "cannon": 3
+ },
+ "declared": [
+  "G=0.05 frozen: log-middle of the pre-registered 1e-2..1e-1 window; injected field ~1e-3 (linear-safe), well >=8 decades above fp64 floor (tensor_batch lesson); no G scan at L3",
+  "injection after walk before C-measurement (L2 handoff 10.2), equal weight both spinor components, half-cosine ramp; source gates evaluated post-ramp (identity exact once g constant)",
+  "S00 = conserved density with flux c^2*bbar (exact row-0 integration, init rho(0)); S00-vs-rho drift is a lattice energy-flux/momentum mismatch, reported as diagnostic",
+  "stress rows symmetrized; antisymmetric shear routed to momentum rows via accumulated local Theta (lattice Belinfante improvement) -- exactness preserved",
+  "Newton-sector primary source = frozen external lump (free walker has no bound static blob; dm*=theta/2 magic-mass blob still spreads via cross-axis dispersion; walker-blob supplementary run reported)",
+  "canary operationalization: ratio_A = 4<h00,phi0>/<hbar00,phi0> (trace-structure, normalization-free); ratio_B absolute reference reported not gated; tailcorr on h00 annulus 2sig < r <= N/2-1",
+  "tr_sign cannon = trace-reversal switch in the canary readout chain (the only place trace reversal enters L3)",
+  "source-aware T'' = companion-reference construction (tr fixed only relative to the [W;A]-damped sourced reference; vacuum: bit-identical to frozen L2)"
+ ],
+ "B0_probes": {
+  "matter_reimpl_biteq": 0.0,
+  "consv_rho": 3.5327228908451463e-15,
+  "consv_b": 1.177574296948382e-15,
+  "KS_exact_probe": 4.11222009607433e-16,
+  "oracle_bridge": 3.5638878480057596e-13
+ },
+ "calibration_16": {
+  "mu_z": 0.014146794024301045,
+  "kappa1": 0.07285524538051402,
+  "rho_step_pred": 0.9628835623373607,
+  "beta_star": 0.9258495791705391,
+  "margin": 0.04,
+  "mu_choice": "low",
+  "mu_plateau": [
+   0.013869405906177494,
+   0.057503843684014185
+  ],
+  "mu_stab_max": 0.057524404501255774,
+  "sigma2_min": 0.09932869180438256,
+  "sigma2_max": 67.00268421126952,
+  "kappa_cond": 674.5551863627106,
+  "n_sigma2": 65520,
+  "gamma_fallback": 0.02980536519655405,
+  "rho_discrete_bz": 0.9628835623373609,
+  "rho_static_carrier_at_op": 1.459907461344884
+ },
+ "calibration_24": {
+  "mu_z": 0.003542393431884615,
+  "kappa1": 0.024846359747547342,
+  "rho_step_pred": 0.9874986786079527,
+  "beta_star": 0.9495179601999545,
+  "margin": 0.04,
+  "mu_choice": "low",
+  "mu_plateau": [
+   0.003472934737141779,
+   0.05885966516212836
+  ],
+  "mu_stab_max": 0.058861993874931386,
+  "sigma2_min": 0.04500028027473964,
+  "sigma2_max": 67.11133994030898,
+  "kappa_cond": 1491.3538211445566,
+  "n_sigma2": 221168,
+  "gamma_fallback": 0.02978125361552968,
+  "rho_discrete_bz": 0.9874986786079529,
+  "rho_static_carrier_at_op": 1.0973330960191716
+ },
+ "R1_monitor": {
+  "relC_max": 3.028923507394603,
+  "relC_last": 0.00022434825848356404,
+  "relC_postramp_min": 0.00013670505266545992,
+  "relC_tail_rate": 0.9995797445669481,
+  "relC_overflow": false,
+  "Ksrc_worst_rel_postramp": 3.090553441691141e-16,
+  "h00_rms_first": 0.5443820077164496,
+  "h00_rms_last": 0.0002801829994759377,
+  "rms_full_first": 0.6274578422827011,
+  "rms_full_last": 0.3159644730050858,
+  "rms_tail_drift": 5.767223121289078e-07,
+  "Z_rms_last": 0.0011702107575746,
+  "consv_rho": 6.559398346048961e-15,
+  "consv_b": 4.372932230699307e-15,
+  "relC_checkpoints": {
+   "0": 1.981469906728285,
+   "64": 0.46600311276384093,
+   "128": 0.04160027531200168,
+   "200": 0.0027480097323611635,
+   "400": 0.00014427246042783906,
+   "800": 0.00019468561327943063
+  }
+ },
+ "R1_source_diag": {
+  "S00_max_over_rho_peak0": 0.9263205535779977,
+  "S00_minus_rho_rel": 4.421989155888376,
+  "Theta_max": 0.0005338683899650109
+ },
+ "R1_rate_gate": {
+  "rate_meas": 0.990530789824973,
+  "rate_pred": 0.9628835623373607,
+  "floored": false,
+  "tail_rate": 0.9995797445669481,
+  "stalled": true,
+  "final_over_initial": 0.00011322314697879914,
+  "ok": false
+ },
+ "R1_per_k": {
+  "(2, 0, 0)": {
+   "w_peak": -0.3834227254381244,
+   "w_walk_signed": -0.38505787590347806,
+   "peak_prominence": 2734861118.344927,
+   "sv": [
+    1.0,
+    0.4463313454111353,
+    7.031954640592675e-06,
+    2.2112864179145544e-13,
+    5.16001826066923e-14,
+    3.356190416229424e-14
+   ],
+   "n_prop": 2,
+   "sv3": 7.031954640592675e-06,
+   "tt_match": 0.9999999999724802,
+   "c_gw": 0.5009659329494167,
+   "sv_whitened": [
+    1.0,
+    0.7071067811865475,
+    0.6941969631735768,
+    0.5436173989219761,
+    0.49549993321871555,
+    0.28218271833650116
+   ],
+   "ker_resid_max": 1.4455513983865795e-05,
+   "stock_physical": {
+    "w_peak": 0.3834227254381244,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.5602123764226205,
+     5.484460058916219e-06,
+     9.477150327606227e-07,
+     2.776837202780754e-07,
+     4.0295316053025453e-13
+    ]
+   },
+   "c_matter": 0.5009659329494167,
+   "j5_ratio": 1.0
+  },
+  "(0, 2, 0)": {
+   "w_peak": -0.3834227254381244,
+   "w_walk_signed": -0.38505787590347806,
+   "peak_prominence": 2654628609.6203966,
+   "sv": [
+    1.0,
+    0.5406662219401952,
+    5.3333414200936105e-08,
+    4.275972981505467e-13,
+    8.584410138249574e-14,
+    4.2072126852805263e-14
+   ],
+   "n_prop": 2,
+   "sv3": 5.3333414200936105e-08,
+   "tt_match": 0.9999999999999976,
+   "c_gw": 0.5009659329494167,
+   "sv_whitened": [
+    1.0,
+    0.707106781186548,
+    0.6096403641617365,
+    0.5367192984470899,
+    0.4392017292968296,
+    0.32471880055470803
+   ],
+   "ker_resid_max": 8.517206253926647e-08,
+   "stock_physical": {
+    "w_peak": 0.3834227254381244,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.5480922394890494,
+     6.041738444936899e-07,
+     4.0143160073862697e-07,
+     1.6726802318728586e-08,
+     2.3490916719395677e-13
+    ]
+   },
+   "c_matter": 0.5009659329494167,
+   "j5_ratio": 1.0
+  },
+  "(0, 0, 2)": {
+   "w_peak": -0.3834227254381244,
+   "w_walk_signed": -0.38505787590347806,
+   "peak_prominence": 3494132226.251427,
+   "sv": [
+    1.0,
+    0.534605791083713,
+    1.5900127934491623e-06,
+    7.416228934088501e-13,
+    4.7544812075323535e-14,
+    3.779342737319837e-14
+   ],
+   "n_prop": 2,
+   "sv3": 1.5900127934491623e-06,
+   "tt_match": 0.9999999999954783,
+   "c_gw": 0.5009659329494167,
+   "sv_whitened": [
+    1.0,
+    0.7071067811865475,
+    0.6938825438360158,
+    0.49957320007555356,
+    0.4136638057207413,
+    0.2136618448435924
+   ],
+   "ker_resid_max": 3.101627667898887e-06,
+   "stock_physical": {
+    "w_peak": 0.3834227254381244,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.5301325389433357,
+     1.9298998115103376e-06,
+     8.831077658853062e-07,
+     2.443956583266311e-07,
+     5.434113283306939e-13
+    ]
+   },
+   "c_matter": 0.5009659329494167,
+   "j5_ratio": 1.0
+  },
+  "(2, 2, 0)": {
+   "w_peak": -0.56894985065012,
+   "w_walk_signed": -0.5682759318534423,
+   "peak_prominence": 13576057810.15919,
+   "sv": [
+    1.0,
+    0.5937137662536497,
+    3.583111349863402e-08,
+    1.739159387369399e-13,
+    6.491178548027316e-14,
+    1.962534789024638e-14
+   ],
+   "n_prop": 2,
+   "sv3": 3.583111349863402e-08,
+   "tt_match": 0.9999999999999993,
+   "c_gw": 0.5256411220409993,
+   "sv_whitened": [
+    1.0,
+    0.7960074461947919,
+    0.5671750499433613,
+    0.446133802733456,
+    0.34734116300034623,
+    0.2720125476191745
+   ],
+   "ker_resid_max": 7.681508274851859e-08,
+   "stock_physical": {
+    "w_peak": 0.56894985065012,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.5904226500824394,
+     2.669110183764225e-07,
+     1.7626010424384612e-07,
+     2.867252146090606e-08,
+     4.659199233925308e-13
+    ]
+   },
+   "c_matter": 0.5256411220409993,
+   "j5_ratio": 1.0
+  },
+  "(3, 1, 0)": {
+   "w_peak": -0.6060552756925192,
+   "w_walk_signed": -0.608044069877625,
+   "peak_prominence": 8443433981.052721,
+   "sv": [
+    1.0,
+    0.4531755712700616,
+    8.665963875944865e-09,
+    2.7071864993667657e-13,
+    1.0775075644689356e-13,
+    9.071339408456503e-15
+   ],
+   "n_prop": 2,
+   "sv3": 8.665963875944865e-09,
+   "tt_match": 0.9999999999999987,
+   "c_gw": 0.5146283675514822,
+   "sv_whitened": [
+    1.0,
+    0.7629959039915178,
+    0.736983715644655,
+    0.411431078450187,
+    0.3471975403348613,
+    0.18765522562264284
+   ],
+   "ker_resid_max": 2.7977205272710545e-08,
+   "stock_physical": {
+    "w_peak": 0.6060552756925192,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.20419087756426313,
+     9.536473854483619e-08,
+     4.1569352820952346e-08,
+     6.80458260220299e-09,
+     2.3581798086755614e-13
+    ]
+   },
+   "c_matter": 0.5146283675514822,
+   "j5_ratio": 1.0
+  },
+  "(2, 2, 2)": {
+   "w_peak": -0.8039508759186478,
+   "w_walk_signed": -0.802442141522959,
+   "peak_prominence": 5100236665.494987,
+   "sv": [
+    1.0,
+    0.7001550640895262,
+    4.082278787501954e-09,
+    9.174764581203942e-14,
+    1.5799904859601096e-14,
+    4.210247960747228e-15
+   ],
+   "n_prop": 2,
+   "sv3": 4.082278787501954e-09,
+   "tt_match": 0.9999999999999971,
+   "c_gw": 0.6064559050260176,
+   "sv_whitened": [
+    1.0,
+    0.9578057343239583,
+    0.7558118134740855,
+    0.4453233393271138,
+    0.25442172858572276,
+    0.10707694456156515
+   ],
+   "ker_resid_max": 1.3396250317788651e-08,
+   "stock_physical": {
+    "w_peak": 0.8039508759186478,
+    "n_prop": 2,
+    "sv": [
+     1.0,
+     0.6773965565119716,
+     1.5715263580165732e-07,
+     1.2164077226012053e-07,
+     1.949850460928566e-09,
+     4.3371833818850715e-14
+    ]
+   },
+   "c_matter": 0.6064559050260176,
+   "j5_ratio": 1.0
+  }
+ },
+ "R1_z_certs": {
+  "(2, 0, 0)": {
+   "n_unit_modes": 2,
+   "dim_kerK": 2,
+   "n_contracting": 17,
+   "unit_mode_Z_component_max": 2.9382474964866874e-14,
+   "z_sector_radius": 0.9628835623373617,
+   "z_sector_radius_pred": 0.9628835623373607,
+   "note": "N_prop \u53ea\u5728 chi \u6247\u533a\u7684\u5355\u4f4d\u6a21\u91cc\u6570;17 \u4e2a\u6536\u7f29\u6a21(\u542b Z \u6247\u533a)\u4e0d\u5f97\u8ba1\u5165",
+   "pass": true
+  },
+  "(0, 0, 2)": {
+   "n_unit_modes": 2,
+   "dim_kerK": 2,
+   "n_contracting": 17,
+   "unit_mode_Z_component_max": 4.8901046130366e-14,
+   "z_sector_radius": 0.9628835623373627,
+   "z_sector_radius_pred": 0.9628835623373607,
+   "note": "N_prop \u53ea\u5728 chi \u6247\u533a\u7684\u5355\u4f4d\u6a21\u91cc\u6570;17 \u4e2a\u6536\u7f29\u6a21(\u542b Z \u6247\u533a)\u4e0d\u5f97\u8ba1\u5165",
+   "pass": true
+  },
+  "(2, 2, 0)": {
+   "n_unit_modes": 2,
+   "dim_kerK": 2,
+   "n_contracting": 17,
+   "unit_mode_Z_component_max": 1.218461830448915e-13,
+   "z_sector_radius": 0.9628835623373632,
+   "z_sector_radius_pred": 0.9628835623373607,
+   "note": "N_prop \u53ea\u5728 chi \u6247\u533a\u7684\u5355\u4f4d\u6a21\u91cc\u6570;17 \u4e2a\u6536\u7f29\u6a21(\u542b Z \u6247\u533a)\u4e0d\u5f97\u8ba1\u5165",
+   "pass": true
+  },
+  "(3, 1, 0)": {
+   "n_unit_modes": 2,
+   "dim_kerK": 2,
+   "n_contracting": 17,
+   "unit_mode_Z_component_max": 3.422896603417971e-14,
+   "z_sector_radius": 0.9628835623373644,
+   "z_sector_radius_pred": 0.9628835623373607,
+   "note": "N_prop \u53ea\u5728 chi \u6247\u533a\u7684\u5355\u4f4d\u6a21\u91cc\u6570;17 \u4e2a\u6536\u7f29\u6a21(\u542b Z \u6247\u533a)\u4e0d\u5f97\u8ba1\u5165",
+   "pass": true
+  }
+ },
+ "R2_monitor": {
+  "relC_max": 3.0187721899785642,
+  "relC_last": 3.2203353361204294e-05,
+  "relC_postramp_min": 2.7162334790115358e-05,
+  "relC_tail_rate": 0.9937199334296474,
+  "relC_overflow": false,
+  "Ksrc_worst_rel_postramp": 0.5499128347912584,
+  "h00_rms_first": 0.5431652776283249,
+  "h00_rms_last": 2.5304659134332283e-05,
+  "rms_full_first": 0.6270844248170642,
+  "rms_full_last": 0.3165125698163803,
+  "rms_tail_drift": 1.4476386756001602e-10,
+  "Z_rms_last": 0.0001791202270055099,
+  "consv_rho": 0.0,
+  "consv_b": 0.0
+ },
+ "R2b_leak_attribution": {
+  "w_matter": 0.39534595435456704,
+  "transfer": {
+   "kernel": {
+    "L_leak": 3.667060756440666,
+    "A3_dot_s": 6.468099732031467e-17,
+    "chi_gain": 72.58874037708284
+   },
+   "generic": {
+    "L_leak": 3.3689830806286287,
+    "A3_dot_s": 0.8448056064814847,
+    "chi_gain": 40.05614770919723
+   }
+  },
+  "theta_scan": {
+   "1.0472": {
+    "w_m": 0.39534595435456704,
+    "L_kernel": 3.667060756440666,
+    "L_over_sinth": 4.234357029731463
+   },
+   "0.5236": {
+    "w_m": 0.6713902331519005,
+    "L_kernel": 4.221168403759167,
+    "L_over_sinth": 8.442336807518336
+   },
+   "0.2618": {
+    "w_m": 0.7728730220084451,
+    "L_kernel": 4.562633951524249,
+    "L_over_sinth": 17.628663878722467
+   },
+   "0.1000": {
+    "w_m": 0.813565363769956,
+    "L_kernel": 5.005993954336519,
+    "L_over_sinth": 50.143470217450144
+   }
+  },
+  "trotter_tilt_signature": false,
+  "stack_single_slice_read_exact": 2.4126491857823367,
+  "stack_single_slice_read_onsite": 2.3643530035910136
+ },
+ "R3_monitor": {
+  "relC_max": 5.560974216658056,
+  "relC_last": 0.15393042773938498,
+  "relC_postramp_min": 0.14125035356934768,
+  "relC_tail_rate": 1.0000077072642606,
+  "relC_overflow": false,
+  "Ksrc_worst_rel_postramp": 0.0,
+  "h00_rms_first": 3.2427994211737096e-08,
+  "h00_rms_last": 0.00016357287554178283,
+  "rms_full_first": 7.533875990120376e-10,
+  "rms_full_last": 6.167471455838522e-05,
+  "rms_tail_drift": 0.005622733427047555,
+  "Z_rms_last": 0.0010854819592760255,
+  "consv_rho": 0.0,
+  "consv_b": 0.0
+ },
+ "R3_canary_primary": {
+  "A_hbar00": 0.03293293012159958,
+  "A_h00": 0.005033356892128631,
+  "ratio_A": 0.6113463786603579,
+  "ratio_B": 0.10066713784257264,
+  "tailcorr_h00": 0.13439357172335953,
+  "tailcorr_hbar00": 0.5983091988182495,
+  "fit_resid_rel": 0.9589205338135368,
+  "well_not_hill": true,
+  "gate_pass": false
+ },
+ "R3_oracle_pointwise": {
+  "max_dev": 3.1219220763342826e-06,
+  "scale": 0.0007923882032410897,
+  "rel": 0.003939889644450468
+ },
+ "R3_attribution_matrix": {
+  "full_WAT": {
+   "canary": {
+    "A_hbar00": 0.03287597554743387,
+    "A_h00": 0.00504169778017986,
+    "ratio_A": 0.6134203102695018,
+    "ratio_B": 0.10083395560359723,
+    "tailcorr_h00": 0.13463322108286452,
+    "tailcorr_hbar00": 0.5978559519774291,
+    "fit_resid_rel": 0.9587878310836251,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -1.2370843943035965
+  },
+  "WA_noT": {
+   "canary": {
+    "A_hbar00": 0.0646591668963208,
+    "A_h00": 0.033720723400397334,
+    "ratio_A": 2.0860598748182198,
+    "ratio_B": 0.6744144680079468,
+    "tailcorr_h00": 0.5700596505683899,
+    "tailcorr_hbar00": 0.5383328822547333,
+    "fit_resid_rel": 0.6071869666559885,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -1.6247542105961235
+  },
+  "W_T": {
+   "canary": {
+    "A_hbar00": 0.017825317980027917,
+    "A_h00": -0.013484237979323108,
+    "ratio_A": -3.025861977762484,
+    "ratio_B": -0.2696847595864622,
+    "tailcorr_h00": -0.6728032647243182,
+    "tailcorr_hbar00": 0.21649848785692313,
+    "fit_resid_rel": 0.6507622290361395,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -1.156384848587982
+  },
+  "A_T": {
+   "canary": {
+    "A_hbar00": 0.033368790485753724,
+    "A_h00": 0.0049229705455439,
+    "ratio_A": 0.5901287369280805,
+    "ratio_B": 0.09845941091087801,
+    "tailcorr_h00": 0.12809894494457616,
+    "tailcorr_hbar00": 0.5996013495476779,
+    "fit_resid_rel": 0.9605986307800722,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -1.2631637056913567
+  },
+  "W_only": {
+   "canary": {
+    "A_hbar00": 0.002739193805015046,
+    "A_h00": 0.001371420671637011,
+    "ratio_A": 2.0026632202893406,
+    "ratio_B": 0.027428413432740224,
+    "tailcorr_h00": 0.03002229765579665,
+    "tailcorr_hbar00": 0.02997098190757456,
+    "fit_resid_rel": 0.9946138008509099,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -0.8682661701567503
+  },
+  "A_only": {
+   "canary": {
+    "A_hbar00": 0.063000686318414,
+    "A_h00": 0.032939835237691936,
+    "ratio_A": 2.091395326788,
+    "ratio_B": 0.6587967047538389,
+    "tailcorr_h00": 0.5393405122902443,
+    "tailcorr_hbar00": 0.511516015289431,
+    "fit_resid_rel": 0.6277173901971046,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "transfer_p": -1.638262467313682
+  },
+  "no_damping_walk_only": {
+   "h00bar_response": 0.49999999999999134,
+   "note": "exactly 0.5 = flat/local: the unitary first-order walk has NO Poisson static sector; 1/k^2-like tails come only from the damping sector"
+  }
+ },
+ "R4_monitor": {
+  "relC_max": 5.576773852621792,
+  "relC_last": 0.17673384632554603,
+  "relC_postramp_min": 0.11985287432730492,
+  "relC_tail_rate": 1.0000218054515548,
+  "relC_overflow": false,
+  "Ksrc_worst_rel_postramp": 0.0,
+  "h00_rms_first": 3.264592524133773e-08,
+  "h00_rms_last": 0.00022987374270545604,
+  "rms_full_first": 7.560512175121719e-10,
+  "rms_full_last": 8.000386000401287e-05,
+  "rms_tail_drift": 0.00822294638021881,
+  "Z_rms_last": 0.0013194580988392713,
+  "consv_rho": 0.0,
+  "consv_b": 0.0
+ },
+ "R4_canary_variant": {
+  "A_hbar00": 0.06900821307596099,
+  "A_h00": 0.032997513766397486,
+  "ratio_A": 1.9126716833009647,
+  "ratio_B": 0.6599502753279499,
+  "tailcorr_h00": 0.607441369966641,
+  "tailcorr_hbar00": 0.5870114760007884,
+  "fit_resid_rel": 0.5845838142684021,
+  "well_not_hill": true,
+  "gate_pass": false
+ },
+ "R4_variant_regression": {
+  "monitor": {
+   "relC_max": 3.0088760178577187,
+   "relC_last": 0.00019006842094819028,
+   "relC_postramp_min": 0.00016638900290201708,
+   "relC_tail_rate": 0.9982634204102393,
+   "relC_overflow": false,
+   "Ksrc_worst_rel_postramp": 3.090553441691141e-16,
+   "h00_rms_first": 0.5479698210707281,
+   "h00_rms_last": 0.00024891227351935913,
+   "rms_full_first": 0.6275455891962664,
+   "rms_full_last": 0.31788546848079413,
+   "rms_tail_drift": 1.1067576344281349e-07,
+   "Z_rms_last": 0.0009489926217875787,
+   "consv_rho": 6.559398346048961e-15,
+   "consv_b": 4.372932230699307e-15
+  },
+  "per_k_nprop": {
+   "(2, 0, 0)": 2,
+   "(0, 0, 2)": 2,
+   "(2, 2, 0)": 2,
+   "(3, 1, 0)": 2
+  }
+ },
+ "R5_supplementary_blob": {
+  "frozen_stack": {
+   "canary": {
+    "A_hbar00": 0.09742040499975756,
+    "A_h00": 0.014612215016767535,
+    "ratio_A": 0.5999652749053507,
+    "ratio_B": 0.29224430033535076,
+    "tailcorr_h00": 0.08464064769519025,
+    "tailcorr_hbar00": 0.34199431388974044,
+    "fit_resid_rel": 0.9646676303768944,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "monitor": {
+    "relC_max": 5.572441876323025,
+    "relC_last": 0.15279902320865896,
+    "relC_postramp_min": 0.14002924939376513,
+    "relC_tail_rate": 1.0007611542298962,
+    "relC_overflow": false,
+    "Ksrc_worst_rel_postramp": 1.8612898929815108e-16,
+    "h00_rms_first": 2.475592774610235e-08,
+    "h00_rms_last": 0.00016782699982219223,
+    "rms_full_first": 5.735802301386653e-10,
+    "rms_full_last": 6.193868902401245e-05,
+    "rms_tail_drift": 0.017438304330227528,
+    "Z_rms_last": 0.0011071828744515478,
+    "consv_rho": 1.2154972537065701e-14,
+    "consv_b": 2.888532536152119e-15
+   },
+   "blob_rms_radius_final": 10.371654502091067,
+   "source_diag": {
+    "S00_max_over_rho_peak0": 1.051046559751166,
+    "S00_minus_rho_rel": 4.166433845947929,
+    "Theta_max": 7.510658597945776e-05
+   }
+  },
+  "variant_Tsrc": {
+   "canary": {
+    "A_hbar00": 0.20647566450269253,
+    "A_h00": 0.09599533344974409,
+    "ratio_A": 1.8596929314833084,
+    "ratio_B": 1.9199066689948823,
+    "tailcorr_h00": 0.38934612912518946,
+    "tailcorr_hbar00": 0.3820532378202007,
+    "fit_resid_rel": 0.6351875426657889,
+    "well_not_hill": true,
+    "gate_pass": false
+   },
+   "monitor": {
+    "relC_max": 5.589314825966007,
+    "relC_last": 0.16361743702877168,
+    "relC_postramp_min": 0.11915005316067699,
+    "relC_tail_rate": 1.0022337542565833,
+    "relC_overflow": false,
+    "Ksrc_worst_rel_postramp": 1.8612898929815108e-16,
+    "h00_rms_first": 2.4923079631217306e-08,
+    "h00_rms_last": 0.0002179119942001598,
+    "rms_full_first": 5.755124950228101e-10,
+    "rms_full_last": 7.457869164314154e-05,
+    "rms_tail_drift": 0.06558038307898095,
+    "Z_rms_last": 0.0012282760464664777,
+    "consv_rho": 1.2154972537065701e-14,
+    "consv_b": 2.888532536152119e-15
+   },
+   "blob_rms_radius_final": 10.371654502091067,
+   "source_diag": {
+    "S00_max_over_rho_peak0": 1.051046559751166,
+    "S00_minus_rho_rel": 4.166433845947929,
+    "Theta_max": 7.510658597945776e-05
+   }
+  }
+ },
+ "cannons": {
+  "C1_onsite_source": {
+   "relC_floor_onsite": 3.2203353361204294e-05,
+   "relC_floor_exact": 0.00022434825848356404,
+   "leak_ratio": 0.14354180228041993,
+   "drive_KS_ratio": 1779334495152259.5,
+   "breaks": []
+  },
+  "C2_wrong_sign": {
+   "A_hbar00": -0.032007112180620634,
+   "well_not_hill": false,
+   "breaks": [
+    "G5 (well flips to hill)"
+   ]
+  },
+  "C3_tr_sign_zero": {
+   "ratio_A_tr0": 4.0,
+   "ratio_A_normal": 1.9126716833009647,
+   "note": "h00 := hbar00 (no trace reversal) => ratio_A -> 4 exactly",
+   "breaks": [
+    "G5 (ratio_A -> 4)"
+   ]
+  },
+  "C4_C5_triplet": {
+   "W_only": {
+    "canary": {
+     "ratio_A": 2.0677577491117725,
+     "tailcorr_h00": 0.033845720729014823,
+     "A_hbar00": 0.002846288216525419,
+     "gate_pass": false
+    },
+    "relC_last": 0.010693967512555561,
+    "relC_tail_rate": 0.9965968140774967,
+    "breaks": [
+     "G5",
+     "G5 (no well)"
+    ]
+   },
+   "A_only": {
+    "canary": {
+     "ratio_A": 2.0937354269075295,
+     "tailcorr_h00": 0.5383353861956286,
+     "A_hbar00": 0.06177477815795429,
+     "gate_pass": false
+    },
+    "relC_last": 0.17276123004623412,
+    "relC_tail_rate": 0.9997631742106916,
+    "breaks": [
+     "G5",
+     "G4 (true-constraint floor)"
+    ]
+   },
+   "W_A": {
+    "canary": {
+     "ratio_A": 2.0868025647774116,
+     "tailcorr_h00": 0.5629999929647039,
+     "A_hbar00": 0.06313974495243017,
+     "gate_pass": false
+    },
+    "relC_last": 0.18265210077385005,
+    "relC_tail_rate": 0.999987839402395,
+    "breaks": [
+     "G5",
+     "G4-vacuum (two-calculus stock=3 oblique; L2 design theorem on record)"
+    ]
+   }
+  },
+  "C5_no_damping": {
+   "h00_rms_first": 5.097732233895096,
+   "h00_rms_last": 717.3179200416217,
+   "h00_growth": 140.7131420658261,
+   "breaks": [
+    "G4 (Jordan ramp revives without damping)"
+   ]
+  }
+ },
+ "cannons_all_fire": false,
+ "gates": {
+  "G1_leakage_100x": false,
+  "G1_leak_ratio": 0.14354180228041993,
+  "G1_drive_KS_ratio": 1779334495152259.5,
+  "G2_source_deDonder_lt_1e-10": true,
+  "G2_KS_worst": 3.090553441691141e-16,
+  "G3_Trow_conservation_live_lt_1e-12": true,
+  "G3_worst": 6.559398346048961e-15,
+  "G4_no_regression": false,
+  "G4_parts": {
+   "floor_rate": false,
+   "nprop_zdeduct": true,
+   "j5": true,
+   "j5_max_dev": 0.0,
+   "stability": false
+  },
+  "G5_canary": false,
+  "G5_primary": {
+   "ratio_A": 0.6113463786603579,
+   "ratio_B": 0.10066713784257264,
+   "tailcorr_h00": 0.13439357172335953,
+   "A_hbar00": 0.03293293012159958,
+   "well_not_hill": true
+  },
+  "G5_variant_pass": false,
+  "G5_variant": {
+   "ratio_A": 1.9126716833009647,
+   "ratio_B": 0.6599502753279499,
+   "tailcorr_h00": 0.607441369966641,
+   "A_hbar00": 0.06900821307596099,
+   "well_not_hill": true
+  },
+  "cannons_all_fire": false
+ },
+ "L3_PASS": false,
+ "L3_variant_PASS": false,
+ "canary_verdict_material": {
+  "named_suspect_T_row": "CONFIRMED as a well-killer: removing T moves ratio_A 0.613 -> 2.086 and tailcorr 0.135 -> 0.570 (oracle attribution, dynamics-matched)",
+  "but_not_the_only_killer": "the source-aware T'' variant (== [W;A] on sourced content) still fails the shape half of the gate: the static transfer exponent is p=-1.62 (Poisson needs -2), and the undamped walk static response is exactly flat (0.5) -- the first-order unitary walk kernel has no Poisson sector; the 1/k^2-like tail lives entirely in the damping sector and is contaminated by the algebraic hbar00 slots of the A row0 / T rows",
+  "static_equilibrium_violates_true_constraint": "the sourced static equilibrium itself carries relC = 0.154 against the frozen K_placed (vacuum L2 floor: 2.5e-15) although K_placed.S == 0 identically for the frozen lump: the damping fixed set (TT) does not contain any sourced static solution -- the 'well' is a forced-damped compromise, not a de Donder solution",
+  "G1_G4floor_attribution": "the source-side compatibility is exact (3-slice K.S ratio 2e+15) but the assembly reads injections through the walk-realized stack (single-slice reading exact 2.41 vs onsite 2.36 -- same order): the placed-side transfer map reserved in the L1 handoff (R13 stride-bridge extended to the placed calculus) is the named missing piece; theta-scan rules Trotter tilt OUT",
+  "disposition": "G5 FAIL on both pre-registered branches (and G1/G4 expose the off-shell injection mismatch) -> stop at L3 per discipline; both tables reported; final ruling with the review"
+ },
+ "script_sha256": "dc7cdbea20e47328d0b652a5a9aefd25d8c8c2fae3f9d82b71926c02c150a9a3",
+ "total_seconds": 310.59762811660767
+}
