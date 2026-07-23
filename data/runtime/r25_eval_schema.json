@@ -1,0 +1,148 @@
+{
+  "schema": "r25_eval/v1",
+  "written_by": "experiments/r25_family_eval.py",
+  "state_json_convention": {
+    "path": "data/runtime/run_r25/state.json",
+    "producer": "统一实空间运行(卡点①落地后)",
+    "shape": {
+      "schema": "r25_eval/v1",
+      "params": "R25_PARAM_NAMES 字典",
+      "switches": "离散开关字典",
+      "columns": "{列名: {layer, status, ...数值}}",
+      "symbol_green/realspace_green/m3_ready": "bool 三层判定"
+    },
+    "dashboard": "visualizations/dashboards/dashboard_r25.html 轮询本文件;缺失时显示'待实空间列'并回退到静态证书"
+  },
+  "claim_discipline": "R25 = 约束合成/存在性构造;symbol_green ≠ M3;'涌现'表述须待 M4(含非 GR 候选的族去孤岛)",
+  "param_names": [
+    "alpha_W",
+    "sel_gain",
+    "sel_trace",
+    "mu_damp"
+  ],
+  "base_point": {
+    "alpha_W": 0.5,
+    "sel_gain": 0.75,
+    "sel_trace": 3.0,
+    "mu_damp": 0.001995262314968879
+  },
+  "base_switches": {
+    "wilson_form": "q",
+    "selector_family": "cubic",
+    "pairing": "conjugate",
+    "axis_order": "xyz",
+    "damp_order": "contract_then_free"
+  },
+  "prior_draft": {
+    "alpha_W": "U(0.0, 0.9)",
+    "sel_gain": "U(0.55, 0.95)",
+    "sel_trace": "U(2.0, 4.0)",
+    "mu_damp": "10^U(-5, -2.5)",
+    "note": "草案待评审拍板(预注册草案-R25-参数族.md);拍板后只许收紧"
+  },
+  "switch_domains": {
+    "wilson_form": [
+      "q",
+      "q2"
+    ],
+    "selector_family": [
+      "cubic",
+      "none"
+    ],
+    "pairing": [
+      "conjugate",
+      "single"
+    ],
+    "axis_order": [
+      "xyz",
+      "zyx",
+      "..."
+    ],
+    "damp_order": [
+      "contract_then_free",
+      "free_then_contract"
+    ]
+  },
+  "columns": {
+    "shell_J5": {
+      "layer": "symbol",
+      "gate": "max_relative_J5 < 1e-2",
+      "source": "r25_auxiliary_wilson_results.json"
+    },
+    "cohomology": {
+      "layer": "symbol",
+      "gate": "rank(G+,K+)=(4,8) ∧ 商维=2 ∧ 恒等<1e-11",
+      "source": "r25_auxiliary_wilson_results.json"
+    },
+    "uv_audit": {
+      "layer": "symbol",
+      "gate": "冻结 +I 节点提升:rank(4,8)、商维 2",
+      "source": "r25_uv_exceptional_results.json"
+    },
+    "static_newton": {
+      "layer": "symbol",
+      "gate": "0<a_W<4 全 BZ ∧ lift 全暗 <1e-11 ∧ hbar00/h00 = 2",
+      "source": "r25_static_newton_results.json"
+    },
+    "contraction_rate": {
+      "layer": "symbol",
+      "gate": "谱模 ≤1 ∧ 单位模恰 12;率照实报告",
+      "source": "r25_dynamic_symbol_results.json"
+    },
+    "reality_pairing": {
+      "layer": "symbol",
+      "gate": "配对物理度规相对虚部 < 1e-12",
+      "source": "r25_static_newton_results.json"
+    },
+    "dof_dynamic": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "constraint_floor_rate": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "moving_source": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "newton_dynamic": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "eddington": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "conservation": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "sponge_endurance": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    },
+    "cannons_replay": {
+      "layer": "realspace",
+      "gate": "PENDING 卡点①",
+      "interface": "hook(candidate_spec: dict) -> dict,键 ⊆ REALSPACE_COLUMNS,值 = {'status': 'PASS'|'FAIL', ...数值字段}"
+    }
+  },
+  "provenance_sha256": {
+    "r25_laurent_complex.py": "0df01b2ba3b5e6218dba926b6ad72ebd1de3d087e64b75d3f28ac748a9a66bb1",
+    "r25_walk_dedonder_complex.py": "a19c1313bd0422830ab43faf6ef74b819e1ddcdaf656401cad991ab2d4cc01e4",
+    "r25_detour_complex.py": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+    "r25_uv_exceptional_audit.py": "19618c7de349fbdaf7b7b3c889d296e2fbaf6168177c5723e584806790c8c532",
+    "r25_auxiliary_wilson_complex.py": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+    "r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "cp1_v4_L2.py": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67"
+  }
+}
