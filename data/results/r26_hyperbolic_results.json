@@ -1,0 +1,393 @@
+{
+  "register": "R26-E1-hyperbolic-constraint-realspace",
+  "adjoint_bridge": {
+    "enforce_equals_measure_residual": 9.439724293286567e-16
+  },
+  "source_sha256": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+  "R26_1_clearance_timescale": {
+    "N": 44,
+    "T": 600,
+    "c": 0.5000000000000001,
+    "L_over_c": 87.99999999999999,
+    "kappa": 0.02,
+    "gamma_diffusion": 0.08,
+    "sponge_w": 10,
+    "sponge_max": 0.3,
+    "per_k": [
+      {
+        "k_units": [
+          0,
+          1,
+          0
+        ],
+        "hyp_tau_clear": 62,
+        "hyp_retained_T": 0.009327698438838588,
+        "diff_tau_clear": null,
+        "diff_retained_T": 0.25152036157142027
+      },
+      {
+        "k_units": [
+          0,
+          2,
+          0
+        ],
+        "hyp_tau_clear": 58,
+        "hyp_retained_T": 0.005373662649600781,
+        "diff_tau_clear": null,
+        "diff_retained_T": 0.15787234070365647
+      },
+      {
+        "k_units": [
+          1,
+          1,
+          0
+        ],
+        "hyp_tau_clear": 60,
+        "hyp_retained_T": 0.0077197758829382285,
+        "diff_tau_clear": null,
+        "diff_retained_T": 0.21528698470642937
+      },
+      {
+        "k_units": [
+          2,
+          2,
+          0
+        ],
+        "hyp_tau_clear": 41,
+        "hyp_retained_T": 0.0025620143767231983,
+        "diff_tau_clear": null,
+        "diff_retained_T": 0.08481555978284776
+      },
+      {
+        "k_units": [
+          2,
+          2,
+          2
+        ],
+        "hyp_tau_clear": 40,
+        "hyp_retained_T": 0.0012214011745086228,
+        "diff_tau_clear": 557,
+        "diff_retained_T": 0.04556553407329816
+      },
+      {
+        "k_units": [
+          4,
+          4,
+          4
+        ],
+        "hyp_tau_clear": 39,
+        "hyp_retained_T": 1.5769721630063123e-06,
+        "diff_tau_clear": 55,
+        "diff_retained_T": 0.00017440145529121266
+      }
+    ],
+    "hyp_tau_all_cleared": true,
+    "hyp_tau_min": 39,
+    "hyp_tau_max": 62,
+    "hyp_tau_spread_ratio": 1.5897435897435896,
+    "half_box_over_c_steps": 43.99999999999999,
+    "smallest_k_hyp_tau": 62,
+    "smallest_k_hyp_retained": 0.009327698438838588,
+    "smallest_k_diffusion_tau": null,
+    "smallest_k_diffusion_retained": 0.25152036157142027,
+    "group_speed_witness": 0.4729903163792134,
+    "group_speed_predicted": 0.48296969119794586,
+    "group_speed_target_c": 0.5000000000000001,
+    "A2_real_gaussian_diffusion_retained": 1.0000000000000002
+  },
+  "R26_2_physical_block_unchanged": {
+    "Nbz": 12,
+    "n_k": 1731,
+    "kappa": 0.02,
+    "leak": 0.3,
+    "physical_block_worst_dev": 8.56275837041794e-14,
+    "physical_block_worst_k": [
+      3.141592653589793,
+      3.141592653589793,
+      5.235987755982989
+    ],
+    "twelve_unit_modes_preserved": true,
+    "unit_count_physical": 12,
+    "violation_det_matches_1_minus_kappa": 7.771561172376096e-16,
+    "structure": "block-lower-triangular (physical->violation one-way); physical spectrum exactly the frozen covariantly-deformed map"
+  },
+  "R26_3_kappa_window_k_independent": {
+    "Nbz": 14,
+    "sweep": [
+      {
+        "kappa": 0.0,
+        "max_rho_small_k": 0.9999999999999999,
+        "max_rho_full_bz": 1.0000000000000004
+      },
+      {
+        "kappa": 0.05,
+        "max_rho_small_k": 0.9746794344808963,
+        "max_rho_full_bz": 0.9746794344808968
+      },
+      {
+        "kappa": 0.1,
+        "max_rho_small_k": 0.9486832980505137,
+        "max_rho_full_bz": 0.9486832980505163
+      },
+      {
+        "kappa": 0.15000000000000002,
+        "max_rho_small_k": 0.9219544457292886,
+        "max_rho_full_bz": 0.9219544457292891
+      },
+      {
+        "kappa": 0.2,
+        "max_rho_small_k": 0.8944271909999157,
+        "max_rho_full_bz": 0.8944271909999163
+      },
+      {
+        "kappa": 0.25,
+        "max_rho_small_k": 0.8660254037844386,
+        "max_rho_full_bz": 0.8660254037844389
+      },
+      {
+        "kappa": 0.30000000000000004,
+        "max_rho_small_k": 0.8366600265340756,
+        "max_rho_full_bz": 0.8366600265340758
+      },
+      {
+        "kappa": 0.35000000000000003,
+        "max_rho_small_k": 0.8062257748298549,
+        "max_rho_full_bz": 0.8062257748298552
+      },
+      {
+        "kappa": 0.4,
+        "max_rho_small_k": 0.8068728189498111,
+        "max_rho_full_bz": 0.8068728189498138
+      },
+      {
+        "kappa": 0.45,
+        "max_rho_small_k": 0.8636590769765342,
+        "max_rho_full_bz": 0.8636590769765349
+      },
+      {
+        "kappa": 0.5,
+        "max_rho_small_k": 0.886413781724757,
+        "max_rho_full_bz": 1.0000000000000027
+      },
+      {
+        "kappa": 0.55,
+        "max_rho_small_k": 0.9010883332808746,
+        "max_rho_full_bz": 1.1631043674065022
+      },
+      {
+        "kappa": 0.6000000000000001,
+        "max_rho_small_k": 0.911784077089475,
+        "max_rho_full_bz": 1.2898979485566375
+      },
+      {
+        "kappa": 0.65,
+        "max_rho_small_k": 0.9200846538482165,
+        "max_rho_full_bz": 1.4000000000000017
+      },
+      {
+        "kappa": 0.7000000000000001,
+        "max_rho_small_k": 0.9267846350341081,
+        "max_rho_full_bz": 1.5000000000000018
+      },
+      {
+        "kappa": 0.75,
+        "max_rho_small_k": 0.9323426822565029,
+        "max_rho_full_bz": 1.593070330817255
+      },
+      {
+        "kappa": 0.8,
+        "max_rho_small_k": 0.9370482536734586,
+        "max_rho_full_bz": 1.6810249675906668
+      },
+      {
+        "kappa": 0.8500000000000001,
+        "max_rho_small_k": 0.9410957667128798,
+        "max_rho_full_bz": 1.7650148808205737
+      },
+      {
+        "kappa": 0.9,
+        "max_rho_small_k": 0.9446219810241915,
+        "max_rho_full_bz": 1.8458236433584472
+      },
+      {
+        "kappa": 0.9500000000000001,
+        "max_rho_small_k": 0.947726602898363,
+        "max_rho_full_bz": 1.9240126448051167
+      },
+      {
+        "kappa": 1.0,
+        "max_rho_small_k": 0.9504844339512095,
+        "max_rho_full_bz": 2.0000000000000013
+      },
+      {
+        "kappa": 1.05,
+        "max_rho_small_k": 0.9529529229955855,
+        "max_rho_full_bz": 2.0741067629178653
+      },
+      {
+        "kappa": 1.1,
+        "max_rho_small_k": 0.9551770649506435,
+        "max_rho_full_bz": 2.1465856099730667
+      },
+      {
+        "kappa": 1.1500000000000001,
+        "max_rho_small_k": 0.9571926925562859,
+        "max_rho_full_bz": 2.2176394882026456
+      },
+      {
+        "kappa": 1.2000000000000002,
+        "max_rho_small_k": 0.959028754505177,
+        "max_rho_full_bz": 2.287434208703793
+      },
+      {
+        "kappa": 1.25,
+        "max_rho_small_k": 0.9607089323270532,
+        "max_rho_full_bz": 2.3561072252245143
+      },
+      {
+        "kappa": 1.3,
+        "max_rho_small_k": 0.9622528132008219,
+        "max_rho_full_bz": 2.4237739202857007
+      },
+      {
+        "kappa": 1.35,
+        "max_rho_small_k": 0.963676756967627,
+        "max_rho_full_bz": 2.490532211692288
+      },
+      {
+        "kappa": 1.4000000000000001,
+        "max_rho_small_k": 0.964994547892758,
+        "max_rho_full_bz": 2.5564659966250556
+      },
+      {
+        "kappa": 1.4500000000000002,
+        "max_rho_small_k": 0.9662178919512743,
+        "max_rho_full_bz": 2.6216477723463436
+      },
+      {
+        "kappa": 1.5,
+        "max_rho_small_k": 0.9673568013277016,
+        "max_rho_full_bz": 2.6861406616345085
+      },
+      {
+        "kappa": 1.55,
+        "max_rho_small_k": 0.9684198952892258,
+        "max_rho_full_bz": 2.7500000000000018
+      },
+      {
+        "kappa": 1.6,
+        "max_rho_small_k": 0.9694146381855866,
+        "max_rho_full_bz": 2.813274595042157
+      },
+      {
+        "kappa": 1.6500000000000001,
+        "max_rho_small_k": 0.9703475295798731,
+        "max_rho_full_bz": 2.8760077369246115
+      },
+      {
+        "kappa": 1.7000000000000002,
+        "max_rho_small_k": 0.9712242575136794,
+        "max_rho_full_bz": 2.9382380174268605
+      },
+      {
+        "kappa": 1.75,
+        "max_rho_small_k": 0.9720498230815531,
+        "max_rho_full_bz": 3.0000000000000013
+      },
+      {
+        "kappa": 1.8,
+        "max_rho_small_k": 0.9728286424608636,
+        "max_rho_full_bz": 3.0613247725836166
+      },
+      {
+        "kappa": 1.85,
+        "max_rho_small_k": 0.9735646310686581,
+        "max_rho_full_bz": 3.122240407249369
+      },
+      {
+        "kappa": 1.9000000000000001,
+        "max_rho_small_k": 0.9742612734322409,
+        "max_rho_full_bz": 3.182772345116347
+      },
+      {
+        "kappa": 1.9500000000000002,
+        "max_rho_small_k": 0.974921681553095,
+        "max_rho_full_bz": 3.2429437208237157
+      },
+      {
+        "kappa": 2.0,
+        "max_rho_small_k": 1.0250642099857954,
+        "max_rho_full_bz": 3.3027756377319957
+      },
+      {
+        "kappa": 2.0500000000000003,
+        "max_rho_small_k": 1.075660233051445,
+        "max_rho_full_bz": 3.3622874026673144
+      },
+      {
+        "kappa": 2.1,
+        "max_rho_small_k": 1.1262275762770224,
+        "max_rho_full_bz": 3.4214967272212915
+      },
+      {
+        "kappa": 2.15,
+        "max_rho_small_k": 1.176768282171893,
+        "max_rho_full_bz": 3.4804199012291237
+      },
+      {
+        "kappa": 2.2,
+        "max_rho_small_k": 1.2272842019482968,
+        "max_rho_full_bz": 3.539071942966533
+      }
+    ],
+    "common_stable_window_full_bz": [
+      0.0,
+      0.5
+    ],
+    "stable_window_small_k_only": [
+      0.0,
+      1.9500000000000002
+    ],
+    "common_window_nonempty": true,
+    "kappa_work": 0.02,
+    "contraction_rate_sqrt_1_minus_kappa": 0.9899494936611666,
+    "underdamped_rate_spread_over_k": 1.2212453270876722e-15,
+    "rate_k_independent": true,
+    "note": "underdamped violation rate = sqrt(1-kappa), k-INDEPENDENT (contrast obstacle #2 in-place rate 1-O(k^4) -> 1 as k->0). full-BZ upper edge = high-k CFL bound kappa<=2-s/2, expected."
+  },
+  "R26_4_sponge_reflection": {
+    "N": 80,
+    "sponge_w": 30,
+    "sponge_max": 0.25,
+    "carrier_periods": 10.0,
+    "round_trip_T": 219,
+    "exit_step": 125,
+    "incident_bulk_energy": 125.77484382230138,
+    "reflection_coeff_sponge": 3.7228212782598104e-05,
+    "reflection_coeff_torus_control": 0.050700335071575495,
+    "absorbed_fraction": 0.9999627717872174,
+    "reflection_lt_1e-3": true
+  },
+  "checks": {
+    "adjoint_enforce_equals_measure_lt_1e-13": true,
+    "R26_1_hyp_all_k_cleared_finite_tau": true,
+    "R26_1_hyp_tau_bounded_spread_lt_3x": true,
+    "R26_1_smallest_k_hyp_tau_le_3_L_over_c": true,
+    "R26_1_negctrl_smallest_k_diffusion_NOT_cleared": true,
+    "R26_1_negctrl_A2_diffusion_retains_long_wave": true,
+    "R26_1_group_speed_near_c": true,
+    "R26_2_physical_block_dev_lt_1e-13": true,
+    "R26_2_twelve_unit_modes_preserved": true,
+    "R26_3_common_window_nonempty": true,
+    "R26_3_underdamped_rate_k_independent": true,
+    "R26_4_sponge_reflection_lt_1e-3": true
+  },
+  "status": "PASS",
+  "frozen_inputs_sha256": {
+    "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb"
+  },
+  "scope_boundary": "Real-space construction of the violation-clearance mechanism ONLY. Does NOT close obstacle #2 (in-place no-go remains a registered fact); does NOT declare M3 or close any axis. R26 (violation clearance) and L3-v3 (K covariant deformation) are ORTHOGONAL; R26-2 re-certifies on the covariantly-deformed K, and the two axes merge at obstacle #4's joint verification.",
+  "obstacle4_interface": "coupled_step(h,pi,zeta,pzeta,kappa,sp,leak): physical step FROZEN, physical constraint K_apply(h,pi) leaks into the hyperbolic violation sector; re-run cert_R26_2 on the co-deformed K_state at joint verify.",
+  "figure": "/Users/prismer/workspace/science/ca-universe-lab/visualizations/figs/r26_hyperbolic_constraint.png"
+}
