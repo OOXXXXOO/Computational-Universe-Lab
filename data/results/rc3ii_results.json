@@ -1,0 +1,335 @@
+{
+  "register": "RC3-(ii)-three-relaxation-candidate-framework (可达性战役 §5)",
+  "status": "DONE",
+  "backend": "numpy",
+  "purpose": "MATERIEL FOR THE PI BOUNDARY CALL, NOT a hypothesis.  Four fixable hypotheses ALL dead (R27 / chiral N-N / slave / complex-route).  RC3 turns to (ii): price EACH of three relaxation candidates -- 'relax X => reachable, cost Y' -- and hand the PI a named evidence table.",
+  "params": {
+    "N": 16,
+    "mu": 0.001995262314968879,
+    "theta0": 1.0471975511965976,
+    "c0": 0.5000000000000001,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "sv_thresh": 0.05,
+    "theta_line": [
+      0.4,
+      1.0471975511965976,
+      1.0,
+      1.2
+    ]
+  },
+  "frozen_inputs_sha256": {
+    "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+  },
+  "red_lines": "MATERIEL FOR PI, NOT A HYPOTHESIS/SOLUTION.  No candidate 'solves' M3. Structural unreachability is the PI's adjudication across the three candidates, not this probe's.  SIGNAL not theorem.  R30 existence & boundary unchanged (existence != emergence != M3).  No M3/emergence/reachability closed.  C达点④ held.",
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "candidate_R1_strict_locality": {
+    "relaxation": "STRICT LOCALITY -> quasi-local projection (finite support R + tail)",
+    "k0_singularity_fallback_points": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "kernel_DC_frac": 0.950549468006897,
+    "tail_frac_by_radius_global": {
+      "0.5": 0.3105731940651106,
+      "1": 0.15499980568316102,
+      "1.5": 0.1374782118536265,
+      "2": 0.0957877173030634,
+      "3": 0.06522407044231811,
+      "4": 0.04937130295789666,
+      "5": 0.03871264762059719,
+      "6": 0.030236687765543717,
+      "8": 0.013861771979206934
+    },
+    "per_k": {
+      "(2, 0, 0)": {
+        "label": "axial",
+        "N_prop_raw": 4,
+        "N_prop_by_radius": {
+          "3": 5,
+          "3.5": 4,
+          "4": 4,
+          "4.5": 4,
+          "5": 4,
+          "5.5": 4,
+          "6": 4,
+          "7": 4,
+          "8": 2,
+          "10": 2,
+          "12": 2,
+          "99": 2
+        },
+        "min_support_radius_for_2": 8,
+        "tail_frac_beyond_rmin": 0.013861771979206934,
+        "reaches_2": true
+      },
+      "(2, 2, 0)": {
+        "label": "face-diagonal",
+        "N_prop_raw": 4,
+        "N_prop_by_radius": {
+          "3": 4,
+          "3.5": 4,
+          "4": 4,
+          "4.5": 4,
+          "5": 4,
+          "5.5": 3,
+          "6": 2,
+          "7": 2,
+          "8": 2,
+          "10": 2,
+          "12": 2,
+          "99": 2
+        },
+        "min_support_radius_for_2": 6,
+        "tail_frac_beyond_rmin": 0.030236687765543717,
+        "reaches_2": true
+      },
+      "(2, 2, 2)": {
+        "label": "body-diagonal",
+        "N_prop_raw": 4,
+        "N_prop_by_radius": {
+          "3": 3,
+          "3.5": 3,
+          "4": 2,
+          "4.5": 2,
+          "5": 2,
+          "5.5": 2,
+          "6": 2,
+          "7": 2,
+          "8": 2,
+          "10": 2,
+          "12": 2,
+          "99": 2
+        },
+        "min_support_radius_for_2": 4,
+        "tail_frac_beyond_rmin": 0.04937130295789666,
+        "reaches_2": true
+      }
+    },
+    "max_support_radius_over_dirs": 8,
+    "box_half": 8,
+    "note": "axial direction needs R ~ N/2 (whole box) = effectively non-truncatable; the power-law tail (still 3.0% at R=6) IS the R29 non-locality made spatial."
+  },
+  "candidate_R2_emergent_matter": {
+    "relaxation": "EMERGENT MATTER -> partial Yee-ization (hand-built gauge sector)",
+    "per_k": {
+      "(2, 0, 0)": {
+        "label": "axial",
+        "N_prop_raw": 4,
+        "N_prop_by_handbuilt_count": {
+          "0": 4,
+          "1": 4,
+          "2": 3,
+          "3": 3,
+          "4": 2
+        },
+        "min_handbuilt_DOF_for_2": 4,
+        "handbuilt_fraction": 1.0,
+        "gauge_sector_energy": 0.8157896387725947,
+        "TT_emergent_energy": 0.14199714588368612,
+        "TT_residual_under_handbuild": 1.5700924586837752e-16,
+        "reaches_2": true
+      },
+      "(2, 2, 0)": {
+        "label": "face-diagonal",
+        "N_prop_raw": 4,
+        "N_prop_by_handbuilt_count": {
+          "0": 4,
+          "1": 4,
+          "2": 3,
+          "3": 2,
+          "4": 2
+        },
+        "min_handbuilt_DOF_for_2": 3,
+        "handbuilt_fraction": 0.75,
+        "gauge_sector_energy": 0.7596983013176427,
+        "TT_emergent_energy": 0.22529681923867648,
+        "TT_residual_under_handbuild": 3.056165285712006e-16,
+        "reaches_2": true
+      },
+      "(2, 2, 2)": {
+        "label": "body-diagonal",
+        "N_prop_raw": 4,
+        "N_prop_by_handbuilt_count": {
+          "0": 4,
+          "1": 3,
+          "2": 3,
+          "3": 2,
+          "4": 2
+        },
+        "min_handbuilt_DOF_for_2": 3,
+        "handbuilt_fraction": 0.75,
+        "gauge_sector_energy": 0.5991561789709035,
+        "TT_emergent_energy": 0.39161205368485724,
+        "TT_residual_under_handbuild": 2.0440576689298477e-16,
+        "reaches_2": true
+      }
+    },
+    "handbuilt_fraction_range": [
+      0.75,
+      1.0
+    ],
+    "TT_residual_max": 3.056165285712006e-16,
+    "note": "reaching N_prop=2 hand-builds 75-100% of the propagating-curvature DOF into exact ker C (R30 hand-built local shears); only the TT-dominant graviton remainder (14-39% sector energy) stays emergent.  TT stays bit-invariant (no new TT breakage)."
+  },
+  "candidate_R3_exact_constraint": {
+    "relaxation": "EXACT CONSTRAINT -> shadow/approximate conservation (tolerate delta)",
+    "per_k": {
+      "(2, 0, 0)": {
+        "label": "axial",
+        "N_prop_raw": 4,
+        "resid_outside_kerC_min_max": [
+          0.11047839143772163,
+          0.1775137049625285
+        ],
+        "N_prop_by_delta": {
+          "0.02": 4,
+          "0.05": 4,
+          "0.08": 4,
+          "0.1": 4,
+          "0.12": 4,
+          "0.15": 4,
+          "0.18": 2,
+          "0.2": 2,
+          "0.3": 2
+        },
+        "min_shadow_delta_for_2": 0.18,
+        "reaches_2": true
+      },
+      "(2, 2, 0)": {
+        "label": "face-diagonal",
+        "N_prop_raw": 4,
+        "resid_outside_kerC_min_max": [
+          0.050845224845421755,
+          0.17966066843279108
+        ],
+        "N_prop_by_delta": {
+          "0.02": 4,
+          "0.05": 4,
+          "0.08": 4,
+          "0.1": 4,
+          "0.12": 3,
+          "0.15": 3,
+          "0.18": 2,
+          "0.2": 2,
+          "0.3": 2
+        },
+        "min_shadow_delta_for_2": 0.18,
+        "reaches_2": true
+      },
+      "(2, 2, 2)": {
+        "label": "body-diagonal",
+        "N_prop_raw": 4,
+        "resid_outside_kerC_min_max": [
+          0.052063126780119574,
+          0.11195071020524308
+        ],
+        "N_prop_by_delta": {
+          "0.02": 4,
+          "0.05": 4,
+          "0.08": 3,
+          "0.1": 3,
+          "0.12": 2,
+          "0.15": 2,
+          "0.18": 2,
+          "0.2": 2,
+          "0.3": 2
+        },
+        "min_shadow_delta_for_2": 0.12,
+        "reaches_2": true
+      }
+    },
+    "min_shadow_delta_range": [
+      0.12,
+      0.18
+    ],
+    "note": "tolerating a 12-18% de-Donder residual lets the +w modes count in ker C => N_prop=2.  This is a constraint-violation propagation problem, exactly the (a)-half class R26 clears hyperbolically."
+  },
+  "a_half_r26_cleanability": "The -w branch curvature is ROW-sector dominant (constraint-row energy 0.50-0.57 vs gauge/TT), reproducing RC3-1/R31 (row 0.50-0.57, resid 0.36-0.89).  This IS the constraint-violation class R26 clears HYPERBOLICALLY (~L/c, k-independent; in-place damping tau=inf).  SO the (a)-half relaxation (R3 shadow constraint) has an ALREADY-PROVEN escape route (R26), MODULO a re-certification of R26's four certificates ON THIS specific row curvature -- not re-run here (frozen, read-only).  Two-sided blank: 'plausibly in R26 range', not 'proven'.",
+  "j5_cocone": [
+    {
+      "theta": 0.4,
+      "c": 0.9210609940028851,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 1.1102230246251565e-16
+    },
+    {
+      "theta": 1.0471975511965976,
+      "c": 0.5000000000000001,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 3.0531133177191805e-16
+    },
+    {
+      "theta": 1.0,
+      "c": 0.5403023058681398,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 1.3877787807814457e-16
+    },
+    {
+      "theta": 1.2,
+      "c": 0.3623577544766736,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 3.3306690738754696e-16
+    }
+  ],
+  "evidence_table": [
+    {
+      "candidate": "R1 relax STRICT LOCALITY (quasi-local projection)",
+      "reachability_cost": "min support radius R* to reach N_prop=2 is DIRECTION-DEPENDENT: body-diagonal R*=4, face R*=6, axial R*=8 (=N/2, the whole box). Axial is effectively NON-TRUNCATABLE.",
+      "physical_cost": "the ker-C projector's real-space kernel has a POWER-LAW tail (3.0% of the operator norm still beyond R=6); tolerated tail at R* = 1.4-4.9%.  Locality is broken by exactly this tail -- the R29 k->0 direction-dependence (2.009) made spatial.",
+      "reaches_2": true,
+      "new_j5_tt_breakage": "none (target is ker C; J5 3.3e-16, TT ok)",
+      "existing_escape": "no direct R26 variant; quasi-locality is a NEW relaxation of the strict-locality programme axiom."
+    },
+    {
+      "candidate": "R2 relax EMERGENT MATTER (partial Yee-ization)",
+      "reachability_cost": "N_prop=2 reached by hand-building 75-100% of the propagating-curvature DOF (gauge-dominant modes) into exact ker C.",
+      "physical_cost": "3-4 of the 4 propagating-curvature DOF drop from EMERGENT to R30 HAND-BUILT (local-shear leapfrog); only the TT-dominant graviton remainder (14-39% sector energy) stays truly emergent.  The geometry sector is no longer QCA-emergent.",
+      "reaches_2": true,
+      "new_j5_tt_breakage": "none (TT bit-invariant, residual 3.1e-16)",
+      "existing_escape": "R30 itself is the hand-built construction; partial Yee-ization = R30 geometry + emergent matter walk."
+    },
+    {
+      "candidate": "R3 relax EXACT CONSTRAINT (shadow conservation)",
+      "reachability_cost": "N_prop=2 reached tolerating a de-Donder residual delta in [0.12, 0.18] (the 5-18% non-gauge admixture counted as in-ker-C).",
+      "physical_cost": "constraint-violation rate = the tolerated 12-18% de-Donder residual; exact ker C = gauge (+) TT no longer exactly holds for the +w propagating modes.",
+      "reaches_2": true,
+      "new_j5_tt_breakage": "none (tolerated modes are walk modes ON the shell; cone = matter cone; J5 3.3e-16)",
+      "existing_escape": "YES -- the (a)-half -w constraint-row curvature is R26-class (row-dominant True); R26 clears constraint violation hyperbolically ~L/c k-independent. MODULO R26 re-certification on this row curvature."
+    }
+  ],
+  "j5_cocone_worst": 3.3306690738754696e-16,
+  "j5_holds": true,
+  "TT_worst_residual": 3.056165285712006e-16,
+  "all_three_reach_2": true,
+  "pi_boundary_summary": "THREE NAMED relaxation candidates, each PRICED (materiel for the PI boundary call, NOT a solution to M3): (R1) relax STRICT LOCALITY => reachable via a quasi-local projection, cost = a power-law non-local tail whose required support radius is direction-dependent up to the WHOLE box (axial R*=N/2), i.e. the relaxation is SEVERE for the axial direction. (R2) relax EMERGENT MATTER => reachable via partial Yee-ization, cost = 75-100% of the propagating-curvature DOF demoted from emergent to R30 hand-built; only the TT graviton stays emergent. (R3) relax EXACT CONSTRAINT => reachable tolerating a 12-18% de-Donder shadow residual, cost = that constraint-violation rate -- and this is the ONLY candidate with an ALREADY-PROVEN escape (R26 hyperbolic clearance of the (a)-half row curvature), modulo a re-certification. J5 co-cone (3.3e-16) and TT (3.1e-16) hold for ALL three -- no relaxation introduces NEW J5/TT breakage (consistent with RC3: J5/TT are not the (b)病灶).  All three REACH N_prop=2 (none is the stronger 'relaxed but still not 2' structural signal).  Two-sided blanks: whether structural unreachability holds is the PI's call across these three; SIGNAL not theorem; R30 existence & boundary unchanged.",
+  "figure": "visualizations/figs/rc3ii_relaxation_framework.png",
+  "source_sha256": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+  "total_seconds": 1.4164469242095947,
+  "results_sha256": "487cc91b5574a814656a20fc3780255745648b3b7cb6423c82bb79f25d12c7c1"
+}
