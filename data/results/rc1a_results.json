@@ -1,0 +1,1637 @@
+{
+  "register": "RC1a-tensor-index-representative (reachability campaign milestone 1a)",
+  "status": "DONE",
+  "backend": "numpy",
+  "question": "on c=cos theta reassembly, does the dm direction show a zero-crossing of the tensor index I / a drop of the max locked principal angle (a deformation channel signal)?",
+  "params": {
+    "N": 16,
+    "mu": 0.001995262314968879,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "sv_thresh": 0.05,
+    "bundle_tol": 0.2,
+    "gap_floor_deg": 5.0
+  },
+  "index_definition": "Wilson-loop (non-abelian Berry-phase / det-winding) of the LOCKED bundle L(k) = orthonormalized (I-P_kerC) S_curv (constraint-row curvature, ker-C-orthogonal) around a closed BZ loop of radius 0.6 (lattice-k) about the representative k. TENSOR level (subspace of the 10-dim symmetric-tensor curvature space), NOT single-particle. I = det-winding/2pi. Clean integer requires: bundle gapped around the whole loop, rank constant, I->integer stable under nphi refinement.",
+  "frozen_inputs_sha256": {
+    "cp1_v4_L2.py": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+    "r25_auxiliary_wilson_complex.py": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+    "r25_detour_complex.py": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442"
+  },
+  "red_lines": "direction verdict only; two-sided blanks (no topological theorem unless I clean nonzero integer; no deformation-feasible unless N_prop measured=2). R30 existence & boundary unchanged. frozen inputs read-only; c=cos theta reassembly written here, frozen files untouched. fp64.",
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "scan": [
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.0,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5032493071160489,
+              0.2960649335884857,
+              0.10054432113428988,
+              0.005549960297857514,
+              4.1767076443204335e-11
+            ],
+            "principal_angles_deg": [
+              0.7352300782188838,
+              39.86355572496586,
+              70.61351879435954,
+              83.36897101579545
+            ],
+            "max_angle_deg": 83.36897101579545,
+            "min_angle_deg": 0.7352300782188838,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 2,
+            "mean_resid_outside_kerC": 0.4687231817295054,
+            "max_resid_outside_kerC": 0.8863373130122358,
+            "Scurv_sector_energy": {
+              "TT": 0.23939372061467237,
+              "gauge": 0.18873662360767318,
+              "row": 0.5718696557776543
+            },
+            "off": false
+          },
+          "index": {
+            "defined": false,
+            "reason": "locked-bundle rank not constant",
+            "ranks_on_loop": [
+              3,
+              4
+            ],
+            "radius": 0.6,
+            "nphi": 48,
+            "bundle_gap_vs_kerC_deg": 89.99999999999994
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7251791569317351,
+              0.44745795164343866,
+              0.3463133185582774,
+              0.21308786418392367,
+              4.211656496642573e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.10582955192694003,
+              51.829369404371924,
+              73.5643428254042,
+              78.02407790697148
+            ],
+            "max_angle_deg": 78.02407790697148,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.3408081533099882,
+            "max_resid_outside_kerC": 0.8559618393941281,
+            "Scurv_sector_energy": {
+              "TT": 0.3106287440531086,
+              "gauge": 0.19037886138810237,
+              "row": 0.49899239455878897
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 5.829475087382384e-05,
+            "index_det_winding": -0.9999417052491263,
+            "nearest_int": -1,
+            "int_dev": 5.829475087371083e-05,
+            "berry_phases": [
+              -0.028769282970949522,
+              -0.0003434489596558976,
+              0.029479008652781524
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.624166451235701,
+              0.4989839906339219,
+              0.3502702786762837,
+              0.12477732921739047,
+              4.1373808005928965e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.04655894533579645,
+              53.9602651749968,
+              76.566037902166,
+              78.27994979438805
+            ],
+            "max_angle_deg": 78.27994979438805,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.38943581051829784,
+            "max_resid_outside_kerC": 0.8422483328899825,
+            "Scurv_sector_energy": {
+              "TT": 0.35087090757908135,
+              "gauge": 0.1374064909048524,
+              "row": 0.5117226015160663
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -3.694304300536666e-05,
+            "index_det_winding": -3.694304300531365e-05,
+            "nearest_int": 0,
+            "int_dev": 3.694304300531365e-05,
+            "berry_phases": [
+              -0.03291421367802991,
+              -3.7303041852565506e-05,
+              0.03271939673486865
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.612573260345727,
+              0.454359821918186,
+              0.3027460312236388,
+              0.0655864912800087,
+              7.36616240480599e-12
+            ],
+            "principal_angles_deg": [
+              0.0,
+              5.095625572150975,
+              69.8417860407618,
+              83.69138005569536,
+              89.80899838938821
+            ],
+            "max_angle_deg": 89.80899838938821,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.37646194978058406,
+            "max_resid_outside_kerC": 0.933748798232859,
+            "Scurv_sector_energy": {
+              "TT": 0.21301143723090393,
+              "gauge": 0.2115796560175136,
+              "row": 0.5754089067515823
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -0.0014748009737816574,
+            "index_det_winding": -0.0014748009737816212,
+            "nearest_int": 0,
+            "int_dev": 0.0014748009737816212,
+            "berry_phases": [
+              -0.21180020316105952,
+              0.0009858734784739208,
+              0.20154788187310654
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5430186489203926,
+              0.36059485100576827,
+              0.15676753919800704,
+              0.024278740995686155,
+              2.0217049265700478e-13
+            ],
+            "principal_angles_deg": [
+              0.1381655017832237,
+              64.71511622745291,
+              73.16603549262848,
+              84.89005830579421
+            ],
+            "max_angle_deg": 84.89005830579421,
+            "min_angle_deg": 0.1381655017832237,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.4513513454712937,
+            "max_resid_outside_kerC": 0.9744656692442744,
+            "Scurv_sector_energy": {
+              "TT": 0.1785625190140555,
+              "gauge": 0.13999392473688596,
+              "row": 0.6814435562490587
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -0.00031707619687286785,
+            "index_det_winding": -6.000317076196874,
+            "nearest_int": -6,
+            "int_dev": 0.0003170761968736002,
+            "berry_phases": [
+              -0.0013737524613126172,
+              -0.0006714191824339797,
+              5.292314229861179e-05
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999996,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7576993790194839,
+              0.6864557162823309,
+              0.530786763374329,
+              0.29814726101112576,
+              4.3744821589373464e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.14174371984909484,
+              62.465388201286345,
+              76.73298212408639,
+              79.1020006318466
+            ],
+            "max_angle_deg": 79.1020006318466,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.4138647523778809,
+            "max_resid_outside_kerC": 0.8685761037207278,
+            "Scurv_sector_energy": {
+              "TT": 0.349722584573667,
+              "gauge": 0.11069946735235289,
+              "row": 0.53957794807398
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -1.6949999703907228e-05,
+            "index_det_winding": -1.6949999703871693e-05,
+            "nearest_int": 0,
+            "int_dev": 1.6949999703871693e-05,
+            "berry_phases": [
+              -0.024331363629568968,
+              5.833806322202859e-05,
+              0.02416652557725065
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5839066993874321,
+              0.4952127499907666,
+              0.3202359616559649,
+              0.17256386719263442,
+              8.78905330940568e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              1.2891026851025333,
+              53.751854078296,
+              75.41862571736401,
+              87.42815969320893
+            ],
+            "max_angle_deg": 87.42815969320893,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5110134196943544,
+            "max_resid_outside_kerC": 0.9149476273317585,
+            "Scurv_sector_energy": {
+              "TT": 0.31203889079521213,
+              "gauge": 0.17086192368546682,
+              "row": 0.517099185519321
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.0006235575879957435,
+            "index_det_winding": 0.0006235575879958093,
+            "nearest_int": 0,
+            "int_dev": 0.0006235575879958093,
+            "berry_phases": [
+              -0.27744649038402497,
+              0.0010478729183398849,
+              0.2803165453407603
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.806424125036478,
+              0.4795423350504869,
+              0.3221791770139128,
+              0.20968722762973552,
+              5.170774461658714e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.21718379542651584,
+              63.173105899634095,
+              73.08296149606771,
+              85.83321954550064
+            ],
+            "max_angle_deg": 85.83321954550064,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.49077568633812013,
+            "max_resid_outside_kerC": 0.8089837487021116,
+            "Scurv_sector_energy": {
+              "TT": 0.2809349338432172,
+              "gauge": 0.17778643936889654,
+              "row": 0.5412786267878862
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.00021453189808458723,
+            "index_det_winding": 1.000214531898085,
+            "nearest_int": 1,
+            "int_dev": 0.00021453189808506856,
+            "berry_phases": [
+              -0.048821017934841476,
+              0.0005722042795998163,
+              0.04959675732520809
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7405136125037401,
+              0.5701231916164949,
+              0.45147279840548665,
+              0.3244670163747629,
+              4.534580927783737e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.8246977935621285,
+              65.76462055092264,
+              75.93463248025022,
+              80.03853347303767
+            ],
+            "max_angle_deg": 80.03853347303767,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.4875365403436194,
+            "max_resid_outside_kerC": 0.8808020479922666,
+            "Scurv_sector_energy": {
+              "TT": 0.29062373431095984,
+              "gauge": 0.1608320247076124,
+              "row": 0.5485442409814277
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -5.2042987142913095e-06,
+            "index_det_winding": -2.000005204298714,
+            "nearest_int": -2,
+            "int_dev": 5.204298714200917e-06,
+            "berry_phases": [
+              -0.035979199062550885,
+              -0.0008356086158869715,
+              0.03678210810522205
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999996,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.3,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7108840086203697,
+              0.547262878630964,
+              0.4241743002238156,
+              0.3100195456946906,
+              3.88704039164881e-15
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.07308791711430399,
+              60.85452388678744,
+              73.10402426025358,
+              77.67397242316899
+            ],
+            "max_angle_deg": 77.67397242316899,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.618124324565467,
+            "max_resid_outside_kerC": 0.9425599607605211,
+            "Scurv_sector_energy": {
+              "TT": 0.24232064262511602,
+              "gauge": 0.2311264185932352,
+              "row": 0.5265529387816485
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -1.2230722943118955e-05,
+            "index_det_winding": 1.9999877692770576,
+            "nearest_int": 2,
+            "int_dev": 1.2230722942430106e-05,
+            "berry_phases": [
+              -0.14240380760714427,
+              -0.000240721361350082,
+              0.14256768106980197
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7698647253067809,
+              0.5034626588100519,
+              0.38725166260563587,
+              0.19895671741325152,
+              2.9998821321079366e-14
+            ],
+            "principal_angles_deg": [
+              1.2074182697257333e-06,
+              0.09681123097858646,
+              57.648588810227125,
+              70.5046997564124,
+              77.31429825972036
+            ],
+            "max_angle_deg": 77.31429825972036,
+            "min_angle_deg": 1.2074182697257333e-06,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5933363616376827,
+            "max_resid_outside_kerC": 0.8581480559486031,
+            "Scurv_sector_energy": {
+              "TT": 0.2540319857409813,
+              "gauge": 0.23515626487829494,
+              "row": 0.5108117493807238
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -0.024803329618037263,
+            "index_det_winding": -1.0248033296181105,
+            "nearest_int": -1,
+            "int_dev": 0.024803329618110492,
+            "berry_phases": [
+              -0.15711065253816475,
+              -0.00025011381192243276,
+              0.001516850124903205
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999993,
+            "bundle_gap_vs_TT_deg": 89.99999999999994,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7097866315106423,
+              0.5633751357244665,
+              0.27241053551547173,
+              0.04351116965549909,
+              4.577299514207575e-13
+            ],
+            "principal_angles_deg": [
+              1.546207875210074,
+              51.787509054848066,
+              63.97582136697018,
+              72.88617160140848
+            ],
+            "max_angle_deg": 72.88617160140848,
+            "min_angle_deg": 1.546207875210074,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5660577891965823,
+            "max_resid_outside_kerC": 0.8119570891882052,
+            "Scurv_sector_energy": {
+              "TT": 0.1769405199612959,
+              "gauge": 0.23831200263658645,
+              "row": 0.5847474774021174
+            },
+            "off": false
+          },
+          "index": {
+            "defined": false,
+            "reason": "locked-bundle rank not constant",
+            "ranks_on_loop": [
+              3,
+              4
+            ],
+            "radius": 0.6,
+            "nphi": 48,
+            "bundle_gap_vs_kerC_deg": 89.9999999999999
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.6,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5236811234867624,
+              0.2938159674774162,
+              0.15185181253540514,
+              0.06131475199198825,
+              4.0204932999644454e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.011232573471892519,
+              63.13094141044329,
+              67.20840979132177,
+              76.01301836338494
+            ],
+            "max_angle_deg": 76.01301836338494,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.7217100432738067,
+            "max_resid_outside_kerC": 0.9278372969826035,
+            "Scurv_sector_energy": {
+              "TT": 0.14602268536822544,
+              "gauge": 0.3365262290806892,
+              "row": 0.5174510855510854
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.4950467273993281,
+            "index_det_winding": 0.4954014605494117,
+            "nearest_int": 0,
+            "int_dev": 0.4954014605494117,
+            "berry_phases": [
+              -0.0006564705102557473,
+              0.0006051549685351204,
+              3.1105216395045168
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999996,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "pos",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5220009050888624,
+              0.44417096252794924,
+              0.2582098789543647,
+              0.04887667040565686,
+              1.0803391886411653e-14
+            ],
+            "principal_angles_deg": [
+              0.017042800127003464,
+              40.340915605664414,
+              54.93984507450794,
+              75.94821351797384
+            ],
+            "max_angle_deg": 75.94821351797384,
+            "min_angle_deg": 0.017042800127003464,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 2,
+            "mean_resid_outside_kerC": 0.592543024697008,
+            "max_resid_outside_kerC": 0.8533769567044994,
+            "Scurv_sector_energy": {
+              "TT": 0.23182668843275614,
+              "gauge": 0.26064491903146036,
+              "row": 0.5075283925357834
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.18306833065764042,
+            "index_det_winding": 2.449608355313716,
+            "nearest_int": 2,
+            "int_dev": 0.4496083553137158,
+            "berry_phases": [
+              -0.00195253669328839,
+              0.0011629022044534702,
+              1.1510418798868154
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999993,
+            "bundle_gap_vs_TT_deg": 89.99999999999996,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "pos",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7946841535204977,
+              0.5709317385148062,
+              0.36261716470864863,
+              0.020602614519404008,
+              1.4714412957195413e-12
+            ],
+            "principal_angles_deg": [
+              0.4314263786807256,
+              52.832105027785275,
+              70.50906646440878,
+              78.91133438647577
+            ],
+            "max_angle_deg": 78.91133438647577,
+            "min_angle_deg": 0.4314263786807256,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5497491945709797,
+            "max_resid_outside_kerC": 0.8893169959600459,
+            "Scurv_sector_energy": {
+              "TT": 0.20899367578593736,
+              "gauge": 0.16932163271746567,
+              "row": 0.621684691496597
+            },
+            "off": false
+          },
+          "index": {
+            "defined": false,
+            "reason": "locked-bundle rank not constant",
+            "ranks_on_loop": [
+              3,
+              4
+            ],
+            "radius": 0.6,
+            "nphi": 48,
+            "bundle_gap_vs_kerC_deg": 89.99999999999996
+          }
+        }
+      }
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "tag": "th=0.5 (c=0.878)",
+      "c": 0.8775825618903728,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5989711200948368,
+              0.4653398203674274,
+              0.37188590477691297,
+              0.009821750363303742,
+              8.28416779637901e-11
+            ],
+            "principal_angles_deg": [
+              0.17313150816320289,
+              57.31989002506263,
+              71.00396019116151,
+              82.67401405670667
+            ],
+            "max_angle_deg": 82.67401405670667,
+            "min_angle_deg": 0.17313150816320289,
+            "n_inside_kerC(<5deg)": 1,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.43011641757266883,
+            "max_resid_outside_kerC": 0.9187803480958999,
+            "Scurv_sector_energy": {
+              "TT": 0.22210091167099583,
+              "gauge": 0.13133581235616423,
+              "row": 0.6465632759728399
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.0012531595784826249,
+            "index_det_winding": -1.9987468404215174,
+            "nearest_int": -2,
+            "int_dev": 0.0012531595784825988,
+            "berry_phases": [
+              -0.12768588113374907,
+              -0.00019318366116689517,
+              0.13575289864598936
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.6018067619378217,
+              0.36095653693576024,
+              0.1648486855028325,
+              0.1395117350480782,
+              3.5871204928868955e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.03996683529363818,
+              59.41335206413916,
+              73.79602691551202,
+              85.11017061388881
+            ],
+            "max_angle_deg": 85.11017061388881,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.44581653880069966,
+            "max_resid_outside_kerC": 0.9025800442314157,
+            "Scurv_sector_energy": {
+              "TT": 0.2915169930660455,
+              "gauge": 0.1772945180145785,
+              "row": 0.531188488919376
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 1.584543687054787e-05,
+            "index_det_winding": -2.99998415456313,
+            "nearest_int": -3,
+            "int_dev": 1.5845436870165486e-05,
+            "berry_phases": [
+              -0.018135065450364248,
+              -0.00016999241561192286,
+              0.01840461768210704
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.574370805741914,
+              0.5198384975793735,
+              0.4226608158348564,
+              0.18567118764306945,
+              5.503722259839947e-14
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.8095787181700892,
+              51.195562838917404,
+              72.90473389707492,
+              81.53318175541737
+            ],
+            "max_angle_deg": 81.53318175541737,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5076762676949066,
+            "max_resid_outside_kerC": 0.9138907429075245,
+            "Scurv_sector_energy": {
+              "TT": 0.2950788971705348,
+              "gauge": 0.20504114986086316,
+              "row": 0.4998799529686021
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.0006168786461260144,
+            "index_det_winding": -0.9993831213538741,
+            "nearest_int": -1,
+            "int_dev": 0.0006168786461259179,
+            "berry_phases": [
+              -0.06843420039670398,
+              0.0013352079176325218,
+              0.07097495532472327
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        }
+      }
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.3,
+      "tag": "th=0.5 (c=0.878)",
+      "c": 0.8775825618903728,
+      "per_k": {
+        "(2, 0, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8283299339838502,
+              0.6116724453408138,
+              0.44960574358097044,
+              0.3808105065068613,
+              1.6188310053273823e-13
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.08901667151042808,
+              43.57042635893765,
+              70.69634331557194,
+              84.11985316416384
+            ],
+            "max_angle_deg": 84.11985316416384,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 2,
+            "mean_resid_outside_kerC": 0.44888894150291336,
+            "max_resid_outside_kerC": 0.7346339704690531,
+            "Scurv_sector_energy": {
+              "TT": 0.27645498622023684,
+              "gauge": 0.25248764328971973,
+              "row": 0.4710573704900437
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 3.6535143559957604e-05,
+            "index_det_winding": 1.0000365351435603,
+            "nearest_int": 1,
+            "int_dev": 3.653514356027898e-05,
+            "berry_phases": [
+              -0.16172781362280536,
+              -0.00029270481786041787,
+              0.1622500755178774
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999996,
+            "bundle_gap_vs_TT_deg": 89.99999999999997,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 0)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8482234233650384,
+              0.5231960210932258,
+              0.2779930090572669,
+              0.20750217686983258,
+              1.8035889720519263e-13
+            ],
+            "principal_angles_deg": [
+              0.0,
+              0.026117275464981604,
+              54.46426380154854,
+              72.32064760545761,
+              77.09294430917491
+            ],
+            "max_angle_deg": 77.09294430917491,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.5663195601234273,
+            "max_resid_outside_kerC": 0.8101766080880761,
+            "Scurv_sector_energy": {
+              "TT": 0.16233794137929367,
+              "gauge": 0.33364750915625646,
+              "row": 0.5040145494644499
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": 0.024197613444990614,
+            "index_det_winding": 1.0241976084520816,
+            "nearest_int": 1,
+            "int_dev": 0.02419760845208163,
+            "berry_phases": [
+              0.0011070847532905566,
+              0.0015410887882688683,
+              0.14938991572481683
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999993,
+            "bundle_gap_vs_TT_deg": 89.99999999999994,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        },
+        "(2, 2, 2)": {
+          "observables": {
+            "n_unit": 12,
+            "dominant_branch": "neg",
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7636518352981968,
+              0.37601446543254785,
+              0.2415898712521568,
+              0.13424094787551574,
+              3.6631139125011613e-13
+            ],
+            "principal_angles_deg": [
+              0.0,
+              2.102705748670832,
+              53.44131830795965,
+              67.49135548453502,
+              71.37930254973294
+            ],
+            "max_angle_deg": 71.37930254973294,
+            "min_angle_deg": 0.0,
+            "n_inside_kerC(<5deg)": 2,
+            "n_locked(>45deg)": 3,
+            "mean_resid_outside_kerC": 0.6094376856679345,
+            "max_resid_outside_kerC": 0.7567831385865786,
+            "Scurv_sector_energy": {
+              "TT": 0.14053568564163782,
+              "gauge": 0.3798552199326587,
+              "row": 0.47960909442570365
+            },
+            "off": false
+          },
+          "index": {
+            "defined": true,
+            "rank": 3,
+            "index_berry_over_2pi": -0.2820514437989147,
+            "index_det_winding": -3.2745904912707595,
+            "nearest_int": -3,
+            "int_dev": 0.2745904912707595,
+            "berry_phases": [
+              -1.743400977935545,
+              -0.7996825769773342,
+              0.7709020673667494
+            ],
+            "bundle_gap_vs_kerC_deg": 89.99999999999994,
+            "bundle_gap_vs_TT_deg": 89.99999999999996,
+            "gapped_around_loop": true,
+            "radius": 0.6,
+            "nphi": 48
+          }
+        }
+      }
+    }
+  ],
+  "index_refinement": [
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.0,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 0.0001268129872612802,
+        "48": -0.9999417052491263,
+        "96": -2.9998683848803083
+      },
+      "refine_spread": 2.9999951978675696,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.0,
+      "k": [
+        2,
+        2,
+        2
+      ],
+      "det_winding_by_nphi": {
+        "24": -3.6944876059817826e-05,
+        "48": -3.694304300531365e-05,
+        "96": null
+      },
+      "refine_spread": 1.8330545041789692e-09,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 1.0002790246597344,
+        "48": -0.0014748009737816212,
+        "96": 0.9989526351456331
+      },
+      "refine_spread": 1.0017538256335161,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 0.00021947560990147764,
+        "48": -6.000317076196874,
+        "96": -4.001178588628727
+      },
+      "refine_spread": 6.000536551806775,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "k": [
+        2,
+        2,
+        2
+      ],
+      "det_winding_by_nphi": {
+        "24": -1.0000536200900902,
+        "48": -1.6949999703871693e-05,
+        "96": 4.9999850555096605
+      },
+      "refine_spread": 6.00003867559975,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -0.9993831377389981,
+        "48": 0.0006235575879958093,
+        "96": null
+      },
+      "refine_spread": 1.000006695326994,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 2.0002573362160114,
+        "48": 1.000214531898085,
+        "96": 3.000251250061528
+      },
+      "refine_spread": 2.000036718163443,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "k": [
+        2,
+        2,
+        2
+      ],
+      "det_winding_by_nphi": {
+        "24": -0.9999711597657455,
+        "48": -2.000005204298714,
+        "96": -0.9999884032011064
+      },
+      "refine_spread": 1.0000340445329687,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.3,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 1.9999933869169957,
+        "48": 1.9999877692770576,
+        "96": -0.9999791361033026
+      },
+      "refine_spread": 2.9999725230202983,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.3,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": 0.00015211035654047366,
+        "48": -1.0248033296181105,
+        "96": 0.0546310589859471
+      },
+      "refine_spread": 1.0794343886040576,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999993,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.6,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -3.501765574031025,
+        "48": 0.4954014605494117,
+        "96": 4.017143451667479
+      },
+      "refine_spread": 7.5189090256985045,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.6,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -2.961294221252316,
+        "48": 2.449608355313716,
+        "96": 0.2081022773115836
+      },
+      "refine_spread": 5.410902576566032,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999993,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -0.9997001694475232,
+        "48": -1.9987468404215174,
+        "96": -1.9993080552920641
+      },
+      "refine_spread": 0.999607885844541,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -2.9999805778636697,
+        "48": -2.99998415456313,
+        "96": 9.897147024999157e-06
+      },
+      "refine_spread": 2.999994051710155,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "k": [
+        2,
+        2,
+        2
+      ],
+      "det_winding_by_nphi": {
+        "24": 0.0005721444159840669,
+        "48": -0.9993831213538741,
+        "96": 3.0014120463261604
+      },
+      "refine_spread": 4.000795167680034,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.3,
+      "k": [
+        2,
+        0,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -1.3698024203839401e-05,
+        "48": 1.0000365351435603,
+        "96": -2.9999768649246197
+      },
+      "refine_spread": 4.00001340006818,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999996,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.3,
+      "k": [
+        2,
+        2,
+        0
+      ],
+      "det_winding_by_nphi": {
+        "24": -0.9852758654534504,
+        "48": 1.0241976084520816,
+        "96": -1.1678063507459429
+      },
+      "refine_spread": 2.1920039591980247,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999993,
+      "gapped": true
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.3,
+      "k": [
+        2,
+        2,
+        2
+      ],
+      "det_winding_by_nphi": {
+        "24": 0.8802354465176319,
+        "48": -3.2745904912707595,
+        "96": -1.9643265197834026
+      },
+      "refine_spread": 4.154825937788392,
+      "rank": 3,
+      "gap_vs_kerC_deg": 89.99999999999994,
+      "gapped": true
+    }
+  ],
+  "verdict_tag": "NEEDS-COUNCIL (index not cleanly converged; no angle/N_prop signal)",
+  "verdict": "No dm-direction angle/N_prop signal (N_prop stays 4-5 -- never 2, max locked-angle floor drop only 7.4 deg), BUT the tensor index does NOT converge to a clean integer: under BZ-loop refinement (nphi 24/48/96) the det-winding jumps by up to 7.5 (>> tol 0.25), so the locked constraint-row bundle is NOT a smooth gapped subbundle over the loop and carries NO clean quantized invariant. Per the honesty discipline (R33-consistent: the massless/tensor point is plausibly gapless at the bundle level too) this is INDEX NOT CLEANLY CONVERGED -> NEEDS-COUNCIL. Two-sided blanks held: NOT a topological lock (no clean integer), NOT deformation-feasible (N_prop never 2). The apparent integer 'jumps' along dm are refinement noise, not a physical zero-crossing.",
+  "signal_metrics": {
+    "max_locked_angle_drop_deg": 7.355952652410508,
+    "angle_drop_by_k": {
+      "(2, 0, 0)": {
+        "dm0_max_angle": 83.36897101579545,
+        "min_over_dm": 76.01301836338494,
+        "drop_deg": 7.355952652410508
+      },
+      "(2, 2, 0)": {
+        "dm0_max_angle": 78.02407790697148,
+        "min_over_dm": 75.94821351797384,
+        "drop_deg": 2.075864388997644
+      },
+      "(2, 2, 2)": {
+        "dm0_max_angle": 78.27994979438805,
+        "min_over_dm": 72.88617160140848,
+        "drop_deg": 5.393778192979568
+      }
+    },
+    "index_zero_crossing_by_k": {
+      "(2, 0, 0)": {
+        "I_by_dm": {
+          "0.05": -0.0014748009737816212,
+          "0.15": 0.0006235575879958093,
+          "0.30": 1.9999877692770576,
+          "0.60": 0.4954014605494117
+        },
+        "crosses_zero": true,
+        "nearest_ints": [
+          0,
+          0,
+          2,
+          0
+        ],
+        "int_changes": true
+      },
+      "(2, 2, 0)": {
+        "I_by_dm": {
+          "0.00": -0.9999417052491263,
+          "0.05": -6.000317076196874,
+          "0.15": 1.000214531898085,
+          "0.30": -1.0248033296181105,
+          "0.60": 2.449608355313716
+        },
+        "crosses_zero": true,
+        "nearest_ints": [
+          -1,
+          -6,
+          1,
+          -1,
+          2
+        ],
+        "int_changes": true
+      },
+      "(2, 2, 2)": {
+        "I_by_dm": {
+          "0.00": -3.694304300531365e-05,
+          "0.05": -1.6949999703871693e-05,
+          "0.15": -2.000005204298714
+        },
+        "crosses_zero": true,
+        "nearest_ints": [
+          0,
+          0,
+          -2
+        ],
+        "int_changes": true
+      }
+    },
+    "N_prop_values_th0_line": [
+      4,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4,
+      5,
+      4,
+      4
+    ],
+    "N_prop_all_ge4": true,
+    "N_prop_hits_2": false,
+    "index_clean_nonzero_integer": false,
+    "index_well_defined_converges": false,
+    "index_max_refine_spread": 7.5189090256985045,
+    "index_refine_stable": false,
+    "index_int_devs": [
+      5.829475087371083e-05,
+      3.694304300531365e-05,
+      0.0014748009737816212,
+      0.0003170761968736002,
+      1.6949999703871693e-05,
+      0.0006235575879958093,
+      0.00021453189808506856,
+      5.204298714200917e-06,
+      1.2230722942430106e-05,
+      0.024803329618110492,
+      0.4954014605494117,
+      0.4496083553137158
+    ],
+    "index_values": [
+      -0.9999417052491263,
+      -3.694304300531365e-05,
+      -0.0014748009737816212,
+      -6.000317076196874,
+      -1.6949999703871693e-05,
+      0.0006235575879958093,
+      1.000214531898085,
+      -2.000005204298714,
+      1.9999877692770576,
+      -1.0248033296181105,
+      0.4954014605494117,
+      2.449608355313716
+    ],
+    "bundle_gaps_deg": [
+      89.99999999999994,
+      89.99999999999994,
+      89.99999999999996,
+      89.99999999999994,
+      89.99999999999994,
+      89.99999999999996,
+      89.99999999999994,
+      89.99999999999996,
+      89.99999999999994,
+      89.99999999999993,
+      89.99999999999994,
+      89.99999999999993
+    ]
+  },
+  "figure": "visualizations/figs/rc1a_tensor_index.png",
+  "source_sha256": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+  "total_seconds": 16.959383010864258,
+  "results_sha256": "e0bb7e3abc7b4326714a3654a66b51781c4164aa1c585a4b4cc41b1f3b3ee275"
+}
