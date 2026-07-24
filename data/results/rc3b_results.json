@@ -1,0 +1,1231 @@
+{
+  "register": "RC3-probe-two-complex-route-walk-Yee-ization (可达性战役 §11 + R35)",
+  "status": "DONE",
+  "backend": "numpy",
+  "hypothesis": "PREREGISTERED, LAST FIXABLE HYPOTHESIS (PI order): can the emergent walk's +w gauge-propagation (b) half be Yee-ized (R30 local curl + operator identity) to drop N_prop to 2, WITHOUT slaving (R35-dead), non-local projection (R29-dead), touching TT, breaking emergence, or breaking the J5 co-cone? All five => FIXABLE; any fail => (ii), name the stuck criterion. NO 4th hypothesis if NO.",
+  "params": {
+    "N": 16,
+    "mu": 0.001995262314968879,
+    "theta0": 1.0471975511965976,
+    "c0": 0.5000000000000001,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "dm_line": [
+      0.0,
+      0.05,
+      0.15,
+      0.3,
+      0.6
+    ],
+    "theta_line": [
+      0.4,
+      1.0471975511965976,
+      1.0,
+      1.2
+    ],
+    "sv_thresh": 0.05
+  },
+  "frozen_inputs_sha256": {
+    "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+  },
+  "red_lines": "two-sided blanks: no FIXABLE unless all five pass; no structural no-go theorem (cheap probe = SIGNAL, (ii) adjudicates). LAST fixable hypothesis; if NO deliver (ii), no 4th hypothesis. frozen inputs read-only; fp64. R30 existence & boundary unchanged (existence != emergence != M3); no M3/emergence/reachability closed.",
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "scan": [
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.0,
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.4290255283162102,
+            0.31618987283012867,
+            0.17624118144870304,
+            0.026958729282818818,
+            1.507713170987098e-11
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.14199714588368612,
+            0.8157896387725947,
+            0.04221321534371913
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.4290255283162101,
+            0.3161898728301287,
+            0.17624118144870318,
+            0.026958729282818797,
+            1.5077132226645594e-11
+          ],
+          "curv_total": 1.0605002674920516,
+          "curv_gauge_part": 2.759353939242925e-16,
+          "curv_nongauge_part": 1.0605002674920516,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.3272108459248697,
+            3.1981690071501525e-16,
+            1.6746703318376492e-16,
+            7.82685588974854e-17,
+            3.7148170162282296e-17
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.13779031458952906,
+            0.1713162932425906,
+            0.16922865245395766,
+            0.1626990332888052,
+            0.11047839143772163,
+            0.1775137049625285
+          ],
+          "plusW_resid_outside_kerC_max": 0.1775137049625285,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.48819747841410394,
+            1.304879117773377,
+            10.05238148402336,
+            21.790065373850833
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 21.790065373850833
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.533830469935162,
+            0.1550419039468778,
+            0.10323931350795329,
+            0.0082205493365267,
+            6.467502138353544e-15
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.22529681923867648,
+            0.7596983013176427,
+            0.015004879443680657
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.5338304699351618,
+            0.15504190394687786,
+            0.10323931350795323,
+            0.008220549336526689,
+            6.534282984906068e-15
+          ],
+          "curv_total": 2.7779666503747813,
+          "curv_gauge_part": 7.227730032972185e-16,
+          "curv_nongauge_part": 2.7779666503747813,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.5392155943077401,
+            2.070082574474874e-16,
+            9.579958991972779e-17,
+            5.938127801389193e-17,
+            2.639353623310677e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.0749391880456376,
+            0.050845224845421755,
+            0.08405254639910545,
+            0.11932470155384535,
+            0.17966066843279108,
+            0.10703563081089279
+          ],
+          "plusW_resid_outside_kerC_max": 0.17966066843279108,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.09926106347599997,
+            4.319806879677869,
+            8.298198004279614,
+            10.54839781203492
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 10.54839781203492
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.7446450246911254,
+            0.14173099212104598,
+            0.09056430303302122,
+            0.0030309699850999444,
+            2.9956844215080515e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.39161205368485724,
+            0.5991561789709035,
+            0.009231767344239158
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.7446450246911255,
+            0.14173099212104598,
+            0.0905643030330212,
+            0.003030969985099935,
+            2.991323661366471e-14
+          ],
+          "curv_total": 5.614061886552133,
+          "curv_gauge_part": 5.173923385348171e-16,
+          "curv_nongauge_part": 5.614061886552133,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.7205831868872594,
+            3.741448375400221e-16,
+            2.2507911363111024e-16,
+            8.730613728408453e-17,
+            5.0806431196815714e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.06596075845830583,
+            0.11195071020524308,
+            0.08181239660072953,
+            0.080550534197029,
+            0.052063126780119574,
+            0.06508688215846314
+          ],
+          "plusW_resid_outside_kerC_max": 0.11195071020524308,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.08612481420116472,
+            4.444536977125504,
+            5.4829116068847386,
+            8.488680571863116
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 8.488680571863116
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.2662256577071545,
+            0.1250230554032881,
+            0.09424297428123155,
+            0.0031735245879955564,
+            7.261296599167507e-13
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.06302877178104914,
+            0.9268199173395375,
+            0.0101513108794132
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.26622565770715445,
+            0.12502305540328812,
+            0.0942429742812315,
+            0.0031735245879955624,
+            7.26160560167287e-13
+          ],
+          "curv_total": 0.6655522319325916,
+          "curv_gauge_part": 2.8302770173011545e-16,
+          "curv_nongauge_part": 0.6655522319325916,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.13708485308423074,
+            2.881727837860793e-16,
+            1.546360183028284e-16,
+            7.064485275833246e-17,
+            1.2700951124469868e-17
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.045510307340697026,
+            0.0433016773523511,
+            0.07526683323993189,
+            0.03237021204826966,
+            0.05396282164242473,
+            0.07494977078705777
+          ],
+          "plusW_resid_outside_kerC_max": 0.07526683323993189,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.4065355769476444,
+            1.1866195788017877,
+            4.014455624046293,
+            10.817595873953213
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 10.817595873953213
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 2,
+          "svn_raw": [
+            1.0,
+            0.1572767005973859,
+            0.04816254464209344,
+            0.03265257561757938,
+            0.004997537861048648,
+            6.701687281173945e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.17472732817665587,
+            0.8181830215023126,
+            0.007089650321031201
+          ],
+          "N_prop_after_R30_gauge_curl": 2,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.15727670059738602,
+            0.0481625446420935,
+            0.03265257561757942,
+            0.00499753786104872,
+            6.70482656344252e-14
+          ],
+          "curv_total": 1.5917646199188793,
+          "curv_gauge_part": 4.468414322730078e-16,
+          "curv_nongauge_part": 1.591764619918879,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.13643788196298,
+            2.2564459130156307e-16,
+            1.2167012206138867e-16,
+            8.492748316649052e-17,
+            2.6992925972164695e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.026589960224793364,
+            0.03476172342635981,
+            0.0130778644759632,
+            0.04945688367482115,
+            0.05108825834035094,
+            0.03227947241767218
+          ],
+          "plusW_resid_outside_kerC_max": 0.05108825834035094,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            1.37131623292562,
+            6.698643434867282
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 6.698643434867282
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.4228707071374997,
+            0.17558164621171554,
+            0.1242973320576369,
+            0.007227767220730529,
+            1.8108103224632196e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.3709645273213739,
+            0.6093818779886101,
+            0.019653594690015902
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.4228707071374996,
+            0.1755816462117156,
+            0.12429733205763681,
+            0.0072277672207305375,
+            1.8096935616922732e-14
+          ],
+          "curv_total": 5.562023107841312,
+          "curv_gauge_part": 5.284045564187964e-16,
+          "curv_nongauge_part": 5.562023107841313,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.3960530842355934,
+            2.1477957513874046e-16,
+            1.626340294000841e-16,
+            9.082146105436912e-17,
+            5.4653285490024036e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.10485546542084355,
+            0.14934489177050012,
+            0.13891943140550986,
+            0.1490482947655326,
+            0.11058436321674946,
+            0.08533631143564145
+          ],
+          "plusW_resid_outside_kerC_max": 0.14934489177050012,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.14564771436966395,
+            6.283374599375174,
+            8.912736687981582,
+            11.915046977462298
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 11.915046977462298
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.6640422445817091,
+            0.3934614917840898,
+            0.3229940970657861,
+            0.02011637761424255,
+            7.005226016342185e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.25525292177514364,
+            0.6682694174219113,
+            0.07647766080294485
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.6640422445817087,
+            0.39346149178408973,
+            0.32299409706578613,
+            0.02011637761424264,
+            7.008635734027311e-14
+          ],
+          "curv_total": 1.6700653041520632,
+          "curv_gauge_part": 2.3483203529428997e-16,
+          "curv_nongauge_part": 1.6700653041520632,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.7180931068040333,
+            4.4288054801073844e-16,
+            2.2699907119519e-16,
+            1.1084844793060341e-16,
+            8.466047286504452e-18
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.15009272946751454,
+            0.3458487291046813,
+            0.22510352874011066,
+            0.25819964794042727,
+            0.16938986440176285,
+            0.2997905956545842
+          ],
+          "plusW_resid_outside_kerC_max": 0.3458487291046813,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.10920628329627433,
+            9.389041783335175,
+            19.405931004999015,
+            24.26586058851226
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 24.26586058851226
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.7777589153113097,
+            0.3374759645496699,
+            0.16827287610846028,
+            0.031659002854675544,
+            2.763285326660475e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.2691190651025186,
+            0.6510184416324845,
+            0.07986249326499688
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.7777589153113095,
+            0.33747596454966977,
+            0.16827287610846026,
+            0.031659002854675614,
+            2.769316774892007e-14
+          ],
+          "curv_total": 3.4452198406487624,
+          "curv_gauge_part": 5.520225584343259e-16,
+          "curv_nongauge_part": 3.4452198406487624,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.7119499701271358,
+            4.525884744606273e-16,
+            1.3232501037442275e-16,
+            5.4694401726474794e-17,
+            4.5548147165290444e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.1762132154304573,
+            0.17799933478870347,
+            0.20878446886369384,
+            0.2957213138584136,
+            0.20594915918017756,
+            0.37841435819117564
+          ],
+          "plusW_resid_outside_kerC_max": 0.37841435819117564,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.163554019831151,
+            11.476723094445257,
+            19.354845166497892,
+            24.35121994463684
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 24.35121994463684
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 5,
+          "svn_raw": [
+            1.0,
+            0.8048914086530573,
+            0.3045507272731479,
+            0.22895912948801375,
+            0.05019831112171856,
+            6.761257382823322e-15
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.3212084876121746,
+            0.6011084716907835,
+            0.07768304069704164
+          ],
+          "N_prop_after_R30_gauge_curl": 5,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.8048914086530571,
+            0.30455072727314797,
+            0.22895912948801364,
+            0.05019831112171854,
+            6.7430181769752154e-15
+          ],
+          "curv_total": 6.24873126510501,
+          "curv_gauge_part": 5.310050673612751e-16,
+          "curv_nongauge_part": 6.24873126510501,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.7341607385176895,
+            2.9249816699920433e-16,
+            1.2384745411717146e-16,
+            7.902769993007448e-17,
+            3.695358829635407e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.1889051698793662,
+            0.2746352008063208,
+            0.2530485785753231,
+            0.20149368426838743,
+            0.2834048969342851,
+            0.2582975696697921
+          ],
+          "plusW_resid_outside_kerC_max": 0.2834048969342851,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            8.537736462515939e-07,
+            0.15299646679913914,
+            16.949152540960505,
+            21.686305265426974,
+            24.110775253542375
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 24.110775253542375
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.3,
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 5,
+          "svn_raw": [
+            1.0,
+            0.4825748747272028,
+            0.3138132573658901,
+            0.17326947415729077,
+            0.05383699909090721,
+            4.585339982555362e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.19357879621161692,
+            0.5803086246407442,
+            0.22611257914763883
+          ],
+          "N_prop_after_R30_gauge_curl": 5,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.482574874727203,
+            0.3138132573658903,
+            0.17326947415729071,
+            0.0538369990909072,
+            4.5849277513749665e-14
+          ],
+          "curv_total": 2.0612407060138516,
+          "curv_gauge_part": 2.3780882031900606e-16,
+          "curv_nongauge_part": 2.0612407060138516,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.31230978585665875,
+            2.8817281266718644e-16,
+            1.9825989619070994e-16,
+            1.1857017532425372e-16,
+            4.561059923455788e-17
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.34466188506286005,
+            0.6158832867743443,
+            0.46743619597652575,
+            0.5061060470752774,
+            0.5544342098382886,
+            0.59712717874082
+          ],
+          "plusW_resid_outside_kerC_max": 0.6158832867743443,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            8.537736462515939e-07,
+            0.011374890229991563,
+            22.174401456113962,
+            40.27860709020926,
+            49.032196328309844
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 49.032196328309844
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 5,
+          "svn_raw": [
+            1.0,
+            0.5943618284388381,
+            0.4286390915336559,
+            0.33498892748879855,
+            0.1361420674708231,
+            8.87253313945957e-15
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.25811103257229306,
+            0.4288436598786484,
+            0.31304530754905846
+          ],
+          "N_prop_after_R30_gauge_curl": 5,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.5943618284388379,
+            0.4286390915336558,
+            0.33498892748879855,
+            0.13614206747082302,
+            8.842752556535925e-15
+          ],
+          "curv_total": 4.94007403592572,
+          "curv_gauge_part": 3.7977011605117514e-16,
+          "curv_nongauge_part": 4.94007403592572,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.4955396165615347,
+            4.289582290571258e-16,
+            1.0642835613879752e-16,
+            7.350608144876715e-17,
+            4.407158788268832e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.38624971108673534,
+            0.4534864993171651,
+            0.5777450281339118,
+            0.55161066587022,
+            0.6468858730993404,
+            0.6153121886887212
+          ],
+          "plusW_resid_outside_kerC_max": 0.6468858730993404,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            1.7075472925031877e-06,
+            0.3668610331789048,
+            41.23712134660332,
+            44.32318109339178,
+            53.27841420493612
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 53.27841420493612
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.6529281409512154,
+            0.31420384090372655,
+            0.12282031719652502,
+            0.04511865534024761,
+            6.497468761889892e-13
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.23230794334666566,
+            0.5429658324764288,
+            0.22472622417690552
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.6529281409512157,
+            0.31420384090372655,
+            0.12282031719652504,
+            0.04511865534024761,
+            6.497084357987081e-13
+          ],
+          "curv_total": 5.772827851355143,
+          "curv_gauge_part": 5.739816139019985e-16,
+          "curv_nongauge_part": 5.772827851355143,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.3674023598231678,
+            5.13464923680912e-16,
+            1.0292148871090484e-16,
+            5.592826841167859e-17,
+            4.327201567829134e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.3350184694754488,
+            0.3312460276917077,
+            0.5566509542913349,
+            0.5139127526415449,
+            0.480777703928621,
+            0.26691721134045243
+          ],
+          "plusW_resid_outside_kerC_max": 0.5566509542913349,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.1771117700246718,
+            21.711912404621494,
+            29.907137793310053,
+            45.77026774187791
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 45.77026774187791
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.6,
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 5,
+          "svn_raw": [
+            1.0,
+            0.439325242997699,
+            0.30681958356005373,
+            0.20607263606584053,
+            0.08529994599694454,
+            1.5678359146336896e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.19116526300485004,
+            0.46068665995805863,
+            0.34814807703709144
+          ],
+          "N_prop_after_R30_gauge_curl": 5,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.4393252429976989,
+            0.30681958356005384,
+            0.2060726360658404,
+            0.0852999459969446,
+            1.566014071197212e-14
+          ],
+          "curv_total": 2.3796922113867596,
+          "curv_gauge_part": 2.415132282061737e-16,
+          "curv_nongauge_part": 2.3796922113867596,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.4696729244725164,
+            4.819488813690605e-16,
+            1.9120007422199776e-16,
+            7.654750799974439e-17,
+            4.755832850517297e-17
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.4398466450822897,
+            0.580782606608895,
+            0.678765474458702,
+            0.7489161549474503,
+            0.7161561018580087,
+            0.7585939366343123
+          ],
+          "plusW_resid_outside_kerC_max": 0.7585939366343123,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            8.537736462515939e-07,
+            0.015686937709046944,
+            34.68059160749277,
+            52.863229687203784,
+            62.12868885388079
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 62.12868885388079
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.5220009050888624,
+            0.4441709625279494,
+            0.25820987895436476,
+            0.04887667040565687,
+            1.0803391886411658e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.23182668843275614,
+            0.26064491903146036,
+            0.5075283925357834
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.5220009050888624,
+            0.44417096252794974,
+            0.2582098789543648,
+            0.048876670405656845,
+            1.0795212204049279e-14
+          ],
+          "curv_total": 4.982306408144288,
+          "curv_gauge_part": 2.8346726891000875e-16,
+          "curv_nongauge_part": 4.9823064081442885,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.8820890377513917,
+            5.740318634827342e-16,
+            2.145562302948386e-16,
+            9.345968793785488e-17,
+            4.968034758278212e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.4392191202189414,
+            0.8000281529739154,
+            0.8533769567044994,
+            0.755601302350872,
+            0.8216550009135776,
+            0.5506860405874924
+          ],
+          "plusW_resid_outside_kerC_max": 0.8533769567044994,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.017042800169773987,
+            40.34091560566443,
+            54.939845074507964,
+            75.94821351797384
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 75.94821351797384
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.7946841535204971,
+            0.5709317385148062,
+            0.3626171647086487,
+            0.020602614519403997,
+            1.4714412957195406e-12
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.20899367578593736,
+            0.16932163271746567,
+            0.621684691496597
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.7946841535204971,
+            0.5709317385148062,
+            0.3626171647086489,
+            0.020602614519403987,
+            1.471441998172118e-12
+          ],
+          "curv_total": 8.149420841223655,
+          "curv_gauge_part": 2.5837339132611214e-16,
+          "curv_nongauge_part": 8.149420841223655,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.8583789156920746,
+            4.2722093911907064e-16,
+            1.1074585043438455e-16,
+            7.57957622637065e-17,
+            2.794989289403297e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.5779511637486777,
+            0.8586470121790365,
+            0.7414329109490487,
+            0.7993908977547459,
+            0.8893169959600459,
+            0.6018819410988854
+          ],
+          "plusW_resid_outside_kerC_max": 0.8893169959600459,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.4314263786807256,
+            52.83210502778529,
+            70.50906646440876,
+            78.91133438647576
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 78.91133438647576
+        }
+      }
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "c": 0.8775825618903728,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 7.126217581441235e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.23620473175398504,
+            0.15128589598472753,
+            0.1260842800277949,
+            0.007742681736264034,
+            9.249331970927384e-12
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.2110952251498422,
+            0.7741362929454683,
+            0.01476848190468965
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.2362047317539851,
+            0.15128589598472747,
+            0.12608428002779493,
+            0.007742681736264004,
+            9.24933611281148e-12
+          ],
+          "curv_total": 1.134165233486512,
+          "curv_gauge_part": 2.306707286720553e-16,
+          "curv_nongauge_part": 1.134165233486512,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.22972915020835286,
+            2.765247530397102e-16,
+            1.661662560643719e-16,
+            9.08739724807613e-17,
+            2.101164014117699e-17
+          ],
+          "TT_residual_under_projection": 1.5700924586837752e-16,
+          "plusW_resid_outside_kerC": [
+            0.07148721121253125,
+            0.0664072293579244,
+            0.09472191560624692,
+            0.1549567814040368,
+            0.12356203389913556,
+            0.10715297871476596
+          ],
+          "plusW_resid_outside_kerC_max": 0.1549567814040368,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.19461461786627152,
+            0.5921300400700998,
+            6.740106746169464,
+            12.272289720458787
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 12.272289720458787
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 8.802883075958472e-17,
+          "N_prop_raw_plusW": 4,
+          "svn_raw": [
+            1.0,
+            0.5125487527132861,
+            0.1139004103957549,
+            0.10145763373124596,
+            0.006815367162306989,
+            1.0757069112896693e-13
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.4213550930376571,
+            0.557133246230211,
+            0.02151166073213195
+          ],
+          "N_prop_after_R30_gauge_curl": 4,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.5125487527132859,
+            0.11390041039575512,
+            0.101457633731246,
+            0.006815367162306954,
+            1.07630040801017e-13
+          ],
+          "curv_total": 3.974250946106125,
+          "curv_gauge_part": 4.808618792161392e-16,
+          "curv_nongauge_part": 3.974250946106125,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.5149014277629519,
+            2.56835709226893e-16,
+            2.2953754545636277e-16,
+            5.771575952704786e-17,
+            3.2566341330589935e-17
+          ],
+          "TT_residual_under_projection": 3.056165285712006e-16,
+          "plusW_resid_outside_kerC": [
+            0.09083977514732608,
+            0.0868960820614149,
+            0.1598321921979533,
+            0.13461772271627212,
+            0.07097780074649794,
+            0.1523365645827396
+          ],
+          "plusW_resid_outside_kerC_max": 0.1598321921979533,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.06011288494836434,
+            5.672866769913098,
+            11.031332912848267,
+            11.487343235045826
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 11.487343235045826
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_pos_modes": 6,
+          "exact_gauge_inc_identity": 1.0686895095977937e-16,
+          "N_prop_raw_plusW": 5,
+          "svn_raw": [
+            1.0,
+            0.6258774958185552,
+            0.25420274334002646,
+            0.20802752754780982,
+            0.0690358441548428,
+            9.024620159034322e-14
+          ],
+          "Scurv_sector_TT_gauge_row": [
+            0.3092169550893079,
+            0.5803595029055943,
+            0.1104235420050976
+          ],
+          "N_prop_after_R30_gauge_curl": 5,
+          "svn_after_R30_gauge_curl": [
+            1.0,
+            0.6258774958185553,
+            0.25420274334002646,
+            0.20802752754780984,
+            0.06903584415484285,
+            9.026727519042304e-14
+          ],
+          "curv_total": 6.468334416595461,
+          "curv_gauge_part": 6.456829775774487e-16,
+          "curv_nongauge_part": 6.468334416595461,
+          "N_prop_yee_projection": 2,
+          "svn_yee": [
+            1.0,
+            0.6258694197720891,
+            3.9130230866009875e-16,
+            1.7006029558923094e-16,
+            1.0653915505711342e-16,
+            7.613973357354294e-17
+          ],
+          "TT_residual_under_projection": 2.0440576689298477e-16,
+          "plusW_resid_outside_kerC": [
+            0.31517882037515826,
+            0.23673456793937242,
+            0.21062761215082051,
+            0.365320114836598,
+            0.3509241793784834,
+            0.13931241773983202
+          ],
+          "plusW_resid_outside_kerC_max": 0.365320114836598,
+          "principal_angles_Scurv_vs_kerC_deg": [
+            0.0,
+            0.05829334238257726,
+            19.39031700911476,
+            24.898731093874765,
+            30.959302302250485
+          ],
+          "max_angle_Scurv_vs_kerC_deg": 30.959302302250485
+        }
+      }
+    }
+  ],
+  "locality_test": {
+    "eps": 0.001,
+    "kerC_projector_dir_dependence": 2.0089375037176627,
+    "pairwise": {
+      "axial-face": 1.4169799905321387,
+      "axial-body": 1.6298364430634478,
+      "axial-skew": 1.2159866756277924,
+      "face-body": 1.1510012224076465,
+      "face-skew": 1.3787649255147292,
+      "body-skew": 2.0089375037176627
+    },
+    "non_local": true,
+    "note": "ker-C projector = the only operation reaching N_prop=2; its direction-dependent k->0 limit => NON-LOCAL (R29 P_S=2.449, R35 slave=1.215 same pathology)"
+  },
+  "j5_cocone": [
+    {
+      "theta": 0.4,
+      "c": 0.9210609940028851,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 1.1102230246251565e-16
+    },
+    {
+      "theta": 1.0471975511965976,
+      "c": 0.5000000000000001,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 3.0531133177191805e-16
+    },
+    {
+      "theta": 1.0,
+      "c": 0.5403023058681398,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 1.3877787807814457e-16
+    },
+    {
+      "theta": 1.2,
+      "c": 0.3623577544766736,
+      "n_k": 6,
+      "max_abs_w_leapfrog_minus_walkshell": 3.3306690738754696e-16
+    }
+  ],
+  "verdict_tag": "NOT FIXABLE -- (b) complex-route Yee-ization fails; go to (ii). Stuck on: C1_Nprop(emergent-local route inert, stays 4); C4_locality(N_prop=2 op non-local, R29/R35-barred); C5_emergence(Yee-ization = R30 hand-built, not emergent walk)",
+  "verdict": "The (b) half CANNOT be fixed by an emergent-walk Yee-ization. MECHANISM (numbers decide): the R30 KINEMATIC identity IS present on the reassembled complex (|inc . exact-gauge| = 1.1e-16, machine zero), so R30's curl annihilates EXACT placed-gauge curvature. But the emergent walk's +w gauge-dominant modes ALREADY carry zero gauge-sector curvature (|inc . gauge-part(S_curv)| = 7.2e-16); their propagating curvature lives ENTIRELY in a small NON-GAUGE admixture (|inc . nongauge-part| >= 1.06). So applying the R30 gauge-curl is INERT: N_prop stays [4], never 2 (bit-for-bit svn unchanged) -- the complex route has nothing to bite on the gauge sector. The ONLY operation that reaches N_prop=2 is projecting the +w modes onto ker C (deleting the 5-18% non-gauge admixture) -- and that projector is NON-LOCAL (direction-dependence 2.01 at k->0, the SAME R29/R35 pathology as P_S=2.449 / slave=1.215). Equivalently, the only LOCAL unitary that installs exact ker-C modes is R30's hand-built product-of-local-shears leapfrog -- an EXISTENCE construction, NOT the QCA-emergent walk. TWO criteria that do NOT block: C3 TT is bit-invariant (residual 3.1e-16) and C2 the J5 co-cone HOLDS for the R30 leapfrog target (|w_leapfrog - w_walkshell| <= 3.3e-16 across theta in [0.4, 1.047, 1.0, 1.2]). So (b) is stuck JOINTLY on STRICT LOCALITY (the N_prop=2 operation is non-local) and EMERGENT MATTER (the local alternative is hand-built R30, not emergence) -- NOT on J5, NOT on TT, NOT on exact constraint per se. SIGNAL not theorem: (ii) adjudication draws the conclusion. This was the LAST fixable hypothesis (PI order); deliver (ii).",
+  "criteria": {
+    "C1_Nprop_to_2": {
+      "R30_curl_local_emergent": [
+        4
+      ],
+      "R30_curl_INERT_stays_4": true,
+      "kerC_projection": [
+        2
+      ],
+      "reaches_2_ONLY_via_projection": true,
+      "pass_if_emergent_local": false
+    },
+    "C2_J5_cocone": {
+      "leapfrog_target_worst_dev": 3.3306690738754696e-16,
+      "holds_for_R30_target": true,
+      "pass": true
+    },
+    "C3_TT_invariant": {
+      "worst_TT_residual": 3.056165285712006e-16,
+      "pass": true
+    },
+    "C4_locality": {
+      "kerC_projector_dir_dependence": 2.0089375037176627,
+      "non_local": true,
+      "pass": false
+    },
+    "C5_emergence": {
+      "plusW_resid_outside_kerC_range": [
+        0.050845224845421755,
+        0.17966066843279108
+      ],
+      "max_angle_Scurv_vs_kerC_deg": 21.790065373850833,
+      "local_emergent_route_reaches_2": false,
+      "pass": false
+    }
+  },
+  "reachability_fixable": false,
+  "N_prop_raw_plusW": [
+    4
+  ],
+  "N_prop_after_R30_curl": [
+    4
+  ],
+  "N_prop_yee_projection": [
+    2
+  ],
+  "ii_adjudication_target": {
+    "verdict": "go to (ii) 裁纲领边界",
+    "stuck_criteria": [
+      "C1_Nprop(emergent-local route inert, stays 4)",
+      "C4_locality(N_prop=2 op non-local, R29/R35-barred)",
+      "C5_emergence(Yee-ization = R30 hand-built, not emergent walk)"
+    ],
+    "assumption_to_relax_primary": "STRICT LOCALITY (allow a quasi-local projection to beat R29) OR EMERGENT MATTER (allow partial Yee-ization = hand-built local-shear geometry sector, dropping strict QCA-emergence of the geometry)",
+    "assumption_secondary_lever": "EXACT CONSTRAINT: the +w modes sit 5-18% OUTSIDE ker C (a small de Donder violation); tolerating it via a SHADOW/approximate constraint would also let the modes count in ker C. Secondary, related lever.",
+    "assumptions_NOT_the_blocker": "J5 co-cone (holds for the R30 target, 3.3e-16) and TT-invariance (3.1e-16) are NOT what kills (b); the exact constraint algebra ker C = gauge (+) TT is intact (kinematic identity 1.1e-16)."
+  },
+  "figure": "visualizations/figs/rc3b_complex_yee_probe.png",
+  "source_sha256": "b6130c0585788ade4193067f5a45002ecdaad69e2eaa99b6af9cd2e0bd2fa3b0",
+  "total_seconds": 0.41039299964904785,
+  "results_sha256": "368fae91ed7f8f66bb3bcebe4b7a7d1c01d6b5debf436fdf5f66673811387202"
+}
