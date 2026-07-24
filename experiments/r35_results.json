@@ -1,0 +1,27 @@
+{
+ "slave_coeff_by_dir": {
+  "axial [1,0,0]": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "face [1,1,0]": [
+   0.7071067813338614,
+   0.7071067813338614,
+   0.0
+  ],
+  "body [1,1,1]": [
+   0.5773502693500008,
+   0.5773502693500008,
+   0.5773502693500008
+  ],
+  "skew [0.7,0.2,-0.5]": [
+   0.7925939240240013,
+   0.22645540691843677,
+   -0.5661385172325828
+  ]
+ },
+ "direction_dependence": 1.2153286141609585,
+ "slave_r29_barred": true,
+ "note": "de Donder slave non-local at massless point; probe-two should test Yee-type structural route, not slave rows"
+}
