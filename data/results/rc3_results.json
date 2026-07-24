@@ -1,0 +1,2386 @@
+{
+  "register": "RC3-probe-one-chirality-doubling-NN (reachability campaign §11)",
+  "status": "DONE",
+  "backend": "numpy",
+  "hypothesis": "PREREGISTERED HYPOTHESIS NOT CONCLUSION: massless graviton => chiral matter => chirality doubling (43g mirror branch) => mirror branch = extra 2 curvature DOF => N_prop=4. Test: turn off the mirror branch, count N_prop; 2=>N-N confirmed, 4=>chirality excluded.",
+  "mirror_branch_location": "literal: tensor_walker.walk_matrix_1(main)/walk_matrix_1m(mirror, k->-k), tcf.step_matrix.chir_block(+1/-1), the 43g/43h/43i chirality doubling. In the RC1a/R28/R31/R32 placed complex (walk_symbol_p = walk_matrix_1, MAIN chirality only) the mirror shows up as the -w Floquet branch (R31's row-sector 病灶 branch). Both readings tested: (B) count N_prop on +w (main) branch only; (A) rebuild the complex on the mirror chirality (== main at -k).",
+  "params": {
+    "N": 16,
+    "mu": 0.001995262314968879,
+    "theta": 1.0471975511965976,
+    "c": 0.5000000000000001,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "dm_line": [
+      0.0,
+      0.05,
+      0.15,
+      0.3,
+      0.6
+    ],
+    "sv_thresh": 0.05
+  },
+  "frozen_inputs_sha256": {
+    "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+    "tensor_coin_feedback.py": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+    "tensor_walker.py": "f2d9fc68b97e1e98253715d81d83071893c268eb7a3114680d8ed6ca0ab64779"
+  },
+  "red_lines": "hypothesis not conclusion (R27); branch-off is a DIAGNOSTIC not a candidate construction (cannot unitarily delete a Floquet branch); record TT/co-cone/causal side effects; no M3/emergence/reachability closed; R30 existence & boundary unchanged; frozen inputs read-only; fp64.",
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "scan": [
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.0,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.38505787590347784,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 4,
+          "N_prop_mirror_chirality_complex": 4,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5032493071160489,
+              0.2960649335884857,
+              0.10054432113428988,
+              0.005549960297857514,
+              4.1767076443204335e-11
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.7352300782188838,
+              39.86355572496586,
+              70.61351879435954,
+              83.36897101579545
+            ],
+            "max_angle_vs_kerC_deg": 83.36897101579545,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7826086317964887,
+            "max_resid_outside_kerC": 0.8863373130122358,
+            "Scurv_sector_energy": {
+              "TT": 0.23939372061467237,
+              "gauge": 0.18873662360767318,
+              "row": 0.5718696557776543
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.42902552831620994,
+              0.3161898728301287,
+              0.17624118144870302,
+              0.026958729282818818,
+              1.5077131709870982e-11
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.48819747841410394,
+              1.304879117773377,
+              10.05238148402336,
+              21.79006537385082
+            ],
+            "max_angle_vs_kerC_deg": 21.79006537385082,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.1548377316625221,
+            "max_resid_outside_kerC": 0.1775137049625285,
+            "Scurv_sector_energy": {
+              "TT": 0.14199714588368612,
+              "gauge": 0.8157896387725947,
+              "row": 0.04221321534371913
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5032493071160489,
+              0.2960649335884857,
+              0.10054432113428988,
+              0.005549960297857514,
+              4.1767076443204335e-11
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.7352300782188838,
+              39.86355572496586,
+              70.61351879435954,
+              83.36897101579545
+            ],
+            "max_angle_vs_kerC_deg": 83.36897101579545,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7826086317964887,
+            "max_resid_outside_kerC": 0.8863373130122358,
+            "Scurv_sector_energy": {
+              "TT": 0.23939372061467237,
+              "gauge": 0.18873662360767318,
+              "row": 0.5718696557776543
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.5480284076203129,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7251791569317351,
+              0.44745795164343866,
+              0.3463133185582774,
+              0.21308786418392367,
+              4.211656496642573e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.10582955192694003,
+              51.829369404371924,
+              73.5643428254042,
+              78.02407790697148
+            ],
+            "max_angle_vs_kerC_deg": 78.02407790697148,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5789733132720274,
+            "max_resid_outside_kerC": 0.8559618393941281,
+            "Scurv_sector_energy": {
+              "TT": 0.3106287440531086,
+              "gauge": 0.19037886138810237,
+              "row": 0.49899239455878897
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5338304699351619,
+              0.1550419039468778,
+              0.10323931350795333,
+              0.008220549336526701,
+              6.467502138353545e-15
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.09926106349803065,
+              4.319806879677785,
+              8.298198004279746,
+              10.548397812034954
+            ],
+            "max_angle_vs_kerC_deg": 10.548397812034954,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.102642993347949,
+            "max_resid_outside_kerC": 0.17966066843279108,
+            "Scurv_sector_energy": {
+              "TT": 0.22529681923867648,
+              "gauge": 0.7596983013176427,
+              "row": 0.015004879443680657
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7251791569317351,
+              0.44745795164343866,
+              0.3463133185582774,
+              0.21308786418392367,
+              4.211656496642573e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.10582955192694003,
+              51.829369404371924,
+              73.5643428254042,
+              78.02407790697148
+            ],
+            "max_angle_vs_kerC_deg": 78.02407790697148,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5789733132720274,
+            "max_resid_outside_kerC": 0.8559618393941281,
+            "Scurv_sector_energy": {
+              "TT": 0.3106287440531086,
+              "gauge": 0.19037886138810237,
+              "row": 0.49899239455878897
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6756028564802483,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.624166451235701,
+              0.4989839906339219,
+              0.3502702786762837,
+              0.12477732921739047,
+              4.1373808005928965e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.04655894533579645,
+              53.9602651749968,
+              76.566037902166,
+              78.27994979438805
+            ],
+            "max_angle_vs_kerC_deg": 78.27994979438805,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7026342196366141,
+            "max_resid_outside_kerC": 0.8422483328899825,
+            "Scurv_sector_energy": {
+              "TT": 0.35087090757908135,
+              "gauge": 0.1374064909048524,
+              "row": 0.5117226015160663
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.744645024691125,
+              0.141730992121046,
+              0.09056430303302118,
+              0.0030309699850999453,
+              2.9956844215080515e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0861248141969329,
+              4.444536977125586,
+              5.482911606884872,
+              8.488680571863073
+            ],
+            "max_angle_vs_kerC_deg": 8.488680571863073,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.07623740139998164,
+            "max_resid_outside_kerC": 0.11195071020524291,
+            "Scurv_sector_energy": {
+              "TT": 0.39161205368485724,
+              "gauge": 0.5991561789709035,
+              "row": 0.009231767344239158
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.624166451235701,
+              0.4989839906339219,
+              0.3502702786762837,
+              0.12477732921739047,
+              4.1373808005928965e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.04655894533579645,
+              53.9602651749968,
+              76.566037902166,
+              78.27994979438805
+            ],
+            "max_angle_vs_kerC_deg": 78.27994979438805,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7026342196366141,
+            "max_resid_outside_kerC": 0.8422483328899825,
+            "Scurv_sector_energy": {
+              "TT": 0.35087090757908135,
+              "gauge": 0.1374064909048524,
+              "row": 0.5117226015160663
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.05,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.38505787590347784,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 4,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.612573260345727,
+              0.454359821918186,
+              0.3027460312236388,
+              0.0655864912800087,
+              7.36616240480599e-12
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              5.095625572150975,
+              69.8417860407618,
+              83.69138005569536,
+              89.80899838938821
+            ],
+            "max_angle_vs_kerC_deg": 89.80899838938821,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.6986969624927126,
+            "max_resid_outside_kerC": 0.933748798232859,
+            "Scurv_sector_energy": {
+              "TT": 0.21301143723090393,
+              "gauge": 0.2115796560175136,
+              "row": 0.5754089067515823
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.26622565770715473,
+              0.12502305540328812,
+              0.09424297428123155,
+              0.0031735245879955572,
+              7.26129659916751e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.4065355769449549,
+              1.1866195788014804,
+              4.014455624046111,
+              10.817595873953179
+            ],
+            "max_angle_vs_kerC_deg": 10.817595873953179,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 3,
+            "mean_resid_outside_kerC": 0.05422693706845536,
+            "max_resid_outside_kerC": 0.07526683323993189,
+            "Scurv_sector_energy": {
+              "TT": 0.06302877178104914,
+              "gauge": 0.9268199173395375,
+              "row": 0.0101513108794132
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.612573260345727,
+              0.454359821918186,
+              0.3027460312236388,
+              0.0655864912800087,
+              7.36616240480599e-12
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              5.095625572150975,
+              69.8417860407618,
+              83.69138005569536,
+              89.80899838938821
+            ],
+            "max_angle_vs_kerC_deg": 89.80899838938821,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.6986969624927126,
+            "max_resid_outside_kerC": 0.933748798232859,
+            "Scurv_sector_energy": {
+              "TT": 0.21301143723090393,
+              "gauge": 0.2115796560175136,
+              "row": 0.5754089067515823
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.5480284076203129,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 2,
+          "N_prop_mirror_branch": 4,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5430186489203926,
+              0.36059485100576827,
+              0.15676753919800704,
+              0.024278740995686155,
+              2.0217049265700478e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.1381655017832237,
+              64.71511622745291,
+              73.16603549262848,
+              84.89005830579421
+            ],
+            "max_angle_vs_kerC_deg": 84.89005830579421,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.8681603305159274,
+            "max_resid_outside_kerC": 0.9744656692442744,
+            "Scurv_sector_energy": {
+              "TT": 0.1785625190140555,
+              "gauge": 0.13999392473688596,
+              "row": 0.6814435562490587
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 2,
+            "curv_sv": [
+              1.0,
+              0.15727670059738585,
+              0.048162544642093456,
+              0.0326525756175794,
+              0.004997537861048648,
+              6.701687281173946e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.37131623292562,
+              6.698643434867064
+            ],
+            "max_angle_vs_kerC_deg": 6.698643434867064,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.03454236042666008,
+            "max_resid_outside_kerC": 0.05108825834035086,
+            "Scurv_sector_energy": {
+              "TT": 0.17472732817665587,
+              "gauge": 0.8181830215023126,
+              "row": 0.007089650321031201
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5430186489203926,
+              0.36059485100576827,
+              0.15676753919800704,
+              0.024278740995686155,
+              2.0217049265700478e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.1381655017832237,
+              64.71511622745291,
+              73.16603549262848,
+              84.89005830579421
+            ],
+            "max_angle_vs_kerC_deg": 84.89005830579421,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.8681603305159274,
+            "max_resid_outside_kerC": 0.9744656692442744,
+            "Scurv_sector_energy": {
+              "TT": 0.1785625190140555,
+              "gauge": 0.13999392473688596,
+              "row": 0.6814435562490587
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6756028564802483,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7576993790194839,
+              0.6864557162823309,
+              0.530786763374329,
+              0.29814726101112576,
+              4.3744821589373464e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.14174371984909484,
+              62.465388201286345,
+              76.73298212408639,
+              79.1020006318466
+            ],
+            "max_angle_vs_kerC_deg": 79.1020006318466,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7047147117532989,
+            "max_resid_outside_kerC": 0.8685761037207278,
+            "Scurv_sector_energy": {
+              "TT": 0.349722584573667,
+              "gauge": 0.11069946735235289,
+              "row": 0.53957794807398
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.42287070713749964,
+              0.17558164621171546,
+              0.12429733205763684,
+              0.007227767220730528,
+              1.8108103224632187e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.14564771437967342,
+              6.28337459937529,
+              8.912736687981582,
+              11.91504697746239
+            ],
+            "max_angle_vs_kerC_deg": 11.91504697746239,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.12301479300246276,
+            "max_resid_outside_kerC": 0.1493448917705001,
+            "Scurv_sector_energy": {
+              "TT": 0.3709645273213739,
+              "gauge": 0.6093818779886101,
+              "row": 0.019653594690015902
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7576993790194839,
+              0.6864557162823309,
+              0.530786763374329,
+              0.29814726101112576,
+              4.3744821589373464e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.14174371984909484,
+              62.465388201286345,
+              76.73298212408639,
+              79.1020006318466
+            ],
+            "max_angle_vs_kerC_deg": 79.1020006318466,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7047147117532989,
+            "max_resid_outside_kerC": 0.8685761037207278,
+            "Scurv_sector_energy": {
+              "TT": 0.349722584573667,
+              "gauge": 0.11069946735235289,
+              "row": 0.53957794807398
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.15,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.38505787590347784,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5839066993874321,
+              0.4952127499907666,
+              0.3202359616559649,
+              0.17256386719263442,
+              8.78905330940568e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              1.2891026851025333,
+              53.751854078296,
+              75.41862571736401,
+              87.42815969320893
+            ],
+            "max_angle_vs_kerC_deg": 87.42815969320893,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7806226568371951,
+            "max_resid_outside_kerC": 0.9149476273317585,
+            "Scurv_sector_energy": {
+              "TT": 0.31203889079521213,
+              "gauge": 0.17086192368546682,
+              "row": 0.517099185519321
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.6640422445817089,
+              0.3934614917840898,
+              0.3229940970657859,
+              0.020116377614242533,
+              7.00522601634218e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.10920628328959953,
+              9.389041783335175,
+              19.40593100499896,
+              24.265860588512215
+            ],
+            "max_angle_vs_kerC_deg": 24.265860588512215,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.2414041825515135,
+            "max_resid_outside_kerC": 0.34584872910468123,
+            "Scurv_sector_energy": {
+              "TT": 0.25525292177514364,
+              "gauge": 0.6682694174219113,
+              "row": 0.07647766080294485
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5839066993874321,
+              0.4952127499907666,
+              0.3202359616559649,
+              0.17256386719263442,
+              8.78905330940568e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              1.2891026851025333,
+              53.751854078296,
+              75.41862571736401,
+              87.42815969320893
+            ],
+            "max_angle_vs_kerC_deg": 87.42815969320893,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7806226568371951,
+            "max_resid_outside_kerC": 0.9149476273317585,
+            "Scurv_sector_energy": {
+              "TT": 0.31203889079521213,
+              "gauge": 0.17086192368546682,
+              "row": 0.517099185519321
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.5480284076203129,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.806424125036478,
+              0.4795423350504869,
+              0.3221791770139128,
+              0.20968722762973552,
+              5.170774461658714e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.21718379542651584,
+              63.173105899634095,
+              73.08296149606771,
+              85.83321954550064
+            ],
+            "max_angle_vs_kerC_deg": 85.83321954550064,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7410377309574699,
+            "max_resid_outside_kerC": 0.8089837487021116,
+            "Scurv_sector_energy": {
+              "TT": 0.2809349338432172,
+              "gauge": 0.17778643936889654,
+              "row": 0.5412786267878862
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7777589153113095,
+              0.33747596454966977,
+              0.16827287610846028,
+              0.031659002854675544,
+              2.763285326660475e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.16355401982669418,
+              11.476723094445225,
+              19.354845166497892,
+              24.351219944636807
+            ],
+            "max_angle_vs_kerC_deg": 24.351219944636807,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.24051364171877024,
+            "max_resid_outside_kerC": 0.37841435819117564,
+            "Scurv_sector_energy": {
+              "TT": 0.2691190651025186,
+              "gauge": 0.6510184416324845,
+              "row": 0.07986249326499688
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.806424125036478,
+              0.4795423350504869,
+              0.3221791770139128,
+              0.20968722762973552,
+              5.170774461658714e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.21718379542651584,
+              63.173105899634095,
+              73.08296149606771,
+              85.83321954550064
+            ],
+            "max_angle_vs_kerC_deg": 85.83321954550064,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7410377309574699,
+            "max_resid_outside_kerC": 0.8089837487021116,
+            "Scurv_sector_energy": {
+              "TT": 0.2809349338432172,
+              "gauge": 0.17778643936889654,
+              "row": 0.5412786267878862
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6756028564802483,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7405136125037401,
+              0.5701231916164949,
+              0.45147279840548665,
+              0.3244670163747629,
+              4.534580927783737e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.8246977935621285,
+              65.76462055092264,
+              75.93463248025022,
+              80.03853347303767
+            ],
+            "max_angle_vs_kerC_deg": 80.03853347303767,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7317755639983262,
+            "max_resid_outside_kerC": 0.8808020479922666,
+            "Scurv_sector_energy": {
+              "TT": 0.29062373431095984,
+              "gauge": 0.1608320247076124,
+              "row": 0.5485442409814277
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8048914086530569,
+              0.3045507272731478,
+              0.22895912948801372,
+              0.05019831112171852,
+              6.761257382823319e-15
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.15299646679913914,
+              16.94915254096048,
+              21.686305265426974,
+              24.11077525354236
+            ],
+            "max_angle_vs_kerC_deg": 24.11077525354236,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.24329751668891242,
+            "max_resid_outside_kerC": 0.28340489693428506,
+            "Scurv_sector_energy": {
+              "TT": 0.3212084876121746,
+              "gauge": 0.6011084716907835,
+              "row": 0.07768304069704164
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7405136125037401,
+              0.5701231916164949,
+              0.45147279840548665,
+              0.3244670163747629,
+              4.534580927783737e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.8246977935621285,
+              65.76462055092264,
+              75.93463248025022,
+              80.03853347303767
+            ],
+            "max_angle_vs_kerC_deg": 80.03853347303767,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7317755639983262,
+            "max_resid_outside_kerC": 0.8808020479922666,
+            "Scurv_sector_energy": {
+              "TT": 0.29062373431095984,
+              "gauge": 0.1608320247076124,
+              "row": 0.5485442409814277
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.3,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.38505787590347784,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7108840086203697,
+              0.547262878630964,
+              0.4241743002238156,
+              0.3100195456946906,
+              3.88704039164881e-15
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.07308791711430399,
+              60.85452388678744,
+              73.10402426025358,
+              77.67397242316899
+            ],
+            "max_angle_vs_kerC_deg": 77.67397242316899,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7219738485529145,
+            "max_resid_outside_kerC": 0.9425599607605211,
+            "Scurv_sector_energy": {
+              "TT": 0.24232064262511602,
+              "gauge": 0.2311264185932352,
+              "row": 0.5265529387816485
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.48257487472720295,
+              0.31381325736588994,
+              0.17326947415729063,
+              0.05383699909090719,
+              4.5853399825553604e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.011374890133868071,
+              22.174401456113944,
+              40.27860709020925,
+              49.032196328309844
+            ],
+            "max_angle_vs_kerC_deg": 49.032196328309844,
+            "n_locked(>45deg)": 1,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5142748005780193,
+            "max_resid_outside_kerC": 0.6158832867743443,
+            "Scurv_sector_energy": {
+              "TT": 0.19357879621161692,
+              "gauge": 0.5803086246407442,
+              "row": 0.22611257914763883
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7108840086203697,
+              0.547262878630964,
+              0.4241743002238156,
+              0.3100195456946906,
+              3.88704039164881e-15
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.07308791711430399,
+              60.85452388678744,
+              73.10402426025358,
+              77.67397242316899
+            ],
+            "max_angle_vs_kerC_deg": 77.67397242316899,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7219738485529145,
+            "max_resid_outside_kerC": 0.9425599607605211,
+            "Scurv_sector_energy": {
+              "TT": 0.24232064262511602,
+              "gauge": 0.2311264185932352,
+              "row": 0.5265529387816485
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.5480284076203129,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7698647253067809,
+              0.5034626588100519,
+              0.38725166260563587,
+              0.19895671741325152,
+              2.9998821321079366e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.2074182697257333e-06,
+              0.09681123097858646,
+              57.648588810227125,
+              70.5046997564124,
+              77.31429825972036
+            ],
+            "max_angle_vs_kerC_deg": 77.31429825972036,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6481243955760162,
+            "max_resid_outside_kerC": 0.8581480559486031,
+            "Scurv_sector_energy": {
+              "TT": 0.2540319857409813,
+              "gauge": 0.23515626487829494,
+              "row": 0.5108117493807238
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5943618284388377,
+              0.42863909153365565,
+              0.3349889274887984,
+              0.13614206747082308,
+              8.872533139459568e-15
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.4787793334710982e-06,
+              0.3668610331798982,
+              41.23712134660332,
+              44.323181093391774,
+              53.27841420493611
+            ],
+            "max_angle_vs_kerC_deg": 53.27841420493611,
+            "n_locked(>45deg)": 1,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.538548327699349,
+            "max_resid_outside_kerC": 0.6468858730993405,
+            "Scurv_sector_energy": {
+              "TT": 0.25811103257229306,
+              "gauge": 0.4288436598786484,
+              "row": 0.31304530754905846
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7698647253067809,
+              0.5034626588100519,
+              0.38725166260563587,
+              0.19895671741325152,
+              2.9998821321079366e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.2074182697257333e-06,
+              0.09681123097858646,
+              57.648588810227125,
+              70.5046997564124,
+              77.31429825972036
+            ],
+            "max_angle_vs_kerC_deg": 77.31429825972036,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6481243955760162,
+            "max_resid_outside_kerC": 0.8581480559486031,
+            "Scurv_sector_energy": {
+              "TT": 0.2540319857409813,
+              "gauge": 0.23515626487829494,
+              "row": 0.5108117493807238
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6756028564802483,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 4,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7097866315106423,
+              0.5633751357244665,
+              0.27241053551547173,
+              0.04351116965549909,
+              4.577299514207575e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.546207875210074,
+              51.787509054848066,
+              63.97582136697018,
+              72.88617160140848
+            ],
+            "max_angle_vs_kerC_deg": 72.88617160140848,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7180283918316466,
+            "max_resid_outside_kerC": 0.8119570891882052,
+            "Scurv_sector_energy": {
+              "TT": 0.1769405199612959,
+              "gauge": 0.23831200263658645,
+              "row": 0.5847474774021174
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.6529281409512149,
+              0.3142038409037264,
+              0.12282031719652496,
+              0.0451186553402476,
+              6.497468761889888e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.1771117700246718,
+              21.711912404621494,
+              29.907137793310053,
+              45.77026774187791
+            ],
+            "max_angle_vs_kerC_deg": 45.77026774187791,
+            "n_locked(>45deg)": 1,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.41408718656151833,
+            "max_resid_outside_kerC": 0.5566509542913348,
+            "Scurv_sector_energy": {
+              "TT": 0.23230794334666566,
+              "gauge": 0.5429658324764288,
+              "row": 0.22472622417690552
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7097866315106423,
+              0.5633751357244665,
+              0.27241053551547173,
+              0.04351116965549909,
+              4.577299514207575e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.546207875210074,
+              51.787509054848066,
+              63.97582136697018,
+              72.88617160140848
+            ],
+            "max_angle_vs_kerC_deg": 72.88617160140848,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7180283918316466,
+            "max_resid_outside_kerC": 0.8119570891882052,
+            "Scurv_sector_energy": {
+              "TT": 0.1769405199612959,
+              "gauge": 0.23831200263658645,
+              "row": 0.5847474774021174
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 1.0471975511965976,
+      "dm": 0.6,
+      "tag": "th=pi/3 (c=0.5)",
+      "c": 0.5000000000000001,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.38505787590347784,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5236811234867624,
+              0.2938159674774162,
+              0.15185181253540514,
+              0.06131475199198825,
+              4.0204932999644454e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.011232573471892519,
+              63.13094141044329,
+              67.20840979132177,
+              76.01301836338494
+            ],
+            "max_angle_vs_kerC_deg": 76.01301836338494,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7895765999493372,
+            "max_resid_outside_kerC": 0.9278372969826035,
+            "Scurv_sector_energy": {
+              "TT": 0.14602268536822544,
+              "gauge": 0.3365262290806892,
+              "row": 0.5174510855510854
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.43932524299769854,
+              0.3068195835600535,
+              0.2060726360658404,
+              0.0852999459969445,
+              1.5678359146336892e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.0156869376858133,
+              34.68059160749278,
+              52.863229687203784,
+              62.12868885388079
+            ],
+            "max_angle_vs_kerC_deg": 62.12868885388079,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6538434865982763,
+            "max_resid_outside_kerC": 0.7585939366343123,
+            "Scurv_sector_energy": {
+              "TT": 0.19116526300485004,
+              "gauge": 0.46068665995805863,
+              "row": 0.34814807703709144
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.5236811234867624,
+              0.2938159674774162,
+              0.15185181253540514,
+              0.06131475199198825,
+              4.0204932999644454e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.011232573471892519,
+              63.13094141044329,
+              67.20840979132177,
+              76.01301836338494
+            ],
+            "max_angle_vs_kerC_deg": 76.01301836338494,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7895765999493372,
+            "max_resid_outside_kerC": 0.9278372969826035,
+            "Scurv_sector_energy": {
+              "TT": 0.14602268536822544,
+              "gauge": 0.3365262290806892,
+              "row": 0.5174510855510854
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "pos",
+          "omega_shell": 0.5480284076203129,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5220009050888624,
+              0.44417096252794924,
+              0.2582098789543647,
+              0.04887667040565686,
+              1.0803391886411653e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.017042800127003464,
+              40.340915605664414,
+              54.93984507450794,
+              75.94821351797384
+            ],
+            "max_angle_vs_kerC_deg": 75.94821351797384,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7034277622915498,
+            "max_resid_outside_kerC": 0.8533769567044994,
+            "Scurv_sector_energy": {
+              "TT": 0.23182668843275614,
+              "gauge": 0.26064491903146036,
+              "row": 0.5075283925357834
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5220009050888624,
+              0.44417096252794924,
+              0.2582098789543647,
+              0.04887667040565686,
+              1.0803391886411653e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.017042800127003464,
+              40.340915605664414,
+              54.93984507450794,
+              75.94821351797384
+            ],
+            "max_angle_vs_kerC_deg": 75.94821351797384,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7034277622915498,
+            "max_resid_outside_kerC": 0.8533769567044994,
+            "Scurv_sector_energy": {
+              "TT": 0.23182668843275614,
+              "gauge": 0.26064491903146036,
+              "row": 0.5075283925357834
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7523571092532418,
+              0.664465894717635,
+              0.22389664032875647,
+              0.15485337915656,
+              1.300325513222093e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              1.4787793334710982e-06,
+              1.0758915938419433,
+              32.06754025022703,
+              52.07538692019924,
+              58.069280829645706
+            ],
+            "max_angle_vs_kerC_deg": 58.069280829645706,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.48165828710246616,
+            "max_resid_outside_kerC": 0.6372603891364496,
+            "Scurv_sector_energy": {
+              "TT": 0.23792479853404425,
+              "gauge": 0.4371279960292075,
+              "row": 0.32494720543674843
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "pos",
+          "omega_shell": 0.6756028564802483,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 4,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7946841535204977,
+              0.5709317385148062,
+              0.36261716470864863,
+              0.020602614519404008,
+              1.4714412957195413e-12
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.4314263786807256,
+              52.832105027785275,
+              70.50906646440878,
+              78.91133438647577
+            ],
+            "max_angle_vs_kerC_deg": 78.91133438647577,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7447701536150734,
+            "max_resid_outside_kerC": 0.8893169959600459,
+            "Scurv_sector_energy": {
+              "TT": 0.20899367578593736,
+              "gauge": 0.16932163271746567,
+              "row": 0.621684691496597
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.7946841535204977,
+              0.5709317385148062,
+              0.36261716470864863,
+              0.020602614519404008,
+              1.4714412957195413e-12
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.4314263786807256,
+              52.832105027785275,
+              70.50906646440878,
+              78.91133438647577
+            ],
+            "max_angle_vs_kerC_deg": 78.91133438647577,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7447701536150734,
+            "max_resid_outside_kerC": 0.8893169959600459,
+            "Scurv_sector_energy": {
+              "TT": 0.20899367578593736,
+              "gauge": 0.16932163271746567,
+              "row": 0.621684691496597
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5877725738954719,
+              0.23047188309275163,
+              0.1364664953292561,
+              0.010667866376243035,
+              5.819410190320352e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.5012483332103636,
+              19.920466189547632,
+              25.695380183400967,
+              39.01164613290688
+            ],
+            "max_angle_vs_kerC_deg": 39.01164613290688,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.35472823552688615,
+            "max_resid_outside_kerC": 0.450068819945199,
+            "Scurv_sector_energy": {
+              "TT": 0.23412266691480804,
+              "gauge": 0.5907764096518202,
+              "row": 0.17510092343337177
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.0,
+      "tag": "th=0.5 sanity",
+      "c": 0.8775825618903728,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6849859282301894,
+          "N_prop_baseline_dominant": 4,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 4,
+          "N_prop_mirror_chirality_complex": 4,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5989711200948368,
+              0.4653398203674274,
+              0.37188590477691297,
+              0.009821750363303742,
+              8.28416779637901e-11
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.17313150816320289,
+              57.31989002506263,
+              71.00396019116151,
+              82.67401405670667
+            ],
+            "max_angle_vs_kerC_deg": 82.67401405670667,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7571848101128976,
+            "max_resid_outside_kerC": 0.9187803480958999,
+            "Scurv_sector_energy": {
+              "TT": 0.22210091167099583,
+              "gauge": 0.13133581235616423,
+              "row": 0.6465632759728399
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.23620473175398496,
+              0.15128589598472741,
+              0.12608428002779487,
+              0.007742681736264033,
+              9.249331970927384e-12
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.19461461786627152,
+              0.5921300400694843,
+              6.740106746169464,
+              12.272289720458817
+            ],
+            "max_angle_vs_kerC_deg": 12.272289720458817,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.10304802503244014,
+            "max_resid_outside_kerC": 0.1549567814040368,
+            "Scurv_sector_energy": {
+              "TT": 0.2110952251498422,
+              "gauge": 0.7741362929454683,
+              "row": 0.01476848190468965
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5989711200948368,
+              0.4653398203674274,
+              0.37188590477691297,
+              0.009821750363303742,
+              8.28416779637901e-11
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.17313150816320289,
+              57.31989002506263,
+              71.00396019116151,
+              82.67401405670667
+            ],
+            "max_angle_vs_kerC_deg": 82.67401405670667,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.7571848101128976,
+            "max_resid_outside_kerC": 0.9187803480958999,
+            "Scurv_sector_energy": {
+              "TT": 0.22210091167099583,
+              "gauge": 0.13133581235616423,
+              "row": 0.6465632759728399
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.9898013818530389,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 4,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.6018067619378217,
+              0.36095653693576024,
+              0.1648486855028325,
+              0.1395117350480782,
+              3.5871204928868955e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.03996683529363818,
+              59.41335206413916,
+              73.79602691551202,
+              85.11017061388881
+            ],
+            "max_angle_vs_kerC_deg": 85.11017061388881,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7757163880260322,
+            "max_resid_outside_kerC": 0.9025800442314157,
+            "Scurv_sector_energy": {
+              "TT": 0.2915169930660455,
+              "gauge": 0.1772945180145785,
+              "row": 0.531188488919376
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 4,
+            "curv_sv": [
+              1.0,
+              0.5125487527132859,
+              0.11390041039575488,
+              0.10145763373124594,
+              0.006815367162306986,
+              1.075706911289669e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.06011288495442734,
+              5.67286676991284,
+              11.031332912848235,
+              11.487343235045762
+            ],
+            "max_angle_vs_kerC_deg": 11.487343235045762,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 1,
+            "mean_resid_outside_kerC": 0.11591668957536731,
+            "max_resid_outside_kerC": 0.1598321921979533,
+            "Scurv_sector_energy": {
+              "TT": 0.4213550930376571,
+              "gauge": 0.557133246230211,
+              "row": 0.02151166073213195
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.6018067619378217,
+              0.36095653693576024,
+              0.1648486855028325,
+              0.1395117350480782,
+              3.5871204928868955e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.03996683529363818,
+              59.41335206413916,
+              73.79602691551202,
+              85.11017061388881
+            ],
+            "max_angle_vs_kerC_deg": 85.11017061388881,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7757163880260322,
+            "max_resid_outside_kerC": 0.9025800442314157,
+            "Scurv_sector_energy": {
+              "TT": 0.2915169930660455,
+              "gauge": 0.1772945180145785,
+              "row": 0.531188488919376
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 1.2415986953570204,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.574370805741914,
+              0.5198384975793735,
+              0.4226608158348564,
+              0.18567118764306945,
+              5.503722259839947e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.8095787181700892,
+              51.195562838917404,
+              72.90473389707492,
+              81.53318175541737
+            ],
+            "max_angle_vs_kerC_deg": 81.53318175541737,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7456695833197688,
+            "max_resid_outside_kerC": 0.9138907429075245,
+            "Scurv_sector_energy": {
+              "TT": 0.2950788971705348,
+              "gauge": 0.20504114986086316,
+              "row": 0.4998799529686021
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.6258774958185549,
+              0.2542027433400265,
+              0.20802752754780982,
+              0.06903584415484278,
+              9.024620159034324e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.05829334239508176,
+              19.390317009114778,
+              24.898731093874797,
+              30.9593023022505
+            ],
+            "max_angle_vs_kerC_deg": 30.9593023022505,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.26968295207004406,
+            "max_resid_outside_kerC": 0.365320114836598,
+            "Scurv_sector_energy": {
+              "TT": 0.3092169550893079,
+              "gauge": 0.5803595029055943,
+              "row": 0.1104235420050976
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.574370805741914,
+              0.5198384975793735,
+              0.4226608158348564,
+              0.18567118764306945,
+              5.503722259839947e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.8095787181700892,
+              51.195562838917404,
+              72.90473389707492,
+              81.53318175541737
+            ],
+            "max_angle_vs_kerC_deg": 81.53318175541737,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.7456695833197688,
+            "max_resid_outside_kerC": 0.9138907429075245,
+            "Scurv_sector_energy": {
+              "TT": 0.2950788971705348,
+              "gauge": 0.20504114986086316,
+              "row": 0.4998799529686021
+            }
+          }
+        }
+      }
+    },
+    {
+      "theta": 0.5,
+      "dm": 0.3,
+      "tag": "th=0.5 sanity",
+      "c": 0.8775825618903728,
+      "per_k": {
+        "(2, 0, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.6849859282301894,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8283299339838502,
+              0.6116724453408138,
+              0.44960574358097044,
+              0.3808105065068613,
+              1.6188310053273823e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.08901667151042808,
+              43.57042635893765,
+              70.69634331557194,
+              84.11985316416384
+            ],
+            "max_angle_vs_kerC_deg": 84.11985316416384,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5878392337304235,
+            "max_resid_outside_kerC": 0.7346339704690531,
+            "Scurv_sector_energy": {
+              "TT": 0.27645498622023684,
+              "gauge": 0.25248764328971973,
+              "row": 0.4710573704900437
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7476504631001867,
+              0.39271397637240624,
+              0.2860505335223964,
+              0.11676048283810522,
+              6.797247427943513e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.019580782045646082,
+              19.25512029389355,
+              25.989028224287967,
+              40.38986974297747
+            ],
+            "max_angle_vs_kerC_deg": 40.38986974297747,
+            "n_locked(>45deg)": 0,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.3099386492754031,
+            "max_resid_outside_kerC": 0.35496767235363696,
+            "Scurv_sector_energy": {
+              "TT": 0.2880863897014807,
+              "gauge": 0.567782622028544,
+              "row": 0.1441309882699752
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8283299339838502,
+              0.6116724453408138,
+              0.44960574358097044,
+              0.3808105065068613,
+              1.6188310053273823e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.08901667151042808,
+              43.57042635893765,
+              70.69634331557194,
+              84.11985316416384
+            ],
+            "max_angle_vs_kerC_deg": 84.11985316416384,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5878392337304235,
+            "max_resid_outside_kerC": 0.7346339704690531,
+            "Scurv_sector_energy": {
+              "TT": 0.27645498622023684,
+              "gauge": 0.25248764328971973,
+              "row": 0.4710573704900437
+            }
+          }
+        },
+        "(2, 2, 0)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 0.9898013818530389,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8482234233650384,
+              0.5231960210932258,
+              0.2779930090572669,
+              0.20750217686983258,
+              1.8035889720519263e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.026117275464981604,
+              54.46426380154854,
+              72.32064760545761,
+              77.09294430917491
+            ],
+            "max_angle_vs_kerC_deg": 77.09294430917491,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6765635124891397,
+            "max_resid_outside_kerC": 0.8101766080880761,
+            "Scurv_sector_energy": {
+              "TT": 0.16233794137929367,
+              "gauge": 0.33364750915625646,
+              "row": 0.5040145494644499
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.774549911718934,
+              0.46958836726094993,
+              0.3417394585575452,
+              0.12201488689394219,
+              1.6400149275481639e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.32881679794076973,
+              23.575282312053908,
+              48.30355056581916,
+              59.95678569331229
+            ],
+            "max_angle_vs_kerC_deg": 59.95678569331229,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.4560756077577152,
+            "max_resid_outside_kerC": 0.5717845995603863,
+            "Scurv_sector_energy": {
+              "TT": 0.2380883914883006,
+              "gauge": 0.46853710059071824,
+              "row": 0.29337450792098096
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.8482234233650384,
+              0.5231960210932258,
+              0.2779930090572669,
+              0.20750217686983258,
+              1.8035889720519263e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              0.026117275464981604,
+              54.46426380154854,
+              72.32064760545761,
+              77.09294430917491
+            ],
+            "max_angle_vs_kerC_deg": 77.09294430917491,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6765635124891397,
+            "max_resid_outside_kerC": 0.8101766080880761,
+            "Scurv_sector_energy": {
+              "TT": 0.16233794137929367,
+              "gauge": 0.33364750915625646,
+              "row": 0.5040145494644499
+            }
+          }
+        },
+        "(2, 2, 2)": {
+          "off_band": false,
+          "n_unit": 12,
+          "n_pos_omega": 6,
+          "n_neg_omega": 6,
+          "dominant_branch": "neg",
+          "omega_shell": 1.2415986953570204,
+          "N_prop_baseline_dominant": 5,
+          "N_prop_main_branch_mirrorOFF": 5,
+          "N_prop_mirror_branch": 5,
+          "N_prop_mirror_chirality_complex": 5,
+          "branch_dominant": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7636518352981968,
+              0.37601446543254785,
+              0.2415898712521568,
+              0.13424094787551574,
+              3.6631139125011613e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              2.102705748670832,
+              53.44131830795965,
+              67.49135548453502,
+              71.37930254973294
+            ],
+            "max_angle_vs_kerC_deg": 71.37930254973294,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6316076674049592,
+            "max_resid_outside_kerC": 0.7567831385865786,
+            "Scurv_sector_energy": {
+              "TT": 0.14053568564163782,
+              "gauge": 0.3798552199326587,
+              "row": 0.47960909442570365
+            }
+          },
+          "branch_main_plusW": {
+            "branch": "pos",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.6177577330566578,
+              0.3659482608527427,
+              0.23396152244640625,
+              0.1587705618579721,
+              4.912693073626748e-14
+            ],
+            "principal_angles_vs_kerC_deg": [
+              8.537736462515939e-07,
+              1.5944441188640421,
+              35.253495698006745,
+              49.855552464868026,
+              71.88033465355247
+            ],
+            "max_angle_vs_kerC_deg": 71.88033465355247,
+            "n_locked(>45deg)": 2,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.5872677039309099,
+            "max_resid_outside_kerC": 0.6879214930437053,
+            "Scurv_sector_energy": {
+              "TT": 0.21132509021450785,
+              "gauge": 0.42436573782213766,
+              "row": 0.3643091719633545
+            }
+          },
+          "branch_mirror_minusW": {
+            "branch": "neg",
+            "n_modes": 6,
+            "N_prop": 5,
+            "curv_sv": [
+              1.0,
+              0.7636518352981968,
+              0.37601446543254785,
+              0.2415898712521568,
+              0.13424094787551574,
+              3.6631139125011613e-13
+            ],
+            "principal_angles_vs_kerC_deg": [
+              0.0,
+              2.102705748670832,
+              53.44131830795965,
+              67.49135548453502,
+              71.37930254973294
+            ],
+            "max_angle_vs_kerC_deg": 71.37930254973294,
+            "n_locked(>45deg)": 3,
+            "n_inside_kerC(<5deg)": 2,
+            "mean_resid_outside_kerC": 0.6316076674049592,
+            "max_resid_outside_kerC": 0.7567831385865786,
+            "Scurv_sector_energy": {
+              "TT": 0.14053568564163782,
+              "gauge": 0.3798552199326587,
+              "row": 0.47960909442570365
+            }
+          }
+        }
+      }
+    }
+  ],
+  "verdict_tag": "CHIRALITY DOUBLING EXCLUDED as the N_prop culprit (mirror-off stays 4 at the massless dm=0 point)",
+  "verdict": "At the massless dm=0 point (the ONLY point where the hypothesis premise 'massless => chiral' holds) turning off the mirror branch does NOT drop N_prop to 2 -- it stays [4] (main/+w branch). The extra count is NOT removed by deleting the mirror sector. Moreover the RC1a/R28/R31/R32 placed complex is built on the MAIN chirality ALONE (walk_symbol_p = walk_matrix_1, no mirror block), yet N_prop is already 4-5; and the placed complex rebuilt on the MIRROR chirality (walk_matrix_1m == main at -k) gives the SAME [4, 5] -- each chirality independently carries the excess. => chirality doubling is EXCLUDED as the main culprit for N_prop>2; look elsewhere. HONEST NUANCE (two-sided): the reachability LOCK (residual outside ker C = the R28/R31/R32 病灶) IS localised to the -w (mirror) Floquet branch -- R31 cross-validation CONFIRMED (main/+w branch ~inside ker C, residual [0.07623740139998164, 0.1548377316625221], zero locked angles; mirror/-w branch residual [0.5789733132720274, 0.7826086317964887], >=1 locked angle 40-90deg). So the mirror/-w branch carries the OBSTACLE, but removing it leaves 2 spurious GAUGE-propagating modes in the main branch (gauge subset ker C, still counted) => N_prop stays 4, never 2. The residual obstacle splits in two: (a) -w-branch constraint-row curvature, (b) +w-branch gauge propagation; neither is fixed by removing chirality doubling. ANTI-HYPOTHESIS TREND: as dm grows (chirality BROKEN) the main/+w branch gets WORSE not better -- residual outside ker C rises 0.08->0.74, row-sector curvature 0.01->0.62, locked angles appear -- the opposite of what 'massless-chiral => extra DOF' predicts.",
+  "verdict_metrics": {
+    "N_prop_massless_dm0_mirrorOFF": [
+      4,
+      4,
+      4
+    ],
+    "N_prop_massless_dm0_baseline": [
+      4,
+      5,
+      5
+    ],
+    "N_prop_baseline_dominant": [
+      4,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4,
+      5,
+      4,
+      4
+    ],
+    "N_prop_main_branch_mirrorOFF": [
+      4,
+      4,
+      4,
+      4,
+      2,
+      4,
+      4,
+      4,
+      5,
+      5,
+      5,
+      4,
+      5,
+      4,
+      4
+    ],
+    "N_prop_mirror_branch_minusW": [
+      4,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      4,
+      5,
+      5,
+      4
+    ],
+    "N_prop_mirror_chirality_complex": [
+      4,
+      5,
+      5,
+      4,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "main_branch_resid_outside_kerC_range": [
+      0.03454236042666008,
+      0.7447701536150734
+    ],
+    "mirror_branch_resid_outside_kerC_range": [
+      0.35472823552688615,
+      0.8681603305159274
+    ],
+    "main_branch_locked_angle_counts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1,
+      1,
+      2,
+      2,
+      3
+    ],
+    "mirror_branch_locked_angle_counts": [
+      2,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      2,
+      0
+    ],
+    "main_branch_row_sector_energy_range": [
+      0.007089650321031201,
+      0.621684691496597
+    ],
+    "mirror_branch_row_sector_energy_range": [
+      0.17510092343337177,
+      0.6814435562490587
+    ],
+    "main_branch_TT_sector_energy_range": [
+      0.06302877178104914,
+      0.39161205368485724
+    ],
+    "dominant_branch_all_negW": false,
+    "dominant_branch_all_negW_massless_dm0": true,
+    "massless_dm0_main_resid_outside_kerC_range": [
+      0.07623740139998164,
+      0.1548377316625221
+    ],
+    "massless_dm0_mirror_resid_outside_kerC_range": [
+      0.5789733132720274,
+      0.7826086317964887
+    ],
+    "massless_dm0_main_locked_counts": [
+      0,
+      0,
+      0
+    ],
+    "massless_dm0_mirror_locked_counts": [
+      2,
+      3,
+      3
+    ],
+    "R31_minusW_lock_crossvalidation_confirmed": true
+  },
+  "figure": "visualizations/figs/rc3_chiral_nn_probe.png",
+  "source_sha256": "4e43d724acc499927a4c9ee457ccd716316659732141c0d9325de66165bdf3d4",
+  "total_seconds": 0.3805968761444092,
+  "results_sha256": "3a5234a29744b2ec6ca4217da4f0fed0371c86451b60fbf0bb8b3ce4a452fb5a"
+}
