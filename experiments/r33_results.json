@@ -1,0 +1,87 @@
+{
+ "theta_scan": [
+  {
+   "theta": 0.2,
+   "W_normal": -2.7739838442263386e-17,
+   "W_mirror": 2.7739838442263386e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.19866932112113034
+  },
+  {
+   "theta": 0.4,
+   "W_normal": 5.335026258800362e-17,
+   "W_mirror": -5.335026258800362e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.38941826945361807
+  },
+  {
+   "theta": 0.5235987755982988,
+   "W_normal": 4.129903741547222e-17,
+   "W_mirror": -4.129903741547222e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.49999984578725515
+  },
+  {
+   "theta": 0.6,
+   "W_normal": 5.229073684855306e-17,
+   "W_mirror": -5.229073684855306e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.5646422513040951
+  },
+  {
+   "theta": 0.7853981633974483,
+   "W_normal": 1.2494398795541512e-17,
+   "W_mirror": -1.2494398795541512e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.7071063450072216
+  },
+  {
+   "theta": 1.0,
+   "W_normal": -6.657549344955953e-17,
+   "W_mirror": 6.657549344955953e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.540301833886627
+  },
+  {
+   "theta": 1.0471975511965976,
+   "W_normal": -3.7483196386624526e-17,
+   "W_mirror": 3.7483196386624526e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.4999995373621648
+  },
+  {
+   "theta": 1.3,
+   "W_normal": -3.7483196386624544e-17,
+   "W_mirror": 3.7483196386624544e-17,
+   "sum": 0.0,
+   "chiral_axis_amp": 0.26749852222548676
+  }
+ ],
+ "dm_scan": [
+  {
+   "dm": 0.0,
+   "W_normal": -3.7483196386624526e-17
+  },
+  {
+   "dm": 0.3,
+   "W_normal": 1.0
+  },
+  {
+   "dm": 0.6,
+   "W_normal": 1.0
+  },
+  {
+   "dm": 1.0,
+   "W_normal": 1.0
+  },
+  {
+   "dm": 1.4,
+   "W_normal": 1.0
+  }
+ ],
+ "normal_const": true,
+ "doubled": true,
+ "nonzero": false,
+ "dm_transition": true,
+ "verdict": "CHEAP SINGLE-PARTICLE PROBE CANNOT PREEMPT THIS. At the physical point (massless, dm=0) the walk is GAPLESS (Dirac point), so the single-particle winding is ILL-DEFINED (chiral-axis amp 7.1e-01, not ~0). My proposed cheap topological shortcut does NOT reach the question -- which CONFIRMS R32: deciding topological-vs-deformable genuinely needs the TENSOR-level index (the battle). REAL FINDING (refines the battle, not a verdict): the MASS direction dm carries topological content (W: 0 at dm=0 -> 1 at dm!=0, a gapless->gapped transition). So the battle's first milestone should (a) measure the TENSOR constraint-row index, not just principal angles (angles = deformation distance; index = topological distance), and (b) use dm as a lever, not only theta. Whether crossing that dm transition UNLOCKS the tensor DOF or is a WALL depends on tensor inheritance -- only the battle decides. I do NOT claim deform-possible or topological-lock from this probe."
+}
