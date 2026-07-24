@@ -1,0 +1,1237 @@
+{
+  "register": "R32-reachability-probe (principal angles S_walk vs S_kerC)",
+  "status": "DONE",
+  "backend": "numpy",
+  "question": "deformation (angles->0 along a continuous knob => open construction campaign) vs topological (angles locked bounded-away / winding mismatch => reachability NO-GO signal)?",
+  "params": {
+    "N": 16,
+    "kset": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        3,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "mu0": 0.001995262314968879,
+    "alpha0": 0.5,
+    "sv_thresh": 0.05,
+    "angle_zero_deg": 5.0
+  },
+  "geometry": "S_kerC = placed gauge(4) (+) TT(2) = ker C (6-dim, R15 T9 / R30 backbone). S_walk = walk symbol M's dominant (-w) Floquet-branch curvature subspace (SVD-rank-N_prop image of placed Riemann; R28/R31 count's subspace). ROW = ker C's orthogonal complement.",
+  "frozen_inputs_sha256": {
+    "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+    "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+    "r25_auxiliary_wilson_complex.py": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+  },
+  "per_k": [
+    {
+      "nv": [
+        2,
+        0,
+        0
+      ],
+      "label": "axial",
+      "n_unit": 12,
+      "dominant_branch": "neg",
+      "omega_shell": 0.38505787590347784,
+      "N_prop_curv": 4,
+      "curv_sv": [
+        1.0,
+        0.5032493071160489,
+        0.2960649335884857,
+        0.10054432113428988,
+        0.005549960297857514,
+        4.1767076443204335e-11
+      ],
+      "principal_angles_vs_kerC_deg": [
+        83.36897101579545,
+        70.61351879435954,
+        39.86355572496586,
+        0.7352300782188838
+      ],
+      "max_angle_vs_kerC_deg": 83.36897101579545,
+      "min_angle_vs_kerC_deg": 0.7352300782188838,
+      "n_angles_inside_kerC(<5deg)": 1,
+      "n_angles_locked(>45deg)": 2,
+      "principal_angles_vs_TT_deg": [
+        79.86914818208423,
+        15.715411993228624
+      ],
+      "mean_resid_outside_kerC": 0.4687231817295054,
+      "max_resid_outside_kerC": 0.8863373130122358,
+      "Scurv_sector_energy": {
+        "TT": 0.23939372061467237,
+        "gauge": 0.18873662360767318,
+        "row": 0.5718696557776543
+      }
+    },
+    {
+      "nv": [
+        0,
+        3,
+        0
+      ],
+      "label": "axial",
+      "n_unit": 12,
+      "dominant_branch": "neg",
+      "omega_shell": 0.5629754252324842,
+      "N_prop_curv": 4,
+      "curv_sv": [
+        1.0,
+        0.709053628758948,
+        0.556052880090261,
+        0.5184803446918738,
+        0.0179996014827783,
+        1.7708020532515816e-12
+      ],
+      "principal_angles_vs_kerC_deg": [
+        75.43178956280197,
+        69.64566415821676,
+        46.36444127992535,
+        0.2707472469587521
+      ],
+      "max_angle_vs_kerC_deg": 75.43178956280197,
+      "min_angle_vs_kerC_deg": 0.2707472469587521,
+      "n_angles_inside_kerC(<5deg)": 1,
+      "n_angles_locked(>45deg)": 3,
+      "principal_angles_vs_TT_deg": [
+        70.18294148485059,
+        24.21014740793208
+      ],
+      "mean_resid_outside_kerC": 0.4845856775574397,
+      "max_resid_outside_kerC": 0.9013943117278704,
+      "Scurv_sector_energy": {
+        "TT": 0.2366909679025903,
+        "gauge": 0.17841488543981487,
+        "row": 0.5848941466575948
+      }
+    },
+    {
+      "nv": [
+        2,
+        2,
+        0
+      ],
+      "label": "face-diagonal",
+      "n_unit": 12,
+      "dominant_branch": "neg",
+      "omega_shell": 0.5480284076203129,
+      "N_prop_curv": 5,
+      "curv_sv": [
+        1.0,
+        0.7251791569317351,
+        0.44745795164343866,
+        0.3463133185582774,
+        0.21308786418392367,
+        4.211656496642573e-14
+      ],
+      "principal_angles_vs_kerC_deg": [
+        78.02407790697148,
+        73.5643428254042,
+        51.829369404371924,
+        0.10582955192694003,
+        0.0
+      ],
+      "max_angle_vs_kerC_deg": 78.02407790697148,
+      "min_angle_vs_kerC_deg": 0.0,
+      "n_angles_inside_kerC(<5deg)": 2,
+      "n_angles_locked(>45deg)": 3,
+      "principal_angles_vs_TT_deg": [
+        39.976988670262195,
+        10.63760753297594
+      ],
+      "mean_resid_outside_kerC": 0.3408081533099882,
+      "max_resid_outside_kerC": 0.8559618393941281,
+      "Scurv_sector_energy": {
+        "TT": 0.3106287440531086,
+        "gauge": 0.19037886138810237,
+        "row": 0.49899239455878897
+      }
+    },
+    {
+      "nv": [
+        2,
+        2,
+        2
+      ],
+      "label": "body-diagonal",
+      "n_unit": 12,
+      "dominant_branch": "neg",
+      "omega_shell": 0.6756028564802483,
+      "N_prop_curv": 5,
+      "curv_sv": [
+        1.0,
+        0.624166451235701,
+        0.4989839906339219,
+        0.3502702786762837,
+        0.12477732921739047,
+        4.1373808005928965e-14
+      ],
+      "principal_angles_vs_kerC_deg": [
+        78.27994979438805,
+        76.566037902166,
+        53.9602651749968,
+        0.04655894533579645,
+        0.0
+      ],
+      "max_angle_vs_kerC_deg": 78.27994979438805,
+      "min_angle_vs_kerC_deg": 0.0,
+      "n_angles_inside_kerC(<5deg)": 2,
+      "n_angles_locked(>45deg)": 3,
+      "principal_angles_vs_TT_deg": [
+        25.747906555676096,
+        13.804100796666521
+      ],
+      "mean_resid_outside_kerC": 0.38943581051829784,
+      "max_resid_outside_kerC": 0.8422483328899825,
+      "Scurv_sector_energy": {
+        "TT": 0.35087090757908135,
+        "gauge": 0.1374064909048524,
+        "row": 0.5117226015160663
+      }
+    }
+  ],
+  "r31_crosscheck": {
+    "per_k": [
+      {
+        "nv": [
+          2,
+          0,
+          0
+        ],
+        "r32_mean_resid": 0.4687231817295054,
+        "r31_mean_resid": 0.469,
+        "abs_diff": 0.0002768182704945832
+      },
+      {
+        "nv": [
+          0,
+          3,
+          0
+        ],
+        "r32_mean_resid": 0.4845856775574397,
+        "r31_mean_resid": 0.485,
+        "abs_diff": 0.0004143224425602887
+      },
+      {
+        "nv": [
+          2,
+          2,
+          0
+        ],
+        "r32_mean_resid": 0.3408081533099882,
+        "r31_mean_resid": 0.341,
+        "abs_diff": 0.00019184669001182098
+      },
+      {
+        "nv": [
+          2,
+          2,
+          2
+        ],
+        "r32_mean_resid": 0.38943581051829784,
+        "r31_mean_resid": 0.389,
+        "abs_diff": 0.00043581051829783
+      }
+    ],
+    "worst_abs_diff": 0.00043581051829783,
+    "reproduces_r31": true
+  },
+  "mu_sweep": {
+    "(2, 0, 0)": [
+      {
+        "mu": 1e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 88.35782152508258,
+        "max_angle_vs_TT_deg": 40.1222504800309,
+        "mean_resid_outside_kerC": 0.4492829970253503
+      },
+      {
+        "mu": 1.5003427229903768e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 88.19941647920776,
+        "max_angle_vs_TT_deg": 20.127880992322783,
+        "mean_resid_outside_kerC": 0.48690578192030587
+      },
+      {
+        "mu": 2.2510282864301738e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000022,
+        "max_angle_vs_kerC_deg": 88.90780774443861,
+        "max_angle_vs_TT_deg": 37.82940755523595,
+        "mean_resid_outside_kerC": 0.41555969001259024
+      },
+      {
+        "mu": 3.377313908791009e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 88.61925378448326,
+        "max_angle_vs_TT_deg": 20.59983157251089,
+        "mean_resid_outside_kerC": 0.43565994568538174
+      },
+      {
+        "mu": 5.067128346308775e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000022,
+        "max_angle_vs_kerC_deg": 88.44471296640701,
+        "max_angle_vs_TT_deg": 34.537597552443394,
+        "mean_resid_outside_kerC": 0.4240046320067553
+      },
+      {
+        "mu": 7.602429140842632e-05,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 88.35227318663654,
+        "max_angle_vs_TT_deg": 24.692912421355167,
+        "mean_resid_outside_kerC": 0.44796508877441027
+      },
+      {
+        "mu": 0.00011406249238513202,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 88.42610997922522,
+        "max_angle_vs_TT_deg": 58.46930639627192,
+        "mean_resid_outside_kerC": 0.43905084739953987
+      },
+      {
+        "mu": 0.0001711328304161781,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 88.58973144100776,
+        "max_angle_vs_TT_deg": 17.045703935843008,
+        "mean_resid_outside_kerC": 0.4502174370825896
+      },
+      {
+        "mu": 0.00025675789677965903,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 79.55972089737548,
+        "max_angle_vs_TT_deg": 79.26555167170665,
+        "mean_resid_outside_kerC": 0.4490019035241053
+      },
+      {
+        "mu": 0.0003852248420036753,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 80.97351865186954,
+        "max_angle_vs_TT_deg": 77.75702263720042,
+        "mean_resid_outside_kerC": 0.44955309797887955
+      },
+      {
+        "mu": 0.0005779692884153313,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 81.35439502153997,
+        "max_angle_vs_TT_deg": 78.30486526652275,
+        "mean_resid_outside_kerC": 0.4563487015542711
+      },
+      {
+        "mu": 0.0008671520159858686,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 77.31763702157818,
+        "max_angle_vs_TT_deg": 76.56942106773495,
+        "mean_resid_outside_kerC": 0.4599666423293027
+      },
+      {
+        "mu": 0.0013010252169108315,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 76.8557905366622,
+        "max_angle_vs_TT_deg": 76.32486293916034,
+        "mean_resid_outside_kerC": 0.46268741972500577
+      },
+      {
+        "mu": 0.0019519837166191425,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 82.59474111645542,
+        "max_angle_vs_TT_deg": 76.41480103185589,
+        "mean_resid_outside_kerC": 0.45980445662849273
+      },
+      {
+        "mu": 0.0029286445646252374,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000002,
+        "max_angle_vs_kerC_deg": 82.3200619024099,
+        "max_angle_vs_TT_deg": 79.31624169009056,
+        "mean_resid_outside_kerC": 0.4650352416308891
+      },
+      {
+        "mu": 0.004393970560760795,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 76.98004651061983,
+        "max_angle_vs_TT_deg": 76.46171015555915,
+        "mean_resid_outside_kerC": 0.48942242302940175
+      },
+      {
+        "mu": 0.006592461755871398,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000022,
+        "max_angle_vs_kerC_deg": 83.71161853203752,
+        "max_angle_vs_TT_deg": 83.40870688511542,
+        "mean_resid_outside_kerC": 0.40134320133742857
+      },
+      {
+        "mu": 0.009890952022014003,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 85.8970939989599,
+        "max_angle_vs_TT_deg": 78.80949415140618,
+        "mean_resid_outside_kerC": 0.4659488806514151
+      },
+      {
+        "mu": 0.014839817889675661,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 86.86587642716454,
+        "max_angle_vs_TT_deg": 80.2774218807876,
+        "mean_resid_outside_kerC": 0.45603753794152174
+      },
+      {
+        "mu": 0.022264812781277267,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000002,
+        "max_angle_vs_kerC_deg": 78.27706501914635,
+        "max_angle_vs_TT_deg": 76.96774967078997,
+        "mean_resid_outside_kerC": 0.47716516045085294
+      },
+      {
+        "mu": 0.03340484983513248,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 81.54543729423918,
+        "max_angle_vs_TT_deg": 77.22900678406576,
+        "mean_resid_outside_kerC": 0.5120957302046089
+      },
+      {
+        "mu": 0.05011872336272722,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 78.50282292452235,
+        "max_angle_vs_TT_deg": 76.45856428298057,
+        "mean_resid_outside_kerC": 0.40547292338193386
+      }
+    ],
+    "(2, 2, 2)": [
+      {
+        "mu": 1e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000027,
+        "max_angle_vs_kerC_deg": 79.56701753945363,
+        "max_angle_vs_TT_deg": 38.546307633457765,
+        "mean_resid_outside_kerC": 0.3552655074261672
+      },
+      {
+        "mu": 1.5003427229903768e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 79.06122206693469,
+        "max_angle_vs_TT_deg": 23.735475787930817,
+        "mean_resid_outside_kerC": 0.38839445156182917
+      },
+      {
+        "mu": 2.2510282864301738e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 80.12234907222592,
+        "max_angle_vs_TT_deg": 25.525227134167405,
+        "mean_resid_outside_kerC": 0.3725421251184891
+      },
+      {
+        "mu": 3.377313908791009e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 78.70729603635573,
+        "max_angle_vs_TT_deg": 25.08288341804429,
+        "mean_resid_outside_kerC": 0.3819790155419705
+      },
+      {
+        "mu": 5.067128346308775e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 79.96385085088515,
+        "max_angle_vs_TT_deg": 28.848903371298356,
+        "mean_resid_outside_kerC": 0.3786980478247958
+      },
+      {
+        "mu": 7.602429140842632e-05,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 78.16004007977716,
+        "max_angle_vs_TT_deg": 35.94088714106602,
+        "mean_resid_outside_kerC": 0.43349637012433057
+      },
+      {
+        "mu": 0.00011406249238513202,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 79.88188967540546,
+        "max_angle_vs_TT_deg": 35.756810533468595,
+        "mean_resid_outside_kerC": 0.3542998456816872
+      },
+      {
+        "mu": 0.0001711328304161781,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 78.50157498840561,
+        "max_angle_vs_TT_deg": 22.874156625239785,
+        "mean_resid_outside_kerC": 0.3960258382889826
+      },
+      {
+        "mu": 0.00025675789677965903,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.03709782804513,
+        "max_angle_vs_TT_deg": 46.955641855439474,
+        "mean_resid_outside_kerC": 0.41679671775511795
+      },
+      {
+        "mu": 0.0003852248420036753,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 79.3838785994437,
+        "max_angle_vs_TT_deg": 30.01355638498284,
+        "mean_resid_outside_kerC": 0.4028130184787275
+      },
+      {
+        "mu": 0.0005779692884153313,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 78.99428255127116,
+        "max_angle_vs_TT_deg": 42.01102099648732,
+        "mean_resid_outside_kerC": 0.437398414373589
+      },
+      {
+        "mu": 0.0008671520159858686,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 78.72933892675347,
+        "max_angle_vs_TT_deg": 28.2139476910417,
+        "mean_resid_outside_kerC": 0.39655175880199495
+      },
+      {
+        "mu": 0.0013010252169108315,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 79.1121415539248,
+        "max_angle_vs_TT_deg": 28.187362422648217,
+        "mean_resid_outside_kerC": 0.3962635082661545
+      },
+      {
+        "mu": 0.0019519837166191425,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 78.64182195267715,
+        "max_angle_vs_TT_deg": 21.683310702071232,
+        "mean_resid_outside_kerC": 0.36627814300266964
+      },
+      {
+        "mu": 0.0029286445646252374,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000022,
+        "max_angle_vs_kerC_deg": 77.90124162708344,
+        "max_angle_vs_TT_deg": 27.490530615489988,
+        "mean_resid_outside_kerC": 0.4163606259841939
+      },
+      {
+        "mu": 0.004393970560760795,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 77.40410474730304,
+        "max_angle_vs_TT_deg": 42.7685943568419,
+        "mean_resid_outside_kerC": 0.3851952721884288
+      },
+      {
+        "mu": 0.006592461755871398,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.04307973862666,
+        "max_angle_vs_TT_deg": 37.295367243649295,
+        "mean_resid_outside_kerC": 0.3333376050603294
+      },
+      {
+        "mu": 0.009890952022014003,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 80.14076543724799,
+        "max_angle_vs_TT_deg": 27.583355025491226,
+        "mean_resid_outside_kerC": 0.3274217011121144
+      },
+      {
+        "mu": 0.014839817889675661,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 80.04852498456391,
+        "max_angle_vs_TT_deg": 27.136731298297185,
+        "mean_resid_outside_kerC": 0.3937207122622679
+      },
+      {
+        "mu": 0.022264812781277267,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 77.56505646959982,
+        "max_angle_vs_TT_deg": 45.71214809116354,
+        "mean_resid_outside_kerC": 0.37957165729881664
+      },
+      {
+        "mu": 0.03340484983513248,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 79.7333362452564,
+        "max_angle_vs_TT_deg": 36.21653679085283,
+        "mean_resid_outside_kerC": 0.3932888490113166
+      },
+      {
+        "mu": 0.05011872336272722,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 78.93323634962722,
+        "max_angle_vs_TT_deg": 37.59263074168899,
+        "mean_resid_outside_kerC": 0.3942531421638528
+      }
+    ]
+  },
+  "alpha_sweep": {
+    "(2, 0, 0)": [
+      {
+        "alpha": 0.02,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 88.3223686550931,
+        "mean_resid_outside_kerC": 0.4400803503449282
+      },
+      {
+        "alpha": 0.08571428571428572,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000002,
+        "max_angle_vs_kerC_deg": 88.36730011508627,
+        "mean_resid_outside_kerC": 0.4311634201197389
+      },
+      {
+        "alpha": 0.1514285714285714,
+        "n_unit": 14,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 88.32918870725518,
+        "mean_resid_outside_kerC": 0.48393772325634216
+      },
+      {
+        "alpha": 0.2171428571428571,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000002,
+        "max_angle_vs_kerC_deg": 78.18983050286043,
+        "mean_resid_outside_kerC": 0.48371535223335066
+      },
+      {
+        "alpha": 0.28285714285714286,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 80.51158245111361,
+        "mean_resid_outside_kerC": 0.4378971499608301
+      },
+      {
+        "alpha": 0.3485714285714286,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 80.41277089888783,
+        "mean_resid_outside_kerC": 0.5273543933474011
+      },
+      {
+        "alpha": 0.41428571428571426,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 79.90648249492777,
+        "mean_resid_outside_kerC": 0.5085496628098175
+      },
+      {
+        "alpha": 0.48,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000002,
+        "max_angle_vs_kerC_deg": 85.71330918360658,
+        "mean_resid_outside_kerC": 0.4821256974983232
+      },
+      {
+        "alpha": 0.5457142857142857,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 85.17687130469153,
+        "mean_resid_outside_kerC": 0.4924312124565599
+      },
+      {
+        "alpha": 0.6114285714285714,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 86.71626308977937,
+        "mean_resid_outside_kerC": 0.4946854189777868
+      },
+      {
+        "alpha": 0.6771428571428572,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 83.0569160487598,
+        "mean_resid_outside_kerC": 0.4791524069456435
+      },
+      {
+        "alpha": 0.7428571428571429,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 84.74955880059646,
+        "mean_resid_outside_kerC": 0.49470253783402374
+      },
+      {
+        "alpha": 0.8085714285714285,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 79.6783092608774,
+        "mean_resid_outside_kerC": 0.5262144999727344
+      },
+      {
+        "alpha": 0.8742857142857142,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 78.97335041875259,
+        "mean_resid_outside_kerC": 0.47427748671514
+      },
+      {
+        "alpha": 0.94,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 85.52979162181684,
+        "mean_resid_outside_kerC": 0.4411584218182529
+      },
+      {
+        "alpha": 1.0057142857142856,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000024,
+        "max_angle_vs_kerC_deg": 77.73435977432503,
+        "mean_resid_outside_kerC": 0.4823788327657341
+      },
+      {
+        "alpha": 1.0714285714285714,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 88.70188184829152,
+        "mean_resid_outside_kerC": 0.47006752190635076
+      },
+      {
+        "alpha": 1.137142857142857,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 82.15014366175652,
+        "mean_resid_outside_kerC": 0.5257497707129161
+      },
+      {
+        "alpha": 1.2028571428571428,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 78.76968846664938,
+        "mean_resid_outside_kerC": 0.47273262371479013
+      },
+      {
+        "alpha": 1.2685714285714285,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 82.5874301455722,
+        "mean_resid_outside_kerC": 0.3706240288162938
+      },
+      {
+        "alpha": 1.3342857142857143,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 85.95335841832575,
+        "mean_resid_outside_kerC": 0.4430684158705851
+      },
+      {
+        "alpha": 1.4,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 79.96113356618679,
+        "mean_resid_outside_kerC": 0.4255557878844422
+      }
+    ],
+    "(2, 2, 2)": [
+      {
+        "alpha": 0.02,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 79.80965587556548,
+        "mean_resid_outside_kerC": 0.44107912801959565
+      },
+      {
+        "alpha": 0.08571428571428572,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.19660134760086,
+        "mean_resid_outside_kerC": 0.4323297019358047
+      },
+      {
+        "alpha": 0.1514285714285714,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 78.54002516531624,
+        "mean_resid_outside_kerC": 0.42863903513052914
+      },
+      {
+        "alpha": 0.2171428571428571,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 78.93703337261502,
+        "mean_resid_outside_kerC": 0.39924414658841584
+      },
+      {
+        "alpha": 0.28285714285714286,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000016,
+        "max_angle_vs_kerC_deg": 78.9365798089821,
+        "mean_resid_outside_kerC": 0.40849825336209106
+      },
+      {
+        "alpha": 0.3485714285714286,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000002,
+        "max_angle_vs_kerC_deg": 77.40748769737675,
+        "mean_resid_outside_kerC": 0.3958061905778533
+      },
+      {
+        "alpha": 0.41428571428571426,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000002,
+        "max_angle_vs_kerC_deg": 79.91886328987697,
+        "mean_resid_outside_kerC": 0.3952336688863293
+      },
+      {
+        "alpha": 0.48,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000002,
+        "max_angle_vs_kerC_deg": 79.77682367991137,
+        "mean_resid_outside_kerC": 0.4006435512566943
+      },
+      {
+        "alpha": 0.5457142857142857,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000018,
+        "max_angle_vs_kerC_deg": 78.6927810056718,
+        "mean_resid_outside_kerC": 0.39840959144114446
+      },
+      {
+        "alpha": 0.6114285714285714,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 78.44943186220215,
+        "mean_resid_outside_kerC": 0.3641962869765978
+      },
+      {
+        "alpha": 0.6771428571428572,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.000000000000001,
+        "max_angle_vs_kerC_deg": 77.70662678432798,
+        "mean_resid_outside_kerC": 0.3416664211084777
+      },
+      {
+        "alpha": 0.7428571428571429,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.53172474832009,
+        "mean_resid_outside_kerC": 0.37686245446259165
+      },
+      {
+        "alpha": 0.8085714285714285,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 79.92345371797985,
+        "mean_resid_outside_kerC": 0.4005053775050309
+      },
+      {
+        "alpha": 0.8742857142857142,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 79.46098892983602,
+        "mean_resid_outside_kerC": 0.38235340700848464
+      },
+      {
+        "alpha": 0.94,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 79.73891171512392,
+        "mean_resid_outside_kerC": 0.36659807205320244
+      },
+      {
+        "alpha": 1.0057142857142856,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 79.77413357627456,
+        "mean_resid_outside_kerC": 0.4030108961792997
+      },
+      {
+        "alpha": 1.0714285714285714,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000013,
+        "max_angle_vs_kerC_deg": 79.9346853947559,
+        "mean_resid_outside_kerC": 0.405357765376474
+      },
+      {
+        "alpha": 1.137142857142857,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 78.8523651396124,
+        "mean_resid_outside_kerC": 0.4007355616826364
+      },
+      {
+        "alpha": 1.2028571428571428,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000004,
+        "max_angle_vs_kerC_deg": 79.22659214219078,
+        "mean_resid_outside_kerC": 0.3702717397478283
+      },
+      {
+        "alpha": 1.2685714285714285,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.36680173510037,
+        "mean_resid_outside_kerC": 0.34626528964959746
+      },
+      {
+        "alpha": 1.3342857142857143,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000009,
+        "max_angle_vs_kerC_deg": 80.39066950783455,
+        "mean_resid_outside_kerC": 0.3937046008657341
+      },
+      {
+        "alpha": 1.4,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_modulus": 1.0000000000000007,
+        "max_angle_vs_kerC_deg": 81.14092270085064,
+        "mean_resid_outside_kerC": 0.43534548882597224
+      }
+    ]
+  },
+  "sweep_floors_min_max_angle_deg": {
+    "mu": {
+      "(2, 0, 0)": [
+        76.8557905366622,
+        88.90780774443861
+      ],
+      "(2, 2, 2)": [
+        77.40410474730304,
+        80.14076543724799
+      ]
+    },
+    "alpha": {
+      "(2, 0, 0)": [
+        77.73435977432503,
+        88.70188184829152
+      ],
+      "(2, 2, 2)": [
+        77.40748769737675,
+        81.14092270085064
+      ]
+    }
+  },
+  "kray_body_diagonal": {
+    "rows": [
+      {
+        "t": 0.15,
+        "omega": 0.1298733150558846,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.74522817674875,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.22631578947368422,
+        "omega": 0.19589026753375635,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.00945363981958,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.3026315789473685,
+        "omega": 0.26183494426018367,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.4519866499847,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.3789473684210527,
+        "omega": 0.32768203196880313,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.27027817480709,
+        "min_angle_vs_kerC_deg": 2.091309789151873e-06
+      },
+      {
+        "t": 0.4552631578947369,
+        "omega": 0.3934053841974282,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.17576417463248,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.5315789473684212,
+        "omega": 0.4589777875225401,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.4356488802383,
+        "min_angle_vs_kerC_deg": 8.537736462515939e-07
+      },
+      {
+        "t": 0.6078947368421054,
+        "omega": 0.5243707112143614,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.25276311835604,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.6842105263157896,
+        "omega": 0.5895540362706179,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.69616825659227,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.7605263157894738,
+        "omega": 0.6544957593892264,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.42616766118941,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.836842105263158,
+        "omega": 0.719161666968525,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.29219015177661,
+        "min_angle_vs_kerC_deg": 1.2074182697257333e-06
+      },
+      {
+        "t": 0.9131578947368423,
+        "omega": 0.783514973678981,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.56262826893285,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 0.9894736842105265,
+        "omega": 0.8475159195372115,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 80.25597090024473,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 1.0657894736842106,
+        "omega": 0.9111213187428954,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 78.87749164153175,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 1.142105263157895,
+        "omega": 0.9742840528335416,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.26167154197718,
+        "min_angle_vs_kerC_deg": 1.2074182697257333e-06
+      },
+      {
+        "t": 1.218421052631579,
+        "omega": 1.0369525000091069,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 80.39075832498632,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 1.2947368421052632,
+        "omega": 1.0990698918404014,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 80.87767937274786,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 1.3710526315789475,
+        "omega": 1.1605735881000834,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 79.77288741573561,
+        "min_angle_vs_kerC_deg": 1.7075472925031877e-06
+      },
+      {
+        "t": 1.4473684210526319,
+        "omega": 1.2213942602922272,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 81.10761964101015,
+        "min_angle_vs_kerC_deg": 0.0
+      },
+      {
+        "t": 1.523684210526316,
+        "omega": 1.281454974828234,
+        "n_unit": 12,
+        "N_prop": 4,
+        "max_angle_vs_kerC_deg": 77.65062210763298,
+        "min_angle_vs_kerC_deg": 0.12758990890613278
+      },
+      {
+        "t": 1.6,
+        "omega": 1.3406701680262982,
+        "n_unit": 12,
+        "N_prop": 5,
+        "max_angle_vs_kerC_deg": 81.15847764425504,
+        "min_angle_vs_kerC_deg": 1.4787793334710982e-06
+      }
+    ],
+    "min_over_ray_max_angle_deg": 77.65062210763298
+  },
+  "verdict_metrics": {
+    "per_k_max_angle_vs_kerC_deg": [
+      83.36897101579545,
+      75.43178956280197,
+      78.02407790697148,
+      78.27994979438805
+    ],
+    "per_k_n_locked_gt45": [
+      2,
+      3,
+      3,
+      3
+    ],
+    "global_sweep_floor_min_angle_deg": 76.8557905366622,
+    "kray_floor_min_angle_deg": 77.65062210763298,
+    "locked_at_all_k_now": true,
+    "a_knob_reaches_zero": false
+  },
+  "knobs_tested": {
+    "mu": "constraint-damping coupling, explicit arg to damped_map; range [1e-5,5e-2]",
+    "alpha": "Wilson radius (W.ALPHA), runtime attr set+restored; range [0.02,1.4]",
+    "k_ray": "body-diagonal continuum k-ray (geometry direction)"
+  },
+  "knobs_not_tested_why": {
+    "theta_coin_chirality": "walk_symbol(kl, th=TH) binds TH at def-time and walk_data calls it with the default; K_branch hardcodes c=C=cos(pi/3). A consistent theta sweep (c=cos theta) co-deforms the ENTIRE placed+Wilson+constraint stack -- that IS the construction campaign, not a cheap probe.",
+    "mass_gap_dm": "same: bound into the frozen walk/complex stack; co-deforms the shell. Sweeping it consistently is construction, out of scope for a cheap direction probe."
+  },
+  "verdict_tag": "LOCK UNDER THE CHEAP KNOBS (mu-coupling + Wilson-alpha) -- REACHABILITY CAUTION/NO-GO-LEAN SIGNAL (not a proven no-go)",
+  "verdict": "At every k the propagating-curvature subspace keeps >=1 principal angle LOCKED near 90deg to ker C -- i.e. it retains ~50% ROW-sector (constraint-row, R28 病灶) curvature energy -- and this is INVARIANT under the two cheap-accessible knobs: N_prop stays 4-5 and the outside-ker-C residual stays 0.35-0.53 across mu in [1e-5,5e-2] AND Wilson alpha in [0.02,1.4]; the body-diagonal k-ray never dips below 5 deg (sweep floor 76.8557905366622 deg, k-ray floor 77.65062210763298 deg). So mu (constraint-damping coupling) and the Wilson regulator DO NOT reduce the extra row-space curvature DOF. IMPORTANT HONEST SCOPE: the matter-sector coin angle theta (=chirality; sets the emergent light speed c=cos theta) and the mass gap dm were NOT swept -- they are bound into walk_symbol/K_branch (c=C hardcoded) and co-deform the ENTIRE placed +Wilson+constraint complex, so a consistent theta/mass sweep IS the construction campaign, not a cheap probe. Therefore this is a REACHABILITY CAUTION/NO-GO-LEAN SIGNAL, NOT a theorem and NOT a proven topological no-go (no winding/index invariant computed). What it DECIDES for the campaign: do NOT spend the first weeks tuning mu / the Wilson regulator -- they leave the row-space curvature untouched; the deformation, if it exists, must act on the MATTER SECTOR (theta/mass) AND co-move the complex, and whether that removes the row DOF is the real open question (like R29, may instead force relaxing unitarity / strict locality / exact constraint).",
+  "scope_boundary": "DIRECTION VERDICT ONLY (principal-angle cheap probe). Does NOT declare M3 / emergence / reachability closed. Deformation => RECOMMEND a campaign (not 'campaign succeeded'); topological => NO-GO SIGNAL (not a proven no-go, no invariant proven). R30 existence unchanged; existence != emergence != M3. Frozen inputs read-only; Wilson ALPHA set at runtime and restored, file never modified.",
+  "figure": "visualizations/figs/r32_reachability.png",
+  "source_sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+  "total_seconds": 0.40259313583374023,
+  "results_sha256": "62d07685bcfd761c5e4f614ac41ee8118560099892f21288dfc5e38d51d71f4f"
+}
