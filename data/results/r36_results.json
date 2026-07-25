@@ -1,0 +1,1449 @@
+{
+  "register": "R36-R3-two-half-verification (可达性战役收束, preregistered)",
+  "status": "DONE",
+  "backend": "numpy",
+  "preregistration": "docs/preregistration/裁定-可达性战役收束-R3验证预注册.md",
+  "params": {
+    "N": 16,
+    "mu": 0.001995262314968879,
+    "theta0": 1.0471975511965976,
+    "c0": 0.5000000000000001,
+    "judge_k": [
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        0,
+        3,
+        0
+      ],
+      [
+        2,
+        2,
+        0
+      ],
+      [
+        2,
+        2,
+        2
+      ]
+    ],
+    "sv_thresh": 0.05,
+    "unit_tol": 2e-09,
+    "surv_tol": 1e-12,
+    "stab_tol": 1e-09,
+    "NA": 44,
+    "T_A": 1500,
+    "ret_gate": 0.001,
+    "tau_gate_Loc": 3.0,
+    "j5_gate": 1e-06
+  },
+  "red_lines": "criteria preregistered and frozen; two-sided blanks; frozen inputs read-only (hash == rc3ii record); fp64; incremental JSON; no M3 declaration on any branch; seal branch delivered faithfully.",
+  "certificates": {
+    "frozen_hashes": {
+      "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+      "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+      "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+      "r25_dynamic_symbol.py": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+      "r25_realspace_step.py": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+      "cp1_v4_L2.py": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67"
+    },
+    "rc3ii_recorded_hashes": {
+      "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+      "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+      "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+    },
+    "hashes_match_rc3ii_record": {
+      "rc1a_tensor_index_scan.py": true,
+      "r32_reachability_probe.py": true,
+      "r15_walk_dedonder.py": true
+    },
+    "all_hashes_match": true,
+    "faithfulness_certificate": {
+      "walk_symbol_max_diff": 0.0,
+      "K_state_max_diff": 0.0,
+      "damped_map_max_diff": 0.0,
+      "PASS": true
+    },
+    "walk_factor_max_diff_vs_frozen_D1": 0.0,
+    "TR_involution_max_dev": 0.0,
+    "C_phys_annihilates_judge_kerC_max": 3.166881336239168e-16,
+    "C_phys_rank4_all_judge_k": true,
+    "no_structural_change_certificate": "The composite map is the factor product D.B.A.blockdiag(M_walk, I8): the walk block of S1 is the FROZEN r25_dynamic_symbol.damped_map output verbatim (file hash equal to the rc3ii record, reassembly faithfulness diff above); D/B/A act only on the auxiliary (zeta, pi_zeta) channels and on the h-block through the R30 placed de Donder constraint C_phys and its adjoint -- constraint-OPERATOR readout (local placed stencil, R30 backbone), NOT the non-local ker-C projector.  No stencil/coefficient/shear of the walk touched.",
+    "PASS": true
+  },
+  "part_A_protected_subspace": {
+    "judge_k": {
+      "(2, 0, 0)": {
+        "n_unit": 12,
+        "label": "axial",
+        "phase_spread_pos": 9.992007221626409e-16,
+        "phase_spread_neg": 4.996003610813204e-16,
+        "N_prop_baseline_plus_branch": 4,
+        "dimW_pos": 2,
+        "W_pos_invariance_resid_all4variants": 2.1414666082824363e-15,
+        "W_pos_unit_modulus_dev_all4variants": 6.661338147750939e-16,
+        "dimW_neg": 2,
+        "W_neg_invariance_resid_all4variants": 2.107642363348458e-15,
+        "W_neg_unit_modulus_dev_all4variants": 1.3322676295501878e-15,
+        "eps2_min_band_residual": {
+          "pos": 0.02135979058147409,
+          "neg": 0.03792012752860603
+        },
+        "eps2_TT_content": {
+          "pos": 0.016659866710093407,
+          "neg": 0.5433976134680365
+        },
+        "survivor_resid_outside_kerC": 5.289734378623661e-16,
+        "survivor_row_energy": 4.1786859850104287e-32,
+        "survivor_curv_sv_abs": [
+          1.4202985624457825,
+          1.8723536913030406e-10,
+          4.426590922970329e-16,
+          2.2018032396759658e-16
+        ],
+        "survivor_curv_svn": [
+          1.0,
+          1.3182817618844943e-10,
+          3.1166622568058164e-16,
+          1.5502397157147132e-16
+        ],
+        "N_prop_protected": 1,
+        "principal_angles_protected_vs_TT_deg": [
+          89.99999944088093,
+          0.0
+        ],
+        "principal_angles_band_pos_vs_TT_deg": [
+          76.2006214016131,
+          9.349241889869853
+        ],
+        "principal_angles_band_neg_vs_TT_deg": [
+          76.20062140232855,
+          9.349241889870285
+        ]
+      },
+      "(0, 3, 0)": {
+        "n_unit": 12,
+        "label": "axial",
+        "phase_spread_pos": 6.661338147750939e-16,
+        "phase_spread_neg": 6.661338147750939e-16,
+        "N_prop_baseline_plus_branch": 4,
+        "dimW_pos": 2,
+        "W_pos_invariance_resid_all4variants": 2.0027535261418653e-15,
+        "W_pos_unit_modulus_dev_all4variants": 4.440892098500626e-16,
+        "dimW_neg": 2,
+        "W_neg_invariance_resid_all4variants": 2.1103137154930044e-15,
+        "W_neg_unit_modulus_dev_all4variants": 8.881784197001252e-16,
+        "eps2_min_band_residual": {
+          "pos": 0.044560260701033756,
+          "neg": 0.06647754767058457
+        },
+        "eps2_TT_content": {
+          "pos": 0.35211564579448257,
+          "neg": 0.3466550624065862
+        },
+        "survivor_resid_outside_kerC": 6.152816333700059e-16,
+        "survivor_row_energy": 4.805444901962563e-32,
+        "survivor_curv_sv_abs": [
+          2.9541922143038906,
+          7.232143826566037e-11,
+          9.227887079905172e-16,
+          4.2516228696746083e-16
+        ],
+        "survivor_curv_svn": [
+          1.0,
+          2.448095215859263e-11,
+          3.1236583168910626e-16,
+          1.4391828835946062e-16
+        ],
+        "N_prop_protected": 1,
+        "principal_angles_protected_vs_TT_deg": [
+          89.99999983155112,
+          8.537736462515939e-07
+        ],
+        "principal_angles_band_pos_vs_TT_deg": [
+          69.30086849121905,
+          12.889265309990874
+        ],
+        "principal_angles_band_neg_vs_TT_deg": [
+          69.30086849102368,
+          12.889265310006472
+        ]
+      },
+      "(2, 2, 0)": {
+        "n_unit": 12,
+        "label": "face-diagonal",
+        "phase_spread_pos": 1.3322676295501878e-15,
+        "phase_spread_neg": 4.440892098500626e-16,
+        "N_prop_baseline_plus_branch": 4,
+        "dimW_pos": 2,
+        "W_pos_invariance_resid_all4variants": 2.3282294704414214e-15,
+        "W_pos_unit_modulus_dev_all4variants": 1.3322676295501878e-15,
+        "dimW_neg": 2,
+        "W_neg_invariance_resid_all4variants": 2.133439615275894e-15,
+        "W_neg_unit_modulus_dev_all4variants": 5.551115123125783e-16,
+        "eps2_min_band_residual": {
+          "pos": 0.004305644844534191,
+          "neg": 0.0026839305670930524
+        },
+        "eps2_TT_content": {
+          "pos": 0.0014129686185225987,
+          "neg": 0.5373971841786854
+        },
+        "survivor_resid_outside_kerC": 5.826571798107405e-16,
+        "survivor_row_energy": 1.0499664293279517e-31,
+        "survivor_curv_sv_abs": [
+          3.2482993411939796,
+          7.845753267026311e-11,
+          6.632530979118293e-16,
+          4.610929690218828e-16
+        ],
+        "survivor_curv_svn": [
+          1.0,
+          2.4153418274999378e-11,
+          2.041847219868711e-16,
+          1.4194903873988367e-16
+        ],
+        "N_prop_protected": 1,
+        "principal_angles_protected_vs_TT_deg": [
+          89.99999999823936,
+          0.0
+        ],
+        "principal_angles_band_pos_vs_TT_deg": [
+          11.214439725566773,
+          5.349946218948048
+        ],
+        "principal_angles_band_neg_vs_TT_deg": [
+          11.214439725562848,
+          8.658688291190783
+        ]
+      },
+      "(2, 2, 2)": {
+        "n_unit": 12,
+        "label": "body-diagonal",
+        "phase_spread_pos": 4.440892098500626e-16,
+        "phase_spread_neg": 1.7763568394002505e-15,
+        "N_prop_baseline_plus_branch": 4,
+        "dimW_pos": 2,
+        "W_pos_invariance_resid_all4variants": 2.539744994235976e-15,
+        "W_pos_unit_modulus_dev_all4variants": 7.771561172376096e-16,
+        "dimW_neg": 2,
+        "W_neg_invariance_resid_all4variants": 2.025267842366305e-15,
+        "W_neg_unit_modulus_dev_all4variants": 6.661338147750939e-16,
+        "eps2_min_band_residual": {
+          "pos": 0.004515807788803883,
+          "neg": 0.0010222048902293526
+        },
+        "eps2_TT_content": {
+          "pos": 5.189669148967077e-05,
+          "neg": 0.20427174558381114
+        },
+        "survivor_resid_outside_kerC": 6.717379632675095e-16,
+        "survivor_row_energy": 6.786842143194649e-32,
+        "survivor_curv_sv_abs": [
+          4.379427368856343,
+          0.06685999257211855,
+          1.2051512815077416e-15,
+          6.302561211450912e-16
+        ],
+        "survivor_curv_svn": [
+          1.0,
+          0.015266834437667264,
+          2.7518467142028624e-16,
+          1.439129064286042e-16
+        ],
+        "N_prop_protected": 1,
+        "principal_angles_protected_vs_TT_deg": [
+          89.13350975098047,
+          3.8740870517666237
+        ],
+        "principal_angles_band_pos_vs_TT_deg": [
+          6.589284146953886,
+          5.5997478175739035
+        ],
+        "principal_angles_band_neg_vs_TT_deg": [
+          20.291768302562254,
+          8.743718166253236
+        ]
+      }
+    },
+    "generic_k_sample": [
+      {
+        "k": [
+          -1.4857191889232015,
+          -0.0028885502395401552,
+          0.40599343049342984
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.4440183642110398,
+        "eps2": {
+          "pos": 0.005910709277543267,
+          "neg": 0.018272432709614185
+        }
+      },
+      {
+        "k": [
+          -1.8852439665122218,
+          -1.4082956616901763,
+          1.712844091841478
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.4144782108646432,
+        "eps2": {
+          "pos": 0.01322619868681635,
+          "neg": 0.17433133584403704
+        }
+      },
+      {
+        "k": [
+          -1.7183176953832127,
+          -1.480904202402808,
+          1.7933138131671003
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.1613144319843131,
+        "eps2": {
+          "pos": 0.04422901838714663,
+          "neg": 0.22217743553295827
+        }
+      },
+      {
+        "k": [
+          0.48753437118553133,
+          -0.5240275050808361,
+          0.045560087213050604
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.05212603088461317,
+        "eps2": {
+          "pos": 0.0014109104670339833,
+          "neg": 0.0007907064483709238
+        }
+      },
+      {
+        "k": [
+          0.651371810067197,
+          -0.8987647369554828,
+          -1.4481277085321786
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.13251900000012126,
+        "eps2": {
+          "pos": 0.013842082950052943,
+          "neg": 0.011884814814747086
+        }
+      },
+      {
+        "k": [
+          1.1521583780159674,
+          0.6814423364099351,
+          0.04952925393264174
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.12494705223067766,
+        "eps2": {
+          "pos": 0.006222144665022595,
+          "neg": 0.015362871380317243
+        }
+      },
+      {
+        "k": [
+          1.2669457438786322,
+          0.19630107548010534,
+          1.9236545571892218
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.1047680878119705,
+        "eps2": {
+          "pos": 0.010155946055986005,
+          "neg": 0.01035828948394405
+        }
+      },
+      {
+        "k": [
+          -1.1819621546798205,
+          0.21492145146091124,
+          -0.06550121230644912
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.14662508840525224,
+        "eps2": {
+          "pos": 0.008309340908986843,
+          "neg": 0.02966582570345467
+        }
+      },
+      {
+        "k": [
+          -0.5869005797582076,
+          0.3663812157961739,
+          -1.0587950733296778
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.4910031041046325,
+        "eps2": {
+          "pos": 0.012840370745549059,
+          "neg": 0.048866048932763216
+        }
+      },
+      {
+        "k": [
+          1.2088107351139339,
+          1.4693342073696587,
+          -1.4849613150885959
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.20926458638414622,
+        "eps2": {
+          "pos": 0.0689808075233641,
+          "neg": 0.17506687216769384
+        }
+      },
+      {
+        "k": [
+          -0.13170717304691548,
+          -0.8914204298651827,
+          -1.6675320090590304
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.17373971270950078,
+        "eps2": {
+          "pos": 0.026312357186405837,
+          "neg": 0.0665019487259053
+        }
+      },
+      {
+        "k": [
+          1.58377723300147,
+          -0.28020523180865853,
+          -1.4092348001516237
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.42239371370397955,
+        "eps2": {
+          "pos": 0.07517412922042044,
+          "neg": 0.11392779287255114
+        }
+      },
+      {
+        "k": [
+          0.693449429103643,
+          -1.1911358888478474,
+          1.6057243147527078
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.10977394135856502,
+        "eps2": {
+          "pos": 0.01934229725930793,
+          "neg": 0.008313541570656063
+        }
+      },
+      {
+        "k": [
+          -1.1314069703258873,
+          -1.8677012504902852,
+          -1.1969241833551227
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.17337459516242712,
+        "eps2": {
+          "pos": 0.04021182288642574,
+          "neg": 0.04243425148663861
+        }
+      },
+      {
+        "k": [
+          -0.6170085049774419,
+          -0.12436734631006141,
+          1.6245373555822424
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.38999914445567624,
+        "eps2": {
+          "pos": 0.019232123018311603,
+          "neg": 0.07772488482420147
+        }
+      },
+      {
+        "k": [
+          0.789444354945191,
+          -0.6427173570302189,
+          -1.9324911396100086
+        ],
+        "N_prop_protected": 2,
+        "svn2": 0.10951136715678311,
+        "eps2": {
+          "pos": 0.011864795102838882,
+          "neg": 0.00796719914345652
+        }
+      }
+    ],
+    "generic_k_N_prop_counts": {
+      "2": 16
+    },
+    "reading": "The +-w branches are EXACTLY degenerate (6+6, spread ~1e-15), so the coupled system reorganizes within each branch: the exactly-protected set of ANY constraint-operator-readout aux coupling is W = E INTERSECT h^{-1}(ker C) (dim 2+2, invariant and unit-modulus to ~1e-15 under all four coupling variants).  Its curvature count at the four judge k is the terminal strict N_prop.  At the high-symmetry judge k the count collapses to 1 (the second TT polarization is symmetry-locked out of band INTERSECT ker C: at axial k the band is ~76 deg away from TT2); at generic low-symmetry k the protected count is 2 with suppressed second weight -- a DIRECTION-DEPENDENT polarization count."
+  },
+  "part_B_stability_frontier": {
+    "walk_own_spectral_radius_max": 1.0000000000000033,
+    "walk_own_radius_note": "the FROZEN walk symbol's spectral radius over the BZ sample is 1 + O(1e-15) (clean); every growth excess below is therefore introduced by the back-reaction coupling, not by the walk.",
+    "n_bz_sample": 59,
+    "scan": [
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 3.552713678800501e-15,
+        "min_row_clear_rate_judge_k": -1.5543122344752192e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.0003018993638437273,
+        "min_row_clear_rate_judge_k": -1.4131351730561903e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.002073273759457317,
+        "min_row_clear_rate_judge_k": -8.819553348637932e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.007917666158031578,
+        "min_row_clear_rate_judge_k": -0.0003465289155266671,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.024871370265570514,
+        "min_row_clear_rate_judge_k": -0.0012139577953493852,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.08506907731653124,
+        "min_row_clear_rate_judge_k": -0.012915952491997285,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.05,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.2513036813654883,
+        "min_row_clear_rate_judge_k": -0.038950072095006893,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.9984014443252818e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 9.631469053594799e-05,
+        "min_row_clear_rate_judge_k": -2.180565505938148e-09,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0006884598844918433,
+        "min_row_clear_rate_judge_k": -9.556445412783887e-09,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.0031567355754487103,
+        "min_row_clear_rate_judge_k": 9.112851584447412e-09,
+        "tau_row_steps": 109735135.12572347,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.011992776826602602,
+        "min_row_clear_rate_judge_k": 3.705406894649599e-07,
+        "tau_row_steps": 2698758.9445141484,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.0582210932210141,
+        "min_row_clear_rate_judge_k": 0.008576632085593783,
+        "tau_row_steps": 116.59588402768327,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.2,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.21221055106332165,
+        "min_row_clear_rate_judge_k": 0.001351015113414955,
+        "tau_row_steps": 740.1841697183567,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.3322676295501878e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 4.4276007910015736e-05,
+        "min_row_clear_rate_judge_k": -1.0754357404607617e-09,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0002996165180368937,
+        "min_row_clear_rate_judge_k": -5.679782644207876e-09,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.0015314968292510223,
+        "min_row_clear_rate_judge_k": -9.287434155069718e-09,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.006462277934219607,
+        "min_row_clear_rate_judge_k": 1.0549345264010412e-07,
+        "tau_row_steps": 9479261.271422664,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.03706308411571402,
+        "min_row_clear_rate_judge_k": 0.0040980771636367486,
+        "tau_row_steps": 244.01687915328856,
+        "bz_stable": false
+      },
+      {
+        "variant": "z-",
+        "kappa": 0.4,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.18783139004729477,
+        "min_row_clear_rate_judge_k": 0.014981179499658492,
+        "tau_row_steps": 66.75041841817567,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 3.552713678800501e-15,
+        "min_row_clear_rate_judge_k": -1.5543122344752192e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00105724011995445,
+        "min_row_clear_rate_judge_k": -0.00019889431355513132,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.005839847321464919,
+        "min_row_clear_rate_judge_k": -0.0012213173062420868,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.018779230362872434,
+        "min_row_clear_rate_judge_k": -0.004619684892004816,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.04892938532118829,
+        "min_row_clear_rate_judge_k": -0.015004405174815494,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.14776992345357942,
+        "min_row_clear_rate_judge_k": -0.0538890358184585,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.05,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.4709972587431157,
+        "min_row_clear_rate_judge_k": -0.13885807039845988,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.9984014443252818e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00021865136290943887,
+        "min_row_clear_rate_judge_k": -5.75593963854093e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0013445650847427881,
+        "min_row_clear_rate_judge_k": -0.00035922823186784747,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.00547442372033724,
+        "min_row_clear_rate_judge_k": -0.0014324338478459708,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.022492328354104307,
+        "min_row_clear_rate_judge_k": -0.005685534869787068,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.10915549511328915,
+        "min_row_clear_rate_judge_k": -0.0315461098675045,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.2,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.674162956640767,
+        "min_row_clear_rate_judge_k": -0.11094342232377308,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.3322676295501878e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00010738079875172168,
+        "min_row_clear_rate_judge_k": -3.680679297457523e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.000738529709651381,
+        "min_row_clear_rate_judge_k": -0.00023023985239789546,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.003550838034349635,
+        "min_row_clear_rate_judge_k": -0.0009231960310638332,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.01454674421830049,
+        "min_row_clear_rate_judge_k": -0.003711331396393458,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.08329056302311777,
+        "min_row_clear_rate_judge_k": -0.023081219687126397,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "z+",
+        "kappa": 0.4,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.9088765769550227,
+        "min_row_clear_rate_judge_k": -0.08365455956963985,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 3.552713678800501e-15,
+        "min_row_clear_rate_judge_k": -1.5543122344752192e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.0010022626113828093,
+        "min_row_clear_rate_judge_k": 3.574160711838914e-08,
+        "tau_row_steps": 27978596.39292766,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.005896141617897976,
+        "min_row_clear_rate_judge_k": 2.114757092774866e-07,
+        "tau_row_steps": 4728675.474911665,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.01979284026130612,
+        "min_row_clear_rate_judge_k": 7.044894745344976e-07,
+        "tau_row_steps": 1419467.6232185946,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.05446075874562406,
+        "min_row_clear_rate_judge_k": 1.6131237986494185e-06,
+        "tau_row_steps": 619915.2233928023,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.17671718245472912,
+        "min_row_clear_rate_judge_k": -0.0024518634270804807,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.05,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.5013671166013942,
+        "min_row_clear_rate_judge_k": -0.03464038309746731,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.9984014443252818e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00032934921116667404,
+        "min_row_clear_rate_judge_k": 9.034671344387846e-09,
+        "tau_row_steps": 110684712.46839319,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.002379768476253208,
+        "min_row_clear_rate_judge_k": 5.570456285131087e-08,
+        "tau_row_steps": 17951850.778709907,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.009261268558825364,
+        "min_row_clear_rate_judge_k": 2.1240092618057815e-07,
+        "tau_row_steps": 4708077.398635372,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.03254260222228211,
+        "min_row_clear_rate_judge_k": 7.093935824320496e-07,
+        "tau_row_steps": 1409654.7033476816,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.14256797771708207,
+        "min_row_clear_rate_judge_k": 0.0041069697967289764,
+        "tau_row_steps": 243.48852061109793,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.2,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.500531698282966,
+        "min_row_clear_rate_judge_k": 0.008941897990801473,
+        "tau_row_steps": 111.83308074289145,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.3322676295501878e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00018263888503589065,
+        "min_row_clear_rate_judge_k": 4.525017027745548e-09,
+        "tau_row_steps": 220993643.53071165,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0011865584829358067,
+        "min_row_clear_rate_judge_k": 2.809022181526899e-08,
+        "tau_row_steps": 35599576.48523909,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.004890663011887231,
+        "min_row_clear_rate_judge_k": 1.0968914976317024e-07,
+        "tau_row_steps": 9116671.996811893,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.019427535518146577,
+        "min_row_clear_rate_judge_k": 3.99525410865742e-07,
+        "tau_row_steps": 2502969.7055640942,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.12224508346717955,
+        "min_row_clear_rate_judge_k": 1.4629982779679196e-06,
+        "tau_row_steps": 683527.8038665797,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz-",
+        "kappa": 0.4,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 0.5180555443067498,
+        "min_row_clear_rate_judge_k": 0.008663400219625528,
+        "tau_row_steps": 115.42811998165134,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 3.552713678800501e-15,
+        "min_row_clear_rate_judge_k": -1.5543122344752192e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00043534986019033717,
+        "min_row_clear_rate_judge_k": -0.00013891825614775755,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0035098686086643127,
+        "min_row_clear_rate_judge_k": -0.0008531496559600615,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.015717447374770988,
+        "min_row_clear_rate_judge_k": -0.0032092066188085244,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.04362903789220063,
+        "min_row_clear_rate_judge_k": -0.010604246017572372,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.13686360947325005,
+        "min_row_clear_rate_judge_k": -0.03898164869942833,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.05,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 1.0709419379068006,
+        "min_row_clear_rate_judge_k": -0.10701720816490501,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.9984014443252818e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00017760000062594372,
+        "min_row_clear_rate_judge_k": -5.48149129688813e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0011274923942876658,
+        "min_row_clear_rate_judge_k": -0.00034167495287840133,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.004292012352240304,
+        "min_row_clear_rate_judge_k": -0.001354880630386246,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.02073286289190812,
+        "min_row_clear_rate_judge_k": -0.005269961241722632,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.09946954559645915,
+        "min_row_clear_rate_judge_k": -0.028663770575351855,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.2,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 1.1969087310323472,
+        "min_row_clear_rate_judge_k": -0.08671910797728177,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.0,
+        "max_bz_excess_over_walk": 2.6645352591003757e-15,
+        "min_row_clear_rate_judge_k": -1.3322676295501878e-15,
+        "tau_row_steps": null,
+        "bz_stable": true
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.002,
+        "max_bz_excess_over_walk": 0.00010657877682374028,
+        "min_row_clear_rate_judge_k": -2.8843701556535706e-05,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.005,
+        "max_bz_excess_over_walk": 0.0006577735156165776,
+        "min_row_clear_rate_judge_k": -0.00017999950665514852,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.01,
+        "max_bz_excess_over_walk": 0.0036152490853198493,
+        "min_row_clear_rate_judge_k": -0.0007163402616920944,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.02,
+        "max_bz_excess_over_walk": 0.014769356131983935,
+        "min_row_clear_rate_judge_k": -0.002820483338032753,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.05,
+        "max_bz_excess_over_walk": 0.09296478485903337,
+        "min_row_clear_rate_judge_k": -0.01679278422641839,
+        "tau_row_steps": null,
+        "bz_stable": false
+      },
+      {
+        "variant": "pz+",
+        "kappa": 0.4,
+        "eta_back": 0.1,
+        "max_bz_excess_over_walk": 1.3698188485658758,
+        "min_row_clear_rate_judge_k": -0.06034540500680885,
+        "tau_row_steps": null,
+        "bz_stable": false
+      }
+    ],
+    "n_stable": 12,
+    "stable_configs_all_one_way_or_zero_back": true,
+    "n_stable_and_clearing_in_3Loc": 0,
+    "fastest_clearing_config": {
+      "variant": "z-",
+      "kappa": 0.4,
+      "eta_back": 0.1,
+      "max_bz_excess_over_walk": 0.18783139004729477,
+      "min_row_clear_rate_judge_k": 0.014981179499658492,
+      "tau_row_steps": 66.75041841817567,
+      "bz_stable": false
+    },
+    "reading": "NO member of the coupling family is BZ-stable with a nonzero back-reaction (the only stable members are the eta_b=0 one-way R26 originals, which leave the walk spectrum bit-identical and therefore CANNOT change N_prop).  Configs that clear the row modes within ~L/c are violently unstable elsewhere in the BZ (excess ~1e-1); near-stable configs clear on ~1e7-1e8 step timescales (= never).  The stability-vs-clearance bind closes the dynamical realization of the (b) mechanism in this family."
+  },
+  "kappa_window_recomputed": {
+    "window": [
+      0.0,
+      0.5
+    ],
+    "kappa_work_rule": "win_max/25",
+    "kappa_work": 0.02
+  },
+  "part_C_a_half_realspace": {
+    "N": 44,
+    "T": 1500,
+    "c_emergent": 0.5000000000000001,
+    "L_over_c": 87.99999999999999,
+    "kappa_work": 0.02,
+    "per_k": [
+      {
+        "k_units": [
+          0,
+          1,
+          0
+        ],
+        "seed_viol_amp_from_walk": 0.18843742404719574,
+        "seed_row_energy_of_mode": 0.8052115777324238,
+        "seed_protected_dc_frac": 0.08278857931165921,
+        "tau_clear": 62,
+        "retained_T_raw": 0.009326854896239392,
+        "retained_T_clearable_ac": 2.078889312717495e-15
+      },
+      {
+        "k_units": [
+          0,
+          2,
+          0
+        ],
+        "seed_viol_amp_from_walk": 0.39714041776739434,
+        "seed_row_energy_of_mode": 0.9761964320785387,
+        "seed_protected_dc_frac": 0.047737260785186135,
+        "tau_clear": 58,
+        "retained_T_raw": 0.005373150560180578,
+        "retained_T_clearable_ac": 2.32752180379805e-15
+      },
+      {
+        "k_units": [
+          1,
+          1,
+          0
+        ],
+        "seed_viol_amp_from_walk": 0.25742677162641137,
+        "seed_row_energy_of_mode": 0.8391931928414181,
+        "seed_protected_dc_frac": 0.06890749482667621,
+        "tau_clear": 60,
+        "retained_T_raw": 0.007719061346811903,
+        "retained_T_clearable_ac": 1.973119406847727e-15
+      },
+      {
+        "k_units": [
+          2,
+          2,
+          0
+        ],
+        "seed_viol_amp_from_walk": 0.4702466101132738,
+        "seed_row_energy_of_mode": 0.8162682214140228,
+        "seed_protected_dc_frac": 0.022910817792358963,
+        "tau_clear": 41,
+        "retained_T_raw": 0.0025617514563428746,
+        "retained_T_clearable_ac": 1.5086943663825595e-15
+      },
+      {
+        "k_units": [
+          2,
+          2,
+          2
+        ],
+        "seed_viol_amp_from_walk": 0.658987326972279,
+        "seed_row_energy_of_mode": 0.6393280815468692,
+        "seed_protected_dc_frac": 0.010995720392854237,
+        "tau_clear": 40,
+        "retained_T_raw": 0.0012212664262122549,
+        "retained_T_clearable_ac": 9.380190296806176e-16
+      },
+      {
+        "k_units": [
+          4,
+          4,
+          4
+        ],
+        "seed_viol_amp_from_walk": 1.0299788408367487,
+        "seed_row_energy_of_mode": 0.5889364700765727,
+        "seed_protected_dc_frac": 1.4854841118178924e-05,
+        "tau_clear": 39,
+        "retained_T_raw": 1.576676780452573e-06,
+        "retained_T_clearable_ac": 3.691990049633973e-17
+      }
+    ],
+    "all_cleared": true,
+    "tau_spread_ratio": 1.5897435897435896,
+    "smallest_k_tau": 62,
+    "retained_raw_max_incl_protected_dc": 0.009326854896239392,
+    "retained_clearable_max": 2.32752180379805e-15,
+    "retained_gate_1e-3_all": true,
+    "residual_gate_note": "gate read on the CLEARABLE (AC) content; the exact k=0 DC component is the R26/A2 PROTECTED conserved zero-mode channel (leapfrog eigenvalue exactly 1, group velocity 0) -- R26's own certificate set registers its conservation as a positive control. Raw retained (incl. that protected channel) reported unhidden.",
+    "negctrl_diffusion_tau": null,
+    "negctrl_diffusion_retained": 0.2515203615714204,
+    "negctrl_A2_longwave_retained": 1.0,
+    "group_speed_witness": 0.4729903163792134,
+    "group_speed_predicted": 0.48296969119794586,
+    "one_way_scope_note": "This certifies the R26 mechanism (transport at the shared emergent cone + L4 sponge absorption) on the violation SECTOR seeded with the emergent walk's measured -w row violation -- the same one-way scope as R26's original certificates.  Making the clearance act back on the walk state itself is exactly the two-way coupling closed by the Part-B stability bind; in the protected-subspace (idealized) sense the row curvature does leave N_prop (survivor row energy ~1e-16, Part A) -- both facts reported, neither inflated."
+  },
+  "part_D_j5_tt": {
+    "aux_cone_identity_theta_line": [
+      {
+        "theta": 0.4,
+        "c": 0.9210609940028851,
+        "n_k": 6,
+        "max_abs_w_aux_minus_walkshell": 1.1102230246251565e-16
+      },
+      {
+        "theta": 1.0471975511965976,
+        "c": 0.5000000000000001,
+        "n_k": 6,
+        "max_abs_w_aux_minus_walkshell": 3.0531133177191805e-16
+      },
+      {
+        "theta": 1.0,
+        "c": 0.5403023058681398,
+        "n_k": 6,
+        "max_abs_w_aux_minus_walkshell": 1.3877787807814457e-16
+      },
+      {
+        "theta": 1.2,
+        "c": 0.3623577544766736,
+        "n_k": 6,
+        "max_abs_w_aux_minus_walkshell": 3.3306690738754696e-16
+      }
+    ],
+    "j5_worst_aux_vs_shell": 3.3306690738754696e-16,
+    "j5_gate_1e-6": true,
+    "protected_phase_dev_vs_walk": 1.2212453270876722e-15,
+    "note": "J5: the aux band is IDENTICALLY the emergent walk shell (machine zero across the theta line) and the protected survivors' phases are the walk's own unit phases (walk factor untouched) -- the R26 sector introduces NO new J5 breakage. The walk band's own finite-k deviation from the scalar shell (up to 0.13 at body-diagonal) is a pre-existing property of the frozen walk, unchanged by R36."
+  },
+  "verdict": {
+    "a_half_checks": {
+      "a_all_k_cleared": true,
+      "a_residual_le_1e-3": true,
+      "a_smallest_k_tau_le_3Loc": true,
+      "a_tau_spread_lt_3x": true,
+      "a_negctrl_inplace_not_cleared": true,
+      "a_negctrl_A2_longwave_retained": true,
+      "a_group_speed_near_c": true,
+      "a_row_curvature_leaves_Nprop": true
+    },
+    "a_half_PASS": true,
+    "b_half_checks": {
+      "b_no_structural_change_to_walk": true,
+      "b_stable_two_way_coupling_exists": false,
+      "b_Nprop_final_eq_2_all_judge_k": false,
+      "b_TT_two_polarizations_preserved": false,
+      "b_J5_no_new_breakage": true,
+      "b_negctrl_eta0_baseline_Nprop4": true
+    },
+    "b_half_PASS": false,
+    "b_half_fail_reasons": [
+      "no BZ-stable two-way coupling clears the tails (stability-vs-clearance bind: stable members are the one-way R26 originals, which cannot change N_prop)",
+      "terminal protected N_prop = [1, 1, 1, 1] != [2,2,2,2]",
+      "clearing the tails kills the second TT polarization at the judge k (symmetry-locked out of band INTERSECT ker C; TT damage)"
+    ],
+    "N_prop_final_judge_k": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "survivor_svn3_judge_k": [
+      3.1166622568058164e-16,
+      3.1236583168910626e-16,
+      2.041847219868711e-16,
+      2.7518467142028624e-16
+    ],
+    "branch": "seal",
+    "branch_mapping_applied": "preregistration: both halves PASS with (b) free of structural change -> positive closure; ANY half FAIL -> seal ('with all four commitments -- exact constraint + emergence + strict locality + unitarity -- spin-2 M3 is structurally unreachable'); grey -> ambiguous, reported without hard judgment."
+  },
+  "branch": "seal",
+  "figure": "visualizations/figs/r36_r3_verification.png",
+  "source_sha256": "2169f7acbaef06c0954750d9e63441e880389fb48613e2d38092095a22ff1abe",
+  "total_seconds": 10.23866605758667,
+  "results_sha256": "8ef37a566005321b1a9d684bfe61492e7da6857173810e483727a3e922764500"
+}
