@@ -6,7 +6,7 @@
     "control_matrix[]": "8 行,每行 {id, name, gates, status: green|red, tol, max_abs_diff, remeasured, frozen(含 source), seconds}。remeasured=新评估器重测值;frozen=冻结 JSON 已知答案;status=green 即该行落位。",
     "epsilon_sigma_anchors[]": "(epsilon,sigma) 平面锚点。每项 {id, sector, swimlane(spin0|spin1|spin2), epsilon_dof 或 epsilon_dof_range, epsilon_E, sigma:{by_direction:{A,sigma_A,alpha,dAIC,verdict,band_D3} 或 note}, source}。epsilon 轴取值 [0,1];sigma 轴建议画 (alpha, A) 双坐标或以 A 为半径的标记。spin0 泳道锚点属 v1 封册事实(标量战役),M0' 不重测,泳道留位。",
     "gate_readings": "candidate_id -> GateColumns.as_dict();每门 {raw, per_L, limit_fit, verdict, diagnostics}。verdict=CONTROL 表示固定尺度对答案行,非物理判定。",
-    "sigma_calibration_64": "交付物 4(独立脚本/并行 agent)填;此处占位。",
+    "sigma_calibration_64": "交付物 4 摘要(σ 校准件,DONE,分支 Z):{direction_fits{old_16_48/new_16_96 (A,σ_A,α,ΔAIC)+排零+σ 水平+D3 档+LOO 翻转}, min_k96_raw_resid_max, face_small_floor(模型无关上界 1.3%), wording_update_suggestion(双档,交车道A)}。dashboard 的 (ε,σ) 平面 σ 维以 direction_fits.new_16_96 的 (A,α) 为准。全量数据:data/results/v2m0_sigma_calibration.json。仪器校准,非物理门。",
     "hashes": "冻结件 sha256 校验册(checked=有先行记录并逐位比对)。"
   },
   "generated_utc": "2026-07-25T20:48:03.786390+00:00",
@@ -3688,8 +3688,97 @@
     }
   },
   "sigma_calibration_64": {
-    "status": "PENDING",
-    "note": "交付物 4(v2m0_sigma_calibration.py,并行 agent)完成后填入"
+    "status": "DONE",
+    "register": "σ 机器校准件(≥64³ 标度审计;仪器校准,非物理门;交付物 4)",
+    "calibration_branch": "Z",
+    "backend": "numpy fp64",
+    "lattices": [
+      16,
+      24,
+      32,
+      48,
+      64,
+      96
+    ],
+    "lattice_96_note": "96³ 已含:逐 k 谱路径(28×28 本征分解),无 L³ 数组;峰值 RSS 91 MB,总 0.5 s",
+    "protocol": "R37 协议逐字复用(冻结脚本代码对象直接调用,faithfulness/16³ 校准/旧系列再推导 diff 全 0.0);唯一改动=格子清单(D3)",
+    "direction_fits": {
+      "axial": {
+        "old_16_48": {
+          "A": -0.19134650736650763,
+          "sigma_A": 2.131816018607365,
+          "alpha": 0.37000000000000005,
+          "dAIC": 2.6951090036189598
+        },
+        "new_16_96": {
+          "A": 0.003018876432247818,
+          "sigma_A": 0.07392025511256665,
+          "alpha": 1.0200000000000002,
+          "dAIC": 20.511155526435275
+        },
+        "zero_excluded_|A|<=2sigmaA": true,
+        "zero_sigma_level": 0.04,
+        "dAIC_power_decisive": true,
+        "d3_tier": "clean-scaling (alpha>=1)",
+        "loo_zero_flips": "1/14"
+      },
+      "face-diagonal": {
+        "old_16_48": {
+          "A": 0.048899496435197615,
+          "sigma_A": 0.012326275450997752,
+          "alpha": 2.9300000000000006,
+          "dAIC": 17.477764329271025
+        },
+        "new_16_96": {
+          "A": 0.020039301845138968,
+          "sigma_A": 0.010253274174745837,
+          "alpha": 1.7700000000000002,
+          "dAIC": 43.10106287927596
+        },
+        "zero_excluded_|A|<=2sigmaA": true,
+        "zero_sigma_level": 1.95,
+        "dAIC_power_decisive": true,
+        "d3_tier": "clean-scaling (alpha>=1)",
+        "loo_zero_flips": "4/14"
+      },
+      "body-diagonal": {
+        "old_16_48": {
+          "A": 0.03080404450030344,
+          "sigma_A": 0.008139054225196587,
+          "alpha": 1.5300000000000002,
+          "dAIC": 25.546884602320446
+        },
+        "new_16_96": {
+          "A": 0.01552817053261974,
+          "sigma_A": 0.007889634924297952,
+          "alpha": 1.3100000000000003,
+          "dAIC": 46.41408730965436
+        },
+        "zero_excluded_|A|<=2sigmaA": true,
+        "zero_sigma_level": 1.97,
+        "dAIC_power_decisive": true,
+        "d3_tier": "clean-scaling (alpha>=1)",
+        "loo_zero_flips": "5/14"
+      }
+    },
+    "min_k96_raw_resid_max": {
+      "axial": 0.020038946198002637,
+      "face-diagonal": 0.012769489683539225,
+      "body-diagonal": 0.010027533992509684
+    },
+    "face_small_floor": {
+      "zero_excluded_main": true,
+      "marginal_note": "面斜/体对角主判据排零边缘成立(1.95σ/1.97σ);扩窗(1.70σ/0.81σ)与次级 resid_mean 口径(0.80σ/0.59σ)更强一致;LOO 存在边缘翻转,如实入册",
+      "model_free_upper_bound": 0.013,
+      "model_free_note": "96³ 最小可分辨 |k| 处面斜原始读数 0.0128 ⟹ 任何真常数底 ≤1.3%,v1 的\"≤5% 小底\"无条件收紧"
+    },
+    "wording_update_suggestion": "建议(交车道A,只加不改史): 封存文档 §五-3 追加——v2 M0' σ 机器校准件(64³/96³, R37 协议逐字复用)在面斜 |k|<0.37 补入拟合合格点后,三方向幂律均决定性胜出且截距均与 0 一致(|A|≤2σ_A);v1 遗留的\"面斜是唯一不能在 ≤48³ 内排除 ≤5% 小底的方向\"就此了结。R37 自身 ambiguous 落点按其预注册系列不改。",
+    "wording_fallback_tier": "若车道A 认为 1.95σ 边缘 + LOO 翻转不足以写\"了结\":\"面斜小底上界收紧至 ≤1.3%(模型无关)且主判据排零成立(边缘);≤5% 量级的表述废止\"。两档均在 Z 侧事实内,定稿权在车道A/PI",
+    "nature": "instrument calibration; NOT a physics gate; no v1 verdict changed; no v2 gate triggered;G2 正式读数不由本件代填",
+    "script": "experiments/v2m0_sigma_calibration.py",
+    "source_sha256": "55297b2c04439a792fa7e617a4309c518bf4da873e7cea8f70eaea95a12b67a2",
+    "results_file": "data/results/v2m0_sigma_calibration.json",
+    "results_sha256": "7563ba4b83488c238a22a090ee138d4ddecb96c976b3dd74f93c9b4f07fd99cf"
   },
   "hashes": {
     "pass": true,
