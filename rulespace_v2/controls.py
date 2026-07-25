@@ -9,26 +9,46 @@
 | 2 | R23 Yee/Maxwell | 光子 2 + Lorenz 闭合;eps_DOF=1(r23_results.json)     | G1/G3    | 1e-12    |
 | 3 | null_damped     | N_prop=2,sv 断崖 ~1e4(r28_results.json PC3)          | G1       | 1e-10    |
 | 4 | teeth 裸波      | N_prop=6(r25_emergence_timeseries_results.json)       | G1       | 精确     |
-| 5 | 冻结走行族      | N_prop=[4,4,5,5];泄漏 34-49%;eps∈[0,0.25](r32/rc3ii/r36)| G1/G8 | 1e-13(walk 因子逐位) |
+| 5 | 冻结走行族      | 逐位档:N_prop=[4,4,5,5] + walk 因子逐位(r32/r36);不变量档:j_hand_inv/主角谱基稳健 | G1/G8 | 整数精确 + 1e-13 + 漂移 1e-12 |
 | 6 | tr_sign=0 炮    | Newton/偏折按 v1 记录击穿(总账 43c:h00/phi→4,偏折→1)| G4/G5    | 判 FAIL  |
 | 7 | R36 (a) 清除件  | tau∈[39,62]、k-无关 1.59x、AC 残余 ≤2.3e-15(r36)      | G6/G7    | 1e-12    |
-| 8 | R37 16^3 校准   | 三判据 k resid 与 rc3ii_results.json diff=0.0          | G2       | 0.0 逐位 |
+| 8 | R37 16^3 校准   | 不变量档:三判据 k (max sinθ, frob) 复现复核 §三判决数 + 基稳健 | G2  | sin 1e-4/frob 1e-3(显示精度)+ 漂移 1e-12 |
 
 行 6 说明:v1 记录是总账 43c 的文字记录(tr_sign=0 → 判据2 h00/phi: 2→4、判据3 偏折:
 2→1,均 FAIL),无独立冻结 JSON 数值;本行判据 = 两裁判 v1 门均 FAIL,且读数与记录
 方向一致(h00/phi 落在 4 附近、偏折落在 1 附近,窗 ±0.1,写死)。
 
-M0' PASS = 8/8 全落位。任一不落位 => 停手(禁调 tol、禁改核),写追因小报告报车道A。
+--- M0' 整改(2026-07-26,复核 §四 整改令 3/4;判据写死,运行后不回改)--------------
+行5/行8 判据改口:逐位档只保留真逐位量(walk 因子、N_prop 整数列、hash);
+连续读数改为**不变量**(主角谱/max sinθ/frob 泄漏/不变量 j_hand),比对纪律:
+  * 跨环境可移植判据 = 不变量宿主/沙盒双跑 diff ≤ 1e-12(沙盒侧由车道A 复核执行;
+    本模块在 JSON 里入册宿主参考值 + environment 字段 + cross_environment_status
+    ="待沙盒确认");
+  * 基稳健性自检列:对简并子空间做 3 次固定种子簇内酉旋转(invariants.ROT_SEEDS),
+    不变量漂移 ≤ 1e-12(宿主侧本模块执行);
+  * 旧口径逐模统计(resid_min/max、贪心 j_hand、逐列 sv 比对)降级为 legacy 诊断
+    (环境绑定,as-recorded,不参与 pass 判定——它们正是复核抓出的非观测量)。
+行2 加注:冻结 r23_results.json 环境谱系 = 沙盒系(与沙盒逐位 0.0,与宿主差 1.8e-15
+ULP 级;复核 ② 确证,lane B 原标注诚实且正确)。
+行8 判决参照(复核 §三,沙盒判决实验不变量列,写死):
+  (2,0,0): max sinθ=1.0000, frob=1.035;(2,2,0): 0.1948, 0.304;(2,2,2): 0.1493, 0.211。
+
+M0' 整改后 PASS 口径:宿主 8/8 + 基稳健自检全过 ≠ 收口;收口须双环境 8/8
+(沙盒双跑由车道A 复核时执行)。任一不落位 => 停手(禁调 tol、禁改核),报车道A。
 """
 from __future__ import annotations
 
 import json
+import math
 import os
 
 import numpy as np
 
 from . import frozen as FZ
 from . import gates as G
+from . import invariants as INV
+from . import sigma as SIG
+from . import epsilon as EPS
 from .candidate import CandidateV2
 
 # ---- tol(写死;运行后不得回改) -----------------------------------------
@@ -37,12 +57,20 @@ TOL = {
     "row2_r23": 1e-12,
     "row3_null_damped": 1e-10,
     "row4_teeth": 0.0,          # 整数精确
-    "row5_frozen_walk": 1e-13,  # walk 因子逐位;浮点比对同 tol,计数精确
+    "row5_frozen_walk": 1e-13,  # walk 因子逐位;N_prop 整数精确(逐位档)
     "row6_tr_sign": None,       # 判 FAIL 即可(读数窗 ±0.1 对 v1 记录方向)
     "row7_r36": 1e-12,
-    "row8_r37_calib": 0.0,      # 逐位
+    "row8_r37_calib": 0.0,      # (旧口径,legacy 诊断列保留原 tol 记录)
+    # ---- M0' 整改新增(整改令 3,写死) ------------------------------------
+    "invariant_basis_drift": 1e-12,     # 基稳健自检:3 次固定种子酉旋转漂移门
+    "invariant_cross_env": 1e-12,       # 跨环境不变量比对门(沙盒双跑,车道A)
+    "row8_review_sin": SIG.REVIEW_SIN_TOL,    # 1e-4(复核表显示精度)
+    "row8_review_frob": SIG.REVIEW_FROB_TOL,  # 1e-3(复核表显示精度)
 }
 ROW6_H00_RECORD, ROW6_DEFL_RECORD, ROW6_WIN = 4.0, 1.0, 0.1
+
+CROSS_ENV_PENDING = ("待沙盒确认:整改后判据要求宿主+沙盒双环境不变量 diff <= "
+                     "1e-12;沙盒双跑由车道A 复核时执行(本 JSON 为宿主参考值)")
 
 
 def _load(rel):
@@ -148,6 +176,10 @@ def row2_r23(gc) -> dict:
             | {"epsilon_dof": eps},
             "frozen": {k: frozen[k] for k in keys + ["dims", "ranks", "all_pass"]}
             | {"epsilon_dof_anchor": 1.0, "source": "r23_results.json"},
+            "frozen_json_lineage": ("沙盒系(Linux/OpenBLAS):复核 ② 确证冻结 "
+                                    "r23_results.json 与沙盒重跑逐位 diff=0.0,"
+                                    "与宿主(darwin/Accelerate)差 1.8e-15 ⟹ "
+                                    "偏差纯环境属性(ULP 级),在 tol 1e-12 内"),
             "tol": tol, "max_abs_diff": max(diffs.values()), "per_key_diff": diffs,
             "pass": bool(ok)}
 
@@ -184,7 +216,14 @@ def row4_teeth(gc) -> dict:
 
 
 def row5_frozen_walk(gc) -> dict:
+    """M0' 整改版(整改令 3):
+    逐位档(判据)= N_prop 整数列 vs r32 + walk 因子逐位 vs r36;
+    不变量档(判据)= 不变量 j_hand/主角谱 基稳健(3 种子酉旋转漂移 <=1e-12)
+      + B₊ 主角谱/frob 宿主参考值入册(跨环境比对待沙盒);
+    legacy 诊断(非判据)= 逐列 leak_resid_mean / curv_sv / 贪心 j_hand 比对
+      (基依赖,环境绑定,as-recorded)。"""
     tol = TOL["row5_frozen_walk"]
+    drift_tol = TOL["invariant_basis_drift"]
     r32f = _load("data/results/r32_results.json")["per_k"]
     rc3f = _load("data/results/rc3ii_results.json")[
         "candidate_R2_emergent_matter"]["per_k"]
@@ -193,12 +232,7 @@ def row5_frozen_walk(gc) -> dict:
     g1 = gc.gates["G1_dof_nprop"]["per_L"]["16"]
     n_re = [r["N_prop"] for r in g1]
     n_fr = [p["N_prop_curv"] for p in r32f]
-    leak_re = [r["leak_resid_mean"] for r in g1]
-    leak_fr = [p["mean_resid_outside_kerC"] for p in r32f]
-    leak_diff = max(abs(a - b) for a, b in zip(leak_re, leak_fr))
-    sv_diff = max(_maxdiff(r["curv_sv"], p["curv_sv"])
-                  for r, p in zip(g1, r32f))
-    # walk 因子逐位(r36 证书同款:16 个随机 k,rng(7))
+    # ---- 逐位档:walk 因子(r36 证书同款:16 个随机 k,rng(7)) ------------
     RC = FZ.mod("rc1a_tensor_index_scan")
     D1 = FZ.mod("r25_dynamic_symbol")
     rng = np.random.default_rng(7)
@@ -208,28 +242,67 @@ def row5_frozen_walk(gc) -> dict:
         wmax = max(wmax, float(np.abs(
             RC.damped_map_p(nv, RC.MU0, RC.TH0, 0.0, RC.C0)
             - D1.damped_map(nv, RC.MU0)[0]).max()))
-    # G8:j_hand / epsilon
+    bitwise_ok = (n_re == n_fr == [4, 4, 5, 5]
+                  and wmax <= tol and abs(wmax - r36f) <= tol)
+    # ---- 不变量档:G8 不变量 epsilon(含基稳健) + B₊ 主角谱逐判据 k --------
     e = gc.gates["G8_epsilon"]["diagnostics"]
-    j_re = {k: v["j_hand"] for k, v in e["per_k"].items()}
+    j_inv = {k: v["j_hand_invariant"] for k, v in e["per_k"].items()}
+    eps_rng_inv = e["anchor_range_invariant"]
+    eps_stable = bool(e["basis_stable"]) and e["max_drift"] <= drift_tol
+    bplus_inv, bplus_drift = {}, 0.0
+    for kl in [(2, 0, 0), (0, 3, 0), (2, 2, 0), (2, 2, 2)]:
+        k = np.array(kl, float) * (2 * np.pi / 16)
+        rob = INV.plus_branch_basis_robustness(k, math.cos(math.pi / 3.0))
+        bplus_inv[str(kl)] = {
+            "sin_theta": rob["base"]["sin_theta"],
+            "max_sin_theta": rob["base"]["max_sin_theta"],
+            "frob_leak": rob["base"]["frob_leak"],
+            "rms_sin": rob["base"]["rms_sin"],
+            "n_ge_thresh": rob["base"]["n_ge_thresh"],
+            "basis_drift": rob["max_drift"]}
+        bplus_drift = max(bplus_drift, rob["max_drift"])
+    invariant_ok = eps_stable and bplus_drift <= drift_tol
+    # ---- legacy 诊断(非判据;基依赖,环境绑定) ---------------------------
+    leak_re = [r["leak_resid_mean"] for r in g1]
+    leak_fr = [p["mean_resid_outside_kerC"] for p in r32f]
+    leak_diff = max(abs(a - b) for a, b in zip(leak_re, leak_fr))
+    sv_diff = max(_maxdiff(r["curv_sv"], p["curv_sv"])
+                  for r, p in zip(g1, r32f))
+    j_greedy = {k: v["legacy_greedy"]["j_hand"] for k, v in e["per_k"].items()}
     j_fr = {k: v["min_handbuilt_DOF_for_2"] for k, v in rc3f.items()}
-    eps_rng = e["epsilon_dof_min_max"]
-    ok = (n_re == n_fr == [4, 4, 5, 5]
-          and leak_diff <= tol and sv_diff <= tol
-          and 0.34 <= min(leak_re) and max(leak_re) <= 0.49
-          and wmax <= tol and abs(wmax - r36f) <= tol
-          and j_re == j_fr
-          and 0.0 - 1e-12 <= eps_rng[0] and eps_rng[1] <= 0.25 + 1e-12)
-    return {"name": "冻结走行族 (N_prop=[4,4,5,5] + 泄漏 34-49% + eps∈[0,0.25] + walk 因子逐位)",
-            "remeasured": {"N_prop": n_re, "leak_resid_mean": leak_re,
-                           "walk_factor_max_diff": wmax, "j_hand": j_re,
-                           "epsilon_dof_min_max": eps_rng},
-            "frozen": {"N_prop": n_fr, "leak_resid_mean": leak_fr,
-                       "walk_factor_max_diff": r36f, "j_hand": j_fr,
-                       "epsilon_anchor_range": [0.0, 0.25],
-                       "source": "r32/rc3ii/r36 results.json"},
-            "tol": tol,
-            "max_abs_diff": max(leak_diff, sv_diff, wmax, abs(wmax - r36f)),
-            "pass": bool(ok)}
+    ok = bool(bitwise_ok and invariant_ok)
+    return {"name": ("冻结走行族 (逐位:N_prop=[4,4,5,5]+walk 因子;不变量:"
+                     "j_hand_inv/主角谱基稳健;legacy 逐模统计降级诊断)"),
+            "remeasured": {
+                "N_prop": n_re, "walk_factor_max_diff": wmax,
+                "j_hand_invariant": j_inv,
+                "epsilon_dof_min_max_invariant": eps_rng_inv,
+                "epsilon_basis_stable": eps_stable,
+                "bplus_invariants_per_k": bplus_inv,
+                "basis_drift_max": max(bplus_drift, e["max_drift"])},
+            "frozen": {"N_prop": n_fr, "walk_factor_max_diff": r36f,
+                       "source": "r32/rc3ii/r36 results.json(逐位档比对);"
+                                 "不变量档无先行冻结记录,本 JSON 即宿主参考值"},
+            "legacy_diagnostics_basis_dependent": {
+                "note": ("非判据(复核 §三:逐模统计随 LAPACK 基漂移);"
+                         "as-recorded 环境绑定诊断"),
+                "leak_resid_mean": leak_re,
+                "leak_resid_mean_frozen": leak_fr,
+                "leak_diff_vs_r32": leak_diff,
+                "curv_sv_diff_vs_r32": sv_diff,
+                "j_hand_greedy": j_greedy,
+                "j_hand_greedy_frozen_rc3ii": j_fr,
+                "j_greedy_matches_frozen": bool(j_greedy == j_fr),
+                "epsilon_anchor_legacy_D1": [0.0, 0.25]},
+            "tol": tol, "invariant_drift_tol": drift_tol,
+            "max_abs_diff": max(wmax, abs(wmax - r36f)),
+            "basis_robustness_check": {
+                "seeds": list(INV.ROT_SEEDS),
+                "max_drift": max(bplus_drift, e["max_drift"]),
+                "pass": bool(invariant_ok)},
+            "environment": INV.environment_record(),
+            "cross_environment_status": CROSS_ENV_PENDING,
+            "pass": ok}
 
 
 def row6_tr_sign(gc) -> dict:
@@ -289,40 +362,85 @@ def row7_r36(gc) -> dict:
 
 
 def row8_r37_calib() -> dict:
-    """G2 sigma 机器 16^3 校准:重测三判据 k 的 resid min/max,与
-    rc3ii_results.json 逐位比对(diff 必须 0.0);另附 R37 方向拟合逐位对拍。"""
-    from . import sigma as SIG_
-    tol = TOL["row8_r37_calib"]
+    """M0' 整改版(整改令 1/3):
+    不变量档(判据)= 三判据 k 的 (max sinθ, frob) 复现复核 §三判决数
+      (tol = 显示精度 sin 1e-4 / frob 1e-3)+ 基稳健自检(3 种子漂移 <=1e-12);
+      主角谱全谱入册为宿主参考值(跨环境 diff <=1e-12 待沙盒);
+    不变量方向拟合(y=max sinθ,R37 协议原样)入册为宿主参考值;
+    legacy 诊断(非判据)= 旧口径 resid 逐位 vs rc3ii + 旧口径拟合 vs r37_results
+      (基依赖,环境绑定——正是复核抓出的失守读数,保留 as-recorded)。"""
+    drift_tol = TOL["invariant_basis_drift"]
+    # ---- 不变量档(判据) --------------------------------------------------
+    calib_inv = SIG.calibration_16cube_invariant()
+    fits_inv = SIG.direction_fits_invariant()
+    inv_ok = bool(calib_inv["reproduces_review_judgement"])
+    worst_drift = max(v["basis_robustness"]["max_drift"]
+                      for v in calib_inv["per_k"].values())
+    worst_review_diff = max(
+        max(v["diff_vs_review"]["max_sin_theta"],
+            v["diff_vs_review"]["frob_leak"])
+        for v in calib_inv["per_k"].values())
+    # ---- legacy 诊断(非判据;宿主环境绑定) -------------------------------
+    tol_legacy = TOL["row8_r37_calib"]
     rc3f = _load("data/results/rc3ii_results.json")[
         "candidate_R3_exact_constraint"]["per_k"]
-    remeas = SIG_.calibration_16cube()
+    remeas = SIG.calibration_16cube()
     diffs = {}
     for kstr, v in remeas.items():
         lo, hi = rc3f[kstr]["resid_outside_kerC_min_max"]
         diffs[kstr] = [abs(v["resid_min"] - lo), abs(v["resid_max"] - hi)]
-    worst = max(max(d) for d in diffs.values())
-    # 方向拟合对拍(诊断级,同 0 偏差预期;确定性协议)
+    worst_legacy = max(max(d) for d in diffs.values())
     r37f = _load("data/results/r37_results.json")["direction_fits"]
-    fits = SIG_.direction_fits()
+    fits_legacy = SIG.direction_fits()
     fit_diff = {}
     for J in r37f:
         d = J["direction"]
         m1 = J["power_model"]
-        f = fits[d]
+        f = fits_legacy[d]
         fit_diff[d] = max(abs(f["A"] - m1["A"]), abs(f["alpha"] - m1["alpha"]),
                           abs(f["dAIC_const_minus_power"]
                               - J["dAIC_const_minus_power"]))
-    worst_fit = max(fit_diff.values())
-    ok = (worst <= tol and worst_fit <= 1e-12)
-    return {"name": "R37 16^3 校准 (三判据 k resid 逐位 + 方向拟合对拍)",
-            "remeasured": {"calib": remeas,
-                           "fits": {d: {"A": f["A"], "alpha": f["alpha"],
-                                        "dAIC": f["dAIC_const_minus_power"],
-                                        "verdict": f["verdict"],
-                                        "band_D3": f["band_D3"]}
-                                    for d, f in fits.items()}},
-            "frozen": {"calib": {k: v["resid_outside_kerC_min_max"]
-                                 for k, v in rc3f.items()},
-                       "source": "rc3ii_results.json candidate_R3 / r37_results.json"},
-            "tol": tol, "max_abs_diff": worst,
-            "fit_max_abs_diff": worst_fit, "pass": bool(ok)}
+    ok = inv_ok
+    return {"name": ("R37 16^3 校准 (不变量:判决数复现+基稳健;"
+                     "legacy resid 逐位降级诊断)"),
+            "remeasured": {
+                "calib_invariant": calib_inv["per_k"],
+                "reproduces_review_judgement":
+                    calib_inv["reproduces_review_judgement"],
+                "fits_invariant": {d: {"A": f["A"], "sigma_A": f["sigma_A"],
+                                       "alpha": f["alpha"],
+                                       "dAIC": f["dAIC_const_minus_power"],
+                                       "verdict": f["verdict"],
+                                       "band_D3": f["band_D3"],
+                                       "y_observable": f["y_observable"]}
+                                   for d, f in fits_inv.items()}},
+            "frozen": {"review_judgement_16cube":
+                           {str(k): v for k, v
+                            in SIG.REVIEW_JUDGEMENT_16CUBE.items()},
+                       "source": ("复核 §三 判决实验不变量列(沙盒;环境无关"
+                                  "参照);不变量拟合无先行冻结记录,本 JSON "
+                                  "即宿主参考值")},
+            "legacy_diagnostics_basis_dependent": {
+                "note": ("非判据(复核 §三:resid_min/max 随 LAPACK 基漂移,"
+                         "跨环境失守正发生在此列);as-recorded 环境绑定诊断"),
+                "calib_legacy": remeas,
+                "diff_vs_rc3ii": diffs,
+                "worst_diff_vs_rc3ii": worst_legacy,
+                "legacy_tol_was": tol_legacy,
+                "fits_legacy": {d: {"A": f["A"], "alpha": f["alpha"],
+                                    "dAIC": f["dAIC_const_minus_power"],
+                                    "verdict": f["verdict"]}
+                                for d, f in fits_legacy.items()},
+                "fit_diff_vs_r37_results": fit_diff},
+            "tol": {"review_sin": TOL["row8_review_sin"],
+                    "review_frob": TOL["row8_review_frob"],
+                    "basis_drift": drift_tol,
+                    "cross_env": TOL["invariant_cross_env"]},
+            "max_abs_diff": worst_review_diff,
+            "basis_robustness_check": {
+                "seeds": list(INV.ROT_SEEDS),
+                "max_drift": worst_drift,
+                "pass": bool(worst_drift <= drift_tol)},
+            "environment": INV.environment_record(),
+            "cross_environment_status": CROSS_ENV_PENDING,
+            "pass": bool(ok)}

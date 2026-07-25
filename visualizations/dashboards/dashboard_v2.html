@@ -177,7 +177,7 @@
   <!-- 面板 1:(ε, σ) 平面 -->
   <section class="panel">
     <h2>(ε, σ) 平面 · 锚点散点</h2>
-    <div class="cap">横轴 ε_DOF(0=全手搭,1=零手搭;D1 主判) · 纵轴 σ 维=约束残差截距 A(16³–96³ 校准后拟合;各点标注 α) · 数据:epsilon_sigma_anchors[] + sigma_calibration_64</div>
+    <div class="cap">横轴 ε_DOF(不变量口径:j_hand_inv = 主角 sinθ≥0.05 维数;M0′ 整改令 2) · 纵轴 σ 维=<b>不变量</b>截距 A(y=max sinθ 主角谱,替代基依赖 resid_max;16³–96³ 整改版拟合,各点标注 α;旧口径保留为注记) · 数据:epsilon_sigma_anchors[] + sigma_calibration_64</div>
     <div class="legend" id="scatter-legend"></div>
     <div id="scatter"></div>
     <div class="calib-strip" id="calib-strip"></div>
@@ -193,7 +193,7 @@
   <!-- 面板 3:控制矩阵 -->
   <section class="panel">
     <h2>控制矩阵 · 绿/红牌</h2>
-    <div class="cap">8 行"已知答案"控制(新评估器重测 vs 冻结 JSON) · 数据:control_matrix[] · 8/8 为 lane B 自检交付状态,M0′ 收口另需车道A 复核 + PI 签字</div>
+    <div class="cap">8 行"已知答案"控制(新评估器重测 vs 冻结 JSON;M0′ 整改版:行5/行8 判据不变量化,基稳健自检=3 次固定种子酉旋转漂移≤1e-12) · 数据:control_matrix[] · <b>宿主 8/8 + 跨环境 6/8(整改前)→ 整改后须双环境 8/8</b>:宿主侧全过≠收口,沙盒双跑由车道A 复核执行 + PI 签字</div>
     <table id="ctrl-table"></table>
   </section>
 
@@ -267,7 +267,7 @@
     var bc=document.getElementById("b-ctrl");
     var allGreen=(d.control_matrix||[]).every(function(r){return r.status==="green";});
     bc.className="badge "+(allGreen?"ok":"halt");
-    bc.innerHTML='<span class="dot"></span>控制矩阵 '+esc(ms.control_matrix_pass||"?")+"(lane B 自检)";
+    bc.innerHTML='<span class="dot"></span>控制矩阵 '+esc(ms.control_matrix_pass||"?")+(ms.cross_environment?" · 待沙盒双跑":"(lane B 自检)");
     renderScatter(d);
     renderLanes(d);
     renderCtrl(d);
@@ -314,11 +314,16 @@
     s+='<text class="axis-lab" transform="rotate(-90 14 '+(MT+ih/2)+')" x="14" y="'+(MT+ih/2)+'" text-anchor="middle">σ 维:截距 A</text>';
     s+='<text x="'+X(0.56)+'" y="'+(Y(0)-8)+'" text-anchor="middle" style="fill:var(--muted)">A=0 精确约束线</text>';
 
-    // 冻结走行族 ε 区间条
+    // 冻结走行族 ε 区间条(不变量口径;旧口径虚线注记)
     if(fw){
       var e0=fw.epsilon_dof_range[0],e1=fw.epsilon_dof_range[1];
       s+='<rect x="'+X(e0)+'" y="'+MT+'" width="'+(X(e1)-X(e0))+'" height="'+ih+'" fill="var(--s-fd)" opacity="0.07"/>';
-      s+='<text x="'+X((e0+e1)/2)+'" y="'+(MT+13)+'" text-anchor="middle" style="fill:var(--muted)">冻结走行族 ε∈['+e0+', '+e1+']</text>';
+      s+='<text x="'+X((e0+e1)/2)+'" y="'+(MT+13)+'" text-anchor="middle" style="fill:var(--muted)">冻结走行族 ε∈['+e0+', '+e1+'](不变量)</text>';
+      if(fw.epsilon_dof_range_legacy){
+        var l0=fw.epsilon_dof_range_legacy[0],l1=fw.epsilon_dof_range_legacy[1];
+        s+='<rect x="'+X(l0)+'" y="'+(H-MB-16)+'" width="'+(X(l1)-X(l0))+'" height="10" fill="none" stroke="var(--muted)" stroke-dasharray="3 3"/>';
+        s+='<text x="'+X(l1)+'" y="'+(H-MB-20)+'" text-anchor="start" style="fill:var(--muted);font-size:10px"> 旧口径 ['+l0+', '+l1+'](基伪影注记)</text>';
+      }
     }
 
     var pts=[];
@@ -332,20 +337,26 @@
     var eMid=fw?((fw.epsilon_dof_range[0]+fw.epsilon_dof_range[1])/2):0.125;
     DIRS.forEach(function(dir,i){
       var f=null,tag="";
-      if(calibDone){f=sc.direction_fits[dir.key].new_16_96;tag="校准后 16³–96³";}
-      else if(fw&&fw.sigma&&fw.sigma.by_direction){f=fw.sigma.by_direction[dir.key];tag="R37 冻结 16³–48³(σ 校准件待运行)";}
+      if(calibDone){f=sc.direction_fits[dir.key].new_16_96;tag="整改版不变量 16³–96³(y=max sinθ)";}
+      else if(fw&&fw.sigma&&fw.sigma.by_direction){f=fw.sigma.by_direction[dir.key];tag="行8 不变量拟合 16³–48³(σ 校准整改件待运行)";}
       if(!f)return;
       var ex=eMid+(i-1)*0.028;
       var zi=calibDone?sc.direction_fits[dir.key]:null;
+      var lg=zi?(zi.legacy_16_96_resid_max||null):null;
       var lp=(dir.key==="axial")?{ldx:-10,ldy:20,lanchor:"end"}
             :(dir.key==="face-diagonal")?{ldx:14,ldy:-8,lanchor:"start"}
             :{ldx:14,ldy:20,lanchor:"start"};
-      pts.push({x:ex,y:f.A,sA:f.sigma_A,c:"var(--"+dir.cls+")",shape:"c",
-        lab:dir.zh+" α="+(Math.round(f.alpha*100)/100),ldx:lp.ldx,ldy:lp.ldy,lanchor:lp.lanchor,
-        tip:"<b>冻结走行族 · "+dir.zh+"</b>("+tag+")<br>A="+fmt(f.A)+" ± "+fmt(f.sigma_A)+
+      var clamped=(f.A>ymax-0.004)||(f.A<ymin+0.004);
+      var yplot=Math.max(ymin+0.004,Math.min(ymax-0.004,f.A));
+      pts.push({x:ex,y:yplot,sA:clamped?undefined:f.sigma_A,c:"var(--"+dir.cls+")",shape:"c",
+        lab:dir.zh+(clamped?(" A="+fmt(f.A)+" ▲超轴"):(" α="+(Math.round(f.alpha*100)/100))),
+        ldx:lp.ldx,ldy:lp.ldy,lanchor:lp.lanchor,
+        tip:"<b>冻结走行族 · "+dir.zh+"</b>("+tag+")<br>不变量 A="+fmt(f.A)+" ± "+fmt(f.sigma_A)+
             " · α="+fmt(f.alpha)+" · ΔAIC=+"+fmt(f.dAIC)+
+            (clamped?"<br>(超出坐标范围,钳位显示:轴向 max sinθ≡1 = O(1) 精确遮挡)":"")+
             (zi?("<br>排零 |A|≤2σ_A:"+(zi["zero_excluded_|A|<=2sigmaA"]?"成立":"不成立")+
-            "("+zi.zero_sigma_level+"σ)· "+esc(zi.d3_tier)+" · LOO 翻转 "+esc(zi.loo_zero_flips)):"")+
+            (zi.zero_sigma_level!==null?"("+zi.zero_sigma_level+"σ)":"")+" · "+esc(zi.d3_tier)+" · LOO 翻转 "+esc(zi.loo_zero_flips)):"")+
+            (lg?("<br><span style='opacity:.75'>旧口径 resid_max(基依赖,注记):A="+fmt(lg.A)+" ± "+fmt(lg.sigma_A)+" · α="+fmt(lg.alpha)+"</span>"):"")+
             (fw?"<br>源:"+esc(fw.source):"")});
     });
 
@@ -390,19 +401,20 @@
     ];
     lg.innerHTML=items.map(function(it){return '<span class="it">'+it[0]+'</span>';}).join("");
 
-    // σ 校准摘要条
+    // σ 校准摘要条(整改版:不变量口径;旧口径为注记)
     var strip=document.getElementById("calib-strip");
     if(calibDone){
-      var f=sc.direction_fits,fd=f["face-diagonal"];
-      strip.innerHTML='<span class="tag">σ 校准件 DONE · 分支 '+esc(sc.calibration_branch)+'</span>'+
-        '截距随系列扩展塌缩:轴向 −0.191±2.132 → <b class="mono">'+fmt(f["axial"].new_16_96.A)+'</b>、'+
-        '面斜 0.0489±0.0123 → <b class="mono">'+fmt(fd.new_16_96.A)+'</b>、'+
-        '体对角 0.0308±0.0081 → <b class="mono">'+fmt(f["body-diagonal"].new_16_96.A)+'</b>;'+
-        '三方向幂律决定性胜出(ΔAIC +20.5/+43.1/+46.4)、排零全成立(面斜边缘 '+fd.zero_sigma_level+'σ)、D3 全"干净标度"档;'+
-        '面斜真常数底模型无关上界 ≤'+(sc.face_small_floor.model_free_upper_bound*100).toFixed(1)+'%。'+
-        '<span class="mono" style="font-size:11px;color:var(--muted)">仪器校准,非物理门;全量:'+esc(sc.results_file)+'</span>';
+      var f=sc.direction_fits,fd=f["face-diagonal"],fa=f["axial"],fb=f["body-diagonal"];
+      var floorPct=(sc.face_small_floor&&typeof sc.face_small_floor.model_free_upper_bound==="number")?(sc.face_small_floor.model_free_upper_bound*100).toFixed(2)+"%":"—";
+      strip.innerHTML='<span class="tag">σ 校准整改件 DONE · 不变量口径(y=max sinθ)· 分支 '+esc(sc.calibration_branch||"")+'</span>'+
+        '轴向 A=<b class="mono">'+fmt(fa.new_16_96.A)+'</b>(max sinθ≡1:O(1) 精确遮挡,R29 轴向病灶的不变量形态)、'+
+        '面斜 A=<b class="mono">'+fmt(fd.new_16_96.A)+'</b>±'+fmt(fd.new_16_96.sigma_A)+'、'+
+        '体对角 A=<b class="mono">'+fmt(fb.new_16_96.A)+'</b>±'+fmt(fb.new_16_96.sigma_A)+';'+
+        '面斜旧口径"+1.95σ 正小底"不再现(基伪影),真常数底模型无关上界 ≤'+floorPct+'(截距为负、模型级);'+
+        '<span style="opacity:.75">旧口径(resid_max,基依赖)注记:轴向 '+ (fa.legacy_16_96_resid_max?fmt(fa.legacy_16_96_resid_max.A):"—")+'、面斜 '+(fd.legacy_16_96_resid_max?fmt(fd.legacy_16_96_resid_max.A):"—")+'、体对角 '+(fb.legacy_16_96_resid_max?fmt(fb.legacy_16_96_resid_max.A):"—")+',其排零结论经复核不能成立</span>。'+
+        '<span class="mono" style="font-size:11px;color:var(--muted)">仪器校准,非物理门;全量:'+esc(sc.results_file||"")+'</span>';
     }else{
-      strip.innerHTML='<span class="chip hold">σ 校准件待运行 —— 平面暂以 R37 冻结拟合(16³–48³)表达 σ 维</span>';
+      strip.innerHTML='<span class="chip hold">σ 校准整改件待运行 —— 平面暂以行8 不变量拟合(16³–48³)表达 σ 维</span>';
     }
   }
 
@@ -418,8 +430,8 @@
        desc:"M1′ 完整闭环任务书在 M0′ 收口前只许起草不许执行(D2)。M0′ 已打通其正控接口:R23 锚点 (ε=1, 光子 2, Lorenz 机器零) 落位控制矩阵行 2。",
        src:"任务书 §0/§8 · 控制行 row2_r23"},
       {nm:"spin2",sub:"张量",chip:'<span class="chip seal">v1 封存</span>',
-       desc:"封存主句:自旋 2 M3 结构性不可达——死于计数+稳定性死锁,非残差本身(σ 校准件只收紧其标度证据节措辞,三重支撑不变)。封存文档:docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md",
-       src:"冻结走行族锚点 ε∈[0,0.25] 在案(控制行 row5/row8)"}
+       desc:"封存主句:自旋 2 M3 结构性不可达——死于计数+稳定性死锁,非残差本身(封存三重支撑均为基不变量,M0′ 整改不动摇;σ 校准整改件只更新标度证据节措辞建议)。封存文档:docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md",
+       src:"冻结走行族锚点 ε(不变量口径)∈[0.25,0.5] 在案;旧口径 [0,0.25] 为基伪影注记(控制行 row5/row8 整改版)"}
     ];
     document.getElementById("lanes").innerHTML=lanes.map(function(l){
       return '<div class="lane"><div class="nm">'+l.nm+'<span class="mono">'+l.sub+'</span></div>'+
@@ -429,18 +441,32 @@
   }
 
   /* ---------- 面板 3:控制矩阵 ---------- */
+  function fmtTol(t){
+    if(t===null||t===undefined)return "—";
+    if(typeof t==="object"){
+      return Object.keys(t).map(function(k){return k+"="+fmt(t[k]);}).join(" ");
+    }
+    return fmt(t);
+  }
   function renderCtrl(d){
     var rows=d.control_matrix||[];
     var h='<thead><tr><th>状态</th><th>#</th><th>控制对象</th><th>门</th>'+
-      '<th class="num">重测偏差 max|Δ|</th><th class="num">tol</th><th class="num">耗时 s</th></tr></thead><tbody>';
+      '<th class="num">重测偏差 max|Δ|</th><th class="num">tol</th>'+
+      '<th class="num">基稳健自检</th><th class="num">耗时 s</th></tr></thead><tbody>';
     rows.forEach(function(r,i){
       var green=r.status==="green";
+      var brc=r.basis_robustness_check||{};
+      var btxt,btip;
+      if(brc.applicable===false){btxt='<span style="color:var(--muted)">n/a</span>';btip=brc.reason||"";}
+      else if(typeof brc.max_drift==="number"){btxt=(brc.pass?"✓ ":"✗ ")+fmt(brc.max_drift);btip="3 次固定种子酉旋转(seeds "+(brc.seeds||[]).join(",")+"),不变量漂移门 ≤1e-12;"+esc(r.cross_environment_status||"");}
+      else{btxt="—";btip="";}
       h+='<tr><td><span class="st '+(green?"green":"red")+'"><span class="dot"></span>'+(green?"绿":"红")+'</span></td>'+
         '<td class="num">'+(i+1)+'</td>'+
         '<td>'+esc(r.name)+'<div class="mono" style="font-size:11px;color:var(--muted)">'+esc((r.frozen&&r.frozen.source)||r.id)+'</div></td>'+
         '<td class="mono" style="font-size:12px">'+(r.gates||[]).join(" ")+'</td>'+
         '<td class="num">'+fmt(r.max_abs_diff)+'</td>'+
-        '<td class="num">'+fmt(r.tol)+'</td>'+
+        '<td class="num" style="font-size:11px">'+fmtTol(r.tol)+'</td>'+
+        '<td class="num" title="'+esc(btip)+'">'+btxt+'</td>'+
         '<td class="num">'+(typeof r.seconds==="number"?r.seconds.toFixed(2):"—")+'</td></tr>';
     });
     document.getElementById("ctrl-table").innerHTML=h+"</tbody>";
@@ -491,8 +517,10 @@
       '禁止读取旧 tensor campaign payload(旧五参数 surrogate 不得给 v2 背书,v1 总账 4.1 教训)。<br>'+
       '生成:'+esc(d.generator||"")+' · '+esc(d.backend||"")+' · '+esc(d.generated_utc||"")+
       ' · 冻结件 hash 册:'+(hz.pass?'逐位校验 PASS':'—')+'('+nChecked+' 有先行记录 + '+nRec+' record-only)<br>'+
-      '措辞边界:控制矩阵 8/8 与 overall '+esc((d.m0_status||{}).overall||"")+' 为 lane B 自检交付状态;'+
-      '<b>M0′ 收口待车道A 复核 + PI 签字</b>,本面板不宣告 M0′ 收口;无新物理主张。';
+      '措辞边界(M0′ 整改版):'+esc((d.m0_status||{}).wording||"宿主 8/8 + 跨环境 6/8 → 整改后须双环境 8/8")+
+      ';overall '+esc((d.m0_status||{}).overall||"")+' 为 lane B 宿主侧整改交付状态;'+
+      '<b>M0′ 收口须双环境 8/8(沙盒双跑由车道A 复核执行)+ PI 签字</b>,本面板不宣告 M0′ 收口;无新物理主张。'+
+      (d.environment?('<br>环境入册:numpy '+esc(d.environment.numpy_version||"")+' · BLAS '+esc(d.environment.blas||"")+' · '+esc(d.environment.platform||"")):"");
   }
 })();
 </script>

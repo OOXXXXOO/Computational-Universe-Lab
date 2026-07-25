@@ -353,12 +353,16 @@ def evaluate_v2_candidate(cand: CandidateV2) -> GateColumns:
         g1 = g1_frozen_walk(cand)
         gc.set_gate("G1_dof_nprop", g1["raw"], g1["verdict"], per_L=g1["per_L"],
                     diagnostics=g1["diagnostics"])
-        fits = SIG.direction_fits()
+        # M0' 整改令 1:主判 y = 不变量 max sin θ(替代 resid_max);
+        # R37 拟合协议(窗/剔点/AIC)原样;旧口径拟合保留为 legacy 注记。
+        fits = SIG.direction_fits_invariant()
+        fits_legacy = SIG.direction_fits()
         worst_band = [f["band_D3"] for f in fits.values()]
         gc.set_gate("G2_sigma_scaling",
                     {d: {"A": f["A"], "alpha": f["alpha"],
                          "dAIC": f["dAIC_const_minus_power"],
-                         "verdict": f["verdict"], "band_D3": f["band_D3"]}
+                         "verdict": f["verdict"], "band_D3": f["band_D3"],
+                         "y_observable": f["y_observable"]}
                      for d, f in fits.items()},
                     "ambiguous" if any(f["verdict"] == "ambiguous"
                                        for f in fits.values())
@@ -367,9 +371,20 @@ def evaluate_v2_candidate(cand: CandidateV2) -> GateColumns:
                     limit_fit={d: (f["A"], f["alpha"],
                                    f["dAIC_const_minus_power"])
                                for d, f in fits.items()},
-                    diagnostics={"protocol": "R37 全文(冻结)",
+                    diagnostics={"protocol": ("R37 拟合协议原样(冻结代码对象);"
+                                              "y = 不变量 max sinθ(整改令 1)"),
                                  "bands_D3": worst_band,
-                                 "calibration_16cube": SIG.calibration_16cube()})
+                                 "calibration_16cube_invariant":
+                                     SIG.calibration_16cube_invariant(),
+                                 "legacy_fits_basis_dependent": {
+                                     d: {"A": f["A"], "alpha": f["alpha"],
+                                         "dAIC": f["dAIC_const_minus_power"],
+                                         "verdict": f["verdict"],
+                                         "note": "旧口径 resid_max(基依赖,"
+                                                 "环境绑定,非判据)"}
+                                     for d, f in fits_legacy.items()},
+                                 "calibration_16cube_legacy":
+                                     SIG.calibration_16cube()})
         g3 = g3_frozen_walk()
         gc.set_gate("G3_j5_cocone", g3["raw"], g3["verdict"],
                     per_L=g3["per_theta"], diagnostics=g3["diagnostics"])
@@ -386,7 +401,10 @@ def evaluate_v2_candidate(cand: CandidateV2) -> GateColumns:
         e = EPS.epsilon_for_candidate(cand)
         gc.set_gate("G8_epsilon",
                     {"epsilon_dof_min_max": e.get("epsilon_dof_min_max"),
-                     "epsilon_E_min_max": e.get("epsilon_E_min_max")},
+                     "epsilon_E_min_max": e.get("epsilon_E_min_max"),
+                     "anchor_range_invariant": e.get("anchor_range_invariant"),
+                     "anchor_range_legacy_D1": e.get("anchor_range_legacy_D1"),
+                     "basis_stable": e.get("basis_stable")},
                     "PASS" if e.get("within_anchor_range") else "ambiguous",
                     diagnostics=e)
 
