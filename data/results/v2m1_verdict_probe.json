@@ -1,6 +1,6 @@
 {
  "register": "v2m1-verdict-probe(车道A 指令 §一-7;判定逻辑跨环境件)",
- "generated_utc": "2026-07-26T17:54:31.435098+00:00",
+ "generated_utc": "2026-07-26T18:19:40.134861+00:00",
  "inputs_readonly": {
   "v2m1_maxwell_loop_r3.json": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
   "v2m1_guns.json": "b94c99b3fcf7de70b01f9aa7ddf22623812d0670e12892f57b36d652a94f91d6"
@@ -27,9 +27,9 @@
   "G7_stability": "PASS"
  },
  "auxiliary_refits": {
-  "g3_p": 2.0019149302799115,
+  "g3_p": 2.0019149302799093,
   "g6_tau_fit": {
-   "slope": 1.0285714285714287,
+   "slope": 1.028571428571429,
    "R2": 0.997775876817793
   },
   "g8_eps_minmax": [
@@ -134,5 +134,5 @@
  "c3_dual_value_note": "C3 元判据双值对照(指令 P1-2):growth_ratio=7.999999999999999;8.0 下元判据不成立(1 ULP),7.5 下成立——双值不同判;主判据层(cont>=1.0 / gauss_end>=0.5 / 单调)双值同判击穿。归类与处置见复核包 P1-2 文件,此处仅陈列数字。",
  "mismatches": [],
  "probe_consistent_with_archived": true,
- "seconds": 0.0024309158325195312
+ "seconds": 0.006395816802978516
 }
