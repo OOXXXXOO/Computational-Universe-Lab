@@ -1,0 +1,207 @@
+{
+  "register": "V2M0 sigma calibration RECTIFIED: 16³-96³ 不变量口径标度审计(整改令 5;仪器校准,非物理门)",
+  "status": "ABORT-legacy-channel-mismatch",
+  "backend": "numpy",
+  "fp": "fp64",
+  "authority": [
+    "docsv2/v2-复核-车道A-M0仪器迁移-2026-07-26.md §三/§四",
+    "docsv2/v2-任务书-M0-仪器迁移.md §5"
+  ],
+  "environment": {
+    "numpy_version": "2.2.6",
+    "blas": "scipy-openblas",
+    "lapack": "scipy-openblas",
+    "threadpoolctl": "threadpoolctl unavailable",
+    "python": "3.10.12",
+    "platform": "Linux-6.8.0-124-generic-aarch64-with-glibc2.35",
+    "machine": "aarch64",
+    "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+  },
+  "caliber": {
+    "primary_y": "max_sin_theta (span(B₊) vs ker C 主角谱最大值)",
+    "secondary_y": "rms_sin = frob/sqrt(m)",
+    "legacy_y": "resid_max/resid_mean(基依赖,仅对照)",
+    "protocol": "R37 拟合协议原样(冻结代码对象);唯一变化 = y 值"
+  },
+  "lattices": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    96
+  ],
+  "d3_rules": {
+    "power_decisive": "dAIC(const-power) >= 2",
+    "zero_exclusion": "|A| <= 2*sigma_A",
+    "tiers": "alpha>=1 clean; 0<alpha<1 weak; O(1)-constant 另档",
+    "model_free_floor_bound": "|A| + 2*sigma_A(幂律截距 95% 上界)"
+  },
+  "red_lines": "仪器校准,非物理门;两分支均只产出封存 §五 措辞建议(交车道A,只加不改史);无 v1 判定更改;判据运行后不回改",
+  "frozen_inputs_sha256": {
+    "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+    "r37_residual_scaling_audit.py": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0"
+  },
+  "frozen_hash_match": {
+    "rc3ii_inputs": true,
+    "r37_script": true
+  },
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "judgement_reproduction": {
+    "per_k": {
+      "(2, 0, 0)": {
+        "dim_P": 6,
+        "sin_theta": [
+          1.483592152343572e-16,
+          3.5517722358597116e-16,
+          0.030314705997083996,
+          0.1007472610694291,
+          0.2453781944566644,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.03502630417178,
+        "rms_sin": 0.4225477192632595,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 1.0,
+          "frob_leak": 1.035
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 1.1102230246251565e-16,
+          "frob_leak": 2.6304171780067165e-05
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            5.551115123125783e-16,
+            4.579669976578771e-16,
+            5.273559366969494e-16
+          ],
+          "max_drift": 5.551115123125783e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      },
+      "(2, 2, 0)": {
+        "dim_P": 6,
+        "sin_theta": [
+          1.5524024562014758e-16,
+          3.2778325344392284e-16,
+          0.002549841768045754,
+          0.14481530163410886,
+          0.18349673530665114,
+          0.19483381682198517
+        ],
+        "max_sin_theta": 0.19483381682198517,
+        "frob_leak": 0.3043176651560702,
+        "rms_sin": 0.12423716655791997,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 0.1948,
+          "frob_leak": 0.304
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 3.3816821985166445e-05,
+          "frob_leak": 0.0003176651560702348
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            2.1423834928313568e-16,
+            3.3306690738754696e-16,
+            2.1250362580715887e-16
+          ],
+          "max_drift": 3.3306690738754696e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      },
+      "(2, 2, 2)": {
+        "dim_P": 6,
+        "sin_theta": [
+          1.5868477504746648e-16,
+          2.3608907645305933e-16,
+          0.002390052409559047,
+          0.0969984239821988,
+          0.11383536746939489,
+          0.14934475208408232
+        ],
+        "max_sin_theta": 0.14934475208408232,
+        "frob_leak": 0.21136875944069647,
+        "rms_sin": 0.08629093469913185,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 0.1493,
+          "frob_leak": 0.211
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 4.475208408233344e-05,
+          "frob_leak": 0.0003687594406964756
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            2.498001805406602e-16,
+            1.6653345369377348e-16,
+            6.205477050776656e-17
+          ],
+          "max_drift": 2.498001805406602e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      }
+    },
+    "reproduces_review_judgement": true
+  },
+  "invariant_1648_consistency_vs_selftest_v2": {
+    "diff": {
+      "axial": 0.0,
+      "face-diagonal": 0.0,
+      "body-diagonal": 0.0
+    },
+    "tol": 1e-13,
+    "ok": true
+  },
+  "legacy_rederivation_host_lineage": {
+    "diff": {
+      "axial": 7.134026764882613,
+      "face-diagonal": 1.5900000000000003,
+      "body-diagonal": 4.317482487061952
+    },
+    "ok_bit_for_bit": false,
+    "environment_bound": true,
+    "note": "legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列才是跨环境判据"
+  }
+}

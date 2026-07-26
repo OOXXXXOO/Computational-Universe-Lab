@@ -25,7 +25,7 @@ D3 归档规则(写死,同旧件):
 面斜"真常数底"模型无关上界(写死定义):|A| + 2*sigma_A(幂律拟合截距的
 95% 量级上界;直接读数,不作模型选择)。
 
-CERTIFICATES(缺一 ABORT):
+CERTIFICATES(1-4 缺一 ABORT;5 为谱系注记不 ABORT——微补丁 2026-07-26):
   1. rc3ii 三冻结输入 + R37 脚本 sha256 逐位;
   2. RC1a faithfulness PASS;
   3. 16³ 判决数复现:三判据 k 不变量 vs 复核 §三表(max sinθ 1.0000/0.1948/0.1493,
@@ -33,9 +33,10 @@ CERTIFICATES(缺一 ABORT):
      基稳健自检(3 固定种子簇内酉旋转,漂移 <= 1e-12);
   4. 不变量 16-48 旧系列自洽:与 v2m0_selftest_v2.json row8 fits_invariant
      diff <= 1e-13(同机器同环境应逐位;证明这是同一台不变量机器);
-  5. legacy 对照通道完好(宿主谱系诊断,非跨环境判据):旧口径 resid_max 16-48
-     再推导 vs r37_results.json 逐位 diff=0.0——证明 legacy 对照列可信;
-     此证书环境绑定(沙盒重跑本脚本时该列预期漂移,而这正是复核结论本身)。
+  5. legacy 对照通道(宿主谱系诊断,非跨环境判据):旧口径 resid_max 16-48
+     再推导 vs r37_results.json;宿主谱系应逐位 0.0,非宿主谱系预期漂移
+     (=复核结论本身),两种情况均记 lineage 谱系注记并**继续主流程**
+     (车道A 沙盒双跑退回项:旧 ABORT 行为与本证书自身定位矛盾,已修)。
 
 PRE-WRITTEN BRANCHES(只填数,不改字):
   FACE-Z : 面斜幂律决定性胜出 且 |A|<=2σ_A → "旧件 1.95σ 面斜小底为基伪影,
@@ -296,13 +297,16 @@ def main():
         "note": ("legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系"
                  "证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列"
                  "才是跨环境判据")}
-    print("[cert5] legacy 对照通道 16-48 vs r37_results 逐位: %s"
-          % ("BIT-FOR-BIT" if ok5 else "MISMATCH"))
+    # 谱系注记(微补丁 2026-07-26,车道A 沙盒双跑退回项):cert5 是宿主谱系
+    # 环境绑定诊断,非跨环境判据——非宿主谱系下预期漂移,记谱系注记并继续
+    # 主流程,不 ABORT(旧行为在沙盒中止主流程并覆盖宿主结果,与本 cert 自身
+    # note 矛盾)。跨环境判据由不变量列(cert1-4 + 判据字段 tol)承担。
+    payload["legacy_rederivation_host_lineage"]["lineage"] = (
+        "host-bit-for-bit" if ok5 else "non-host-lineage(expected-drift,诊断级)")
+    print("[cert5] legacy 对照通道 16-48 vs r37_results: %s"
+          % ("BIT-FOR-BIT(宿主谱系)" if ok5
+             else "谱系注记:非宿主谱系,预期漂移(诊断级,继续主流程)"))
     write_json(payload)
-    if not ok5:
-        payload["status"] = "ABORT-legacy-channel-mismatch"
-        write_json(payload)
-        return
 
     # -- 测量:三方向,16-96,不变量 + legacy 并列
     data = {}

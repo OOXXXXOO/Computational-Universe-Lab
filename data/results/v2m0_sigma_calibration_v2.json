@@ -202,7 +202,8 @@
     },
     "ok_bit_for_bit": true,
     "environment_bound": true,
-    "note": "legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列才是跨环境判据"
+    "note": "legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列才是跨环境判据",
+    "lineage": "host-bit-for-bit"
   },
   "ray_data": {
     "axial": [
@@ -5656,8 +5657,8 @@
   "wording_update_suggestion": "建议(交车道A,只加不改史):封存文档 §五 标度证据节措辞按不变量口径更新——面斜:不变量口径下小底仍存,A=-0.00302±0.00038(ΔAIC=163.3,排零=False);如实入册,不预设。 轴向:不变量口径 A=1.00000±0.00000, α=0.05, ΔAIC=3.6(按实测入册)。 体对角按 d3_archive 如实并注。旧件(resid_max 口径)结论整体废止为注记;封存主句(死于计数+稳定性死锁,非残差本身)不受影响(其三重支撑均为基不变量)。",
   "nature_reminder": "instrument calibration; NOT a physics gate; no v1 verdict changed; no v2 gate triggered",
   "state_merged": "data/runtime/v2m0_state.json",
-  "peak_rss_mb": 93.569024,
-  "source_sha256": "67fc28b6c88fe1ac850bc2c04f461a19374e5bc28a27c46e64e5a289d5c0c845",
-  "total_seconds": 1.0293469429016113,
-  "results_sha256": "13c02d280cec0f909f1b67796ef180e8974cbdd5973dd58f46162e6bb7bc2cde"
+  "peak_rss_mb": 92.504064,
+  "source_sha256": "f63ed02b18234736b9657de2df183091a2248b345c9a8a04dc1b671b0428a0df",
+  "total_seconds": 1.0129621028900146,
+  "results_sha256": "a92a2fea9485fd4fe242e5e5e8efedcc610a22d6be2a33432f4e150d8cac033c"
 }
