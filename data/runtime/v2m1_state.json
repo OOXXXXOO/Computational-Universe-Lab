@@ -1,4 +1,6 @@
 {
+ "lit": true,
+ "_lit_doc": "接线契约:m1Lit = (lit===true) 唯一点亮判据,缺省一律未点亮。lit:false 由泳道接线件(2af5f3c)引入;炮组重跑 r2 接管 state 时该字段被覆盖丢失(dashboard 缺省安全=未点亮,无展示事故);本次由 PI 收口签字重建并置 true(2026-07-27,v2-收口-M1,补足提交)。",
  "_schema": "v2m1_state v1 (2026-07-26, lane B, M1' 轮 3 分支 A)",
  "_doc": {
   "purpose": "dashboard_v2 spin1 泳道唯一数据源(任务书 §7;禁止读取旧 tensor campaign payload;文件缺失时泳道保持待点火)",
