@@ -1,0 +1,1099 @@
+{
+  "register": "v2m1-candidate (M1' 候选构造件;任务书 §2;lane B 轮 1)",
+  "status": "DONE",
+  "backend": "numpy (fp64)",
+  "authority": [
+    "docsv2/v2-任务书-M1-Maxwell闭环.md §2/§8",
+    "docs/reports/定理笔记-R17-半格放置算子字典.md",
+    "docs/reports/定理笔记-R19-staggered-h放置.md",
+    "docs/reports/小报告-R23-麦克斯韦正控.md"
+  ],
+  "environment": {
+    "numpy_version": "2.0.2",
+    "blas": "accelerate",
+    "lapack": "accelerate",
+    "threadpoolctl": [],
+    "python": "3.9.6",
+    "platform": "macOS-26.3.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+  },
+  "tol": {
+    "judge": 1e-12,
+    "bitwise": 0.0,
+    "seed_state": 20260726,
+    "seed_randk": 2026
+  },
+  "started_utc": "2026-07-26T00:55:38.173276+00:00",
+  "wording_redline": "本件无任何涌现主张;构造冻结 != 闭环;G8 的 eps_DOF=1.0 是 D1 定义锚(hand_built=None),非实测——实测在主跑轮 2(红线 5/10)",
+  "hash_verification": {
+    "m1_pinned": {
+      "pass": true,
+      "checked": {
+        "experiments/photon_control.py": {
+          "sha256": "38ea5bbf5282209f720c754e1f5b17a802a5e7aae19197a3b030b440402e4263",
+          "expected": "38ea5bbf5282209f720c754e1f5b17a802a5e7aae19197a3b030b440402e4263",
+          "match": true
+        },
+        "data/results/photon_control_results.json": {
+          "sha256": "76d8d120a07e8bc46810fbd78e4d859b34ee2779c4bf5d7cda6bc240c7e6c7f3",
+          "expected": "76d8d120a07e8bc46810fbd78e4d859b34ee2779c4bf5d7cda6bc240c7e6c7f3",
+          "match": true
+        },
+        "experiments/r23_maxwell_control.py": {
+          "sha256": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+          "expected": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+          "match": true
+        },
+        "experiments/r17_placement_operators.py": {
+          "sha256": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "expected": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "match": true
+        },
+        "experiments/r19_staggered_placement.py": {
+          "sha256": "6e67896103d2a7ca483d3721b946c21799f7cbfad07e39910b62fb3a9fa902b3",
+          "expected": "6e67896103d2a7ca483d3721b946c21799f7cbfad07e39910b62fb3a9fa902b3",
+          "match": true
+        },
+        "data/results/r23_results.json": {
+          "sha256": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+          "expected": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+          "match": true
+        },
+        "rulespace_v2/invariants.py": {
+          "sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "expected": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "match": true
+        },
+        "rulespace_v2/sigma.py": {
+          "sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "expected": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "match": true
+        },
+        "rulespace_v2/epsilon.py": {
+          "sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "expected": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "match": true
+        },
+        "rulespace_v2/controls.py": {
+          "sha256": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "expected": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "match": true
+        },
+        "rulespace_v2/gates.py": {
+          "sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "expected": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "match": true
+        },
+        "rulespace_v2/candidate.py": {
+          "sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "expected": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "match": true
+        },
+        "rulespace_v2/frozen.py": {
+          "sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "expected": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "match": true
+        }
+      }
+    },
+    "m0_registry_pass": true
+  },
+  "preflight_precondition": {
+    "file": "data/results/v2m1_preflight.json",
+    "sha256_at_read": "6736cd758b3dffbebdbb0a6ae6f687e053feeba42688846eb603da9833e55284",
+    "preflight_pass": true
+  },
+  "CERT0_dictionary_assembly": {
+    "curl_of_E_table_for_B_update": [
+      {
+        "component": 0,
+        "term1": {
+          "d_axis": 1,
+          "of": "E[2]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.0,
+            0.5,
+            0.5
+          ]
+        },
+        "term2": {
+          "d_axis": 2,
+          "of": "E[1]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.0,
+            0.5,
+            0.5
+          ]
+        },
+        "terms_land_same_target": true
+      },
+      {
+        "component": 1,
+        "term1": {
+          "d_axis": 2,
+          "of": "E[0]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.5,
+            0.0,
+            0.5
+          ]
+        },
+        "term2": {
+          "d_axis": 0,
+          "of": "E[2]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.5,
+            0.0,
+            0.5
+          ]
+        },
+        "terms_land_same_target": true
+      },
+      {
+        "component": 2,
+        "term1": {
+          "d_axis": 0,
+          "of": "E[1]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.5,
+            0.5,
+            0.0
+          ]
+        },
+        "term2": {
+          "d_axis": 1,
+          "of": "E[0]",
+          "flavor": "fwd",
+          "lands_at": [
+            0.5,
+            0.5,
+            0.0
+          ]
+        },
+        "terms_land_same_target": true
+      }
+    ],
+    "curl_of_B_table_for_E_update": [
+      {
+        "component": 0,
+        "term1": {
+          "d_axis": 1,
+          "of": "B[2]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.5,
+            0.0,
+            0.0
+          ]
+        },
+        "term2": {
+          "d_axis": 2,
+          "of": "B[1]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.5,
+            0.0,
+            0.0
+          ]
+        },
+        "terms_land_same_target": true
+      },
+      {
+        "component": 1,
+        "term1": {
+          "d_axis": 2,
+          "of": "B[0]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.0,
+            0.5,
+            0.0
+          ]
+        },
+        "term2": {
+          "d_axis": 0,
+          "of": "B[2]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.0,
+            0.5,
+            0.0
+          ]
+        },
+        "terms_land_same_target": true
+      },
+      {
+        "component": 2,
+        "term1": {
+          "d_axis": 0,
+          "of": "B[1]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.0,
+            0.0,
+            0.5
+          ]
+        },
+        "term2": {
+          "d_axis": 1,
+          "of": "B[0]",
+          "flavor": "bwd",
+          "lands_at": [
+            0.0,
+            0.0,
+            0.5
+          ]
+        },
+        "terms_land_same_target": true
+      }
+    ],
+    "terms_land_same_target_all": true,
+    "derived_placements_match_yee1966": true,
+    "flavor_table_verbatim_yee": true,
+    "targets_equal_updated_field_placement_mod1": true,
+    "pass": true
+  },
+  "CERT1_r23_p6_symbol": {
+    "row2_r23_comparator": {
+      "name": "R23 Yee/Maxwell (光子 2 + Lorenz 闭合 + eps_DOF=1)",
+      "remeasured": {
+        "null": 7.771561172376096e-16,
+        "cg": 7.771561172376096e-16,
+        "dist_transverse": 3.332000937312528e-08,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.9011515871026484,
+        "transverse_retention": 1.0000000000000253,
+        "constraint_decay": 1.238676565292425e-15,
+        "operator_err": 2.559038404988348e-16,
+        "dims": [
+          2
+        ],
+        "ranks": [
+          1
+        ],
+        "all_pass": true,
+        "epsilon_dof": 1.0
+      },
+      "frozen": {
+        "null": 7.35170199188412e-16,
+        "cg": 7.35170199188412e-16,
+        "dist_transverse": 3.332000937312528e-08,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.9011515871026481,
+        "transverse_retention": 1.000000000000027,
+        "constraint_decay": 5.409741040345224e-16,
+        "operator_err": 2.775557561562891e-16,
+        "dims": [
+          2
+        ],
+        "ranks": [
+          1
+        ],
+        "all_pass": true,
+        "epsilon_dof_anchor": 1.0,
+        "source": "r23_results.json"
+      },
+      "frozen_json_lineage": "沙盒系(Linux/OpenBLAS):复核 ② 确证冻结 r23_results.json 与沙盒重跑逐位 diff=0.0,与宿主(darwin/Accelerate)差 1.8e-15 ⟹ 偏差纯环境属性(ULP 级),在 tol 1e-12 内",
+      "tol": 1e-12,
+      "max_abs_diff": 1.7763568394002505e-15,
+      "per_key_diff": {
+        "null": 4.198591804919753e-17,
+        "cg": 4.198591804919753e-17,
+        "dist_transverse": 0.0,
+        "F_gauge": 0.0,
+        "F_transverse_min": 3.3306690738754696e-16,
+        "transverse_retention": 1.7763568394002505e-15,
+        "constraint_decay": 6.977024612579027e-16,
+        "operator_err": 2.1651915657454297e-17
+      },
+      "pass": true
+    },
+    "operator_err_P6": 2.559038404988348e-16,
+    "seconds": 0.026118755340576172,
+    "pass": true,
+    "note_epsilon": "gate_readings 中 G8 eps_DOF=1.0 为 D1 定义锚(hand_built=None),非实测(红线 5)"
+  },
+  "gate_readings_symbol_layer": {
+    "cand_id": "v2m1_spin1_yee_dict_A",
+    "family": "yee_maxwell",
+    "sector": "spin1",
+    "gates": {
+      "G1_dof_nprop": {
+        "raw": {
+          "photon_dims": [
+            2
+          ],
+          "rank_C": [
+            1
+          ],
+          "dist_transverse": 3.332000937312528e-08
+        },
+        "per_L": null,
+        "limit_fit": null,
+        "verdict": "PASS",
+        "diagnostics": {
+          "core": "r23_maxwell_control (frozen)",
+          "note": "符号层全 BZ 采样(153 k 点连续采样,格子无关);negatives 有牙",
+          "negatives": {
+            "unplaced": {
+              "cg": 0.5211486210511783,
+              "dim": 3
+            },
+            "central": {
+              "cg": 0.03403385441376672,
+              "dim": 3
+            }
+          }
+        }
+      },
+      "G3_j5_cocone": {
+        "raw": {
+          "lorenz_C_gauge_annihilation": 7.771561172376096e-16,
+          "constraint_decay": 1.238676565292425e-15,
+          "transverse_retention": 1.0000000000000253
+        },
+        "per_L": null,
+        "limit_fit": null,
+        "verdict": "PASS",
+        "diagnostics": {
+          "F_gauge": 0.0,
+          "operator_err": 2.559038404988348e-16,
+          "all_pass_v1_gate": true
+        }
+      },
+      "G8_epsilon": {
+        "raw": {
+          "epsilon_dof": 1.0
+        },
+        "per_L": null,
+        "limit_fit": null,
+        "verdict": "PASS",
+        "diagnostics": {
+          "mode": "anchor-definition (hand_built=None)",
+          "epsilon_dof": 1.0,
+          "epsilon_E": 1.0,
+          "note": "零手搭(R23 类)=> epsilon_DOF=1,D1 写死"
+        }
+      }
+    },
+    "certificates": {
+      "frozen_sha256": {
+        "pass": true,
+        "checked": {
+          "experiments/rc1a_tensor_index_scan.py": {
+            "sha256": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+            "expected": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+            "match": true
+          },
+          "experiments/r32_reachability_probe.py": {
+            "sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+            "expected": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+            "match": true
+          },
+          "experiments/r15_walk_dedonder.py": {
+            "sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+            "expected": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+            "match": true
+          },
+          "experiments/r25_dynamic_symbol.py": {
+            "sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+            "expected": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+            "match": true
+          },
+          "experiments/r25_realspace_step.py": {
+            "sha256": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+            "expected": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+            "match": true
+          },
+          "experiments/cp1_v4_L2.py": {
+            "sha256": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+            "expected": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+            "match": true
+          },
+          "experiments/r25_auxiliary_wilson_complex.py": {
+            "sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+            "expected": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+            "match": true
+          },
+          "experiments/r16_cp1_invitro.py": {
+            "sha256": "5696d921903043ba91f3c287cba3eba8d2f2f68e1c69a04c482999bcaec26478",
+            "expected": "5696d921903043ba91f3c287cba3eba8d2f2f68e1c69a04c482999bcaec26478",
+            "match": true
+          },
+          "rulespace_gpu/emergence_judge.py": {
+            "sha256": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+            "expected": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+            "match": true
+          },
+          "experiments/r28_placed_judge_reverdict.py": {
+            "sha256": "3c10cd669b3f9e49daf91eab362bc249df23d9b25f38d478f66628ac07afabc7",
+            "expected": "3c10cd669b3f9e49daf91eab362bc249df23d9b25f38d478f66628ac07afabc7",
+            "match": true
+          },
+          "experiments/r30_tensor_complex_dynamical.py": {
+            "sha256": "eae6034d8403a93977988d0a56e80c8899b9ffe80fcacc4084fc0244b2d519a4",
+            "expected": "eae6034d8403a93977988d0a56e80c8899b9ffe80fcacc4084fc0244b2d519a4",
+            "match": true
+          },
+          "experiments/rc3ii_relaxation_framework.py": {
+            "sha256": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+            "expected": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+            "match": true
+          },
+          "experiments/r36_r3_verification.py": {
+            "sha256": "2169f7acbaef06c0954750d9e63441e880389fb48613e2d38092095a22ff1abe",
+            "expected": "2169f7acbaef06c0954750d9e63441e880389fb48613e2d38092095a22ff1abe",
+            "match": true
+          },
+          "experiments/r37_residual_scaling_audit.py": {
+            "sha256": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0",
+            "expected": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0",
+            "match": true
+          },
+          "experiments/r25_emergence_timeseries.py": {
+            "sha256": "ccb3de344eaba5593526fc06e13a709c52967e61bbbd3d16127f0e70ae3b9594",
+            "expected": "ccb3de344eaba5593526fc06e13a709c52967e61bbbd3d16127f0e70ae3b9594",
+            "match": true
+          }
+        },
+        "record_only": {
+          "experiments/r23_maxwell_control.py": {
+            "sha256": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+            "note": "record-only (无先行 hash 记录可比对)"
+          },
+          "experiments/r17_placement_operators.py": {
+            "sha256": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+            "note": "record-only (无先行 hash 记录可比对)"
+          },
+          "rulespace_gpu/tensor_qca.py": {
+            "sha256": "172a38d5be927ec7f9632e3bd2ba8caaa5fca006659c9fd8f280ddc37091a507",
+            "note": "record-only (无先行 hash 记录可比对)"
+          },
+          "rulespace_gpu/pathB_spin2.py": {
+            "sha256": "a9cb039445caa90ab944449215d1c3459d59b88e06883d3eba0d7ef6e5dc2cd7",
+            "note": "record-only (无先行 hash 记录可比对)"
+          },
+          "rulespace_gpu/spin2_evolver.py": {
+            "sha256": "dc9a1a8a28e87288cf858f4dea0c275983d606e2a15b34fe0e819f98e7150900",
+            "note": "record-only (无先行 hash 记录可比对)"
+          },
+          "rulespace_gpu/tensor_coin_feedback.py": {
+            "sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+            "note": "record-only (无先行 hash 记录可比对)"
+          }
+        },
+        "result_jsons_sha256": {
+          "data/results/r30_results.json": "e7af6d09fefb571bb8adcea54373a2f67b0eeb701b26e342c779e4d042bacf71",
+          "data/results/r23_results.json": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+          "data/results/r25_emergence_timeseries_results.json": "b5bd0f6ff5603da5b38fd3d9039cbc7c4acfbf0032bd4b52dbad4cdf1f20933a",
+          "data/results/r28_results.json": "8441ad86d615cf9f9e62554a4d8f41c7c36d944926f870ea241daf3be195e113",
+          "data/results/r32_results.json": "ebbb1365397aa3f2d202433537755ddbb557eb99e39dfef26b02750fa40cfdbc",
+          "data/results/rc3ii_results.json": "89c58556da3d8ad1cdbda36d92600102c57e37deafb2ab2bf73efaa8a2207be6",
+          "data/results/r36_results.json": "04c6955653d65648a9f80b4d04307dda5c4b4c517d51692cd30cf033d7ce2451",
+          "data/results/r37_results.json": "3d86f2e3bebb3178369a56822cc47dd1726ee4a1ced2774918654c224885e9bb",
+          "data/results/tensor_qca_results.json": "db6360e28ee810f40221071169c9298b4c14f0f374313e03ec837170772e13fe"
+        }
+      },
+      "r23_full": {
+        "null": 7.771561172376096e-16,
+        "cg": 7.771561172376096e-16,
+        "ranks": [
+          1
+        ],
+        "dims": [
+          2
+        ],
+        "dist_transverse": 3.332000937312528e-08,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.9011515871026484,
+        "transverse_retention": 1.0000000000000253,
+        "constraint_decay": 1.238676565292425e-15,
+        "negatives": {
+          "unplaced": {
+            "cg": 0.5211486210511783,
+            "dim": 3
+          },
+          "central": {
+            "cg": 0.03403385441376672,
+            "dim": 3
+          }
+        },
+        "operator_err": 2.559038404988348e-16,
+        "all_pass": true,
+        "n_k_sample": 153
+      }
+    },
+    "notes": []
+  },
+  "CERT2_verbatim_yee_degeneration": {
+    "state_bitwise_max_diff": 0.0,
+    "mode_matrix_bitwise_max_diff_sevenk": 0.0,
+    "protocol": "4 随机 fp64 态 x 8 步逐位;七判据 k 一步模式矩阵逐位;对照 = 冻结 photon_control.step_yee(hash 已校验)",
+    "seconds": 0.027715206146240234,
+    "pass": true
+  },
+  "CERT3_spectral_unitarity_facts": {
+    "a_unimodularity_sevenk_realspace": 6.661338147750939e-16,
+    "b_unimodularity_200randk_symbol": 2.886579864025407e-15,
+    "c_spectra_symbol_vs_realspace_sevenk": 8.95090418262362e-16,
+    "cond_eigvec_max_report_only": 5.827220540146721,
+    "n_rand_k": 200,
+    "seconds": 0.018103837966918945,
+    "pass": true
+  },
+  "D_M1_1": {
+    "material_two_cases": {
+      "A": {
+        "name": "R23 放置字典组装路线(默认首选)",
+        "construction": "R17/R19 放置字典特化到 A_mu(偏移 e_mu/2、口味一行规则、时间配对约定)程序化组装实空间 step;P6 证书:特化逐字退化为 Yee 1966",
+        "certificate_chain": [
+          "R15 零性/横向机器(kappa 同壳)",
+          "R17 字典 4/4(算子级 kappa 组装 4.9e-16)",
+          "R19 staggered 放置硬门(实空间 K_placed 7.8e-15)",
+          "R23 P1-P6 6/6(P6 组装符号≡i·kappa 2.8e-16)",
+          "M0' 控制矩阵行 2 双环境(diff 1.8e-15,谱系已注)",
+          "件10 对答案仪器 PASS(七 k 正控 + 双病变体击穿)",
+          "本件 CERT0-3(结构/符号/逐位退化/谱层酉性)"
+        ],
+        "emergence_semantics": "中强:'自旋 2 机器的自旋 1 特化自行落在教科书答案上'——字典不含 Maxwell 差分口味输入,输出= Yee 1966;但一阶 (E,B) 旋度-旋度骨架是自旋 2 复形的特化输入,如实声明",
+        "risks": [
+          "酉性地位 = 辛非严格酉(见酉性地位声明;已如实标注)",
+          "候选与件10 判据仪器同属 Yee 家族 => 主跑对拍谱系相关性高,判据的牙必须由轮 3 炮组(C1-C4)独立保证",
+          "涌现语义强度弱于'从宽规则空间被 QA 剪出'(L4 语境;M1' 本就不授权 L4,任务书 §0)"
+        ]
+      },
+      "B": {
+        "name": "QCA Maxwell 独立构造(exp1 Dirac-QCA 谱系;备选)",
+        "construction": "局域酉 Maxwell QCA(Dirac-QCA 规范场类比或格点幺正元胞自动机),严格满足局域酉基底公理",
+        "certificate_chain": [
+          "exp1 Dirac-QCA 谱系存在(色散/局域性先例)",
+          "无 P1-P6 级符号层证书;无 M0' 控制行;无放置字典血统;全部证书链需从零建"
+        ],
+        "emergence_semantics": "酉性语义强(基底公理直接满足);但与已冻结判据仪器无谱系连接,'同一台机器'论证断裂",
+        "risks": [
+          "证书链完备度最低;判据管线(七 k/oracle/门列)需重新适配与校准",
+          "周期不可控,且启用 = 新裁定(任务书 §2:仅当 A 案暴露病灶)"
+        ]
+      },
+      "decision_rule": "任务书 §2:A 案默认首选,PI 已按授权认可;前提 = A 案预飞与符号证书层无病灶。lane B 发现病灶时停在择定位如实报告,不得自行切 B 案。"
+    },
+    "preflight_pass": true,
+    "symbol_layer_certs_pass": true,
+    "decision": "A-CONFIRMED",
+    "decision_record": "择定 = A 案(R23 放置字典组装路线)。PI 已按授权认可默认 A 案;lane B 核验其前提成立:预飞 PASS(宿主)+ CERT0-3 全过,无符号层病灶,故落 A-CONFIRMED。",
+    "unitarity_status_statement": "自旋 1 候选在 (E,B) 场表象下走辛演化(Yee leapfrog 辛格式),不是对存储场 L2 范数的严格酉演化;与 v2 纲领'局域酉 QCA'基底公理的关系,如实分三层:(1) 谱层事实(本件 CERT3 实测):一步模式矩阵 M(k) 在 CFL 内(dt=0.5,dt*sqrt(3)<1)对全部判据 k 与 200 随机 k,6 个本征值全部落单位圆(max||lambda|-1| 见 CERT3 读数,机器精度),守恒二次型为 Yee 能量 H=|E|^2+B(-)·B(+) 而非 |E|^2+|B|^2——即 M(k) 逐 k 酉等价于酉矩阵(k 依赖相似变换;可对角化诊断 cond(V) 报告级入册)。(2) 未证部分(诚实边界):该 k 依赖相似变换非局域;本轮未构造、也不主张任何严格局域酉 QCA 膨胀实现该步进。'酉等价正规形式'仅在逐 k 符号层成立,地位 = 符号层假设(任务书 §2 允许的如实标注分支,非证书)。(3) 关系裁定:候选以'辛格式 + 逐 k 单位圆谱'身份进入 M1' 门列;M1' 各门(N_prop/sigma/共锥/源/守恒/sponge/稳定/epsilon)均为该表象下可观测判据,不以基底酉性公理为前提;若纲领后续要求基底严格酉,升级路径 = B 案谱系的局域酉化(Dirac-QCA 型)或显式酉膨胀,属新裁定,不在 M1' 范围。附注:R23 符号层阻尼 (I-gamma*K^dag*K) 为收缩映射,是 in-vitro 判据仪器而非候选本体,不进入本声明的候选演化。",
+    "unitarity_measured_support": {
+      "unimodularity_max": 2.886579864025407e-15,
+      "cond_eigvec_max": 5.827220540146721
+    }
+  },
+  "candidate_v2": {
+    "sector": "spin1",
+    "geometry": {
+      "family": "yee_maxwell",
+      "params": {
+        "construction": "A案:R17/R19 放置字典特化到 A_mu",
+        "representation": "(E,B) 场强表象(Yee 1966,字典派生)",
+        "dt": 0.5,
+        "placement_E": [
+          [
+            0.5,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.5,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            0.5
+          ]
+        ],
+        "placement_B": [
+          [
+            0.0,
+            0.5,
+            0.5
+          ],
+          [
+            0.5,
+            0.0,
+            0.5
+          ],
+          [
+            0.5,
+            0.5,
+            0.0
+          ]
+        ],
+        "flavor_rule": "R17 一行规则:半格->bwd,整数->fwd",
+        "time_pairing": "R19 leapfrog 切片语义(E 整数 t/B 半 t)",
+        "stepper": "experiments/v2m1_candidate.py:make_dict_step"
+      }
+    },
+    "coupling": null,
+    "hand_built": null,
+    "lattice": {
+      "L": [
+        16,
+        24,
+        32,
+        48
+      ],
+      "judge_k_set": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          2,
+          2,
+          0
+        ],
+        [
+          3,
+          1,
+          0
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          8,
+          0,
+          0
+        ]
+      ],
+      "ray_directions": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ]
+    },
+    "backend": "numpy",
+    "frozen_refs": {
+      "experiments/photon_control.py": "38ea5bbf5282209f720c754e1f5b17a802a5e7aae19197a3b030b440402e4263",
+      "data/results/photon_control_results.json": "76d8d120a07e8bc46810fbd78e4d859b34ee2779c4bf5d7cda6bc240c7e6c7f3",
+      "experiments/r23_maxwell_control.py": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+      "experiments/r17_placement_operators.py": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+      "experiments/r19_staggered_placement.py": "6e67896103d2a7ca483d3721b946c21799f7cbfad07e39910b62fb3a9fa902b3",
+      "data/results/r23_results.json": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+      "rulespace_v2/invariants.py": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+      "rulespace_v2/sigma.py": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+      "rulespace_v2/epsilon.py": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+      "rulespace_v2/controls.py": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+      "rulespace_v2/gates.py": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+      "rulespace_v2/candidate.py": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+      "rulespace_v2/frozen.py": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+      "experiments/r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+    },
+    "cand_id": "v2m1_spin1_yee_dict_A"
+  },
+  "construction_freeze": {
+    "construction_spec": {
+      "cand": {
+        "sector": "spin1",
+        "geometry": {
+          "family": "yee_maxwell",
+          "params": {
+            "construction": "A案:R17/R19 放置字典特化到 A_mu",
+            "representation": "(E,B) 场强表象(Yee 1966,字典派生)",
+            "dt": 0.5,
+            "placement_E": [
+              [
+                0.5,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.5,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.5
+              ]
+            ],
+            "placement_B": [
+              [
+                0.0,
+                0.5,
+                0.5
+              ],
+              [
+                0.5,
+                0.0,
+                0.5
+              ],
+              [
+                0.5,
+                0.5,
+                0.0
+              ]
+            ],
+            "flavor_rule": "R17 一行规则:半格->bwd,整数->fwd",
+            "time_pairing": "R19 leapfrog 切片语义(E 整数 t/B 半 t)",
+            "stepper": "experiments/v2m1_candidate.py:make_dict_step"
+          }
+        },
+        "coupling": null,
+        "hand_built": null,
+        "lattice": {
+          "L": [
+            16,
+            24,
+            32,
+            48
+          ],
+          "judge_k_set": [
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              2
+            ],
+            [
+              2,
+              2,
+              0
+            ],
+            [
+              3,
+              1,
+              0
+            ],
+            [
+              2,
+              2,
+              2
+            ],
+            [
+              8,
+              0,
+              0
+            ]
+          ],
+          "ray_directions": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        "backend": "numpy",
+        "frozen_refs": {
+          "experiments/photon_control.py": "38ea5bbf5282209f720c754e1f5b17a802a5e7aae19197a3b030b440402e4263",
+          "data/results/photon_control_results.json": "76d8d120a07e8bc46810fbd78e4d859b34ee2779c4bf5d7cda6bc240c7e6c7f3",
+          "experiments/r23_maxwell_control.py": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+          "experiments/r17_placement_operators.py": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "experiments/r19_staggered_placement.py": "6e67896103d2a7ca483d3721b946c21799f7cbfad07e39910b62fb3a9fa902b3",
+          "data/results/r23_results.json": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+          "rulespace_v2/invariants.py": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "rulespace_v2/sigma.py": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "rulespace_v2/epsilon.py": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "rulespace_v2/controls.py": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "rulespace_v2/gates.py": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "rulespace_v2/candidate.py": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "rulespace_v2/frozen.py": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "experiments/r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc"
+        },
+        "cand_id": "v2m1_spin1_yee_dict_A"
+      },
+      "dictionary_inputs": {
+        "D1_placement": {
+          "A_mu": "x+e_mu/2 (R23 P6)",
+          "E_derived": [
+            [
+              0.5,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.5,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.5
+            ]
+          ],
+          "B_derived": [
+            [
+              0.0,
+              0.5,
+              0.5
+            ],
+            [
+              0.5,
+              0.0,
+              0.5
+            ],
+            [
+              0.5,
+              0.5,
+              0.0
+            ]
+          ]
+        },
+        "D2_flavor_rule": "半格->后向差, 整数->前向差 (R17 一行规则)",
+        "D3_time_pairing": "leapfrog 切片语义, dt=0.5 (R19/件10 CFL 点)"
+      },
+      "flavor_tables": {
+        "curl_E": [
+          {
+            "component": 0,
+            "term1": {
+              "d_axis": 1,
+              "of": "E[2]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.0,
+                0.5,
+                0.5
+              ]
+            },
+            "term2": {
+              "d_axis": 2,
+              "of": "E[1]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.0,
+                0.5,
+                0.5
+              ]
+            },
+            "terms_land_same_target": true
+          },
+          {
+            "component": 1,
+            "term1": {
+              "d_axis": 2,
+              "of": "E[0]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.5,
+                0.0,
+                0.5
+              ]
+            },
+            "term2": {
+              "d_axis": 0,
+              "of": "E[2]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.5,
+                0.0,
+                0.5
+              ]
+            },
+            "terms_land_same_target": true
+          },
+          {
+            "component": 2,
+            "term1": {
+              "d_axis": 0,
+              "of": "E[1]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.5,
+                0.5,
+                0.0
+              ]
+            },
+            "term2": {
+              "d_axis": 1,
+              "of": "E[0]",
+              "flavor": "fwd",
+              "lands_at": [
+                0.5,
+                0.5,
+                0.0
+              ]
+            },
+            "terms_land_same_target": true
+          }
+        ],
+        "curl_B": [
+          {
+            "component": 0,
+            "term1": {
+              "d_axis": 1,
+              "of": "B[2]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.5,
+                0.0,
+                0.0
+              ]
+            },
+            "term2": {
+              "d_axis": 2,
+              "of": "B[1]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.5,
+                0.0,
+                0.0
+              ]
+            },
+            "terms_land_same_target": true
+          },
+          {
+            "component": 1,
+            "term1": {
+              "d_axis": 2,
+              "of": "B[0]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.0,
+                0.5,
+                0.0
+              ]
+            },
+            "term2": {
+              "d_axis": 0,
+              "of": "B[2]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.0,
+                0.5,
+                0.0
+              ]
+            },
+            "terms_land_same_target": true
+          },
+          {
+            "component": 2,
+            "term1": {
+              "d_axis": 0,
+              "of": "B[1]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.0,
+                0.0,
+                0.5
+              ]
+            },
+            "term2": {
+              "d_axis": 1,
+              "of": "B[0]",
+              "flavor": "bwd",
+              "lands_at": [
+                0.0,
+                0.0,
+                0.5
+              ]
+            },
+            "terms_land_same_target": true
+          }
+        ]
+      },
+      "judge_k_set": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          2,
+          2,
+          0
+        ],
+        [
+          3,
+          1,
+          0
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          8,
+          0,
+          0
+        ]
+      ]
+    },
+    "construction_sha256": "b7daa970f0702c9e4e12603740d4f40de33dee92cec17036dd61b76bb7f29da8",
+    "frozen_before_main_run": true,
+    "note": "主跑(轮 2)唯一合法输入 = 本 construction_spec + 本脚本 source_sha256;冻结前禁开主跑已遵守(本轮零主跑)。"
+  },
+  "sandbox": {
+    "status": "PENDING",
+    "note": "双环境语义:符号层证书判据字段沙盒双跑由车道A 复核执行;本 JSON 为宿主参考值"
+  },
+  "verdict": "候选构造冻结完成(宿主):A 案字典组装 CERT0-3 全过;D-M1-1 落 A-CONFIRMED;酉性地位声明入册;构造 sha256 已冻结。本件无任何涌现主张;eps_DOF=1 待主跑实测;主跑(轮 2)自此解锁(预飞 PASS + 构造冻结双前提齐)。",
+  "source_sha256": "8aa00b0a9847ec0a6c05b857f6d8375e6d13879fd639342623d6f95b7f96b1ac",
+  "total_seconds": 0.09669709205627441,
+  "results_sha256": "adbdcb4c622e76a49375c06dace29a84b85290486d23a6aee5d8256b297b385a"
+}
