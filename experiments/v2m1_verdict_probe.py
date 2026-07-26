@@ -2,13 +2,16 @@
 
 只读两个冻结 JSON:
   data/results/v2m1_maxwell_loop_r3.json   (M1' 轮 3 主跑,冻结)
-  data/results/v2m1_guns.json              (M1' 炮组,冻结)
+  data/results/v2m1_guns_r2.json           (M1' 炮组全组重跑件;guns 段自
+      轮 3 炮组作废后接此新 JSON——重跑令 §三-5 授权本修改;作废版
+      v2m1_guns.json 保留为证据,不再入判)
 从 runs 层原始读数出发,独立重算:
   (1) 八门 verdict(阈值在本探针重新声明,出处 = 轮 3 脚本头预注册);
   (2) T_cross 预言命中判定(±50% 带)+ 下采样曲线穿线一致性
       + 标定段/判门段时间分离检查(t_cross > t_calB, tau 段 < t_calA);
   (3) 分支判定(A/B/C/回退/计数)重放;
-  (4) 炮组 C1-C4 击穿判定 + P0 正控判定 + C3 元判据双值(8.0/7.5)对照;
+  (4) 炮组 C1-C4 击穿判定 + P0 正控判定 + C3 预言 vs 实测双条件重放
+      (线 8.0 不动;击穿 = 实测∈预言16±30% 且 >= 12.0);
 逐项与落盘 verdict 比对。**不重跑任何演化**;fp64;numpy;无 GPU;<1 分钟。
 不写任何冻结路径;输出 data/results/v2m1_verdict_probe.json(新文件)。
 
@@ -29,7 +32,7 @@ import numpy as np
 DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(DIR)
 R3_JSON = os.path.join(ROOT, "data", "results", "v2m1_maxwell_loop_r3.json")
-GUNS_JSON = os.path.join(ROOT, "data", "results", "v2m1_guns.json")
+GUNS_JSON = os.path.join(ROOT, "data", "results", "v2m1_guns_r2.json")
 OUT = os.path.join(ROOT, "data", "results", "v2m1_verdict_probe.json")
 
 # ---- 阈值重声明(出处 = v2m1_maxwell_loop_r3.py / v2m1_guns.py 脚本头)----
@@ -54,9 +57,11 @@ ROUND2_PASS_GATES = ["G1_dof_nprop", "G2_sigma_scaling", "G3_j5_cocone",
 C1_WDEV_BIN_FACTOR = 10.0
 C2_NPROP_REQ, C2_M2_TRUE, C2_M2_TOL = 3, 0.16, 0.02
 C3_CONT_MIN, C3_GAUSS_END_MIN = 1.0, 0.5
-C3_T_INJ = 64
-C3_GROWTH_MIN_ARCHIVED = 7.5      # 正式跑判定值(审计注:首跑为 8.0)
-C3_GROWTH_MIN_FIRSTRUN = 8.0      # 双值对照(指令 P1-2)
+C3_T_INJ = 128                    # 重跑令 §三-2:注入段延长一个倍增周期
+C3_GROWTH_LINE = 8.0              # 预注册线,一字不改(重跑令 §三-1)
+C3_GROWTH_PRED = 16.0             # 预言(v2m1_guns_r2.py 脚本头推导)
+C3_PRED_BAND = (0.7 * C3_GROWTH_PRED, 1.3 * C3_GROWTH_PRED)
+C3_BREACH_MIN = 1.5 * C3_GROWTH_LINE      # 12.0
 C4_RESID_MIN = 1e-3
 
 
@@ -255,7 +260,7 @@ def recompute_guns(GJ):
                  and all(n == C2_NPROP_REQ for n in c2["nprops"])
                  and len(devs) == 7 and max(devs) <= C2_M2_TOL)
     out["C2"] = {"recomputed": c2_re, "archived": c2["FAILS_as_required"]}
-    # C3(双值)
+    # C3(重跑协议:线 8.0 不动 + 预言双条件)
     c3 = g["C3_nonconserved_source"]
     hist = c3["gauss_lock_history"]
     inj = [v for t, v in hist if t <= C3_T_INJ]
@@ -263,26 +268,35 @@ def recompute_guns(GJ):
     growth = c3["gauss_growth_ratio"]
     base = bool(c3["continuity_residual_per_dq"] >= C3_CONT_MIN
                 and c3["gauss_end_over_Q"] >= C3_GAUSS_END_MIN and mono)
-    c3_75 = bool(base and growth >= C3_GROWTH_MIN_ARCHIVED)
-    c3_80 = bool(base and growth >= C3_GROWTH_MIN_FIRSTRUN)
-    out["C3"] = {"recomputed_at_7p5": c3_75, "recomputed_at_8p0": c3_80,
+    line_ok = bool(growth >= C3_GROWTH_LINE)
+    band_ok = bool(C3_PRED_BAND[0] <= growth <= C3_PRED_BAND[1])
+    breach_ok = bool(growth >= C3_BREACH_MIN)
+    c3_re = bool(base and line_ok and band_ok and breach_ok)
+    out["C3"] = {"recomputed": c3_re,
                  "archived": c3["FAILS_as_required"],
                  "growth_ratio": growth,
+                 "predicted": C3_GROWTH_PRED,
+                 "line_8p0_untouched_ok": line_ok,
+                 "in_pred_band_pm30": band_ok,
+                 "ge_1p5x_line_12": breach_ok,
                  "main_criteria_layer_(cont/gauss_end/monotone)": base,
-                 "dual_value_same_verdict": bool(c3_75 == c3_80)}
+                 "decisively_off_boundary": bool(band_ok and breach_ok)}
     # C4
     c4 = g["C4_no_damping"]
     c4_re = all((r["tau_steps"] is None or r["residual_end"] > C4_RESID_MIN)
                 for r in c4["per_k"])
     out["C4"] = {"recomputed": c4_re, "archived": c4["FAILS_as_required"]}
-    # P0
+    # P0(重跑件结构:新种子;判据重设计声明见 v2m1_guns_r2.py 脚本头)
     p0 = g["P0_positive_control"]
-    p0_re = bool(p0["a_yee_vs_frozen"]["n_prop_bitwise"]
-                 and p0["a_yee_vs_frozen"]["max_judge_field_diff"] <= TOL
+    pa = p0["a_yee_same_pipeline_new_seed"]
+    p0_re = bool(pa["n_prop_bitwise"]
+                 and pa["drift_diff_max"] <= TOL
+                 and pa["w_meas_vs_yee_max"] < pa["bin_width"]
+                 and pa["transverse_match_min"] > 0.95
                  and p0["b_row2_r23"]["max_abs_diff"] <= TOL)
     out["P0"] = {"recomputed": p0_re, "archived": p0["pass"]}
     all_re = bool(out["C1"]["recomputed"] and out["C2"]["recomputed"]
-                  and out["C3"]["recomputed_at_7p5"]
+                  and out["C3"]["recomputed"]
                   and out["C4"]["recomputed"])
     out["all_guns_fail_as_required"] = {
         "recomputed": all_re, "archived": GJ["all_guns_fail_as_required"]}
@@ -320,11 +334,9 @@ def main():
         mism.append("g6_count mismatch")
     if branch["regressed"] != R3["regression_check"]["regressed"]:
         mism.append("regression mismatch")
-    for k in ("C1", "C2", "C4"):
+    for k in ("C1", "C2", "C3", "C4"):
         if guns[k]["recomputed"] != guns[k]["archived"]:
             mism.append("gun %s mismatch" % k)
-    if guns["C3"]["recomputed_at_7p5"] != guns["C3"]["archived"]:
-        mism.append("gun C3 (7.5) mismatch")
     if guns["P0"]["recomputed"] != guns["P0"]["archived"]:
         mism.append("P0 mismatch")
     if (guns["all_guns_fail_as_required"]["recomputed"]
@@ -338,7 +350,7 @@ def main():
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "inputs_readonly": {
             "v2m1_maxwell_loop_r3.json": sha256_file(R3_JSON),
-            "v2m1_guns.json": sha256_file(GUNS_JSON)},
+            "v2m1_guns_r2.json": sha256_file(GUNS_JSON)},
         "no_evolution_rerun": True,
         "gate_verdicts_recomputed":
             {k: v for k, v in gates.items() if not k.startswith("_")},
@@ -351,11 +363,11 @@ def main():
         "branch_archived": {"branch": R3["branch"],
                             "g6_count": R3["g6_consecutive_fail_count"]},
         "guns_recheck": guns,
-        "c3_dual_value_note": (
-            "C3 元判据双值对照(指令 P1-2):growth_ratio=7.999999999999999;"
-            "8.0 下元判据不成立(1 ULP),7.5 下成立——双值不同判;"
-            "主判据层(cont>=1.0 / gauss_end>=0.5 / 单调)双值同判击穿。"
-            "归类与处置见复核包 P1-2 文件,此处仅陈列数字。"),
+        "c3_rerun_note": (
+            "C3 重跑协议(重跑令 §三-2):线 8.0 一字未动;注入段延长一个"
+            "倍增周期(T_inj=128),预言 growth=16.0,击穿 = 实测∈预言±30% "
+            "且 >= 12.0 两条同时。作废版 7.5/8.0 双值事件的归类与处置见"
+            "复核包 P1-2 与重跑令 §二;作废件 v2m1_guns.json 保留为证据。"),
         "mismatches": mism,
         "probe_consistent_with_archived": len(mism) == 0,
         "seconds": time.time() - t0,

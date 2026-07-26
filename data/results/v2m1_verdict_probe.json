@@ -1,9 +1,9 @@
 {
  "register": "v2m1-verdict-probe(车道A 指令 §一-7;判定逻辑跨环境件)",
- "generated_utc": "2026-07-26T18:19:40.134861+00:00",
+ "generated_utc": "2026-07-26T18:44:51.130442+00:00",
  "inputs_readonly": {
   "v2m1_maxwell_loop_r3.json": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
-  "v2m1_guns.json": "b94c99b3fcf7de70b01f9aa7ddf22623812d0670e12892f57b36d652a94f91d6"
+  "v2m1_guns_r2.json": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff"
  },
  "no_evolution_rerun": true,
  "gate_verdicts_recomputed": {
@@ -27,9 +27,9 @@
   "G7_stability": "PASS"
  },
  "auxiliary_refits": {
-  "g3_p": 2.0019149302799093,
+  "g3_p": 2.0019149302799115,
   "g6_tau_fit": {
-   "slope": 1.028571428571429,
+   "slope": 1.0285714285714287,
    "R2": 0.997775876817793
   },
   "g8_eps_minmax": [
@@ -111,12 +111,15 @@
    "archived": true
   },
   "C3": {
-   "recomputed_at_7p5": true,
-   "recomputed_at_8p0": false,
+   "recomputed": true,
    "archived": true,
-   "growth_ratio": 7.999999999999999,
+   "growth_ratio": 15.999999999999998,
+   "predicted": 16.0,
+   "line_8p0_untouched_ok": true,
+   "in_pred_band_pm30": true,
+   "ge_1p5x_line_12": true,
    "main_criteria_layer_(cont/gauss_end/monotone)": true,
-   "dual_value_same_verdict": false
+   "decisively_off_boundary": true
   },
   "C4": {
    "recomputed": true,
@@ -131,8 +134,8 @@
    "archived": true
   }
  },
- "c3_dual_value_note": "C3 元判据双值对照(指令 P1-2):growth_ratio=7.999999999999999;8.0 下元判据不成立(1 ULP),7.5 下成立——双值不同判;主判据层(cont>=1.0 / gauss_end>=0.5 / 单调)双值同判击穿。归类与处置见复核包 P1-2 文件,此处仅陈列数字。",
+ "c3_rerun_note": "C3 重跑协议(重跑令 §三-2):线 8.0 一字未动;注入段延长一个倍增周期(T_inj=128),预言 growth=16.0,击穿 = 实测∈预言±30% 且 >= 12.0 两条同时。作废版 7.5/8.0 双值事件的归类与处置见复核包 P1-2 与重跑令 §二;作废件 v2m1_guns.json 保留为证据。",
  "mismatches": [],
  "probe_consistent_with_archived": true,
- "seconds": 0.006395816802978516
+ "seconds": 0.002866983413696289
 }
