@@ -4692,8 +4692,16 @@
     "results_file": "data/results/v2m0_sigma_calibration_v2.json",
     "old_caliber_block_legacy": {
       "status": "DONE",
-      "register": "σ 机器校准件(≥64³ 标度审计;仪器校准,非物理门;交付物 4)",
-      "calibration_branch": "Z",
+      "register": "σ 机器校准件整改版(16³-96³ 不变量口径;仪器校准,非物理门;整改令 5)",
+      "caliber": "invariant: y = max sinθ(主判)/ rms sinθ(辅报)",
+      "calibration_branch": "FACE-NZ",
+      "axial_O1_invariant_obstruction": false,
+      "face_small_floor": {
+        "verdict": "面斜:不变量口径下小底仍存,A=-0.00302±0.00038(ΔAIC=163.3,排零=False);如实入册,不预设。",
+        "zero_consistent": false,
+        "model_free_upper_bound": 0.003779036409100819
+      },
+      "axial_note": "轴向:不变量口径 A=1.00000±0.00000, α=0.05, ΔAIC=3.6(按实测入册)。",
       "backend": "numpy fp64",
       "lattices": [
         16,
@@ -4703,86 +4711,185 @@
         64,
         96
       ],
-      "lattice_96_note": "96³ 已含:逐 k 谱路径(28×28 本征分解),无 L³ 数组;峰值 RSS 91 MB,总 0.5 s",
-      "protocol": "R37 协议逐字复用(冻结脚本代码对象直接调用,faithfulness/16³ 校准/旧系列再推导 diff 全 0.0);唯一改动=格子清单(D3)",
       "direction_fits": {
         "axial": {
+          "new_16_96": {
+            "A": 0.9999999999808195,
+            "sigma_A": 5.044928743386015e-10,
+            "alpha": 0.05,
+            "dAIC": 3.583782333165459
+          },
           "old_16_48": {
             "A": -0.19134650736650763,
             "sigma_A": 2.131816018607365,
             "alpha": 0.37000000000000005,
-            "dAIC": 2.6951090036189598
+            "dAIC": 2.6951090036189598,
+            "note": "R37 冻结(基依赖旧口径)"
           },
-          "new_16_96": {
+          "legacy_16_96_resid_max": {
             "A": 0.003018876432247818,
             "sigma_A": 0.07392025511256665,
             "alpha": 1.0200000000000002,
-            "dAIC": 20.511155526435275
+            "dAIC": 20.511155526435275,
+            "zero_consistent": true,
+            "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
           },
-          "zero_excluded_|A|<=2sigmaA": true,
-          "zero_sigma_level": 0.04,
-          "dAIC_power_decisive": true,
-          "d3_tier": "clean-scaling (alpha>=1)",
-          "loo_zero_flips": "1/14"
+          "zero_excluded_|A|<=2sigmaA": false,
+          "zero_sigma_level": 1982188551.8,
+          "d3_tier": "weak-scaling (0<alpha<1)",
+          "loo_zero_flips": "14/14"
         },
         "face-diagonal": {
+          "new_16_96": {
+            "A": -0.0030240789979081254,
+            "sigma_A": 0.0003774787055963468,
+            "alpha": 0.9500000000000002,
+            "dAIC": 163.31050770378687
+          },
           "old_16_48": {
             "A": 0.048899496435197615,
             "sigma_A": 0.012326275450997752,
             "alpha": 2.9300000000000006,
-            "dAIC": 17.477764329271025
+            "dAIC": 17.477764329271025,
+            "note": "R37 冻结(基依赖旧口径)"
           },
-          "new_16_96": {
+          "legacy_16_96_resid_max": {
             "A": 0.020039301845138968,
             "sigma_A": 0.010253274174745837,
             "alpha": 1.7700000000000002,
-            "dAIC": 43.10106287927596
+            "dAIC": 43.10106287927596,
+            "zero_consistent": true,
+            "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
           },
-          "zero_excluded_|A|<=2sigmaA": true,
-          "zero_sigma_level": 1.95,
-          "dAIC_power_decisive": true,
-          "d3_tier": "clean-scaling (alpha>=1)",
-          "loo_zero_flips": "4/14"
+          "zero_excluded_|A|<=2sigmaA": false,
+          "zero_sigma_level": 8.01,
+          "d3_tier": "weak-scaling (0<alpha<1)",
+          "loo_zero_flips": "14/14"
         },
         "body-diagonal": {
+          "new_16_96": {
+            "A": -0.008314218187207319,
+            "sigma_A": 0.0007850606198368986,
+            "alpha": 0.8100000000000002,
+            "dAIC": 142.14820187008337
+          },
           "old_16_48": {
             "A": 0.03080404450030344,
             "sigma_A": 0.008139054225196587,
             "alpha": 1.5300000000000002,
-            "dAIC": 25.546884602320446
+            "dAIC": 25.546884602320446,
+            "note": "R37 冻结(基依赖旧口径)"
           },
-          "new_16_96": {
+          "legacy_16_96_resid_max": {
             "A": 0.01552817053261974,
             "sigma_A": 0.007889634924297952,
             "alpha": 1.3100000000000003,
-            "dAIC": 46.41408730965436
+            "dAIC": 46.41408730965436,
+            "zero_consistent": true,
+            "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
           },
-          "zero_excluded_|A|<=2sigmaA": true,
-          "zero_sigma_level": 1.97,
-          "dAIC_power_decisive": true,
-          "d3_tier": "clean-scaling (alpha>=1)",
-          "loo_zero_flips": "5/14"
+          "zero_excluded_|A|<=2sigmaA": false,
+          "zero_sigma_level": 10.59,
+          "d3_tier": "weak-scaling (0<alpha<1)",
+          "loo_zero_flips": "14/14"
         }
       },
-      "min_k96_raw_resid_max": {
-        "axial": 0.020038946198002637,
-        "face-diagonal": 0.012769489683539225,
-        "body-diagonal": 0.010027533992509684
+      "results_file": "data/results/v2m0_sigma_calibration_v2.json",
+      "old_caliber_block_legacy": {
+        "status": "DONE",
+        "register": "σ 机器校准件(≥64³ 标度审计;仪器校准,非物理门;交付物 4)",
+        "calibration_branch": "Z",
+        "backend": "numpy fp64",
+        "lattices": [
+          16,
+          24,
+          32,
+          48,
+          64,
+          96
+        ],
+        "lattice_96_note": "96³ 已含:逐 k 谱路径(28×28 本征分解),无 L³ 数组;峰值 RSS 91 MB,总 0.5 s",
+        "protocol": "R37 协议逐字复用(冻结脚本代码对象直接调用,faithfulness/16³ 校准/旧系列再推导 diff 全 0.0);唯一改动=格子清单(D3)",
+        "direction_fits": {
+          "axial": {
+            "old_16_48": {
+              "A": -0.19134650736650763,
+              "sigma_A": 2.131816018607365,
+              "alpha": 0.37000000000000005,
+              "dAIC": 2.6951090036189598
+            },
+            "new_16_96": {
+              "A": 0.003018876432247818,
+              "sigma_A": 0.07392025511256665,
+              "alpha": 1.0200000000000002,
+              "dAIC": 20.511155526435275
+            },
+            "zero_excluded_|A|<=2sigmaA": true,
+            "zero_sigma_level": 0.04,
+            "dAIC_power_decisive": true,
+            "d3_tier": "clean-scaling (alpha>=1)",
+            "loo_zero_flips": "1/14"
+          },
+          "face-diagonal": {
+            "old_16_48": {
+              "A": 0.048899496435197615,
+              "sigma_A": 0.012326275450997752,
+              "alpha": 2.9300000000000006,
+              "dAIC": 17.477764329271025
+            },
+            "new_16_96": {
+              "A": 0.020039301845138968,
+              "sigma_A": 0.010253274174745837,
+              "alpha": 1.7700000000000002,
+              "dAIC": 43.10106287927596
+            },
+            "zero_excluded_|A|<=2sigmaA": true,
+            "zero_sigma_level": 1.95,
+            "dAIC_power_decisive": true,
+            "d3_tier": "clean-scaling (alpha>=1)",
+            "loo_zero_flips": "4/14"
+          },
+          "body-diagonal": {
+            "old_16_48": {
+              "A": 0.03080404450030344,
+              "sigma_A": 0.008139054225196587,
+              "alpha": 1.5300000000000002,
+              "dAIC": 25.546884602320446
+            },
+            "new_16_96": {
+              "A": 0.01552817053261974,
+              "sigma_A": 0.007889634924297952,
+              "alpha": 1.3100000000000003,
+              "dAIC": 46.41408730965436
+            },
+            "zero_excluded_|A|<=2sigmaA": true,
+            "zero_sigma_level": 1.97,
+            "dAIC_power_decisive": true,
+            "d3_tier": "clean-scaling (alpha>=1)",
+            "loo_zero_flips": "5/14"
+          }
+        },
+        "min_k96_raw_resid_max": {
+          "axial": 0.020038946198002637,
+          "face-diagonal": 0.012769489683539225,
+          "body-diagonal": 0.010027533992509684
+        },
+        "face_small_floor": {
+          "zero_excluded_main": true,
+          "marginal_note": "面斜/体对角主判据排零边缘成立(1.95σ/1.97σ);扩窗(1.70σ/0.81σ)与次级 resid_mean 口径(0.80σ/0.59σ)更强一致;LOO 存在边缘翻转,如实入册",
+          "model_free_upper_bound": 0.013,
+          "model_free_note": "96³ 最小可分辨 |k| 处面斜原始读数 0.0128 ⟹ 任何真常数底 ≤1.3%,v1 的\"≤5% 小底\"无条件收紧"
+        },
+        "wording_update_suggestion": "建议(交车道A,只加不改史): 封存文档 §五-3 追加——v2 M0' σ 机器校准件(64³/96³, R37 协议逐字复用)在面斜 |k|<0.37 补入拟合合格点后,三方向幂律均决定性胜出且截距均与 0 一致(|A|≤2σ_A);v1 遗留的\"面斜是唯一不能在 ≤48³ 内排除 ≤5% 小底的方向\"就此了结。R37 自身 ambiguous 落点按其预注册系列不改。",
+        "wording_fallback_tier": "若车道A 认为 1.95σ 边缘 + LOO 翻转不足以写\"了结\":\"面斜小底上界收紧至 ≤1.3%(模型无关)且主判据排零成立(边缘);≤5% 量级的表述废止\"。两档均在 Z 侧事实内,定稿权在车道A/PI",
+        "nature": "instrument calibration; NOT a physics gate; no v1 verdict changed; no v2 gate triggered;G2 正式读数不由本件代填",
+        "script": "experiments/v2m0_sigma_calibration.py",
+        "source_sha256": "55297b2c04439a792fa7e617a4309c518bf4da873e7cea8f70eaea95a12b67a2",
+        "results_file": "data/results/v2m0_sigma_calibration.json",
+        "results_sha256": "7563ba4b83488c238a22a090ee138d4ddecb96c976b3dd74f93c9b4f07fd99cf",
+        "caliber_warning": "此块为旧口径(resid_max,基依赖)校准摘要;整改版 v2m0_sigma_calibration_v2.py 完成后将并入不变量口径并保留此块为注记"
       },
-      "face_small_floor": {
-        "zero_excluded_main": true,
-        "marginal_note": "面斜/体对角主判据排零边缘成立(1.95σ/1.97σ);扩窗(1.70σ/0.81σ)与次级 resid_mean 口径(0.80σ/0.59σ)更强一致;LOO 存在边缘翻转,如实入册",
-        "model_free_upper_bound": 0.013,
-        "model_free_note": "96³ 最小可分辨 |k| 处面斜原始读数 0.0128 ⟹ 任何真常数底 ≤1.3%,v1 的\"≤5% 小底\"无条件收紧"
-      },
-      "wording_update_suggestion": "建议(交车道A,只加不改史): 封存文档 §五-3 追加——v2 M0' σ 机器校准件(64³/96³, R37 协议逐字复用)在面斜 |k|<0.37 补入拟合合格点后,三方向幂律均决定性胜出且截距均与 0 一致(|A|≤2σ_A);v1 遗留的\"面斜是唯一不能在 ≤48³ 内排除 ≤5% 小底的方向\"就此了结。R37 自身 ambiguous 落点按其预注册系列不改。",
-      "wording_fallback_tier": "若车道A 认为 1.95σ 边缘 + LOO 翻转不足以写\"了结\":\"面斜小底上界收紧至 ≤1.3%(模型无关)且主判据排零成立(边缘);≤5% 量级的表述废止\"。两档均在 Z 侧事实内,定稿权在车道A/PI",
-      "nature": "instrument calibration; NOT a physics gate; no v1 verdict changed; no v2 gate triggered;G2 正式读数不由本件代填",
-      "script": "experiments/v2m0_sigma_calibration.py",
-      "source_sha256": "55297b2c04439a792fa7e617a4309c518bf4da873e7cea8f70eaea95a12b67a2",
-      "results_file": "data/results/v2m0_sigma_calibration.json",
-      "results_sha256": "7563ba4b83488c238a22a090ee138d4ddecb96c976b3dd74f93c9b4f07fd99cf",
-      "caliber_warning": "此块为旧口径(resid_max,基依赖)校准摘要;整改版 v2m0_sigma_calibration_v2.py 完成后将并入不变量口径并保留此块为注记"
+      "old_caliber_note": "old_caliber_block_legacy = 旧口径(resid_max,基依赖)校准摘要,经复核其排零/小底结论不能成立;保留为注记"
     },
     "old_caliber_note": "old_caliber_block_legacy = 旧口径(resid_max,基依赖)校准摘要,经复核其排零/小底结论不能成立;保留为注记"
   },

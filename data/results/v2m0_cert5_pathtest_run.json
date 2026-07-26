@@ -1,0 +1,5664 @@
+{
+  "register": "V2M0 sigma calibration RECTIFIED: 16³-96³ 不变量口径标度审计(整改令 5;仪器校准,非物理门)",
+  "status": "DONE",
+  "backend": "numpy",
+  "fp": "fp64",
+  "authority": [
+    "docsv2/v2-复核-车道A-M0仪器迁移-2026-07-26.md §三/§四",
+    "docsv2/v2-任务书-M0-仪器迁移.md §5"
+  ],
+  "environment": {
+    "numpy_version": "2.0.2",
+    "blas": "accelerate",
+    "lapack": "accelerate",
+    "threadpoolctl": [],
+    "python": "3.9.6",
+    "platform": "macOS-26.3.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+  },
+  "caliber": {
+    "primary_y": "max_sin_theta (span(B₊) vs ker C 主角谱最大值)",
+    "secondary_y": "rms_sin = frob/sqrt(m)",
+    "legacy_y": "resid_max/resid_mean(基依赖,仅对照)",
+    "protocol": "R37 拟合协议原样(冻结代码对象);唯一变化 = y 值"
+  },
+  "lattices": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    96
+  ],
+  "d3_rules": {
+    "power_decisive": "dAIC(const-power) >= 2",
+    "zero_exclusion": "|A| <= 2*sigma_A",
+    "tiers": "alpha>=1 clean; 0<alpha<1 weak; O(1)-constant 另档",
+    "model_free_floor_bound": "|A| + 2*sigma_A(幂律截距 95% 上界)"
+  },
+  "red_lines": "仪器校准,非物理门;两分支均只产出封存 §五 措辞建议(交车道A,只加不改史);无 v1 判定更改;判据运行后不回改",
+  "frozen_inputs_sha256": {
+    "rc1a_tensor_index_scan.py": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+    "r32_reachability_probe.py": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+    "r15_walk_dedonder.py": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+    "r37_residual_scaling_audit.py": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0"
+  },
+  "frozen_hash_match": {
+    "rc3ii_inputs": true,
+    "r37_script": true
+  },
+  "faithfulness_certificate": {
+    "walk_symbol_max_diff": 0.0,
+    "K_state_max_diff": 0.0,
+    "damped_map_max_diff": 0.0,
+    "PASS": true
+  },
+  "judgement_reproduction": {
+    "per_k": {
+      "(2, 0, 0)": {
+        "dim_P": 6,
+        "sin_theta": [
+          1.157770875523586e-16,
+          2.839484860416271e-16,
+          0.03031470600937117,
+          0.10074726106932476,
+          0.24537819445673495,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0350263041721464,
+        "rms_sin": 0.42254771926340906,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 1.0,
+          "frob_leak": 1.035
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 0.0,
+          "frob_leak": 2.6304172146440763e-05
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            2.636779683484747e-16,
+            2.220446049250313e-16,
+            6.106226635438361e-16
+          ],
+          "max_drift": 6.106226635438361e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      },
+      "(2, 2, 0)": {
+        "dim_P": 6,
+        "sin_theta": [
+          3.295890722061081e-16,
+          5.572226802590649e-16,
+          0.002549841768049938,
+          0.1448153016341753,
+          0.18349673530671118,
+          0.19483381682201498
+        ],
+        "max_sin_theta": 0.19483381682201498,
+        "frob_leak": 0.30431766515615716,
+        "rms_sin": 0.12423716655795547,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 0.1948,
+          "frob_leak": 0.304
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 3.3816822014975934e-05,
+          "frob_leak": 0.0003176651561571653
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            3.885780586188048e-16,
+            9.159339953157541e-16,
+            3.0531133177191805e-16
+          ],
+          "max_drift": 9.159339953157541e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      },
+      "(2, 2, 2)": {
+        "dim_P": 6,
+        "sin_theta": [
+          1.0682489938950903e-16,
+          2.3054617246196455e-16,
+          0.0023900524095358112,
+          0.09699842398218429,
+          0.11383536746942789,
+          0.149344752084034
+        ],
+        "max_sin_theta": 0.149344752084034,
+        "frob_leak": 0.21136875944067318,
+        "rms_sin": 0.08629093469912234,
+        "n_ge_thresh": 3,
+        "sin_thresh": 0.05,
+        "review_ref": {
+          "max_sin_theta": 0.1493,
+          "frob_leak": 0.211
+        },
+        "diff_vs_review": {
+          "max_sin_theta": 4.4752084034010986e-05,
+          "frob_leak": 0.00036875944067318867
+        },
+        "review_tol": {
+          "max_sin_theta": 0.0001,
+          "frob_leak": 0.001
+        },
+        "basis_robustness": {
+          "drift_per_seed": [
+            3.3306690738754696e-16,
+            2.883977778811442e-16,
+            2.3635607360183997e-16
+          ],
+          "max_drift": 3.3306690738754696e-16,
+          "seeds": [
+            0,
+            1,
+            2
+          ]
+        },
+        "ok": true
+      }
+    },
+    "reproduces_review_judgement": true
+  },
+  "invariant_1648_consistency_vs_selftest_v2": {
+    "diff": {
+      "axial": 0.0,
+      "face-diagonal": 0.0,
+      "body-diagonal": 0.0
+    },
+    "tol": 1e-13,
+    "ok": true
+  },
+  "legacy_rederivation_host_lineage": {
+    "diff": {
+      "axial": 1.000000082740371e-10,
+      "face-diagonal": 1.00000015212931e-10,
+      "body-diagonal": 1.0000002215182491e-10
+    },
+    "ok_bit_for_bit": false,
+    "environment_bound": true,
+    "note": "legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列才是跨环境判据",
+    "lineage": "non-host-lineage(expected-drift,诊断级)"
+  },
+  "ray_data": {
+    "axial": [
+      {
+        "ratio": [
+          1,
+          96
+        ],
+        "comp": 0.06544984694978735,
+        "kabs": 0.06544984694978735,
+        "n_plus_modes": 7,
+        "sin_theta": [
+          1.0476853808960659e-16,
+          1.8501856765474622e-16,
+          3.080607333686609e-16,
+          0.007864612435898418,
+          0.020040028252400876,
+          0.020042188847691836,
+          0.9999999999999998
+        ],
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.0004324785786045,
+        "rms_sin": 0.3781279345472772,
+        "n_ge_thresh": 1,
+        "legacy_resid_min": 0.0014784251939681556,
+        "legacy_resid_max": 0.02003894629800264,
+        "legacy_resid_mean": 0.008815494837088673,
+        "provenance": [
+          [
+            96,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          64
+        ],
+        "comp": 0.09817477042468103,
+        "kabs": 0.09817477042468103,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          8.602136627557164e-17,
+          2.497179032523795e-16,
+          0.0004686176965574724,
+          0.011805040194750422,
+          0.030067700415104977,
+          0.9999999972123733
+        ],
+        "max_sin_theta": 0.9999999972123733,
+        "frob_leak": 1.0005216837278161,
+        "rms_sin": 0.40846126695390683,
+        "n_ge_thresh": 1,
+        "legacy_resid_min": 0.008936115714887883,
+        "legacy_resid_max": 0.022148915234161414,
+        "legacy_resid_mean": 0.01456920073111152,
+        "provenance": [
+          [
+            64,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          48
+        ],
+        "comp": 0.1308996938995747,
+        "kabs": 0.1308996938995747,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.198757458945569e-16,
+          3.1752240005083133e-16,
+          0.0008331979802689074,
+          0.01575517359255193,
+          0.04009855014486405,
+          0.9999999999971053
+        ],
+        "max_sin_theta": 0.9999999999971053,
+        "frob_leak": 1.0009279761460044,
+        "rms_sin": 0.40862713513906057,
+        "n_ge_thresh": 1,
+        "legacy_resid_min": 0.018650391027405032,
+        "legacy_resid_max": 0.04422463303075034,
+        "legacy_resid_mean": 0.035184359847395874,
+        "provenance": [
+          [
+            48,
+            1
+          ],
+          [
+            96,
+            2
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          32
+        ],
+        "comp": 0.19634954084936207,
+        "kabs": 0.19634954084936207,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1561598550579523e-16,
+          2.5254449187708943e-16,
+          0.00187542893798737,
+          0.023697169180638727,
+          0.06018368562910429,
+          0.9999999999997999
+        ],
+        "max_sin_theta": 0.9999999999997999,
+        "frob_leak": 1.0020913875871702,
+        "rms_sin": 0.40910209587102264,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.026388818863066953,
+        "legacy_resid_max": 0.05628459040942199,
+        "legacy_resid_mean": 0.04440902849098283,
+        "provenance": [
+          [
+            32,
+            1
+          ],
+          [
+            64,
+            2
+          ],
+          [
+            96,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          24
+        ],
+        "comp": 0.2617993877991494,
+        "kabs": 0.2617993877991494,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          8.32173392260783e-17,
+          1.6433309216735847e-16,
+          0.0033359124992295053,
+          0.03171513756024865,
+          0.08031305319783377,
+          0.9999999999999992
+        ],
+        "max_sin_theta": 0.9999999999999992,
+        "frob_leak": 1.003726638471165,
+        "rms_sin": 0.409769684248893,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.03674885152726326,
+        "legacy_resid_max": 0.08527864003099939,
+        "legacy_resid_mean": 0.0628505964692034,
+        "provenance": [
+          [
+            24,
+            1
+          ],
+          [
+            48,
+            2
+          ],
+          [
+            96,
+            4
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          64
+        ],
+        "comp": 0.2945243112740431,
+        "kabs": 0.2945243112740431,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.26489658987847e-17,
+          1.454486752098234e-16,
+          0.004223407488650181,
+          0.035759892466800176,
+          0.09039949232064884,
+          0.9999999999999993
+        ],
+        "max_sin_theta": 0.9999999999999993,
+        "frob_leak": 1.0047231834151544,
+        "rms_sin": 0.4101765220186471,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.03685382899599833,
+        "legacy_resid_max": 0.11118155794889645,
+        "legacy_resid_mean": 0.057541243061412034,
+        "provenance": [
+          [
+            64,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          96
+        ],
+        "comp": 0.3272492347489368,
+        "kabs": 0.3272492347489368,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.549098172637975e-16,
+          2.9278753760455633e-16,
+          0.005216003021524107,
+          0.039832143811247216,
+          0.10050338682645357,
+          0.9999999999999998
+        ],
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.0058403139324392,
+        "rms_sin": 0.41063258864255364,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.046630455866981856,
+        "legacy_resid_max": 0.08752602093271232,
+        "legacy_resid_mean": 0.0716444040618953,
+        "provenance": [
+          [
+            96,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          16
+        ],
+        "comp": 0.39269908169872414,
+        "kabs": 0.39269908169872414,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          8.691922215134704e-17,
+          2.7015497369311436e-16,
+          0.007517427876666906,
+          0.04806919432435101,
+          0.12077310059949574,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.0084410250447413,
+        "rms_sin": 0.41169432450814136,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.01779909704697465,
+        "legacy_resid_max": 0.09920145413478804,
+        "legacy_resid_mean": 0.06716779984452118,
+        "provenance": [
+          [
+            16,
+            1
+          ],
+          [
+            32,
+            2
+          ],
+          [
+            48,
+            3
+          ],
+          [
+            64,
+            4
+          ],
+          [
+            96,
+            6
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          96
+        ],
+        "comp": 0.45814892864851153,
+        "kabs": 0.45814892864851153,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.6084383205377764e-16,
+          5.713235917945773e-16,
+          0.010242278068353022,
+          0.0564445780812544,
+          0.1411426611816054,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0115394927832653,
+        "rms_sin": 0.4129592686654512,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.062027847141263706,
+        "legacy_resid_max": 0.1401896065421969,
+        "legacy_resid_mean": 0.09515808450138369,
+        "provenance": [
+          [
+            96,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          64
+        ],
+        "comp": 0.4908738521234052,
+        "kabs": 0.4908738521234052,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.604129268125126e-16,
+          5.456628302902636e-16,
+          0.01176423771562066,
+          0.060688936877123865,
+          0.1513719205658438,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0132793310258021,
+        "rms_sin": 0.4136695546536505,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.05498836343160322,
+        "legacy_resid_max": 0.13483127758355118,
+        "legacy_resid_mean": 0.1057433078789598,
+        "provenance": [
+          [
+            64,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          12
+        ],
+        "comp": 0.5235987755982988,
+        "kabs": 0.5235987755982988,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1141091325689444e-16,
+          5.135045129652063e-16,
+          0.013392996333017795,
+          0.06497312719578331,
+          0.16163490372397163,
+          0.9999999999999994
+        ],
+        "max_sin_theta": 0.9999999999999994,
+        "frob_leak": 1.015148620503536,
+        "rms_sin": 0.4144326888873175,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06590136996641757,
+        "legacy_resid_max": 0.12421118751495233,
+        "legacy_resid_mean": 0.09704150609370804,
+        "provenance": [
+          [
+            24,
+            2
+          ],
+          [
+            48,
+            4
+          ],
+          [
+            96,
+            8
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          32
+        ],
+        "comp": 0.5890486225480862,
+        "kabs": 0.5890486225480862,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.0244446490782813e-16,
+          2.746924876912139e-16,
+          0.016972360771266577,
+          0.07366539853899291,
+          0.18227525443452122,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.0192835328559113,
+        "rms_sin": 0.41612075978639257,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.0787040151342635,
+        "legacy_resid_max": 0.18264646944117563,
+        "legacy_resid_mean": 0.13690971631713125,
+        "provenance": [
+          [
+            32,
+            3
+          ],
+          [
+            64,
+            6
+          ],
+          [
+            96,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          48
+        ],
+        "comp": 0.6544984694978736,
+        "kabs": 0.6544984694978736,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          7.301518609444784e-17,
+          3.2689463881686905e-16,
+          0.020983465373099343,
+          0.08252679096640486,
+          0.20309180925529025,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0239615520286218,
+        "rms_sin": 0.4180305531164088,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.051501501068613495,
+        "legacy_resid_max": 0.23853315937237404,
+        "legacy_resid_mean": 0.13126088552098267,
+        "provenance": [
+          [
+            48,
+            5
+          ],
+          [
+            96,
+            10
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          64
+        ],
+        "comp": 0.6872233929727672,
+        "kabs": 0.6872233929727672,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          7.803874796089874e-17,
+          1.200781237874632e-16,
+          0.023151967859730452,
+          0.0870209587376631,
+          0.21357564663476217,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0265102131546753,
+        "rms_sin": 0.41907103966409187,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.10237523920968956,
+        "legacy_resid_max": 0.2581763186433096,
+        "legacy_resid_mean": 0.17486988322573807,
+        "provenance": [
+          [
+            64,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          11,
+          96
+        ],
+        "comp": 0.7199483164476609,
+        "kabs": 0.7199483164476609,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1314743429218644e-16,
+          2.5181105134607685e-16,
+          0.025429696734043737,
+          0.09155662879356871,
+          0.2241152035253122,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.029202074523376,
+        "rms_sin": 0.4201699874660297,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.08544683011368755,
+        "legacy_resid_max": 0.2353743936265471,
+        "legacy_resid_mean": 0.15130244455527125,
+        "provenance": [
+          [
+            96,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          8
+        ],
+        "comp": 0.7853981633974483,
+        "kabs": 0.7853981633974483,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.157770875523586e-16,
+          2.839484860416271e-16,
+          0.03031470600937117,
+          0.10074726106932476,
+          0.24537819445673495,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0350263041721464,
+        "rms_sin": 0.42254771926340906,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.11047839153772163,
+        "legacy_resid_max": 0.1775137050625285,
+        "legacy_resid_mean": 0.1548377317625221,
+        "provenance": [
+          [
+            16,
+            2
+          ],
+          [
+            24,
+            3
+          ],
+          [
+            32,
+            4
+          ],
+          [
+            48,
+            6
+          ],
+          [
+            64,
+            8
+          ],
+          [
+            96,
+            12
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          13,
+          96
+        ],
+        "comp": 0.8508480103472356,
+        "kabs": 0.8508480103472356,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.0656061944723774e-16,
+          3.312380153720527e-16,
+          0.035642375823454524,
+          0.11008324603386847,
+          0.26691487040981954,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0414567912580839,
+        "rms_sin": 0.425172954623093,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.12705965258279273,
+        "legacy_resid_max": 0.1866889516025316,
+        "legacy_resid_mean": 0.16629350242153582,
+        "provenance": [
+          [
+            96,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          9,
+          64
+        ],
+        "comp": 0.8835729338221293,
+        "kabs": 0.8835729338221293,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.29210308744199e-16,
+          3.302005260698648e-16,
+          0.03847347568219818,
+          0.11479862647405979,
+          0.27779656037914247,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0449066283309154,
+        "rms_sin": 0.42658134471045533,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06793439917696983,
+        "legacy_resid_max": 0.29566688930256113,
+        "legacy_resid_mean": 0.18784287994839735,
+        "provenance": [
+          [
+            64,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          48
+        ],
+        "comp": 0.9162978572970231,
+        "kabs": 0.9162978572970231,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          5.2097314309251237e-17,
+          1.332714577232356e-16,
+          0.04141678168915911,
+          0.11954070761556287,
+          0.28875940339172895,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0485167254888517,
+        "rms_sin": 0.4280551607035913,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.05187760769142578,
+        "legacy_resid_max": 0.2225595523328218,
+        "legacy_resid_mean": 0.1458595569782569,
+        "provenance": [
+          [
+            48,
+            7
+          ],
+          [
+            96,
+            14
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          32
+        ],
+        "comp": 0.9817477042468103,
+        "kabs": 0.9817477042468103,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          4.6372889586776285e-17,
+          1.3952182932968957e-16,
+          0.047642147006716984,
+          0.1290869612943791,
+          0.3109442799932172,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0562289349417229,
+        "rms_sin": 0.43120365702842517,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.1323706764358034,
+        "legacy_resid_max": 0.3204273041399099,
+        "legacy_resid_mean": 0.23052803662658392,
+        "provenance": [
+          [
+            32,
+            5
+          ],
+          [
+            64,
+            10
+          ],
+          [
+            96,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          6
+        ],
+        "comp": 1.0471975511965976,
+        "kabs": 1.0471975511965976,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.05246746595152e-16,
+          3.1393312808972765e-16,
+          0.054322791240219416,
+          0.13868050473757812,
+          0.3334979867847444,
+          0.9999999999999998
+        ],
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.0646145571200287,
+        "rms_sin": 0.43462707294719444,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.0995284873535172,
+        "legacy_resid_max": 0.2516289707335003,
+        "legacy_resid_mean": 0.1784520908175418,
+        "provenance": [
+          [
+            24,
+            4
+          ],
+          [
+            48,
+            8
+          ],
+          [
+            96,
+            16
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          64
+        ],
+        "comp": 1.0799224746714913,
+        "kabs": 1.0799224746714913,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          7.714052630994348e-17,
+          2.9223639326030666e-16,
+          0.057835204610871056,
+          0.1434797259542388,
+          0.34492027479352166,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.069065638123274,
+        "rms_sin": 0.43644421915748544,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.08065465596892399,
+        "legacy_resid_max": 0.3918082960871947,
+        "legacy_resid_mean": 0.204061448842026,
+        "provenance": [
+          [
+            64,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          17,
+          96
+        ],
+        "comp": 1.1126473981463851,
+        "kabs": 1.1126473981463851,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          7.19059457607661e-17,
+          1.826129137184476e-16,
+          0.06146307058496414,
+          0.14827144953491558,
+          0.3564421921758928,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0736913747237022,
+        "rms_sin": 0.43833266821674643,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.16783119133955135,
+        "legacy_resid_max": 0.2934063012192089,
+        "legacy_resid_mean": 0.23760082062078025,
+        "provenance": [
+          [
+            96,
+            17
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          3,
+          16
+        ],
+        "comp": 1.1780972450961724,
+        "kabs": 1.1780972450961724,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          8.205032290920216e-17,
+          1.815831527937768e-16,
+          0.06906731058551989,
+          0.15780243202696323,
+          0.379788555763884,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.0834718492117632,
+        "rms_sin": 0.44232553020642273,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.17377303820091855,
+        "legacy_resid_max": 0.41656765302723203,
+        "legacy_resid_mean": 0.2638216958325641,
+        "provenance": [
+          [
+            16,
+            3
+          ],
+          [
+            32,
+            6
+          ],
+          [
+            48,
+            9
+          ],
+          [
+            64,
+            12
+          ],
+          [
+            96,
+            18
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          19,
+          96
+        ],
+        "comp": 1.2435470920459597,
+        "kabs": 1.2435470920459597,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.005289797458345e-17,
+          1.7404431218137497e-16,
+          0.07713973005634078,
+          0.16720998606463852,
+          0.4035353981630245,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.093960938499859,
+        "rms_sin": 0.44660768297681064,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.07707386998958356,
+        "legacy_resid_max": 0.31729381396463546,
+        "legacy_resid_mean": 0.1986630824690465,
+        "provenance": [
+          [
+            96,
+            19
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          13,
+          64
+        ],
+        "comp": 1.2762720155208536,
+        "kabs": 1.2762720155208536,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1310065590957892e-16,
+          2.473369824297397e-16,
+          0.08135277552067816,
+          0.17184640146788585,
+          0.415554043738168,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.099470155597469,
+        "rms_sin": 0.44885681143870426,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.19825344823555532,
+        "legacy_resid_max": 0.42880170280649377,
+        "legacy_resid_mean": 0.33012872518127406,
+        "provenance": [
+          [
+            64,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          24
+        ],
+        "comp": 1.3089969389957472,
+        "kabs": 1.3089969389957472,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.0514725711707384e-16,
+          3.9284544659894616e-16,
+          0.08568435592813858,
+          0.17642629667164086,
+          0.4276645606487339,
+          0.9999999999999998
+        ],
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.105153846051745,
+        "rms_sin": 0.4511771683501882,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.224210088143975,
+        "legacy_resid_max": 0.4193869646814618,
+        "legacy_resid_mean": 0.32586791543370214,
+        "provenance": [
+          [
+            24,
+            5
+          ],
+          [
+            48,
+            10
+          ],
+          [
+            96,
+            20
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          32
+        ],
+        "comp": 1.3744467859455345,
+        "kabs": 1.3744467859455345,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.3008368090151935e-16,
+          2.7094254513773823e-16,
+          0.094704928663154,
+          0.18538119370163253,
+          0.4521388497101112,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.1170339072331321,
+        "rms_sin": 0.4560271830180956,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.22665027991150105,
+        "legacy_resid_max": 0.4812674252308715,
+        "legacy_resid_mean": 0.34780955242830497,
+        "provenance": [
+          [
+            32,
+            7
+          ],
+          [
+            64,
+            14
+          ],
+          [
+            96,
+            21
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          48
+        ],
+        "comp": 1.4398966328953218,
+        "kabs": 1.4398966328953218,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1736460515568915e-16,
+          2.587031274019275e-16,
+          0.10420479793460193,
+          0.19400420282550185,
+          0.47690047155061477,
+          0.9999999999999998
+        ],
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.1295708611644282,
+        "rms_sin": 0.4611453730281714,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.13380374358732067,
+        "legacy_resid_max": 0.44710173335867887,
+        "legacy_resid_mean": 0.3010402748970343,
+        "provenance": [
+          [
+            48,
+            11
+          ],
+          [
+            96,
+            22
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          15,
+          64
+        ],
+        "comp": 1.4726215563702154,
+        "kabs": 1.4726215563702154,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1475909404861549e-16,
+          2.6220680720158384e-16,
+          0.10913538083332983,
+          0.19816961957903959,
+          0.489365250200643,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.136072214948361,
+        "rms_sin": 0.46379953959616277,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.25201407575714513,
+        "legacy_resid_max": 0.5384128616406215,
+        "legacy_resid_mean": 0.31666104248902055,
+        "provenance": [
+          [
+            64,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          23,
+          96
+        ],
+        "comp": 1.5053464798451093,
+        "kabs": 1.5053464798451093,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.2054615220111087e-16,
+          2.0188681739096793e-16,
+          0.114186808634493,
+          0.20222645855116814,
+          0.5018707987176446,
+          1.0
+        ],
+        "max_sin_theta": 1.0,
+        "frob_leak": 1.1427197672263154,
+        "rms_sin": 0.4665133914494068,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.21106251306380494,
+        "legacy_resid_max": 0.3586334454692501,
+        "legacy_resid_mean": 0.28767702166915393,
+        "provenance": [
+          [
+            96,
+            23
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          4
+        ],
+        "comp": 1.5707963267948966,
+        "kabs": 1.5707963267948966,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.2879513949107228e-16,
+          2.5912964789201486e-16,
+          0.12465317734582218,
+          0.20998230433220022,
+          0.5269516742327368,
+          0.9999999999999999
+        ],
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.1564207926752934,
+        "rms_sin": 0.47210681166655394,
+        "n_ge_thresh": 4,
+        "legacy_resid_min": 0.17559425342003515,
+        "legacy_resid_max": 0.4978138035735122,
+        "legacy_resid_mean": 0.3094280857293106,
+        "provenance": [
+          [
+            16,
+            4
+          ],
+          [
+            24,
+            6
+          ],
+          [
+            32,
+            8
+          ],
+          [
+            48,
+            12
+          ],
+          [
+            64,
+            16
+          ],
+          [
+            96,
+            24
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      }
+    ],
+    "face-diagonal": [
+      {
+        "ratio": [
+          1,
+          96
+        ],
+        "comp": 0.06544984694978735,
+        "kabs": 0.09256006121163263,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.9783151395521055e-16,
+          5.042892301111395e-16,
+          1.8237319585939108e-05,
+          0.01197843637590238,
+          0.01526886501500769,
+          0.0166949717583991
+        ],
+        "max_sin_theta": 0.0166949717583991,
+        "frob_leak": 0.02559967951892438,
+        "rms_sin": 0.010451025400023645,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.005474419253953631,
+        "legacy_resid_max": 0.012769489783539225,
+        "legacy_resid_mean": 0.008618130507388046,
+        "provenance": [
+          [
+            96,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          64
+        ],
+        "comp": 0.09817477042468103,
+        "kabs": 0.13884009181744894,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.2483156227472503e-16,
+          3.248329545555493e-16,
+          4.101902707335544e-05,
+          0.01796819600907543,
+          0.022902667693640598,
+          0.02503514213595165
+        ],
+        "max_sin_theta": 0.02503514213595165,
+        "frob_leak": 0.03839463868346422,
+        "rms_sin": 0.015674545605501973,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.005283082425060557,
+        "legacy_resid_max": 0.0133926068612233,
+        "legacy_resid_mean": 0.008254718693552434,
+        "provenance": [
+          [
+            64,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          48
+        ],
+        "comp": 0.1308996938995747,
+        "kabs": 0.18512012242326525,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.936143603438789e-16,
+          3.326397684271897e-16,
+          7.28857765492231e-05,
+          0.023958632034311356,
+          0.03053575398883237,
+          0.03336659317453449
+        ],
+        "max_sin_theta": 0.03336659317453449,
+        "frob_leak": 0.051183817491794584,
+        "rms_sin": 0.02089570599043951,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.010601425329236896,
+        "legacy_resid_max": 0.02189711867355063,
+        "legacy_resid_mean": 0.017885834776634954,
+        "provenance": [
+          [
+            48,
+            1
+          ],
+          [
+            96,
+            2
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          32
+        ],
+        "comp": 0.19634954084936207,
+        "kabs": 0.2776801836348979,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.99834255934445e-17,
+          2.1397036032987768e-16,
+          0.00016375921472354353,
+          0.035942649888992005,
+          0.04579913955112536,
+          0.04999216201303519
+        ],
+        "max_sin_theta": 0.04999216201303519,
+        "frob_leak": 0.07673772438953398,
+        "rms_sin": 0.03132804479611434,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.01610924161130409,
+        "legacy_resid_max": 0.027392436810969076,
+        "legacy_resid_mean": 0.022109233814769914,
+        "provenance": [
+          [
+            32,
+            1
+          ],
+          [
+            64,
+            2
+          ],
+          [
+            96,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          24
+        ],
+        "comp": 0.2617993877991494,
+        "kabs": 0.3702402448465305,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.6838179187115098e-16,
+          3.9712608475072205e-16,
+          0.00029056177191592663,
+          0.04793315375642539,
+          0.061058380890045914,
+          0.06655023934654561
+        ],
+        "max_sin_theta": 0.06655023934654561,
+        "frob_leak": 0.1022483833083773,
+        "rms_sin": 0.04174272768833882,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.0213298225288568,
+        "legacy_resid_max": 0.051808943927047456,
+        "legacy_resid_mean": 0.03351847525395871,
+        "provenance": [
+          [
+            24,
+            1
+          ],
+          [
+            48,
+            2
+          ],
+          [
+            96,
+            4
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          64
+        ],
+        "comp": 0.2945243112740431,
+        "kabs": 0.4165202754523468,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.793143719240116e-17,
+          3.091943762659006e-16,
+          0.0003673190579769013,
+          0.053931905157760064,
+          0.06868659282327956,
+          0.07479776059782146
+        ],
+        "max_sin_theta": 0.07479776059782146,
+        "frob_leak": 0.11498407864289731,
+        "rms_sin": 0.04694205353652521,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.01939799469483952,
+        "legacy_resid_max": 0.044528767953848226,
+        "legacy_resid_mean": 0.029863470026075974,
+        "provenance": [
+          [
+            64,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          96
+        ],
+        "comp": 0.3272492347489368,
+        "kabs": 0.4628003060581632,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          5.826572519214245e-17,
+          1.6185371426455755e-16,
+          0.00045290901495125116,
+          0.059933693289587614,
+          0.07631414068881553,
+          0.08302123840690381
+        ],
+        "max_sin_theta": 0.08302123840690381,
+        "frob_leak": 0.12770523408848392,
+        "rms_sin": 0.052135443499911005,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.01813227566606696,
+        "legacy_resid_max": 0.05966234137876931,
+        "legacy_resid_mean": 0.03547722897851495,
+        "provenance": [
+          [
+            96,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          16
+        ],
+        "comp": 0.39269908169872414,
+        "kabs": 0.5553603672697958,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.515486214582149e-16,
+          4.676829508231283e-16,
+          0.0006503566649219077,
+          0.07194897131962484,
+          0.09156877222414209,
+          0.09938795311431825
+        ],
+        "max_sin_theta": 0.09938795311431825,
+        "frob_leak": 0.15310089061999133,
+        "rms_sin": 0.06250317686410635,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.030363329978622195,
+        "legacy_resid_max": 0.06717677365000008,
+        "legacy_resid_mean": 0.043047089661337745,
+        "provenance": [
+          [
+            16,
+            1
+          ],
+          [
+            32,
+            2
+          ],
+          [
+            48,
+            3
+          ],
+          [
+            64,
+            4
+          ],
+          [
+            96,
+            6
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          96
+        ],
+        "comp": 0.45814892864851153,
+        "kabs": 0.6479204284814285,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.938188290972044e-17,
+          2.0439228132388638e-16,
+          0.0008824361450907334,
+          0.08398508934936841,
+          0.10682666940636283,
+          0.11563601841516224
+        ],
+        "max_sin_theta": 0.11563601841516224,
+        "frob_leak": 0.17843177961882137,
+        "rms_sin": 0.07284446899380859,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.016110921260503352,
+        "legacy_resid_max": 0.07019298372747027,
+        "legacy_resid_mean": 0.04737923283369752,
+        "provenance": [
+          [
+            96,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          64
+        ],
+        "comp": 0.4908738521234052,
+        "kabs": 0.6942004590872447,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.8003467137491636e-16,
+          3.963543495033361e-16,
+          0.0010113198545138994,
+          0.09001330736778067,
+          0.11445885036816142,
+          0.12371194109419337
+        ],
+        "max_sin_theta": 0.12371194109419337,
+        "frob_leak": 0.19107299931709093,
+        "rms_sin": 0.07800522532500524,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.042866632847941934,
+        "legacy_resid_max": 0.10268626584290509,
+        "legacy_resid_mean": 0.07141138272464499,
+        "provenance": [
+          [
+            64,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          12
+        ],
+        "comp": 0.5235987755982988,
+        "kabs": 0.740480489693061,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.0447053531284493e-16,
+          3.406793976706854e-16,
+          0.0011486960908225492,
+          0.0960497681716955,
+          0.12209457458523694,
+          0.13175429260023697
+        ],
+        "max_sin_theta": 0.13175429260023697,
+        "frob_leak": 0.2036986898099356,
+        "rms_sin": 0.08315964188463493,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04632222414662325,
+        "legacy_resid_max": 0.09927669838600188,
+        "legacy_resid_mean": 0.07203704123892059,
+        "provenance": [
+          [
+            24,
+            2
+          ],
+          [
+            48,
+            4
+          ],
+          [
+            96,
+            8
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          32
+        ],
+        "comp": 0.5890486225480862,
+        "kabs": 0.8330405509046936,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          7.958667027379828e-17,
+          2.4668673055698423e-16,
+          0.001448748959330707,
+          0.10815254189961619,
+          0.13738184108732615,
+          0.14773515591589803
+        ],
+        "max_sin_theta": 0.14773515591589803,
+        "frob_leak": 0.22890722519600257,
+        "rms_sin": 0.09345098336109457,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04992200855405531,
+        "legacy_resid_max": 0.0920082372529215,
+        "legacy_resid_mean": 0.059880004964364866,
+        "provenance": [
+          [
+            32,
+            3
+          ],
+          [
+            64,
+            6
+          ],
+          [
+            96,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          48
+        ],
+        "comp": 0.6544984694978736,
+        "kabs": 0.9256006121163264,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.407702709433505e-16,
+          5.455443983532876e-16,
+          0.0017823219511864444,
+          0.12030492504395142,
+          0.15270064955718932,
+          0.16357472397636869
+        ],
+        "max_sin_theta": 0.16357472397636869,
+        "frob_leak": 0.25406816085550976,
+        "rms_sin": 0.10372289233055963,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04757019049328106,
+        "legacy_resid_max": 0.1273365280155914,
+        "legacy_resid_mean": 0.08581340185319462,
+        "provenance": [
+          [
+            48,
+            5
+          ],
+          [
+            96,
+            10
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          64
+        ],
+        "comp": 0.6872233929727672,
+        "kabs": 0.9718806427221427,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.855002408675403e-16,
+          3.554158455571403e-16,
+          0.001961637988791212,
+          0.12640389515516232,
+          0.16037650457211014,
+          0.17144136348866684
+        ],
+        "max_sin_theta": 0.17144136348866684,
+        "frob_leak": 0.26663562602851404,
+        "rms_sin": 0.10885353850290276,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.017931045050598112,
+        "legacy_resid_max": 0.13881418297887566,
+        "legacy_resid_mean": 0.07717589625102357,
+        "provenance": [
+          [
+            64,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          11,
+          96
+        ],
+        "comp": 0.7199483164476609,
+        "kabs": 1.018160673327959,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.3423137453733933e-16,
+          3.220553888613785e-16,
+          0.002149311618023276,
+          0.1325205535283187,
+          0.16806617904652396,
+          0.17927297799959635
+        ],
+        "max_sin_theta": 0.17927297799959635,
+        "frob_leak": 0.2791977038373084,
+        "rms_sin": 0.11398198529301709,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06684921726823738,
+        "legacy_resid_max": 0.1551624221049249,
+        "legacy_resid_mean": 0.10539312374170484,
+        "provenance": [
+          [
+            96,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          8
+        ],
+        "comp": 0.7853981633974483,
+        "kabs": 1.1107207345395915,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.295890722061081e-16,
+          5.572226802590649e-16,
+          0.002549841768049938,
+          0.1448153016341753,
+          0.18349673530671118,
+          0.19483381682201498
+        ],
+        "max_sin_theta": 0.19483381682201498,
+        "frob_leak": 0.30431766515615716,
+        "rms_sin": 0.12423716655795547,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.050845224945421756,
+        "legacy_resid_max": 0.17966066853279108,
+        "legacy_resid_mean": 0.10264299344794901,
+        "provenance": [
+          [
+            16,
+            2
+          ],
+          [
+            24,
+            3
+          ],
+          [
+            32,
+            4
+          ],
+          [
+            48,
+            6
+          ],
+          [
+            64,
+            8
+          ],
+          [
+            96,
+            12
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          13,
+          96
+        ],
+        "comp": 0.8508480103472356,
+        "kabs": 1.2032807957512242,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.682099503732228e-16,
+          4.006816404426928e-16,
+          0.0029843245899991515,
+          0.15720737774180743,
+          0.19901383974045378,
+          0.21026503783219275
+        ],
+        "max_sin_theta": 0.21026503783219275,
+        "frob_leak": 0.32945555140644733,
+        "rms_sin": 0.13449966564551147,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.07773957151400862,
+        "legacy_resid_max": 0.16371084049752677,
+        "legacy_resid_mean": 0.1114553717245249,
+        "provenance": [
+          [
+            96,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          9,
+          64
+        ],
+        "comp": 0.8835729338221293,
+        "kabs": 1.2495608263570406,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.997955654641566e-17,
+          2.870382650631683e-16,
+          0.003214521739717488,
+          0.16344626164331752,
+          0.20681246607121784,
+          0.21793552538122166
+        ],
+        "max_sin_theta": 0.21793552538122166,
+        "frob_leak": 0.3420413760655846,
+        "rms_sin": 0.1396378070466822,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.03858841925413314,
+        "legacy_resid_max": 0.1607721639058817,
+        "legacy_resid_mean": 0.10594686985842065,
+        "provenance": [
+          [
+            64,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          48
+        ],
+        "comp": 0.9162978572970231,
+        "kabs": 1.295840856962857,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.422629414489008e-16,
+          3.387688656078422e-16,
+          0.0034535252870966184,
+          0.16971740232643823,
+          0.2146422828978633,
+          0.22557825524560768
+        ],
+        "max_sin_theta": 0.22557825524560768,
+        "frob_leak": 0.35464458594006704,
+        "rms_sin": 0.14478304593229693,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.07915924205091487,
+        "legacy_resid_max": 0.19550668593763348,
+        "legacy_resid_mean": 0.14311062901518876,
+        "provenance": [
+          [
+            48,
+            7
+          ],
+          [
+            96,
+            14
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          32
+        ],
+        "comp": 0.9817477042468103,
+        "kabs": 1.3884009181744894,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.5398228357176627e-16,
+          3.2143914413333572e-16,
+          0.003958630945846241,
+          0.1823684719571822,
+          0.23041014619099376,
+          0.24078876459905693
+        ],
+        "max_sin_theta": 0.24078876459905693,
+        "frob_leak": 0.3799236698968072,
+        "rms_sin": 0.15510318874212858,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.09123138228756447,
+        "legacy_resid_max": 0.143523309472773,
+        "legacy_resid_mean": 0.11534743714556765,
+        "provenance": [
+          [
+            32,
+            5
+          ],
+          [
+            64,
+            10
+          ],
+          [
+            96,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          6
+        ],
+        "comp": 1.0471975511965976,
+        "kabs": 1.480960979386122,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.349966145163478e-16,
+          3.1984342408880305e-16,
+          0.004501324853140279,
+          0.19518621300185435,
+          0.24634879459772804,
+          0.2559153619532305
+        ],
+        "max_sin_theta": 0.2559153619532305,
+        "frob_leak": 0.40533729257847145,
+        "rms_sin": 0.16547825675641165,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06172336326587111,
+        "legacy_resid_max": 0.20791976586481817,
+        "legacy_resid_mean": 0.12423254067052901,
+        "provenance": [
+          [
+            24,
+            4
+          ],
+          [
+            48,
+            8
+          ],
+          [
+            96,
+            16
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          64
+        ],
+        "comp": 1.0799224746714913,
+        "kabs": 1.5272410099919382,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.199532821480931e-16,
+          2.8746658650773845e-16,
+          0.004787448990203418,
+          0.20166629688216756,
+          0.2543928545561449,
+          0.2634539714312336
+        ],
+        "max_sin_theta": 0.2634539714312336,
+        "frob_leak": 0.4181099550095806,
+        "rms_sin": 0.17069267435858396,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.09079837318736636,
+        "legacy_resid_max": 0.24132386516372875,
+        "legacy_resid_mean": 0.1537267048189158,
+        "provenance": [
+          [
+            64,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          17,
+          96
+        ],
+        "comp": 1.1126473981463851,
+        "kabs": 1.5735210405977549,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.1403077587791695e-16,
+          2.951168704994458e-16,
+          0.005083868044954337,
+          0.20819882834413014,
+          0.26249284151192026,
+          0.2709801251838291
+        ],
+        "max_sin_theta": 0.2709801251838291,
+        "frob_leak": 0.4309353987871185,
+        "rms_sin": 0.1759286398552042,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.05165757981732898,
+        "legacy_resid_max": 0.211964170230878,
+        "legacy_resid_mean": 0.15480711837748132,
+        "provenance": [
+          [
+            96,
+            17
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          3,
+          16
+        ],
+        "comp": 1.1780972450961724,
+        "kabs": 1.6660811018093873,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.983453459265228e-16,
+          3.260446905796704e-16,
+          0.005709190526305503,
+          0.2214371396519727,
+          0.27888008452017493,
+          0.28600816300053955
+        ],
+        "max_sin_theta": 0.28600816300053955,
+        "frob_leak": 0.45677321782109337,
+        "rms_sin": 0.18647688530513912,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.12459450962226269,
+        "legacy_resid_max": 0.20818349818488055,
+        "legacy_resid_mean": 0.16603407088060781,
+        "provenance": [
+          [
+            16,
+            3
+          ],
+          [
+            32,
+            6
+          ],
+          [
+            48,
+            9
+          ],
+          [
+            64,
+            12
+          ],
+          [
+            96,
+            18
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          19,
+          96
+        ],
+        "comp": 1.2435470920459597,
+        "kabs": 1.75864116302102,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.7164729761108013e-16,
+          3.1527485682671585e-16,
+          0.0063809953975388555,
+          0.23493462655852027,
+          0.29555140770532706,
+          0.30102733506783746
+        ],
+        "max_sin_theta": 0.30102733506783746,
+        "frob_leak": 0.4829110548673527,
+        "rms_sin": 0.19714761259569752,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.0926060839198771,
+        "legacy_resid_max": 0.23411543149635336,
+        "legacy_resid_mean": 0.17446667642388466,
+        "provenance": [
+          [
+            96,
+            19
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          13,
+          64
+        ],
+        "comp": 1.2762720155208536,
+        "kabs": 1.8049211936268366,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.230157268671364e-16,
+          7.321041702898971e-16,
+          0.00673572674665915,
+          0.24179175894563326,
+          0.3040071862993173,
+          0.3085429795971716
+        ],
+        "max_sin_theta": 0.3085429795971716,
+        "frob_leak": 0.49611265282106776,
+        "rms_sin": 0.2025371423916929,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.14286928233577662,
+        "legacy_resid_max": 0.27956565157901897,
+        "legacy_resid_mean": 0.19262736578915987,
+        "provenance": [
+          [
+            64,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          24
+        ],
+        "comp": 1.3089969389957472,
+        "kabs": 1.8512012242326528,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.688455573179677e-16,
+          5.647163206182691e-16,
+          0.007103880110696528,
+          0.24872746245926938,
+          0.31255064200443133,
+          0.3160679439385989
+        ],
+        "max_sin_theta": 0.3160679439385989,
+        "frob_leak": 0.5094140405377633,
+        "rms_sin": 0.2079674111878309,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.14676349558422314,
+        "legacy_resid_max": 0.2487397551694677,
+        "legacy_resid_mean": 0.19472066333382024,
+        "provenance": [
+          [
+            24,
+            5
+          ],
+          [
+            48,
+            10
+          ],
+          [
+            96,
+            20
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          32
+        ],
+        "comp": 1.3744467859455345,
+        "kabs": 1.9437612854442854,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.232811815689536e-16,
+          5.158883567745137e-16,
+          0.007883480356429889,
+          0.26285454437964406,
+          0.3299243701109411,
+          0.3311623964982706
+        ],
+        "max_sin_theta": 0.3311623964982706,
+        "frob_leak": 0.536351828197816,
+        "rms_sin": 0.21896471694892597,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.10173130780484199,
+        "legacy_resid_max": 0.23302069586875945,
+        "legacy_resid_mean": 0.17566606585283087,
+        "provenance": [
+          [
+            32,
+            7
+          ],
+          [
+            64,
+            14
+          ],
+          [
+            96,
+            21
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          48
+        ],
+        "comp": 1.4398966328953218,
+        "kabs": 2.036321346655918,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          8.807826313444218e-17,
+          3.4123008872357307e-16,
+          0.008726643783709619,
+          0.2773575113427976,
+          0.34634482937474564,
+          0.3477216562912219
+        ],
+        "max_sin_theta": 0.3477216562912219,
+        "frob_leak": 0.5637982214396656,
+        "rms_sin": 0.23016966006931,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.12862963191438828,
+        "legacy_resid_max": 0.305158078521062,
+        "legacy_resid_mean": 0.20004188338674578,
+        "provenance": [
+          [
+            48,
+            11
+          ],
+          [
+            96,
+            22
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          15,
+          64
+        ],
+        "comp": 1.4726215563702154,
+        "kabs": 2.082601377261734,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.3759698940397373e-16,
+          5.515972096576387e-16,
+          0.009174584414899104,
+          0.28476371364585973,
+          0.35398007695599104,
+          0.356795055846037
+        ],
+        "max_sin_theta": 0.356795055846037,
+        "frob_leak": 0.5777362307892013,
+        "rms_sin": 0.23585982855872728,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.0919210072061052,
+        "legacy_resid_max": 0.22375138296288796,
+        "legacy_resid_mean": 0.15914669574394535,
+        "provenance": [
+          [
+            64,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          23,
+          96
+        ],
+        "comp": 1.5053464798451093,
+        "kabs": 2.1288814078675506,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.7588900265016945e-16,
+          5.432665402467152e-16,
+          0.009641643091630531,
+          0.29228074157374867,
+          0.3616506893333073,
+          0.3659936742388581
+        ],
+        "max_sin_theta": 0.3659936742388581,
+        "frob_leak": 0.5918307054002205,
+        "rms_sin": 0.2416138737236622,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.22368573153533766,
+        "legacy_resid_max": 0.3108081123954887,
+        "legacy_resid_mean": 0.2685071565615089,
+        "provenance": [
+          [
+            96,
+            23
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          4
+        ],
+        "comp": 1.5707963267948966,
+        "kabs": 2.221441469079183,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.5096553974446254e-16,
+          5.748081094682986e-16,
+          0.01063844130861972,
+          0.30767131327460406,
+          0.37711625615172856,
+          0.38479319772849
+        ],
+        "max_sin_theta": 0.38479319772849,
+        "frob_leak": 0.6205298454688618,
+        "rms_sin": 0.25333024859446795,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.10516204428844776,
+        "legacy_resid_max": 0.28746595322344337,
+        "legacy_resid_mean": 0.2161971965410335,
+        "provenance": [
+          [
+            16,
+            4
+          ],
+          [
+            24,
+            6
+          ],
+          [
+            32,
+            8
+          ],
+          [
+            48,
+            12
+          ],
+          [
+            64,
+            16
+          ],
+          [
+            96,
+            24
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      }
+    ],
+    "body-diagonal": [
+      {
+        "ratio": [
+          1,
+          96
+        ],
+        "comp": 0.06544984694978735,
+        "kabs": 0.1133624602646386,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.6141807162647886e-16,
+          3.9770129064306245e-16,
+          1.9592883633110345e-05,
+          0.01020739389447204,
+          0.012213444518887645,
+          0.014741822796667569
+        ],
+        "max_sin_theta": 0.014741822796667569,
+        "frob_leak": 0.021695180118687384,
+        "rms_sin": 0.008857020194759714,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.004945815149910706,
+        "legacy_resid_max": 0.010027534092509683,
+        "legacy_resid_mean": 0.0071988035402069965,
+        "provenance": [
+          [
+            96,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          64
+        ],
+        "comp": 0.09817477042468103,
+        "kabs": 0.1700436903969579,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.9585507909694883e-16,
+          2.7225922296124973e-16,
+          4.3437838671396e-05,
+          0.0151538955234216,
+          0.018126281688302416,
+          0.0219477827416183
+        ],
+        "max_sin_theta": 0.0219477827416183,
+        "frob_leak": 0.032247630788905586,
+        "rms_sin": 0.01316504014108054,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.008033881786692607,
+        "legacy_resid_max": 0.01390603108149078,
+        "legacy_resid_mean": 0.01037450893945217,
+        "provenance": [
+          [
+            64,
+            1
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": true,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          48
+        ],
+        "comp": 0.1308996938995747,
+        "kabs": 0.2267249205292772,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.7757281997069863e-16,
+          3.7543667158431393e-16,
+          7.613051118456324e-05,
+          0.019996330914537484,
+          0.02390757910619258,
+          0.02904183472028454
+        ],
+        "max_sin_theta": 0.02904183472028454,
+        "frob_leak": 0.04260116839404292,
+        "rms_sin": 0.017391854168631177,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.00791046353987689,
+        "legacy_resid_max": 0.021347100500481487,
+        "legacy_resid_mean": 0.01305027247939732,
+        "provenance": [
+          [
+            48,
+            1
+          ],
+          [
+            96,
+            2
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          32
+        ],
+        "comp": 0.19634954084936207,
+        "kabs": 0.3400873807939158,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.5134922849216986e-16,
+          2.757663419857217e-16,
+          0.00016675910907466807,
+          0.029371958884692604,
+          0.03507139012802659,
+          0.04289174952089831
+        ],
+        "max_sin_theta": 0.04289174952089831,
+        "frob_leak": 0.06270920474539805,
+        "rms_sin": 0.025600925633657123,
+        "n_ge_thresh": 0,
+        "legacy_resid_min": 0.016343598157836352,
+        "legacy_resid_max": 0.031184269284158336,
+        "legacy_resid_mean": 0.02597278416646296,
+        "provenance": [
+          [
+            32,
+            1
+          ],
+          [
+            64,
+            2
+          ],
+          [
+            96,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          24
+        ],
+        "comp": 0.2617993877991494,
+        "kabs": 0.4534498410585544,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.541335248367546e-16,
+          4.760988167105508e-16,
+          0.00028930219664874044,
+          0.03834145965450083,
+          0.04570106807264075,
+          0.05629162635574832
+        ],
+        "max_sin_theta": 0.05629162635574832,
+        "frob_leak": 0.0820212536173035,
+        "rms_sin": 0.033485036570967096,
+        "n_ge_thresh": 1,
+        "legacy_resid_min": 0.021765770765227753,
+        "legacy_resid_max": 0.04542701600537341,
+        "legacy_resid_mean": 0.03462896274202429,
+        "provenance": [
+          [
+            24,
+            1
+          ],
+          [
+            48,
+            2
+          ],
+          [
+            96,
+            4
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          64
+        ],
+        "comp": 0.2945243112740431,
+        "kabs": 0.5101310711908738,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.0276159936186297e-16,
+          3.160735206795442e-16,
+          0.00036204700719211393,
+          0.04267670528803241,
+          0.05081642966785234,
+          0.06282482495495627
+        ],
+        "max_sin_theta": 0.06282482495495627,
+        "frob_leak": 0.09138216678918086,
+        "rms_sin": 0.03730661337056669,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.016995471846112137,
+        "legacy_resid_max": 0.03774863051575389,
+        "legacy_resid_mean": 0.02931888572109372,
+        "provenance": [
+          [
+            64,
+            3
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          96
+        ],
+        "comp": 0.3272492347489368,
+        "kabs": 0.566812301323193,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.8574567804400223e-16,
+          5.230107110118558e-16,
+          0.0004422621157014343,
+          0.046914015689737486,
+          0.055800199797741167,
+          0.06924876287376018
+        ],
+        "max_sin_theta": 0.06924876287376018,
+        "frob_leak": 0.10054936061920046,
+        "rms_sin": 0.04104910458002306,
+        "n_ge_thresh": 2,
+        "legacy_resid_min": 0.027444876049811752,
+        "legacy_resid_max": 0.045798021107949075,
+        "legacy_resid_mean": 0.03827650744527468,
+        "provenance": [
+          [
+            96,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          16
+        ],
+        "comp": 0.39269908169872414,
+        "kabs": 0.6801747615878316,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.1188515787050064e-16,
+          2.450275087576829e-16,
+          0.0006248268116751447,
+          0.055100751352120135,
+          0.06538018025539605,
+          0.0817767664094142
+        ],
+        "max_sin_theta": 0.0817767664094142,
+        "frob_leak": 0.11831521754500024,
+        "rms_sin": 0.0483019852986064,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.011299783223613333,
+        "legacy_resid_max": 0.05818402575181393,
+        "legacy_resid_mean": 0.035076884672258425,
+        "provenance": [
+          [
+            16,
+            1
+          ],
+          [
+            32,
+            2
+          ],
+          [
+            48,
+            3
+          ],
+          [
+            64,
+            4
+          ],
+          [
+            96,
+            6
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          96
+        ],
+        "comp": 0.45814892864851153,
+        "kabs": 0.7935372218524703,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.4940578741271934e-16,
+          5.864723075911652e-16,
+          0.00083688570486218,
+          0.06291468399600865,
+          0.07446091423378502,
+          0.09389481198684951
+        ],
+        "max_sin_theta": 0.09389481198684951,
+        "frob_leak": 0.13534999559134656,
+        "rms_sin": 0.055256404314458635,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.026626498705350724,
+        "legacy_resid_max": 0.05590765753956792,
+        "legacy_resid_mean": 0.040020483866503594,
+        "provenance": [
+          [
+            96,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          64
+        ],
+        "comp": 0.4908738521234052,
+        "kabs": 0.8502184519847895,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.0480386849325056e-16,
+          2.408038487696974e-16,
+          0.000954139451316381,
+          0.06668643450069743,
+          0.07882286306379371,
+          0.09980747609408445
+        ],
+        "max_sin_theta": 0.09980747609408445,
+        "frob_leak": 0.14360559513595975,
+        "rms_sin": 0.05862673871530121,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.031279570499331055,
+        "legacy_resid_max": 0.05837088371335736,
+        "legacy_resid_mean": 0.048276039825443005,
+        "provenance": [
+          [
+            64,
+            5
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          12
+        ],
+        "comp": 0.5235987755982988,
+        "kabs": 0.9068996821171088,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.7107964011577843e-16,
+          3.984382462911098e-16,
+          0.001079058330169209,
+          0.07037073230506241,
+          0.083071874119881,
+          0.10562709384209226
+        ],
+        "max_sin_theta": 0.10562709384209226,
+        "frob_leak": 0.1516945073341358,
+        "rms_sin": 0.06192902329191888,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.035142236248669585,
+        "legacy_resid_max": 0.07601674146022344,
+        "legacy_resid_mean": 0.0513635663127735,
+        "provenance": [
+          [
+            24,
+            2
+          ],
+          [
+            48,
+            4
+          ],
+          [
+            96,
+            8
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          3,
+          32
+        ],
+        "comp": 0.5890486225480862,
+        "kabs": 1.0202621423817475,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.6123079295012266e-16,
+          5.147098854767568e-16,
+          0.00135273985229163,
+          0.07748585916068564,
+          0.09125356332652149,
+          0.11700247788374032
+        ],
+        "max_sin_theta": 0.11700247788374032,
+        "frob_leak": 0.16739976381614222,
+        "rms_sin": 0.0683406674019945,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04821813998943422,
+        "legacy_resid_max": 0.0830115453681734,
+        "legacy_resid_mean": 0.07021875285109491,
+        "provenance": [
+          [
+            32,
+            3
+          ],
+          [
+            64,
+            6
+          ],
+          [
+            96,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          5,
+          48
+        ],
+        "comp": 0.6544984694978736,
+        "kabs": 1.133624602646386,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.318863321998193e-16,
+          4.30571187147996e-16,
+          0.0016601685729842278,
+          0.08427948308835785,
+          0.09905939672471953,
+          0.1280543658122421
+        ],
+        "max_sin_theta": 0.1280543658122421,
+        "frob_leak": 0.18252800363881816,
+        "rms_sin": 0.0745167454473293,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.05744402569359739,
+        "legacy_resid_max": 0.08772149521033455,
+        "legacy_resid_mean": 0.07331204352164618,
+        "provenance": [
+          [
+            48,
+            5
+          ],
+          [
+            96,
+            10
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          7,
+          64
+        ],
+        "comp": 0.6872233929727672,
+        "kabs": 1.1903058327787053,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.034758299220349e-16,
+          3.149787026474732e-16,
+          0.0018274911161961242,
+          0.08756267843331803,
+          0.10284213621994663,
+          0.13347069477485704
+        ],
+        "max_sin_theta": 0.13347069477485704,
+        "frob_leak": 0.18989864065906722,
+        "rms_sin": 0.07752579541047563,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04634203961835425,
+        "legacy_resid_max": 0.0953415134385698,
+        "legacy_resid_mean": 0.06592784086634178,
+        "provenance": [
+          [
+            64,
+            7
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          11,
+          96
+        ],
+        "comp": 0.7199483164476609,
+        "kabs": 1.2469870629110247,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          4.082499615207802e-16,
+          4.888030938561742e-16,
+          0.0020045222333832918,
+          0.09077438196666245,
+          0.10655794112529994,
+          0.1388207879385144
+        ],
+        "max_sin_theta": 0.1388207879385144,
+        "frob_leak": 0.1971542860592854,
+        "rms_sin": 0.0804879002413267,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.0604370317435882,
+        "legacy_resid_max": 0.09549446338587599,
+        "legacy_resid_mean": 0.08066532748921472,
+        "provenance": [
+          [
+            96,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          1,
+          8
+        ],
+        "comp": 0.7853981633974483,
+        "kabs": 1.3603495231756633,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.0682489938950903e-16,
+          2.3054617246196455e-16,
+          0.0023900524095358112,
+          0.09699842398218429,
+          0.11383536746942789,
+          0.149344752084034
+        ],
+        "max_sin_theta": 0.149344752084034,
+        "frob_leak": 0.21136875944067318,
+        "rms_sin": 0.08629093469912234,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.052063126880119576,
+        "legacy_resid_max": 0.11195071030524308,
+        "legacy_resid_mean": 0.07623740149998169,
+        "provenance": [
+          [
+            16,
+            2
+          ],
+          [
+            24,
+            3
+          ],
+          [
+            32,
+            4
+          ],
+          [
+            48,
+            6
+          ],
+          [
+            64,
+            8
+          ],
+          [
+            96,
+            12
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": true,
+        "excluded_k0_neighbour": false,
+        "in_fit": true
+      },
+      {
+        "ratio": [
+          13,
+          96
+        ],
+        "comp": 0.8508480103472356,
+        "kabs": 1.4737119834403016,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.713781070392524e-17,
+          2.758171035262803e-16,
+          0.0028222698966332586,
+          0.10298754245347931,
+          0.12099789518779014,
+          0.15967489246302422
+        ],
+        "max_sin_theta": 0.15967489246302422,
+        "frob_leak": 0.2252797395038676,
+        "rms_sin": 0.09197006852859835,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.05261273718383501,
+        "legacy_resid_max": 0.10174221663589901,
+        "legacy_resid_mean": 0.0825853102594086,
+        "provenance": [
+          [
+            96,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          9,
+          64
+        ],
+        "comp": 0.8835729338221293,
+        "kabs": 1.5303932135726213,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          9.183879010772434e-17,
+          2.350974570773246e-16,
+          0.0030580136296066325,
+          0.10590853211648288,
+          0.1245753069588047,
+          0.16478425703926464
+        ],
+        "max_sin_theta": 0.16478425703926464,
+        "frob_leak": 0.2321612092798661,
+        "rms_sin": 0.09477941680052848,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06027150414763393,
+        "legacy_resid_max": 0.09992270837454391,
+        "legacy_resid_mean": 0.08319865021983631,
+        "provenance": [
+          [
+            64,
+            9
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          48
+        ],
+        "comp": 0.9162978572970231,
+        "kabs": 1.5870744437049407,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.4726908242872966e-16,
+          3.7174640595391687e-16,
+          0.003308199087648937,
+          0.10879031868371489,
+          0.1281740483847961,
+          0.16986648927793485
+        ],
+        "max_sin_theta": 0.16986648927793485,
+        "frob_leak": 0.23901775766554786,
+        "rms_sin": 0.09757859095746581,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06941754439593859,
+        "legacy_resid_max": 0.11374371171479303,
+        "legacy_resid_mean": 0.08979873987252882,
+        "provenance": [
+          [
+            48,
+            7
+          ],
+          [
+            96,
+            14
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          32
+        ],
+        "comp": 0.9817477042468103,
+        "kabs": 1.700436903969579,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.0927156991133268e-16,
+          3.537125382918506e-16,
+          0.003856726657140894,
+          0.11447423585815103,
+          0.13551678394140101,
+          0.17998297542054123
+        ],
+        "max_sin_theta": 0.17998297542054123,
+        "frob_leak": 0.2527407667687724,
+        "rms_sin": 0.10318098596387726,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.06422448909550539,
+        "legacy_resid_max": 0.13459128079013266,
+        "legacy_resid_mean": 0.0983601546424836,
+        "provenance": [
+          [
+            32,
+            5
+          ],
+          [
+            64,
+            10
+          ],
+          [
+            96,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          6
+        ],
+        "comp": 1.0471975511965976,
+        "kabs": 1.8137993642342176,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.0859014974800903e-16,
+          4.427019379530326e-16,
+          0.004479080389100901,
+          0.12013311832849681,
+          0.1432059543291657,
+          0.1900981291185353
+        ],
+        "max_sin_theta": 0.1900981291185353,
+        "frob_leak": 0.26664071768984393,
+        "rms_sin": 0.10885561716493632,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.08699989399617486,
+        "legacy_resid_max": 0.14171800844477989,
+        "legacy_resid_mean": 0.10728045171342093,
+        "provenance": [
+          [
+            24,
+            4
+          ],
+          [
+            48,
+            8
+          ],
+          [
+            96,
+            16
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          64
+        ],
+        "comp": 1.0799224746714913,
+        "kabs": 1.8704805943665368,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.7727284091027217e-16,
+          3.3666415324100764e-16,
+          0.0048222485325776785,
+          0.12299157512513752,
+          0.1472448502322035,
+          0.19518185649984743
+        ],
+        "max_sin_theta": 0.19518185649984743,
+        "frob_leak": 0.2737283044540761,
+        "rms_sin": 0.11174911234494839,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.08987306874077498,
+        "legacy_resid_max": 0.12654740658142058,
+        "legacy_resid_mean": 0.10412378793276791,
+        "provenance": [
+          [
+            64,
+            11
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          17,
+          96
+        ],
+        "comp": 1.1126473981463851,
+        "kabs": 1.9271618244988564,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.393395348312961e-16,
+          4.044533897336535e-16,
+          0.005189489292254217,
+          0.12589469664055594,
+          0.15145185123292854,
+          0.2002993107137271
+        ],
+        "max_sin_theta": 0.2002993107137271,
+        "frob_leak": 0.280951744176126,
+        "rms_sin": 0.11469806926274403,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.08748496339138298,
+        "legacy_resid_max": 0.1352762146882714,
+        "legacy_resid_mean": 0.11034602911016592,
+        "provenance": [
+          [
+            96,
+            17
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          3,
+          16
+        ],
+        "comp": 1.1780972450961724,
+        "kabs": 2.040524284763495,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.5980088187064114e-16,
+          4.3545639770944665e-16,
+          0.006006098312376848,
+          0.13192695938684157,
+          0.16050032082199364,
+          0.2106924325064375
+        ],
+        "max_sin_theta": 0.2106924325064375,
+        "frob_leak": 0.2959602168019173,
+        "rms_sin": 0.12082525255469702,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.03582407723755683,
+        "legacy_resid_max": 0.1402913275337086,
+        "legacy_resid_mean": 0.08982379786922738,
+        "provenance": [
+          [
+            16,
+            3
+          ],
+          [
+            32,
+            6
+          ],
+          [
+            48,
+            9
+          ],
+          [
+            64,
+            12
+          ],
+          [
+            96,
+            18
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          19,
+          96
+        ],
+        "comp": 1.2435470920459597,
+        "kabs": 2.1538867450281334,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.3685749810823086e-16,
+          3.390414875439445e-16,
+          0.006952242239185802,
+          0.13844206101708798,
+          0.17063885628768946,
+          0.22141008937725531
+        ],
+        "max_sin_theta": 0.22141008937725531,
+        "frob_leak": 0.31201696249407074,
+        "rms_sin": 0.12738039153393166,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.10351868686459025,
+        "legacy_resid_max": 0.16690686627143747,
+        "legacy_resid_mean": 0.12706354636105732,
+        "provenance": [
+          [
+            96,
+            19
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          13,
+          64
+        ],
+        "comp": 1.2762720155208536,
+        "kabs": 2.210567975160453,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.8641380540709264e-16,
+          3.3649049989353797e-16,
+          0.007483025536952295,
+          0.14195925383363323,
+          0.17621931617897393,
+          0.22694268779187135
+        ],
+        "max_sin_theta": 0.22694268779187135,
+        "frob_leak": 0.32056926920241835,
+        "rms_sin": 0.1308718561271372,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.04879943083095736,
+        "legacy_resid_max": 0.16010892558783185,
+        "legacy_resid_mean": 0.10934075824920508,
+        "provenance": [
+          [
+            64,
+            13
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          5,
+          24
+        ],
+        "comp": 1.3089969389957472,
+        "kabs": 2.267249205292772,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.372030133482401e-16,
+          3.4377516025267656e-16,
+          0.008058225115417327,
+          0.1456968022306742,
+          0.1822008960200216,
+          0.23262605578574475
+        ],
+        "max_sin_theta": 0.23262605578574475,
+        "frob_leak": 0.3295520315719296,
+        "rms_sin": 0.13453905350813328,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.10622953228731113,
+        "legacy_resid_max": 0.13396506999900956,
+        "legacy_resid_mean": 0.12423226492095761,
+        "provenance": [
+          [
+            24,
+            5
+          ],
+          [
+            48,
+            10
+          ],
+          [
+            96,
+            20
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          7,
+          32
+        ],
+        "comp": 1.3744467859455345,
+        "kabs": 2.3806116655574106,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.8866979638932324e-16,
+          4.276638446982811e-16,
+          0.009363802398316178,
+          0.15398880321697314,
+          0.19556102918680401,
+          0.24458395618178527
+        ],
+        "max_sin_theta": 0.24458395618178527,
+        "frob_leak": 0.34909262391188656,
+        "rms_sin": 0.14251646692557196,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.09858994898050977,
+        "legacy_resid_max": 0.17831190207517886,
+        "legacy_resid_mean": 0.13312824025482317,
+        "provenance": [
+          [
+            32,
+            7
+          ],
+          [
+            64,
+            14
+          ],
+          [
+            96,
+            21
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          11,
+          48
+        ],
+        "comp": 1.4398966328953218,
+        "kabs": 2.4939741258220494,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.2785077568018497e-16,
+          1.9876398282104166e-16,
+          0.010921619817735892,
+          0.16364742003341068,
+          0.21110214200489633,
+          0.2576605396429969
+        ],
+        "max_sin_theta": 0.2576605396429969,
+        "frob_leak": 0.3712853726060461,
+        "rms_sin": 0.15157661864065672,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.13758939981874713,
+        "legacy_resid_max": 0.20235722374665693,
+        "legacy_resid_mean": 0.16606694474278294,
+        "provenance": [
+          [
+            48,
+            11
+          ],
+          [
+            96,
+            22
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          15,
+          64
+        ],
+        "comp": 1.4726215563702154,
+        "kabs": 2.5506553559543685,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          2.602024180581974e-16,
+          4.237815369029555e-16,
+          0.01181622235085501,
+          0.16909716029441477,
+          0.21978821112988167,
+          0.2648064369459042
+        ],
+        "max_sin_theta": 0.2648064369459042,
+        "frob_leak": 0.3836180125201871,
+        "rms_sin": 0.1566113978025112,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.11122098342949631,
+        "legacy_resid_max": 0.20065165033522034,
+        "legacy_resid_mean": 0.14526264127794813,
+        "provenance": [
+          [
+            64,
+            15
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          23,
+          96
+        ],
+        "comp": 1.5053464798451093,
+        "kabs": 2.607336586086688,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          3.805634129420817e-16,
+          7.42350524962262e-16,
+          0.012801924647501885,
+          0.1750182889684688,
+          0.22910336784215968,
+          0.2725183978877698
+        ],
+        "max_sin_theta": 0.2725183978877698,
+        "frob_leak": 0.39692558634090036,
+        "rms_sin": 0.16204419206503903,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.1381033057518692,
+        "legacy_resid_max": 0.21516366599718376,
+        "legacy_resid_mean": 0.17629550938544913,
+        "provenance": [
+          [
+            96,
+            23
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      },
+      {
+        "ratio": [
+          1,
+          4
+        ],
+        "comp": 1.5707963267948966,
+        "kabs": 2.7206990463513265,
+        "n_plus_modes": 6,
+        "sin_theta": [
+          1.6571985298454108e-16,
+          2.5977626374062344e-16,
+          0.015098939604389185,
+          0.18843996509517957,
+          0.2494332901348631,
+          0.2904716667795089
+        ],
+        "max_sin_theta": 0.2904716667795089,
+        "frob_leak": 0.4269992433850654,
+        "rms_sin": 0.17432171114131592,
+        "n_ge_thresh": 3,
+        "legacy_resid_min": 0.14969640541634122,
+        "legacy_resid_max": 0.2129854432544933,
+        "legacy_resid_mean": 0.1818964711322332,
+        "provenance": [
+          [
+            16,
+            4
+          ],
+          [
+            24,
+            6
+          ],
+          [
+            32,
+            8
+          ],
+          [
+            48,
+            12
+          ],
+          [
+            64,
+            16
+          ],
+          [
+            96,
+            24
+          ]
+        ],
+        "off_band": false,
+        "in_fit_window": false,
+        "excluded_k0_neighbour": false,
+        "in_fit": false
+      }
+    ]
+  },
+  "min_k_raw_readings": {
+    "axial": {
+      "L=16": {
+        "kabs": 0.39269908169872414,
+        "max_sin_theta": 0.9999999999999999,
+        "frob_leak": 1.0084410250447413,
+        "rms_sin": 0.41169432450814136,
+        "n_ge_thresh": 2,
+        "legacy_resid_max": 0.09920145413478804
+      },
+      "L=24": {
+        "kabs": 0.2617993877991494,
+        "max_sin_theta": 0.9999999999999992,
+        "frob_leak": 1.003726638471165,
+        "rms_sin": 0.409769684248893,
+        "n_ge_thresh": 2,
+        "legacy_resid_max": 0.08527864003099939
+      },
+      "L=32": {
+        "kabs": 0.19634954084936207,
+        "max_sin_theta": 0.9999999999997999,
+        "frob_leak": 1.0020913875871702,
+        "rms_sin": 0.40910209587102264,
+        "n_ge_thresh": 2,
+        "legacy_resid_max": 0.05628459040942199
+      },
+      "L=48": {
+        "kabs": 0.1308996938995747,
+        "max_sin_theta": 0.9999999999971053,
+        "frob_leak": 1.0009279761460044,
+        "rms_sin": 0.40862713513906057,
+        "n_ge_thresh": 1,
+        "legacy_resid_max": 0.04422463303075034
+      },
+      "L=64": {
+        "kabs": 0.09817477042468103,
+        "max_sin_theta": 0.9999999972123733,
+        "frob_leak": 1.0005216837278161,
+        "rms_sin": 0.40846126695390683,
+        "n_ge_thresh": 1,
+        "legacy_resid_max": 0.022148915234161414
+      },
+      "L=96": {
+        "kabs": 0.06544984694978735,
+        "max_sin_theta": 0.9999999999999998,
+        "frob_leak": 1.0004324785786045,
+        "rms_sin": 0.3781279345472772,
+        "n_ge_thresh": 1,
+        "legacy_resid_max": 0.02003894629800264
+      }
+    },
+    "face-diagonal": {
+      "L=16": {
+        "kabs": 0.5553603672697958,
+        "max_sin_theta": 0.09938795311431825,
+        "frob_leak": 0.15310089061999133,
+        "rms_sin": 0.06250317686410635,
+        "n_ge_thresh": 3,
+        "legacy_resid_max": 0.06717677365000008
+      },
+      "L=24": {
+        "kabs": 0.3702402448465305,
+        "max_sin_theta": 0.06655023934654561,
+        "frob_leak": 0.1022483833083773,
+        "rms_sin": 0.04174272768833882,
+        "n_ge_thresh": 2,
+        "legacy_resid_max": 0.051808943927047456
+      },
+      "L=32": {
+        "kabs": 0.2776801836348979,
+        "max_sin_theta": 0.04999216201303519,
+        "frob_leak": 0.07673772438953398,
+        "rms_sin": 0.03132804479611434,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.027392436810969076
+      },
+      "L=48": {
+        "kabs": 0.18512012242326525,
+        "max_sin_theta": 0.03336659317453449,
+        "frob_leak": 0.051183817491794584,
+        "rms_sin": 0.02089570599043951,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.02189711867355063
+      },
+      "L=64": {
+        "kabs": 0.13884009181744894,
+        "max_sin_theta": 0.02503514213595165,
+        "frob_leak": 0.03839463868346422,
+        "rms_sin": 0.015674545605501973,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.0133926068612233
+      },
+      "L=96": {
+        "kabs": 0.09256006121163263,
+        "max_sin_theta": 0.0166949717583991,
+        "frob_leak": 0.02559967951892438,
+        "rms_sin": 0.010451025400023645,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.012769489783539225
+      }
+    },
+    "body-diagonal": {
+      "L=16": {
+        "kabs": 0.6801747615878316,
+        "max_sin_theta": 0.0817767664094142,
+        "frob_leak": 0.11831521754500024,
+        "rms_sin": 0.0483019852986064,
+        "n_ge_thresh": 3,
+        "legacy_resid_max": 0.05818402575181393
+      },
+      "L=24": {
+        "kabs": 0.4534498410585544,
+        "max_sin_theta": 0.05629162635574832,
+        "frob_leak": 0.0820212536173035,
+        "rms_sin": 0.033485036570967096,
+        "n_ge_thresh": 1,
+        "legacy_resid_max": 0.04542701600537341
+      },
+      "L=32": {
+        "kabs": 0.3400873807939158,
+        "max_sin_theta": 0.04289174952089831,
+        "frob_leak": 0.06270920474539805,
+        "rms_sin": 0.025600925633657123,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.031184269284158336
+      },
+      "L=48": {
+        "kabs": 0.2267249205292772,
+        "max_sin_theta": 0.02904183472028454,
+        "frob_leak": 0.04260116839404292,
+        "rms_sin": 0.017391854168631177,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.021347100500481487
+      },
+      "L=64": {
+        "kabs": 0.1700436903969579,
+        "max_sin_theta": 0.0219477827416183,
+        "frob_leak": 0.032247630788905586,
+        "rms_sin": 0.01316504014108054,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.01390603108149078
+      },
+      "L=96": {
+        "kabs": 0.1133624602646386,
+        "max_sin_theta": 0.014741822796667569,
+        "frob_leak": 0.021695180118687384,
+        "rms_sin": 0.008857020194759714,
+        "n_ge_thresh": 0,
+        "legacy_resid_max": 0.010027534092509683
+      }
+    }
+  },
+  "basis_robustness_fit_set": {
+    "per_direction": {
+      "axial": [
+        {
+          "kabs": 0.1308996938995747,
+          "max_drift": 4.051273205796235e-14
+        },
+        {
+          "kabs": 0.19634954084936207,
+          "max_drift": 3.587408148320037e-15
+        },
+        {
+          "kabs": 0.2617993877991494,
+          "max_drift": 2.55351295663786e-15
+        },
+        {
+          "kabs": 0.2945243112740431,
+          "max_drift": 3.615163723935666e-15
+        },
+        {
+          "kabs": 0.3272492347489368,
+          "max_drift": 1.1796119636642288e-14
+        },
+        {
+          "kabs": 0.39269908169872414,
+          "max_drift": 2.400857290751901e-15
+        },
+        {
+          "kabs": 0.45814892864851153,
+          "max_drift": 1.8110513089197866e-15
+        },
+        {
+          "kabs": 0.4908738521234052,
+          "max_drift": 1.6653345369377348e-15
+        },
+        {
+          "kabs": 0.5235987755982988,
+          "max_drift": 6.106226635438361e-15
+        },
+        {
+          "kabs": 0.5890486225480862,
+          "max_drift": 2.4424906541753444e-15
+        },
+        {
+          "kabs": 0.6544984694978736,
+          "max_drift": 2.9698465908722937e-15
+        },
+        {
+          "kabs": 0.6872233929727672,
+          "max_drift": 1.1518563880486e-15
+        },
+        {
+          "kabs": 0.7199483164476609,
+          "max_drift": 2.5673907444456745e-15
+        },
+        {
+          "kabs": 0.7853981633974483,
+          "max_drift": 6.106226635438361e-16
+        }
+      ],
+      "face-diagonal": [
+        {
+          "kabs": 0.18512012242326525,
+          "max_drift": 3.0531133177191805e-16
+        },
+        {
+          "kabs": 0.2776801836348979,
+          "max_drift": 1.0068714525329758e-15
+        },
+        {
+          "kabs": 0.3702402448465305,
+          "max_drift": 4.340603397545717e-16
+        },
+        {
+          "kabs": 0.4165202754523468,
+          "max_drift": 9.71445146547012e-16
+        },
+        {
+          "kabs": 0.4628003060581632,
+          "max_drift": 5.525094270986131e-16
+        },
+        {
+          "kabs": 0.5553603672697958,
+          "max_drift": 6.106226635438361e-16
+        },
+        {
+          "kabs": 0.6479204284814285,
+          "max_drift": 6.938893903907228e-16
+        },
+        {
+          "kabs": 0.6942004590872447,
+          "max_drift": 3.3393426912553537e-16
+        },
+        {
+          "kabs": 0.740480489693061,
+          "max_drift": 2.498001805406602e-16
+        },
+        {
+          "kabs": 0.8330405509046936,
+          "max_drift": 3.7470027081099033e-16
+        },
+        {
+          "kabs": 0.9256006121163264,
+          "max_drift": 2.7755575615628914e-16
+        },
+        {
+          "kabs": 0.9718806427221427,
+          "max_drift": 2.7755575615628914e-16
+        },
+        {
+          "kabs": 1.018160673327959,
+          "max_drift": 3.230922474006803e-16
+        },
+        {
+          "kabs": 1.1107207345395915,
+          "max_drift": 9.159339953157541e-16
+        }
+      ],
+      "body-diagonal": [
+        {
+          "kabs": 0.2267249205292772,
+          "max_drift": 6.695626041455793e-16
+        },
+        {
+          "kabs": 0.3400873807939158,
+          "max_drift": 5.309609089204637e-16
+        },
+        {
+          "kabs": 0.4534498410585544,
+          "max_drift": 7.91033905045424e-16
+        },
+        {
+          "kabs": 0.5101310711908738,
+          "max_drift": 2.587990585722899e-16
+        },
+        {
+          "kabs": 0.566812301323193,
+          "max_drift": 5.796144814107507e-16
+        },
+        {
+          "kabs": 0.6801747615878316,
+          "max_drift": 1.0130785099704553e-15
+        },
+        {
+          "kabs": 0.7935372218524703,
+          "max_drift": 3.5496779127175415e-16
+        },
+        {
+          "kabs": 0.8502184519847895,
+          "max_drift": 3.3306690738754696e-16
+        },
+        {
+          "kabs": 0.9068996821171088,
+          "max_drift": 4.3021142204224816e-16
+        },
+        {
+          "kabs": 1.0202621423817475,
+          "max_drift": 3.5431726996826285e-16
+        },
+        {
+          "kabs": 1.133624602646386,
+          "max_drift": 1.6696713456276768e-16
+        },
+        {
+          "kabs": 1.1903058327787053,
+          "max_drift": 4.440892098500626e-16
+        },
+        {
+          "kabs": 1.2469870629110247,
+          "max_drift": 2.233456475320139e-16
+        },
+        {
+          "kabs": 1.3603495231756633,
+          "max_drift": 3.3306690738754696e-16
+        }
+      ]
+    },
+    "worst_drift": 4.051273205796235e-14,
+    "tol": 1e-12,
+    "pass": true
+  },
+  "direction_fits_invariant": [
+    {
+      "direction": "axial",
+      "y_observable": "max_sin_theta",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.1308996938995747,
+        0.19634954084936207,
+        0.2617993877991494,
+        0.2945243112740431,
+        0.3272492347489368,
+        0.39269908169872414,
+        0.45814892864851153,
+        0.4908738521234052,
+        0.5235987755982988,
+        0.5890486225480862,
+        0.6544984694978736,
+        0.6872233929727672,
+        0.7199483164476609,
+        0.7853981633974483
+      ],
+      "fit_y": [
+        0.9999999999971053,
+        0.9999999999997999,
+        0.9999999999999992,
+        0.9999999999999993,
+        0.9999999999999998,
+        0.9999999999999999,
+        1.0,
+        1.0,
+        0.9999999999999994,
+        0.9999999999999999,
+        1.0,
+        1.0,
+        0.9999999999999999,
+        1.0
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.9999999999997788,
+        "sigma_A": 2.0614183816903487e-13,
+        "RSS": 7.733991254754958e-24,
+        "AIC": -779.9766429865749,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": 0.9999999999808195,
+        "sigma_A": 5.044928743386015e-10,
+        "B": 1.980526078518325e-11,
+        "sigma_B": 5.039535359324918e-10,
+        "alpha": 0.05,
+        "sigma_alpha": 1.3431042228825363,
+        "RSS": 4.499320225421834e-24,
+        "AIC": -783.5604253197404,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 3.583782333165459,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.1308996938995747,
+            "A": 0.9999999999984956,
+            "sigma_A": 6.827953614374985e-11,
+            "alpha": 0.05,
+            "dAIC": 1.331808938253971,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.19634954084936207,
+            "A": 0.9999999999769204,
+            "sigma_A": 4.881575258088086e-10,
+            "alpha": 0.05,
+            "dAIC": 5.151378816714441,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.2617993877991494,
+            "A": 0.9999999999788285,
+            "sigma_A": 5.120127459969124e-10,
+            "alpha": 0.05,
+            "dAIC": 4.479375246907011,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.2945243112740431,
+            "A": 0.9999999999796012,
+            "sigma_A": 5.295785113041395e-10,
+            "alpha": 0.05,
+            "dAIC": 3.964792721982235,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3272492347489368,
+            "A": 0.9999999999801242,
+            "sigma_A": 5.405752759487604e-10,
+            "alpha": 0.05,
+            "dAIC": 3.614527643778615,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.39269908169872414,
+            "A": 0.9999999999807013,
+            "sigma_A": 5.470368312315025e-10,
+            "alpha": 0.05,
+            "dAIC": 3.198791825522676,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.45814892864851153,
+            "A": 0.9999999999808871,
+            "sigma_A": 5.417491493656852e-10,
+            "alpha": 0.05,
+            "dAIC": 3.008971156575967,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4908738521234052,
+            "A": 0.9999999999808837,
+            "sigma_A": 5.376338015100317e-10,
+            "alpha": 0.05,
+            "dAIC": 2.9680190145861616,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5235987755982988,
+            "A": 0.9999999999808319,
+            "sigma_A": 5.336740019419683e-10,
+            "alpha": 0.05,
+            "dAIC": 2.953507414600267,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5890486225480862,
+            "A": 0.999999999980603,
+            "sigma_A": 5.284037149420265e-10,
+            "alpha": 0.05,
+            "dAIC": 2.991209156407649,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6544984694978736,
+            "A": 0.999999999980234,
+            "sigma_A": 5.297867704080287e-10,
+            "alpha": 0.05,
+            "dAIC": 3.099715812235331,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6872233929727672,
+            "A": 0.9999999999800062,
+            "sigma_A": 5.341268661187154e-10,
+            "alpha": 0.05,
+            "dAIC": 3.1771964589930803,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7199483164476609,
+            "A": 0.9999999999797505,
+            "sigma_A": 5.417419457687078e-10,
+            "alpha": 0.05,
+            "dAIC": 3.268396136303295,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7853981633974483,
+            "A": 0.9999999999791632,
+            "sigma_A": 5.708876032739293e-10,
+            "alpha": 0.05,
+            "dAIC": 3.496074423727123,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          0.9999999999769204,
+          0.9999999999984956
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "14/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": 0.9999999916042652,
+          "sigma_A": 2.6717885717152944e-07,
+          "B": 8.673965823380316e-09,
+          "sigma_B": 2.6672955649090545e-07,
+          "alpha": 0.05,
+          "sigma_alpha": 1.6507007211967832,
+          "RSS": 5.895402869961451e-18,
+          "AIC": -673.1191603762884,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": -0.6156371260838114,
+        "zero_consistent": false
+      }
+    },
+    {
+      "direction": "face-diagonal",
+      "y_observable": "max_sin_theta",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.18512012242326525,
+        0.2776801836348979,
+        0.3702402448465305,
+        0.4165202754523468,
+        0.4628003060581632,
+        0.5553603672697958,
+        0.6479204284814285,
+        0.6942004590872447,
+        0.740480489693061,
+        0.8330405509046936,
+        0.9256006121163264,
+        0.9718806427221427,
+        1.018160673327959,
+        1.1107207345395915
+      ],
+      "fit_y": [
+        0.03336659317453449,
+        0.04999216201303519,
+        0.06655023934654561,
+        0.07479776059782146,
+        0.08302123840690381,
+        0.09938795311431825,
+        0.11563601841516224,
+        0.12371194109419337,
+        0.13175429260023697,
+        0.14773515591589803,
+        0.16357472397636869,
+        0.17144136348866684,
+        0.17927297799959635,
+        0.19483381682201498
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.11679115978323544,
+        "sigma_A": 0.01357787422173604,
+        "RSS": 0.033553277645393696,
+        "AIC": -82.47149277844119,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": -0.0030240789979081254,
+        "sigma_A": 0.0003774787055963468,
+        "B": 0.17919683934590663,
+        "sigma_B": 0.00036751335891757527,
+        "alpha": 0.9500000000000002,
+        "sigma_alpha": 0.0034525720790676727,
+        "RSS": 2.1656582887360995e-07,
+        "AIC": -245.78200048222806,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 163.31050770378687,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.18512012242326525,
+            "A": -0.003177785730977229,
+            "sigma_A": 0.0004096746939327451,
+            "alpha": 0.9500000000000002,
+            "dAIC": 159.1132744447899,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.2776801836348979,
+            "A": -0.003010334729131345,
+            "sigma_A": 0.00041914322814457243,
+            "alpha": 0.9500000000000002,
+            "dAIC": 149.44469849383574,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3702402448465305,
+            "A": -0.0029798459917022985,
+            "sigma_A": 0.00037108993551050794,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.96953664587096,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4165202754523468,
+            "A": -0.002984163567242429,
+            "sigma_A": 0.00036945010095674937,
+            "alpha": 0.9500000000000002,
+            "dAIC": 152.4460968220845,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4628003060581632,
+            "A": -0.00299322638937488,
+            "sigma_A": 0.00037766945935409455,
+            "alpha": 0.9500000000000002,
+            "dAIC": 152.34984978613338,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5553603672697958,
+            "A": -0.003012948852423638,
+            "sigma_A": 0.00040081683851373676,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.62344189961237,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6479204284814285,
+            "A": -0.003024718732513131,
+            "sigma_A": 0.000409261017202013,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.36319417249769,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6942004590872447,
+            "A": -0.0030264256937648807,
+            "sigma_A": 0.0004060389581824854,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.47996513834772,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.740480489693061,
+            "A": -0.003025628269919343,
+            "sigma_A": 0.0003997025536621089,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.66993742829857,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.8330405509046936,
+            "A": -0.0030192977419154655,
+            "sigma_A": 0.0003869839661239614,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.8073939980414,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9256006121163264,
+            "A": -0.0030139605734528104,
+            "sigma_A": 0.000386951751846739,
+            "alpha": 0.9500000000000002,
+            "dAIC": 151.0107444708279,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9718806427221427,
+            "A": -0.003015407500801176,
+            "sigma_A": 0.0003929231953446777,
+            "alpha": 0.9500000000000002,
+            "dAIC": 150.30062020116173,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.018160673327959,
+            "A": -0.003022213064410694,
+            "sigma_A": 0.00040089340547491833,
+            "alpha": 0.9500000000000002,
+            "dAIC": 149.62674894435784,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.1107207345395915,
+            "A": -0.0020654526735695267,
+            "sigma_A": 0.0003181854180829466,
+            "alpha": 0.9600000000000002,
+            "dAIC": 156.0431398982612,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          -0.003177785730977229,
+          -0.0020654526735695267
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "14/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": -0.001790442103940929,
+          "sigma_A": 0.00026820195803148555,
+          "B": 0.17798370935446226,
+          "sigma_B": 0.0002604960577247617,
+          "alpha": 0.9600000000000002,
+          "sigma_alpha": 0.003021180614391856,
+          "RSS": 4.6399484309565427e-07,
+          "AIC": -271.69569793663493,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": 181.30345150363507,
+        "zero_consistent": false
+      }
+    },
+    {
+      "direction": "body-diagonal",
+      "y_observable": "max_sin_theta",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.2267249205292772,
+        0.3400873807939158,
+        0.4534498410585544,
+        0.5101310711908738,
+        0.566812301323193,
+        0.6801747615878316,
+        0.7935372218524703,
+        0.8502184519847895,
+        0.9068996821171088,
+        1.0202621423817475,
+        1.133624602646386,
+        1.1903058327787053,
+        1.2469870629110247,
+        1.3603495231756633
+      ],
+      "fit_y": [
+        0.02904183472028454,
+        0.04289174952089831,
+        0.05629162635574832,
+        0.06282482495495627,
+        0.06924876287376018,
+        0.0817767664094142,
+        0.09389481198684951,
+        0.09980747609408445,
+        0.10562709384209226,
+        0.11700247788374032,
+        0.1280543658122421,
+        0.13347069477485704,
+        0.1388207879385144,
+        0.149344752084034
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.09343557323224827,
+        "sigma_A": 0.01007407234373831,
+        "RSS": 0.018470621912810906,
+        "AIC": -90.8288360081876,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": -0.008314218187207319,
+        "sigma_A": 0.0007850606198368986,
+        "B": 0.12310315921552441,
+        "sigma_B": 0.0008183987823002205,
+        "alpha": 0.8100000000000002,
+        "sigma_alpha": 0.007102786382513726,
+        "RSS": 5.405216796767743e-07,
+        "AIC": -232.97703787827095,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 142.14820187008337,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.2267249205292772,
+            "A": -0.010985143415453747,
+            "sigma_A": 0.0007542790853540562,
+            "alpha": 0.7900000000000001,
+            "dAIC": 144.10089978505277,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3400873807939158,
+            "A": -0.008234177391575738,
+            "sigma_A": 0.0008295551731454416,
+            "alpha": 0.8100000000000002,
+            "dAIC": 130.6547579290467,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4534498410585544,
+            "A": -0.00822870707611718,
+            "sigma_A": 0.0007575992200770653,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.78365290012533,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5101310711908738,
+            "A": -0.008252525304096491,
+            "sigma_A": 0.000781230332732868,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.47140203933742,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.566812301323193,
+            "A": -0.008277655826461007,
+            "sigma_A": 0.0008129667758367496,
+            "alpha": 0.8100000000000002,
+            "dAIC": 131.9718598083128,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6801747615878316,
+            "A": -0.008313898053140617,
+            "sigma_A": 0.0008500024453392955,
+            "alpha": 0.8100000000000002,
+            "dAIC": 131.60572970429627,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7935372218524703,
+            "A": -0.0083242816947789,
+            "sigma_A": 0.0008366888133479198,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.18384764604662,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.8502184519847895,
+            "A": -0.008321471492156625,
+            "sigma_A": 0.0008205661202618593,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.54850478434327,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9068996821171088,
+            "A": -0.008315432451354337,
+            "sigma_A": 0.0008058173994214846,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.7641068657142,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.0202621423817475,
+            "A": -0.008301659850350553,
+            "sigma_A": 0.0007961587606064212,
+            "alpha": 0.8100000000000002,
+            "dAIC": 132.36299147871807,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.133624602646386,
+            "A": -0.008300200699921005,
+            "sigma_A": 0.000814155136510415,
+            "alpha": 0.8100000000000002,
+            "dAIC": 131.06034858676216,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.1903058327787053,
+            "A": -0.008309747761609653,
+            "sigma_A": 0.0008256540269306166,
+            "alpha": 0.8100000000000002,
+            "dAIC": 130.45185173365394,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.2469870629110247,
+            "A": -0.008329171079665696,
+            "sigma_A": 0.0008319301200520085,
+            "alpha": 0.8100000000000002,
+            "dAIC": 130.18362368889535,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.3603495231756633,
+            "A": -0.007381788106200592,
+            "sigma_A": 0.0007576417738836156,
+            "alpha": 0.8200000000000002,
+            "dAIC": 133.022941169754,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          -0.010985143415453747,
+          -0.007381788106200592
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "14/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": -0.0049814467949381306,
+          "sigma_A": 0.0006417232212051389,
+          "B": 0.11963958281386404,
+          "sigma_B": 0.000682102160099592,
+          "alpha": 0.8400000000000002,
+          "sigma_alpha": 0.00747211284650633,
+          "RSS": 1.7535122714191491e-06,
+          "AIC": -250.4236558621987,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": 151.06018317644887,
+        "zero_consistent": false
+      }
+    }
+  ],
+  "direction_fits_rms_secondary": [
+    {
+      "direction": "axial",
+      "y_observable": "rms_sin",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.1308996938995747,
+        0.19634954084936207,
+        0.2617993877991494,
+        0.2945243112740431,
+        0.3272492347489368,
+        0.39269908169872414,
+        0.45814892864851153,
+        0.4908738521234052,
+        0.5235987755982988,
+        0.5890486225480862,
+        0.6544984694978736,
+        0.6872233929727672,
+        0.7199483164476609,
+        0.7853981633974483
+      ],
+      "fit_y": [
+        0.40862713513906057,
+        0.40910209587102264,
+        0.409769684248893,
+        0.4101765220186471,
+        0.41063258864255364,
+        0.41169432450814136,
+        0.4129592686654512,
+        0.4136695546536505,
+        0.4144326888873175,
+        0.41612075978639257,
+        0.4180305531164088,
+        0.41907103966409187,
+        0.4201699874660297,
+        0.42254771926340906
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.41407170870936205,
+        "sigma_A": 0.0011973540308727432,
+        "RSS": 0.0002609255148949915,
+        "AIC": -150.46466066342794,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": 0.4082967430553158,
+        "sigma_A": 1.3228599468860226e-05,
+        "B": 0.02344776557489823,
+        "sigma_B": 3.3833944509287764e-05,
+        "alpha": 2.0700000000000003,
+        "sigma_alpha": 0.00573224289758622,
+        "RSS": 2.5499211463750664e-09,
+        "AIC": -307.9676502320348,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 157.5029895686069,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "clean-scaling (alpha>=1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.1308996938995747,
+            "A": 0.4083237968439369,
+            "sigma_A": 1.386386566711143e-05,
+            "alpha": 2.0800000000000005,
+            "dAIC": 151.44216441385004,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.19634954084936207,
+            "A": 0.40829702043132077,
+            "sigma_A": 1.5837397835679453e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 144.5793748551184,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.2617993877991494,
+            "A": 0.4082948424146715,
+            "sigma_A": 1.4219996020366584e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 145.5138967860447,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.2945243112740431,
+            "A": 0.4082944531755606,
+            "sigma_A": 1.3668303465342263e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 146.09415715090827,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3272492347489368,
+            "A": 0.4082944585161565,
+            "sigma_A": 1.3387670877539506e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 146.4381678455178,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.39269908169872414,
+            "A": 0.4083142526428464,
+            "sigma_A": 1.3377325497610704e-05,
+            "alpha": 2.0800000000000005,
+            "dAIC": 146.47703140930724,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.45814892864851153,
+            "A": 0.4082964796002872,
+            "sigma_A": 1.4011297840827868e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 145.93593269658584,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4908738521234052,
+            "A": 0.4082969652147308,
+            "sigma_A": 1.4100736256502023e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 145.99466797198428,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5235987755982988,
+            "A": 0.40829727033968305,
+            "sigma_A": 1.4002458957332462e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 146.29292671282218,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5890486225480862,
+            "A": 0.40829719289162497,
+            "sigma_A": 1.3364869161468398e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 147.24593359684462,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6544984694978736,
+            "A": 0.4082964222243867,
+            "sigma_A": 1.3056621989701275e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 146.87390375021573,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6872233929727672,
+            "A": 0.4082961478440693,
+            "sigma_A": 1.3369248246276188e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 145.55286034241675,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7199483164476609,
+            "A": 0.40829642026956386,
+            "sigma_A": 1.383140558383093e-05,
+            "alpha": 2.0700000000000003,
+            "dAIC": 143.90432154990918,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7853981633974483,
+            "A": 0.4082843392873751,
+            "sigma_A": 9.904267692683677e-06,
+            "alpha": 2.0600000000000005,
+            "dAIC": 152.36828268759433,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          0.4082843392873751,
+          0.4083237968439369
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "14/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": 0.18751194431853022,
+          "sigma_A": 2.32351296157079,
+          "B": 0.23629360568912847,
+          "sigma_B": 2.319605631604176,
+          "alpha": 0.05,
+          "sigma_alpha": 0.5269593198627254,
+          "RSS": 0.00044586102675768047,
+          "AIC": -161.80947161502615,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": 15.158058505463316,
+        "zero_consistent": true
+      }
+    },
+    {
+      "direction": "face-diagonal",
+      "y_observable": "rms_sin",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.18512012242326525,
+        0.2776801836348979,
+        0.3702402448465305,
+        0.4165202754523468,
+        0.4628003060581632,
+        0.5553603672697958,
+        0.6479204284814285,
+        0.6942004590872447,
+        0.740480489693061,
+        0.8330405509046936,
+        0.9256006121163264,
+        0.9718806427221427,
+        1.018160673327959,
+        1.1107207345395915
+      ],
+      "fit_y": [
+        0.02089570599043951,
+        0.03132804479611434,
+        0.04174272768833882,
+        0.04694205353652521,
+        0.052135443499911005,
+        0.06250317686410635,
+        0.07284446899380859,
+        0.07800522532500524,
+        0.08315964188463493,
+        0.09345098336109457,
+        0.10372289233055963,
+        0.10885353850290276,
+        0.11398198529301709,
+        0.12423716655795547
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.07384307533031527,
+        "sigma_A": 0.008683597429754233,
+        "RSS": 0.01372368530661025,
+        "AIC": -94.98765179620867,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": -0.00019421667845291888,
+        "sigma_A": 7.460077305485031e-05,
+        "B": 0.11218470680715388,
+        "sigma_B": 7.270805840986861e-05,
+        "alpha": 0.9900000000000002,
+        "sigma_alpha": 0.001155120962783302,
+        "RSS": 9.716395676640943e-09,
+        "AIC": -289.2391180482612,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 194.25146625205255,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.18512012242326525,
+            "A": -0.00017894937504057436,
+            "sigma_A": 0.00011430644026944627,
+            "alpha": 0.9900000000000002,
+            "dAIC": 178.7679615346451,
+            "zero_consistent": true
+          },
+          {
+            "dropped_kabs": 0.2776801836348979,
+            "A": -0.00018255622029938724,
+            "sigma_A": 7.812900052919435e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.81447548511403,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3702402448465305,
+            "A": -0.00019046305273505112,
+            "sigma_A": 7.755028895070534e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.266436773525,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4165202754523468,
+            "A": -0.00019372753510372604,
+            "sigma_A": 7.831450716494483e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.33660227794581,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4628003060581632,
+            "A": -0.00019611112657133743,
+            "sigma_A": 7.852493620874507e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.72212056582646,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5553603672697958,
+            "A": -0.0001981084963011684,
+            "sigma_A": 7.697207778361091e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 181.06120175965745,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6479204284814285,
+            "A": -0.00019718471575467283,
+            "sigma_A": 7.490264434742774e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 182.07980970480708,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6942004590872447,
+            "A": -0.00019612517738870934,
+            "sigma_A": 7.465759730449699e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 182.09112777066582,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.740480489693061,
+            "A": -0.00019498755575297327,
+            "sigma_A": 7.513002702776256e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 181.71968655841874,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.8330405509046936,
+            "A": -0.00019345929073264967,
+            "sigma_A": 7.7263689378268e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 180.29555808038805,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9256006121163264,
+            "A": -0.00019436589166490242,
+            "sigma_A": 7.824958085979185e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.14958212782054,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9718806427221427,
+            "A": -0.00019610612549688148,
+            "sigma_A": 7.750096719659368e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.06945792605921,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.018160673327959,
+            "A": -0.0001987476563342709,
+            "sigma_A": 7.59073474644573e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 179.43473038029055,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.1107207345395915,
+            "A": -0.00020602121725121598,
+            "sigma_A": 7.324553776743892e-05,
+            "alpha": 0.9900000000000002,
+            "dAIC": 181.1980928790199,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          -0.00020602121725121598,
+          -0.00017894937504057436
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "13/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": -0.00019544635335731064,
+          "sigma_A": 3.78846754014924e-05,
+          "B": 0.11218612556636007,
+          "sigma_B": 3.695094788222659e-05,
+          "alpha": 0.9900000000000002,
+          "sigma_alpha": 0.0007079190856752751,
+          "RSS": 1.0147507656226717e-08,
+          "AIC": -332.8580229593868,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": 228.06522605008757,
+        "zero_consistent": false
+      }
+    },
+    {
+      "direction": "body-diagonal",
+      "y_observable": "rms_sin",
+      "n_fit_points": 14,
+      "fit_kabs": [
+        0.2267249205292772,
+        0.3400873807939158,
+        0.4534498410585544,
+        0.5101310711908738,
+        0.566812301323193,
+        0.6801747615878316,
+        0.7935372218524703,
+        0.8502184519847895,
+        0.9068996821171088,
+        1.0202621423817475,
+        1.133624602646386,
+        1.1903058327787053,
+        1.2469870629110247,
+        1.3603495231756633
+      ],
+      "fit_y": [
+        0.017391854168631177,
+        0.025600925633657123,
+        0.033485036570967096,
+        0.03730661337056669,
+        0.04104910458002306,
+        0.0483019852986064,
+        0.055256404314458635,
+        0.05862673871530121,
+        0.06192902329191888,
+        0.0683406674019945,
+        0.0745167454473293,
+        0.07752579541047563,
+        0.0804879002413267,
+        0.08629093469912234
+      ],
+      "constant_model": {
+        "model": "constant",
+        "A": 0.05472212351031277,
+        "sigma_A": 0.0057652387032401595,
+        "RSS": 0.006049311869571567,
+        "AIC": -106.45615317026389,
+        "m": 14,
+        "p": 1
+      },
+      "power_model": {
+        "model": "power",
+        "A": -0.006792080287750895,
+        "sigma_A": 0.0006814388712589523,
+        "B": 0.07384633652835834,
+        "sigma_B": 0.0007061815424471191,
+        "alpha": 0.7600000000000001,
+        "sigma_alpha": 0.009512236357293662,
+        "RSS": 3.251209886783961e-07,
+        "AIC": -240.09376092912345,
+        "m": 14,
+        "p": 3
+      },
+      "d3_archive": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 133.63760775885956,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo": {
+        "rows": [
+          {
+            "dropped_kabs": 0.2267249205292772,
+            "A": -0.00939632119841991,
+            "sigma_A": 0.0006859414666882171,
+            "alpha": 0.7300000000000001,
+            "dAIC": 135.8285813751834,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.3400873807939158,
+            "A": -0.006726702080768204,
+            "sigma_A": 0.0007166025882613117,
+            "alpha": 0.7600000000000001,
+            "dAIC": 122.72667535815481,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.4534498410585544,
+            "A": -0.0067228460593075495,
+            "sigma_A": 0.000657065074463282,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.9072164928171,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.5101310711908738,
+            "A": -0.006742372911428005,
+            "sigma_A": 0.0006786127229919731,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.5966131546804,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.566812301323193,
+            "A": -0.006762772265682604,
+            "sigma_A": 0.0007068083284275063,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.09110804631132,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.6801747615878316,
+            "A": -0.006791784477572883,
+            "sigma_A": 0.0007389133096440305,
+            "alpha": 0.7600000000000001,
+            "dAIC": 123.7107792015371,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.7935372218524703,
+            "A": -0.00679961702171883,
+            "sigma_A": 0.0007262919163560598,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.28336988154925,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.8502184519847895,
+            "A": -0.006797090912992137,
+            "sigma_A": 0.0007118495468421376,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.64619876749583,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 0.9068996821171088,
+            "A": -0.006792040567420082,
+            "sigma_A": 0.0006988505262782776,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.85742876627666,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.0202621423817475,
+            "A": -0.006780999460976124,
+            "sigma_A": 0.0006908682931281407,
+            "alpha": 0.7600000000000001,
+            "dAIC": 124.44053958404982,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.133624602646386,
+            "A": -0.0067805628206923955,
+            "sigma_A": 0.0007071286103756128,
+            "alpha": 0.7600000000000001,
+            "dAIC": 123.14443309056615,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.1903058327787053,
+            "A": -0.006788749948931333,
+            "sigma_A": 0.0007171954254087523,
+            "alpha": 0.7600000000000001,
+            "dAIC": 122.55804420720303,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.2469870629110247,
+            "A": -0.006804729648471869,
+            "sigma_A": 0.0007227323078394392,
+            "alpha": 0.7600000000000001,
+            "dAIC": 122.31539085332079,
+            "zero_consistent": false
+          },
+          {
+            "dropped_kabs": 1.3603495231756633,
+            "A": -0.006197745559672635,
+            "sigma_A": 0.0006518497879468535,
+            "alpha": 0.7700000000000001,
+            "dAIC": 125.39590263220002,
+            "zero_consistent": false
+          }
+        ],
+        "A_range": [
+          -0.00939632119841991,
+          -0.006197745559672635
+        ],
+        "zero_consistent_all": false,
+        "zero_flips": "14/14"
+      },
+      "widened_window_diagnostic": {
+        "note": "纳入被剔 n=1 点;窗规则不变,仅诊断,永不判定",
+        "n_points": 16,
+        "power": {
+          "model": "power",
+          "A": -0.004476577312022418,
+          "sigma_A": 0.0005419313180647043,
+          "B": 0.07145115339578097,
+          "sigma_B": 0.0005706068323739961,
+          "alpha": 0.7900000000000001,
+          "sigma_alpha": 0.009764816904472584,
+          "RSS": 1.0244464167501238e-06,
+          "AIC": -259.0231503156715,
+          "m": 16,
+          "p": 3
+        },
+        "dAIC_const_minus_power": 141.9928235565983,
+        "zero_consistent": false
+      }
+    }
+  ],
+  "old_vs_new": {
+    "axial": {
+      "legacy_16_48_resid_max": {
+        "A": -0.19134650736650763,
+        "sigma_A": 2.131816018607365,
+        "alpha": 0.37000000000000005,
+        "dAIC": 2.6951090036189598,
+        "note": "R37 冻结(基依赖旧口径)"
+      },
+      "legacy_16_96_resid_max": {
+        "A": 0.003018876432247818,
+        "sigma_A": 0.07392025511256665,
+        "alpha": 1.0200000000000002,
+        "dAIC": 20.511155526435275,
+        "zero_consistent": true,
+        "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
+      },
+      "invariant_16_96_max_sin": {
+        "m": 14,
+        "A": 0.9999999999808195,
+        "sigma_A": 5.044928743386015e-10,
+        "B": 1.980526078518325e-11,
+        "alpha": 0.05,
+        "sigma_alpha": 1.3431042228825363,
+        "constant_A": 0.9999999999997788,
+        "dAIC": 3.583782333165459
+      },
+      "d3_archive_invariant": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 3.583782333165459,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo_invariant": {
+        "A_range": [
+          0.9999999999769204,
+          0.9999999999984956
+        ],
+        "zero_flips": "14/14"
+      },
+      "model_free_floor_bound_|A|+2sigmaA": 1.0000000009898051
+    },
+    "face-diagonal": {
+      "legacy_16_48_resid_max": {
+        "A": 0.048899496435197615,
+        "sigma_A": 0.012326275450997752,
+        "alpha": 2.9300000000000006,
+        "dAIC": 17.477764329271025,
+        "note": "R37 冻结(基依赖旧口径)"
+      },
+      "legacy_16_96_resid_max": {
+        "A": 0.020039301845138968,
+        "sigma_A": 0.010253274174745837,
+        "alpha": 1.7700000000000002,
+        "dAIC": 43.10106287927596,
+        "zero_consistent": true,
+        "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
+      },
+      "invariant_16_96_max_sin": {
+        "m": 14,
+        "A": -0.0030240789979081254,
+        "sigma_A": 0.0003774787055963468,
+        "B": 0.17919683934590663,
+        "alpha": 0.9500000000000002,
+        "sigma_alpha": 0.0034525720790676727,
+        "constant_A": 0.11679115978323544,
+        "dAIC": 163.31050770378687
+      },
+      "d3_archive_invariant": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 163.31050770378687,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo_invariant": {
+        "A_range": [
+          -0.003177785730977229,
+          -0.0020654526735695267
+        ],
+        "zero_flips": "14/14"
+      },
+      "model_free_floor_bound_|A|+2sigmaA": 0.003779036409100819
+    },
+    "body-diagonal": {
+      "legacy_16_48_resid_max": {
+        "A": 0.03080404450030344,
+        "sigma_A": 0.008139054225196587,
+        "alpha": 1.5300000000000002,
+        "dAIC": 25.546884602320446,
+        "note": "R37 冻结(基依赖旧口径)"
+      },
+      "legacy_16_96_resid_max": {
+        "A": 0.01552817053261974,
+        "sigma_A": 0.007889634924297952,
+        "alpha": 1.3100000000000003,
+        "dAIC": 46.41408730965436,
+        "zero_consistent": true,
+        "note": "旧件(基依赖旧口径;其排零结论经复核不能成立)"
+      },
+      "invariant_16_96_max_sin": {
+        "m": 14,
+        "A": -0.008314218187207319,
+        "sigma_A": 0.0007850606198368986,
+        "B": 0.12310315921552441,
+        "alpha": 0.8100000000000002,
+        "sigma_alpha": 0.007102786382513726,
+        "constant_A": 0.09343557323224827,
+        "dAIC": 142.14820187008337
+      },
+      "d3_archive_invariant": {
+        "power_decisive_dAIC_ge_2": true,
+        "const_decisive_dAIC_le_-2": false,
+        "O1_constant": false,
+        "dAIC_const_minus_power": 142.14820187008337,
+        "intercept_zero_consistent_|A|<=2sigmaA": false,
+        "d3_tier": "weak-scaling (0<alpha<1)"
+      },
+      "loo_invariant": {
+        "A_range": [
+          -0.010985143415453747,
+          -0.007381788106200592
+        ],
+        "zero_flips": "14/14"
+      },
+      "model_free_floor_bound_|A|+2sigmaA": 0.009884339426881116
+    }
+  },
+  "calibration_branch": "FACE-NZ",
+  "axial_O1_invariant_obstruction": false,
+  "face_small_floor_verdict_invariant": "面斜:不变量口径下小底仍存,A=-0.00302±0.00038(ΔAIC=163.3,排零=False);如实入册,不预设。",
+  "axial_verdict_invariant": "轴向:不变量口径 A=1.00000±0.00000, α=0.05, ΔAIC=3.6(按实测入册)。",
+  "wording_update_suggestion": "建议(交车道A,只加不改史):封存文档 §五 标度证据节措辞按不变量口径更新——面斜:不变量口径下小底仍存,A=-0.00302±0.00038(ΔAIC=163.3,排零=False);如实入册,不预设。 轴向:不变量口径 A=1.00000±0.00000, α=0.05, ΔAIC=3.6(按实测入册)。 体对角按 d3_archive 如实并注。旧件(resid_max 口径)结论整体废止为注记;封存主句(死于计数+稳定性死锁,非残差本身)不受影响(其三重支撑均为基不变量)。",
+  "nature_reminder": "instrument calibration; NOT a physics gate; no v1 verdict changed; no v2 gate triggered",
+  "state_merged": "../../../../../var/folders/0c/ln30tz1s675bdt17kk3402z80000gn/T/v2m0_pathtest_azlcw0l0/v2m0_state_copy.json",
+  "peak_rss_mb": 93.159424,
+  "source_sha256": "f63ed02b18234736b9657de2df183091a2248b345c9a8a04dc1b671b0428a0df",
+  "total_seconds": 1.0364370346069336,
+  "results_sha256": "23db941e52ac05ba8eda400be341e788081d69637a7d59ea133757999a67c7db"
+}

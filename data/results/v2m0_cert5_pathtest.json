@@ -1,0 +1,72 @@
+{
+  "register": "V2M0 cert5 非宿主谱系路径测试(宿主侧模拟;收口执行包件一)",
+  "status": "DONE",
+  "nature": "host-side path test simulating non-host lineage; NOT a real sandbox rerun(真沙盒重跑留给车道A随时可做);不覆盖正式 JSON",
+  "authority": [
+    "docsv2/v2-复核-车道A-M0整改沙盒双跑-2026-07-26.md §六",
+    "experiments/v2m0_sigma_calibration_v2.py CERTIFICATES 5"
+  ],
+  "method": "monkeypatch rulespace_v2.sigma.collect_direction_invariant:对每个样点的 legacy_resid_min/max/mean 加固定扰动 +1e-10;不变量键零触碰;被测脚本源码零修改,OUT/STATE 重定向",
+  "perturbation": 1e-10,
+  "official_files_pre_sha256": {
+    "data/results/v2m0_sigma_calibration_v2.json": "38da68f3a846e3d8d6de205799bf2e4a91557ba5bef72dd29b6c6f012b1b7f97",
+    "data/results/v2m0_selftest_v2.json": "c9a52ff970aebda7ba9211f378de34110890b046400f2ca03f124d3de800371b",
+    "data/runtime/v2m0_state.json": "163d1e0f52bbd7d16042332489f62bb87ab7ba061c2694901307ac6f96e704cc",
+    "data/results/r37_results.json": "3d86f2e3bebb3178369a56822cc47dd1726ee4a1ced2774918654c224885e9bb"
+  },
+  "official_files_post_sha256": {
+    "data/results/v2m0_sigma_calibration_v2.json": "38da68f3a846e3d8d6de205799bf2e4a91557ba5bef72dd29b6c6f012b1b7f97",
+    "data/results/v2m0_selftest_v2.json": "c9a52ff970aebda7ba9211f378de34110890b046400f2ca03f124d3de800371b",
+    "data/runtime/v2m0_state.json": "163d1e0f52bbd7d16042332489f62bb87ab7ba061c2694901307ac6f96e704cc",
+    "data/results/r37_results.json": "3d86f2e3bebb3178369a56822cc47dd1726ee4a1ced2774918654c224885e9bb"
+  },
+  "official_files_untouched": true,
+  "checks": {
+    "(a)_status_DONE": true,
+    "(b)_lineage_non_host_expected_drift": true,
+    "(b)_lineage_diff_scale~perturbation": true,
+    "(b)_official_run_is_host_bit_for_bit(对照)": true,
+    "(c)_invariant_science_fields_bit_for_bit": true,
+    "(c)_legacy_keys_shift_exactly_perturbation": true,
+    "same_source_sha256": true,
+    "official_files_untouched": true
+  },
+  "field_comparison": {
+    "frozen_inputs_sha256": true,
+    "frozen_hash_match": true,
+    "faithfulness_certificate": true,
+    "judgement_reproduction": true,
+    "invariant_1648_consistency_vs_selftest_v2": true,
+    "basis_robustness_fit_set": true,
+    "direction_fits_invariant": true,
+    "direction_fits_rms_secondary": true,
+    "old_vs_new": true,
+    "calibration_branch": true,
+    "axial_O1_invariant_obstruction": true,
+    "face_small_floor_verdict_invariant": true,
+    "axial_verdict_invariant": true,
+    "wording_update_suggestion": true,
+    "nature_reminder": true,
+    "ray_data(legacy 键剥除后)": true,
+    "min_k_raw_readings(legacy 键剥除后)": true
+  },
+  "lineage_record_under_test": {
+    "diff": {
+      "axial": 1.000000082740371e-10,
+      "face-diagonal": 1.00000015212931e-10,
+      "body-diagonal": 1.0000002215182491e-10
+    },
+    "ok_bit_for_bit": false,
+    "environment_bound": true,
+    "note": "legacy y=resid_max 对照通道 vs r37_results.json 逐位;宿主谱系证书——沙盒重跑时此列预期漂移(复核 §三:非观测量),不变量列才是跨环境判据",
+    "lineage": "non-host-lineage(expected-drift,诊断级)"
+  },
+  "n_legacy_values_compared": 288,
+  "test_run_status": "DONE",
+  "test_run_out": "data/results/v2m0_cert5_pathtest_run.json",
+  "state_redirect": "/var/folders/0c/ln30tz1s675bdt17kk3402z80000gn/T/v2m0_pathtest_azlcw0l0/v2m0_state_copy.json",
+  "PASS": true,
+  "total_seconds": 1.554900884628296,
+  "source_sha256": "f29a7d299379a6255270b41a5a2198b4debab66f7fe69f541c4b28a89a66c0cb",
+  "target_script_sha256": "f63ed02b18234736b9657de2df183091a2248b345c9a8a04dc1b671b0428a0df"
+}
