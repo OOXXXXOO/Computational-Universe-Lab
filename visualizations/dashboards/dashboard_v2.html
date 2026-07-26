@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>v2 · M0′ 仪器迁移面板</title>
 <!--
-  数据源约定(任务书 v2-任务书-M0-仪器迁移.md §6,红线):
-  本面板唯一数据源 = data/runtime/v2m0_state.json(schema v2m0_state v1,文件内 _doc 自说明)。
+  数据源约定(任务书 v2-任务书-M0-仪器迁移.md §6 + v2-任务书-M1-Maxwell闭环.md §7,红线):
+  本面板数据源 = data/runtime/v2m0_state.json(主)+ data/runtime/v2m1_state.json(spin1 泳道)。
+  spin1 泳道点亮由 v2m1_state.json 的 lit 布尔开关控制:lit!==true(含缺字段/缺文件)只显示状态行,
+  置 true 是 PI 收口动作,本面板与 lane B 均不得置位(指令 2026-07-26 §二)。
   禁止读取旧 tensor campaign payload(v1 总账 4.1 教训)。本文件不发出任何其他网络/文件请求。
 -->
 <style>
@@ -163,9 +165,10 @@
 
 <div class="notice" id="notice">
   <div class="notice-inner">
-    <b>待运行 / 数据源不可读。</b>本面板唯一数据源为
-    <code>data/runtime/v2m0_state.json</code>(由 <code>experiments/v2m0_selftest.py</code> 生成;
-    σ 校准摘要由第二波收拢并入)。若以 file:// 直接打开,浏览器会拦截本地 fetch——请在仓库根目录执行
+    <b>待运行 / 数据源不可读。</b>本面板数据源为
+    <code>data/runtime/v2m0_state.json</code>(主,由 <code>experiments/v2m0_selftest.py</code> 生成;
+    σ 校准摘要由第二波收拢并入)与 <code>data/runtime/v2m1_state.json</code>(spin1 泳道;缺失时该泳道保持待点火)。
+    若以 file:// 直接打开,浏览器会拦截本地 fetch——请在仓库根目录执行
     <code>python -m http.server 8000</code>,然后访问
     <code>http://localhost:8000/visualizations/dashboards/dashboard_v2.html</code>。
     红线:本面板不读取旧 tensor campaign payload。
@@ -186,7 +189,7 @@
   <!-- 面板 2:三自旋测线泳道 -->
   <section class="panel">
     <h2>三自旋测线泳道</h2>
-    <div class="cap">spin0 / spin1 / spin2 各测线状态 · 数据:epsilon_sigma_anchors[](swimlane)+ 静态口径(任务书 §6)</div>
+    <div class="cap">spin0 / spin1 / spin2 各测线状态 · 数据:epsilon_sigma_anchors[](swimlane)+ v2m1_state.json(spin1,任务书 M1 §7;点亮挂 lit 开关,置位权在 PI 收口)</div>
     <div id="lanes"></div>
   </section>
 
@@ -246,17 +249,30 @@
     return v.toExponential(2).replace("e-","e−").replace("e+","e+");
   }
 
-  /* ---------- 数据加载(唯一数据源) ---------- */
-  var STATE=null;
-  fetch("../../data/runtime/v2m0_state.json",{cache:"no-store"})
+  /* ---------- 数据加载(双数据源:v2m0_state 主 + v2m1_state spin1 泳道) ---------- */
+  var STATE=null,M1STATE=null;
+  // spin1 泳道点亮开关(指令 2026-07-26 §二):唯一判据 = v2m1_state.json 的 lit===true(布尔)。
+  // 缺文件 / 缺字段 / 任何非 true 值一律按未点亮处理;本面板永不自行置 true(点亮 = PI 收口动作)。
+  function m1Lit(m){return !!(m&&m.lit===true);}
+  var pM0=fetch("../../data/runtime/v2m0_state.json",{cache:"no-store"})
     .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-    .then(function(d){STATE=d;renderAll(d);})
     .catch(function(err){
       document.getElementById("notice").classList.add("show");
       var b=document.getElementById("b-data");
       b.className="badge halt";b.innerHTML='<span class="dot"></span>数据源:待运行 / 不可读';
       console.warn("v2m0_state.json 不可读:",err);
+      return null;
     });
+  var pM1=fetch("../../data/runtime/v2m1_state.json",{cache:"no-store"})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+    .catch(function(err){
+      console.warn("v2m1_state.json 不可读:spin1 泳道保持待点火,不静默造数(任务书 §7):",err);
+      return null;
+    });
+  Promise.all([pM0,pM1]).then(function(res){
+    STATE=res[0];M1STATE=res[1];
+    if(STATE) renderAll(STATE);
+  });
 
   function renderAll(d){
     document.getElementById("app").hidden=false;
@@ -333,6 +349,16 @@
     if(aR23) pts.push({x:1,y:0,c:"var(--warn)",shape:"sq",lab:"R23(ε=1)",ldx:-12,ldy:-12,lanchor:"end",
       tip:"<b>R23 Yee/Maxwell</b> · spin1 锚点<br>ε_DOF=1(零手搭)· "+esc(aR23.sigma.note)+"<br>源:"+esc(aR23.source)});
 
+    // ε=1 锚点升级位(任务书 §7):M1′ 点亮后由"符号层定义值"升级为"完整闭环级实测点"。
+    // 挂 lit 开关(收口件):lit!==true 不渲染;旧 R23 标记保留为历史层(只加不改史)。
+    if(m1Lit(M1STATE)&&M1STATE.epsilon_sigma_point){
+      var ep=M1STATE.epsilon_sigma_point;
+      pts.push({x:1,y:0,c:"var(--ok)",shape:"ring",lab:"自旋1 完整闭环级(实测)",ldx:-14,ldy:20,lanchor:"end",
+        tip:"<b>M1′ 完整闭环级锚点</b>(泳道点亮 · PI 收口)<br>ε_DOF="+fmt(ep.epsilon_dof_measured)+
+            "(实测,j_inv 口径)· σ:"+esc(ep.sigma_class||"")+
+            "<br>R23 符号层定义值标记保留为历史层(只加不改史)"});
+    }
+
     // 三方向:校准后 (A, α);校准件未落位则回退 R37 冻结拟合并注明
     var eMid=fw?((fw.epsilon_dof_range[0]+fw.epsilon_dof_range[1])/2):0.125;
     DIRS.forEach(function(dir,i){
@@ -373,6 +399,8 @@
       var x=X(p.x),y=Y(p.y);
       if(p.shape==="sq")
         s+='<rect data-i="'+idx+'" x="'+(x-5)+'" y="'+(y-5)+'" width="10" height="10" rx="2" fill="'+p.c+'" stroke="var(--panel)" stroke-width="2"/>';
+      else if(p.shape==="ring")
+        s+='<circle data-i="'+idx+'" cx="'+x+'" cy="'+y+'" r="11" fill="none" stroke="'+p.c+'" stroke-width="2.5"/>';
       else
         s+='<circle data-i="'+idx+'" cx="'+x+'" cy="'+y+'" r="6" fill="'+p.c+'" stroke="var(--panel)" stroke-width="2"/>';
       s+='<text class="dl" x="'+(x+(p.ldx||10))+'" y="'+(y+(p.ldy||-10)+4)+'" text-anchor="'+(p.lanchor||"start")+'">'+esc(p.lab)+'</text>';
@@ -392,13 +420,16 @@
     var lg=document.getElementById("scatter-legend");
     var items=[
       ['<span class="sw sq" style="background:var(--metric)"></span>R30 锚点(ε=0)',1],
-      ['<span class="sw sq" style="background:var(--warn)"></span>R23 锚点(ε=1)',1],
+      ['<span class="sw sq" style="background:var(--warn)"></span>R23 锚点(ε=1)',1]];
+    if(m1Lit(M1STATE)) items.push(
+      ['<span class="sw" style="background:transparent;border:2px solid var(--ok)"></span>自旋1 完整闭环级(M1′ 点亮)',1]);
+    items=items.concat([
       ['<span class="sw" style="background:var(--s-ax)"></span>轴向',1],
       ['<span class="sw" style="background:var(--s-fd)"></span>面斜',1],
       ['<span class="sw" style="background:var(--s-bd)"></span>体对角',1],
       ['<span class="sw" style="background:var(--s-fd);opacity:.25"></span>冻结走行族 ε 区间条',1],
       ['<span class="chip hold">spin0 泳道:v1 封册留位,不入平面'+(aS0?"("+esc(aS0.source)+")":"")+'</span>',1]
-    ];
+    ]);
     lg.innerHTML=items.map(function(it){return '<span class="it">'+it[0]+'</span>';}).join("");
 
     // σ 校准摘要条(整改版:不变量口径;旧口径为注记)
@@ -418,17 +449,82 @@
     }
   }
 
-  /* ---------- 面板 2:泳道 ---------- */
+  /* ---------- 面板 2:泳道(spin1 = v2m1_state.json 接线,点亮挂 lit 开关) ---------- */
+  // M1′ 八门中文名(任务书 v2-任务书-M1-Maxwell闭环.md §3;徽章 title 保留 state 原始键名)
+  var M1_GATE_ZH={G1:"光子DOF",G2:"约束σ",G3:"共锥",G4:"源",G5:"守恒",G6:"sponge窗",G7:"稳定",G8:"ε"};
+  function m1LitHTML(m){
+    // 点亮全量渲染:仅当 lit===true 由 renderLanes 调用(收口件,本面板不自行触发)
+    var h='<div style="margin:2px 0 10px;color:var(--ok)"><b>第一份完整涌现证书:自旋 1 闭环,ε=1 锚点落图</b>'+
+      '<span class="mono" style="font-size:11px;color:var(--muted)">(M1′ PASS 四条齐 + 车道A 复核 + PI 收口)</span></div>';
+    // 八门徽章
+    var gc=m.gate_columns||{},gks=Object.keys(gc).sort();
+    if(gks.length){
+      h+='<div style="margin:0 0 10px">'+gks.map(function(k){
+        var v=(gc[k]&&gc[k].verdict)||"?",gn=k.slice(0,2);
+        return '<span class="gv '+esc(v)+'" style="margin:0 6px 6px 0" title="'+esc(k)+'">'+
+          esc(gn+" "+(M1_GATE_ZH[gn]||""))+' · '+esc(v)+'</span>';
+      }).join("")+'</div>';
+    }
+    // T_cross 命中表(G6 窗改签分支)
+    var gw=m.g6_window_resign||{},tt=gw.t_cross_table||{};
+    var Ls=Object.keys(tt).sort(function(a,b){return a-b;});
+    if(Ls.length){
+      h+='<div class="mono" style="font-size:11px;color:var(--muted);margin-bottom:4px">T_cross 命中表 · 分支 '+
+        esc(gw.branch||"?")+' · '+esc(gw.window_rule||"")+'</div>';
+      h+='<table style="max-width:560px;margin-bottom:10px"><thead><tr><th class="num">L</th>'+
+        '<th class="num">预言 T_cross</th><th class="num">实测</th><th class="num">比值</th><th>±50% 牙</th></tr></thead><tbody>';
+      Ls.forEach(function(L){var r=tt[L]||{};
+        h+='<tr><td class="num">'+esc(L)+'</td><td class="num">'+esc(String(r.pred))+'</td>'+
+          '<td class="num">'+esc(String(r.meas))+'</td><td class="num">'+fmt(r.ratio)+'</td>'+
+          '<td><span class="st '+(r.hit_pm50?"green":"red")+'"><span class="dot"></span>'+(r.hit_pm50?"命中":"未中")+'</span></td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    // 炮组四发(全部按预期击穿 = 判据有牙)
+    var guns=m.guns||[];
+    if(guns.length){
+      h+='<div class="mono" style="font-size:11px;color:var(--muted);margin-bottom:4px">炮组 '+guns.length+
+        ' 发(必须全部按预期击穿;悬停看病灶)</div>';
+      h+='<div>'+guns.map(function(g){
+        var ok=g.FAILS_as_required===true;
+        return '<span class="gv '+(ok?"PASS":"FAIL")+'" style="margin:0 6px 6px 0" title="'+esc(g.lesion||"")+'">'+
+          esc(g.name)+' · '+(ok?"按预期击穿":"未击穿(判据无牙)")+'</span>';
+      }).join("")+'</div>';
+    }
+    return h;
+  }
+  function spin1Lane(){
+    var m=M1STATE,lit=m1Lit(m);
+    if(!m){
+      // 缺文件 / file:// 降级:保持待点火,不静默造数(任务书 §7)
+      return {chip:'<span class="chip next">M1′ 待点火</span>',
+        desc:"v2m1_state.json 缺失或不可读:泳道保持待点火,不静默造数。M1′ 完整闭环任务书执行前提与措辞边界见任务书 §0/§8。",
+        src:"数据源:data/runtime/v2m1_state.json(待生成 / 不可读)"};
+    }
+    if(!lit){
+      // 复核中:只显示状态行,全量渲染由 lit 开关封存(收口件)
+      var ms=m.m1_status||{};
+      return {chip:'<span class="chip next">M1′ 复核中(收口后点亮)</span>',
+        desc:"状态:"+esc(ms.swimlane_state||"执行中")+" · "+esc(ms.lane_b||"")+
+          ((ms.pending&&ms.pending.length)?("。待:"+ms.pending.map(function(p){return esc(p);}).join(" / ")+"。"):"。")+
+          "八门徽章 / T_cross 命中表 / 炮组四发 / ε=1 锚点升级位已接线待命,由 lit 开关封存——点亮是 PI 收口动作,本面板不自行置位。",
+        src:"数据源:data/runtime/v2m1_state.json · lit=false · "+esc(ms.wording||"")};
+    }
+    return {chip:'<span class="chip" style="color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent);'+
+        'background:color-mix(in srgb,var(--ok) 10%,transparent)">M1′ 点亮 · 完整涌现证书</span>',
+      desc:m1LitHTML(m),
+      src:"数据源:data/runtime/v2m1_state.json · lit=true(PI 收口)· preflight "+esc((m.preflight||{}).status||"—")+
+        " · 冻结:v2m1_maxwell_loop_r3.json / v2m1_guns.json(hash 入册)"};
+  }
   function renderLanes(d){
     var anchors=d.epsilon_sigma_anchors||[];
     var aS0=anchors.filter(function(a){return a.swimlane==="spin0";})[0];
+    var s1=spin1Lane();
     var lanes=[
       {nm:"spin0",sub:"标量",chip:'<span class="chip hold">封册留位</span>',
        desc:(aS0&&aS0.sigma&&aS0.sigma.note?esc(aS0.sigma.note):"v1 封册事实;M0′ 不重测,泳道留位"),
        src:aS0?esc(aS0.source):""},
-      {nm:"spin1",sub:"Maxwell",chip:'<span class="chip next">M1′ 待点火 · M0′ 收口后启动</span>',
-       desc:"M1′ 完整闭环任务书在 M0′ 收口前只许起草不许执行(D2)。M0′ 已打通其正控接口:R23 锚点 (ε=1, 光子 2, Lorenz 机器零) 落位控制矩阵行 2。",
-       src:"任务书 §0/§8 · 控制行 row2_r23"},
+      {nm:"spin1",sub:"Maxwell",chip:s1.chip,desc:s1.desc,src:s1.src},
       {nm:"spin2",sub:"张量",chip:'<span class="chip seal">v1 封存</span>',
        desc:"封存主句:自旋 2 M3 结构性不可达——死于计数+稳定性死锁,非残差本身(封存三重支撑均为基不变量,M0′ 整改不动摇;σ 校准整改件只更新标度证据节措辞建议)。封存文档:docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md",
        src:"冻结走行族锚点 ε(不变量口径)∈[0.25,0.5] 在案;旧口径 [0,0.25] 为基伪影注记(控制行 row5/row8 整改版)"}
@@ -513,7 +609,8 @@
     var nChecked=hz.checked?Object.keys(hz.checked).length:0;
     var nRec=hz.record_only?Object.keys(hz.record_only).length:0;
     document.getElementById("foot").innerHTML=
-      '<b>数据源约定(红线)</b>:本面板唯一数据源 = data/runtime/v2m0_state.json(schema '+esc(d._schema||"")+');'+
+      '<b>数据源约定(红线)</b>:本面板数据源 = data/runtime/v2m0_state.json(主,schema '+esc(d._schema||"")+')'+
+      ' + data/runtime/v2m1_state.json(spin1 泳道'+(M1STATE?(",schema "+esc(M1STATE._schema||"")+" · lit="+(m1Lit(M1STATE)?"true(PI 收口)":"false(复核中,全量渲染封存)")):",缺失 → 泳道待点火")+');'+
       '禁止读取旧 tensor campaign payload(旧五参数 surrogate 不得给 v2 背书,v1 总账 4.1 教训)。<br>'+
       '生成:'+esc(d.generator||"")+' · '+esc(d.backend||"")+' · '+esc(d.generated_utc||"")+
       ' · 冻结件 hash 册:'+(hz.pass?'逐位校验 PASS':'—')+'('+nChecked+' 有先行记录 + '+nRec+' record-only)<br>'+

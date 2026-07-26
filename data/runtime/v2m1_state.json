@@ -4,6 +4,8 @@
   "purpose": "dashboard_v2 spin1 泳道唯一数据源(任务书 §7;禁止读取旧 tensor campaign payload;文件缺失时泳道保持待点火)",
   "m1_status": "泳道三态:待点火/执行中/点亮;点亮须 M1' PASS 四条齐 + 车道A 复核 + PI 收口——本文件状态为执行中(lane B 交付,单环境)"
  },
+ "lit": false,
+ "_lit_doc": "泳道点亮开关(2026-07-26 指令 §二):false=复核中,dashboard 只显示状态行;true=渲染全量(八门徽章/T_cross 命中表/炮组/ε=1 完整闭环级锚点)。置 true 是 PI 收口动作,lane B 不得置位;字段缺失按 false 处理。",
  "generated_utc": "2026-07-26T07:56:36.334576+00:00",
  "generator": "experiments/v2m1_guns.py(轮 3 分支 A 交付收拢)",
  "backend": "numpy fp64",
