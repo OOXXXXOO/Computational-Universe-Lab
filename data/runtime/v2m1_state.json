@@ -1,0 +1,135 @@
+{
+ "_schema": "v2m1_state v1 (2026-07-26, lane B, M1' 轮 3 分支 A)",
+ "_doc": {
+  "purpose": "dashboard_v2 spin1 泳道唯一数据源(任务书 §7;禁止读取旧 tensor campaign payload;文件缺失时泳道保持待点火)",
+  "m1_status": "泳道三态:待点火/执行中/点亮;点亮须 M1' PASS 四条齐 + 车道A 复核 + PI 收口——本文件状态为执行中(lane B 交付,单环境)"
+ },
+ "generated_utc": "2026-07-26T07:56:36.334576+00:00",
+ "generator": "experiments/v2m1_guns.py(轮 3 分支 A 交付收拢)",
+ "backend": "numpy fp64",
+ "environment": {
+  "numpy_version": "2.0.2",
+  "blas": "accelerate",
+  "lapack": "accelerate",
+  "threadpoolctl": [],
+  "python": "3.9.6",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+ },
+ "m1_status": {
+  "lane_b": "R3-BRANCH-A-DELIVERED(全门 PASS + 四炮击穿 + P0 全绿 + endurance 负控入册,宿主单环境)",
+  "swimlane_state": "执行中(非点亮)",
+  "pending": [
+   "双环境(沙盒)判据字段比对",
+   "车道A 复核",
+   "PI 收口签字"
+  ],
+  "wording": "不宣告 M1' PASS;不表述 Maxwell 闭环完成(红线 10 + 裁定 §四)"
+ },
+ "gate_columns": {
+  "G1_dof_nprop": {
+   "verdict": "PASS"
+  },
+  "G3_j5_cocone": {
+   "verdict": "PASS"
+  },
+  "G8_epsilon": {
+   "verdict": "PASS"
+  },
+  "G2_sigma_scaling": {
+   "verdict": "PASS"
+  },
+  "G4_newton": {
+   "verdict": "PASS"
+  },
+  "G5_eddington": {
+   "verdict": "PASS"
+  },
+  "G6_conservation": {
+   "verdict": "PASS"
+  },
+  "G7_stability": {
+   "verdict": "PASS"
+  }
+ },
+ "g6_window_resign": {
+  "t_cross_table": {
+   "16": {
+    "pred": 5323,
+    "meas": 5328,
+    "ratio": 1.000939319932369,
+    "hit_pm50": true
+   },
+   "24": {
+    "pred": 7374,
+    "meas": 7376,
+    "ratio": 1.0002712232167073,
+    "hit_pm50": true
+   },
+   "32": {
+    "pred": 9581,
+    "meas": 9592,
+    "ratio": 1.0011481056257177,
+    "hit_pm50": true
+   },
+   "48": {
+    "pred": 14282,
+    "meas": 14472,
+    "ratio": 1.0133034588993137,
+    "hit_pm50": true
+   }
+  },
+  "branch": "A",
+  "window_rule": "T_PK(L) = ceil(m * tau_late(L) * ln(R0(L)/1e-12))"
+ },
+ "guns": [
+  {
+   "name": "C1_bad_placement",
+   "FAILS_as_required": true,
+   "lesion": "M1-G3 色散逐点崩 + M1-G1 Nyquist 冻结(N_prop=0 伪模);自家 div 守恒 => 杀点非监视框架戏法,G2 约束结构拆除如实入册"
+  },
+  {
+   "name": "C2_proca",
+   "FAILS_as_required": true,
+   "lesion": "M1-G1 N_prop=3(第三极化)+ M1-G3 质量隙 m_eff^2~0.16 逐点(半角公式定位,非只判红)"
+  },
+  {
+   "name": "C3_nonconserved_source",
+   "FAILS_as_required": true,
+   "lesion": "电荷守恒(连续性)机器级击穿 + Gauss 残差随注入段单调增长(G2/G5 病灶定位)"
+  },
+  {
+   "name": "C4_no_damping",
+   "FAILS_as_required": true,
+   "lesion": "M1-G6 击穿:tau 无定义(r 永不 <0.05)或残余超线8 个量级以上"
+  }
+ ],
+ "p0_positive_control": {
+  "pass": true,
+  "max_judge_field_diff": 0.0,
+  "row2_r23_diff": 1.7763568394002505e-15
+ },
+ "endurance_negative_control": {
+  "H_drift_rel": 3.4942414952515416e-16,
+  "rms_growth": 1.2207613397178763
+ },
+ "preflight": {
+  "status": "DONE",
+  "sha256": "6736cd758b3dffbebdbb0a6ae6f687e053feeba42688846eb603da9833e55284"
+ },
+ "epsilon_sigma_point": {
+  "epsilon_dof_measured": 1.0,
+  "sigma_class": "A=0 exact constraint line (branch i)",
+  "status": "实测闭环级读数(lane B);落图动作待车道A 复核 + PI 收口(任务书 §7)"
+ },
+ "hashes": {
+  "v2m1_maxwell_loop_r3.json": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+  "v2m1_guns.json": "b8272aeee226d1e75f33e0e7f82eb211c8dd0e01a28d757954a4a68c767df68e",
+  "construction_sha256": "b7daa970f0702c9e4e12603740d4f40de33dee92cec17036dd61b76bb7f29da8",
+  "v2m1_guns.py": "855d5a615b6230460e5dd6cebbb313767db6c6176813bef8112955f5731836c0"
+ },
+ "sandbox": {
+  "status": "PENDING"
+ }
+}
