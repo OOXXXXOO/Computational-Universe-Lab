@@ -1,0 +1,152 @@
+{
+ "_schema": "v2m2_state v1 (2026-07-27, lane B, M2' 轮 3)",
+ "_doc": {
+  "purpose": "dashboard_v2 spin2 泳道唯一数据源(任务书 §7;文件缺失时泳道保持待点火)",
+  "m2_status": "泳道三态:待点火/执行中/点亮;点亮(lit)须 M2' PASS 四条齐 + 车道A 复核四件 + PI 收口——本文件为 lane B 执行中交付(单环境),lit:false(M1' 先例语义)"
+ },
+ "generated_utc": "2026-07-27T13:25:10.366363+00:00",
+ "generator": "experiments/v2m2_guns.py(轮 3 炮组交付收拢)",
+ "backend": "numpy fp64",
+ "environment": {
+  "numpy_version": "2.0.2",
+  "blas": "accelerate",
+  "lapack": "accelerate",
+  "threadpoolctl": [],
+  "python": "3.9.6",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+ },
+ "lit": false,
+ "m2_status": {
+  "lane_b": "R3-GUNS-DELIVERED(轮 2 8/8 落定(三裁+两补测)+ 五主炮击穿 + 回归抽查捕获 + 三正控全绿 + endurance 负控入册,宿主单环境)",
+  "swimlane_state": "执行中(非点亮)",
+  "pending": [
+   "双环境(沙盒)判据字段比对",
+   "车道A 复核四件(沙盒双跑/炮组重放/同一次运行审计/eps 记账审计)",
+   "PI 收口签字"
+  ],
+  "wording": "不宣告 M2' PASS;禁句'自旋 2 涌现';v1 封存主句原样不动(红线 10/11/12)"
+ },
+ "gate_columns": {
+  "M2-G1": {
+   "verdict": "PASS",
+   "note": "轮 2 原始记录 FAIL(数据级共锥子判据)保留不改写;裁定一:非门,按预注册核判 PASS;Δω 体对角标度补测 a:SCALING-CONFIRMED(v2m2_dw_scaling_results.json)"
+  },
+  "M2-G2": {
+   "verdict": "PASS"
+  },
+  "M2-G3": {
+   "verdict": "PASS"
+  },
+  "M2-G4": {
+   "verdict": "PASS"
+  },
+  "M2-G5": {
+   "verdict": "PASS"
+  },
+  "M2-G6": {
+   "verdict": "PASS",
+   "note": "轮 2 σ-ii 排零原判 FAIL 保留不改写;裁定二 D-M2-6 口径双控制过 + 独立重判 REJUDGE-PASS(v2m2_dm26_results.json)"
+  },
+  "M2-G7": {
+   "verdict": "PASS"
+  },
+  "M2-G8": {
+   "verdict": "PASS"
+  }
+ },
+ "round2_settlement": {
+  "original_verdict_table_as_recorded": {
+   "M2-G1": "FAIL",
+   "M2-G2": "PASS",
+   "M2-G3": "PASS",
+   "M2-G4": "PASS",
+   "M2-G5": "PASS",
+   "M2-G6": "FAIL",
+   "M2-G7": "PASS",
+   "M2-G8": "PASS"
+  },
+  "adjudication": "v2-裁定-M2轮2三裁-2026-07-27(G1 非门不计数,G6 计数清结)+ 补测两件全过 -> 8/8"
+ },
+ "guns": [
+  {
+   "name": "C1_tr_sign_zero",
+   "FAILS_as_required": true,
+   "lesion": "M2-G2 比值 2->4(带崩 100x)+ M2-G3 偏折 2->1(带崩 49.8x),v1 记录 43c 方向逐一复现;paired 健康读出 2.000000/2.0098 => 杀点在迹结构本身,非静源机器"
+  },
+  {
+   "name": "C2_wrong_sign_onsite_source",
+   "FAILS_as_required": true,
+   "lesion": "井变山(A_hbar00 翻号,M2-G2 源链病灶)+ 键流优势消失(源 deDonder 残差 O(1) vs 精确机器 1e-15,M2-G4 源线/M2-G5 T̄ 行守恒击穿)"
+  },
+  {
+   "name": "C3_cocone_detune",
+   "FAILS_as_required": true,
+   "lesion": "M2-G1 J5 线崩(min dW=0.3354 对门 1e-6 为 3.4e+05 倍)+ 共锥数据级崩(min 8.2 bins,线 2)+ G4 锥哨兵连带(物质前沿 c_m=0.921 超几何锥 c=0.5,比 1.84)——直打共锥纽带心脏"
+  },
+  {
+   "name": "C4_integer_placement",
+   "FAILS_as_required": true,
+   "lesion": "M2-G6 约束线崩(null 亏损 O(0.1),K@gauge 不湮灭,darkness O(0.1) vs A=0 线 1e-12)+ M2-G1 计数崩(整数簿记下 N != 2 于 [[3, 1, 0]])——div curl=0 地基拆除"
+  },
+  {
+   "name": "C5_no_clearance_no_sponge",
+   "FAILS_as_required": true,
+   "lesion": "M2-G6 单层归纳击穿:rho 脱预言窗 4.1-4.5x + b_layer O(0.5) 超线 5e+11 倍(线 1e-12)——约束违反永不清除,分层归纳地基拆除"
+  }
+ ],
+ "demotion_retirement": {
+  "lagged_damping": "降级回归抽查一发(捕获)",
+  "slave_0nu": "条件不满足记名不跑",
+  "Z_mu": "记名退役",
+  "trace_row_triplet": "记名退役(CERT-E 自动裁定,trace_row=false)"
+ },
+ "p0_positive_control": {
+  "pass": true,
+  "a_r30_diff": 0.0,
+  "b_row2_diff": 1.7763568394002505e-15,
+  "c_walk_nprop": [
+   4,
+   4,
+   5,
+   5
+  ],
+  "c_teeth_nprop": [
+   6,
+   6,
+   6,
+   6
+  ]
+ },
+ "endurance_negative_control": {
+  "H_drift_rel": 7.269981808196153e-15,
+  "rms_growth_geo": 0.9382981210934866,
+  "matter_norm_growth": 1.0000000000032958
+ },
+ "preflight": {
+  "status": "DONE(在册)",
+  "sha256": "15bff5f799c1aad00ae0ff85a9674f22d16a61f52d7f621c9f7cefc903e722a9"
+ },
+ "epsilon_sigma_point": {
+  "eps_geo": 0.0,
+  "eps_mat": 1.0,
+  "sigma": {
+   "branch_i_sourcefree": "A=0 精确约束线(轮 2 全 L darkness <= 1e-12)",
+   "branch_ii_sourced": "D-M2-6 重判 PASS(截断稳健双测同判截断污染;alpha=1.96)"
+  },
+  "status": "实测闭环级读数(lane B 轮 2 + 三裁落定);落图动作待车道A 复核 + PI 收口(任务书 §7);分扇区记账,禁单一混合 eps(红线 11)"
+ },
+ "hashes": {
+  "v2m2_candidate.json": "e446363a20e9bf593af36a4abbd46f4df64aa551a021c6a733d2eb6ba8973604",
+  "v2m2_coupled_loop.json": "463f194a540a3b26583038093ff50e588e7130698640b7a153389a07f18f761e",
+  "v2m2_dw_scaling_results.json": "b9c6269c51edddf144afc9b54ec90ddd9663e0a1f222c80bcb96018a3d5733d1",
+  "v2m2_dm26_results.json": "4190ade66868ed9e6d9aaf3e7854122243ccb0a9fe6cf39f22d85d2efc940eb8",
+  "v2m2_guns.json": "d0c85c322014feb955fd450eeee2e0b8a573a0a05a1f03e241450fd5553df87b",
+  "construction_sha256": "70f2c1504f1b5cc5c9186700e039993b4c1c3077ca8c2196459984f6cb508eae",
+  "v2m2_guns.py": "485d1fe147be3b422e12ae91b48a4ff9b39a717572941964bf8ae131cd50605a"
+ },
+ "sandbox": {
+  "status": "PENDING"
+ }
+}

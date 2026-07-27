@@ -1,0 +1,886 @@
+{
+ "register": "v2m2-guns (M2' 轮 3:五主炮 + 降级/退役 + 三正控 + endurance;任务书 §4 交付物 4)",
+ "status": "DONE",
+ "backend": "numpy (fp64)",
+ "authority": [
+  "docsv2/v2-任务书-M2-自旋2耦合闭环.md §4/§9",
+  "docsv2/v2-裁定-M2轮2三裁-2026-07-27.md(执行编排 + 裁定三零双向)",
+  "docsv2/v2-纲领-北极星-涌现边界制图.md §四补条(边界骑线禁令)",
+  "data/results/v2m2_candidate.json(构造冻结 + CERT-E 自动裁定)",
+  "data/results/v2m2_coupled_loop.json(轮 2 冻结基线,只读)",
+  "experiments/v2m1_guns_r2.py(体裁先例)"
+ ],
+ "environment": {
+  "numpy_version": "2.0.2",
+  "blas": "accelerate",
+  "lapack": "accelerate",
+  "threadpoolctl": [],
+  "python": "3.9.6",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+ },
+ "started_utc": "2026-07-27T13:23:03.866971+00:00",
+ "margin_declarations": [
+  {
+   "gun": "C1-i",
+   "criterion": "ratio_A(tr0) ∈ 4.0±0.1",
+   "type": "band",
+   "expected": 4.0,
+   "threshold": "4.0±0.1",
+   "margin": "带中心;pilot 散布 ~1e-6 ≪ 半宽 0.1(分离 ~1e5)",
+   "basis": "v1 总账 43c 记录 4.0;M0' row6 在册 4.000119;pilot 4.000000"
+  },
+  {
+   "gun": "C1-ii",
+   "criterion": "|ratio_A(tr0)-2.0| > 0.02(G2 带崩)",
+   "expected": 2.0,
+   "threshold": 0.02,
+   "margin": "100x",
+   "basis": "精确:4.0 - 2.0 = 2.0 对带半宽 0.02"
+  },
+  {
+   "gun": "C1-iii",
+   "criterion": "edd_raw ∈ 1.0±0.1",
+   "type": "band",
+   "expected": 1.00484,
+   "threshold": "1.0±0.1",
+   "margin": "偏离带中心 0.005 ≪ 半宽 0.1(20x)",
+   "basis": "v1 记录 1.0;pilot 1.00484"
+  },
+  {
+   "gun": "C1-iv",
+   "criterion": "|edd_raw-2.0| > 0.02(G3 带崩)",
+   "expected": 0.995,
+   "threshold": 0.02,
+   "margin": "49.8x",
+   "basis": "精确:2.0 - 1.005"
+  },
+  {
+   "gun": "C1-v",
+   "criterion": "row6 evaluator 判 FAIL + v1 记录窗 ±0.1",
+   "expected": "h00/phi=4.000119, 偏折=1.0",
+   "threshold": "窗 ±0.1",
+   "margin": "在册复现(确定性协议)",
+   "basis": "M0' v2m0_selftest_v2 在册"
+  },
+  {
+   "gun": "C2-i",
+   "criterion": "well_not_hill==False 且 A_hbar00 <= -1.0",
+   "expected": -3.95783534073174,
+   "threshold": -1.0,
+   "margin": "3.96x",
+   "basis": "线性精确 = -轮 2 在册 A_hbar00(3.95783534073174);pilot -3.9578"
+  },
+  {
+   "gun": "C2-ii",
+   "criterion": "on-site 源 max|κ^m T̄_mn| >= 1e-6",
+   "expected": 3.691,
+   "threshold": 1e-06,
+   "margin": "3.7e6x",
+   "basis": "pilot(确定性协议复现);对 G4 线 1e-10 为 3.7e10x、G5 线 1e-12 为 3.7e12x"
+  },
+  {
+   "gun": "C2-iii",
+   "criterion": "resid_onsite/resid_exact >= 100",
+   "expected": 3300000000000000.0,
+   "threshold": 100.0,
+   "margin": "3.3e13x",
+   "basis": "pilot;exact 机器同泛函在册 1.12e-15(CERT-C)"
+  },
+  {
+   "gun": "C3-i",
+   "criterion": "min_k |w_walk_op(0.4) - w_leap| >= 0.1",
+   "expected": 0.33537,
+   "threshold": 0.1,
+   "margin": "3.35x(对 J5 门 1e-6 为 3.4e5x)",
+   "basis": "确定性精确算术(pilot 复核 0.33537)"
+  },
+  {
+   "gun": "C3-ii",
+   "criterion": "数据级谱峰偏差全 6k >= 2 bins",
+   "expected": "min 8.23 bins",
+   "threshold": "2 bins",
+   "margin": "4.1x",
+   "basis": "pilot(峰位结构性,种子散布 < 1 bin)"
+  },
+  {
+   "gun": "C3-iii",
+   "criterion": "c_m/c_cone > 1(锥哨兵连带,报告级入册)",
+   "expected": 1.8421,
+   "threshold": 1.0,
+   "margin": "1.84x(精确算术)",
+   "basis": "cos(0.4)/cos(π/3) 精确"
+  },
+  {
+   "gun": "C4-i",
+   "criterion": "null 亏损 min >= 0.01 且 |Kc@Gc| min >= 0.02",
+   "expected": "null ∈ [0.064, 0.267];Kc@Gc ∈ [0.051, 0.237]",
+   "threshold": "0.01 / 0.02",
+   "margin": "6.4x / 2.6x(min)",
+   "basis": "确定性精确(pilot 复现;placed 侧 null = 0 位级)"
+  },
+  {
+   "gun": "C4-ii",
+   "criterion": "整数框架跑 darkness >= 1e-6",
+   "expected": "0.04-0.2(pilot 0.068-0.114)",
+   "threshold": 1e-06,
+   "margin": ">= 4e4x(对 G6 σ-i 线 1e-12 ~1e11x)",
+   "basis": "设计期 pilot(seed 2,结构泄漏非噪声)"
+  },
+  {
+   "gun": "C4-iii",
+   "criterion": "簿记层 darkness_int >= 1e-6 且 >=1 方向 N_int != 2",
+   "expected": "darkness 0.045-0.190;2 方向 N=3,证据 sv3(3,1,0)=0.115",
+   "threshold": "1e-6 / SV_THRESH 0.05",
+   "margin": "4.5e4x / 2.3x(sv3 对计数阈)",
+   "basis": "设计期 pilot;(2,2,0) sv3=0.0518 边界骑线预注册为 as-recorded 诊断不进判定(§四补条)"
+  },
+  {
+   "gun": "C5-i",
+   "criterion": "两方向 rho_meas/rho_pred >= 2.0",
+   "expected": "4.10 / 4.54",
+   "threshold": 2.0,
+   "margin": "2.05x(min)",
+   "basis": "pilot(确定性协议)vs 构造冻结 CERT-F 逐方向预言"
+  },
+  {
+   "gun": "C5-ii",
+   "criterion": "b_layer_rel(50 层)>= 1e-3",
+   "expected": "0.487 / 0.461",
+   "threshold": 0.001,
+   "margin": "461x(对门线 1e-12 为 4.6e11x)",
+   "basis": "pilot(确定性协议)"
+  },
+  {
+   "gun": "REG-i",
+   "criterion": "滞后注入 BZ max|λ|-1 > 1e-9(G7 门同线)",
+   "expected": 0.00623,
+   "threshold": 1e-09,
+   "margin": "6.2e6x",
+   "basis": "确定性(pilot 复现;三维伴随矩阵谱)"
+  },
+  {
+   "gun": "REG-ii",
+   "criterion": "滞后注入实空间 H 漂移 >= 1e-3",
+   "expected": 22.8,
+   "threshold": 0.001,
+   "margin": "2.3e4x(对 G5 线 1e-12 ~2e13x)",
+   "basis": "pilot(量级结构性,种子无关)"
+  },
+  {
+   "gun": "P0a",
+   "criterion": "row1_r30:n_prop=[2,2,2,2] 逐位 + diff<=1e-12 + eps_DOF=0.0",
+   "expected": 0.0,
+   "threshold": 1e-12,
+   "margin": "整数通道 + 预飞在册 diff=0.0",
+   "basis": "预飞 (i) 在册"
+  },
+  {
+   "gun": "P0b",
+   "criterion": "v2m1 三件 hash 逐位 + row2_r23 diff <= 1e-12",
+   "expected": 1.78e-15,
+   "threshold": 1e-12,
+   "margin": "560x",
+   "basis": "预飞 (ii) 在册(符号层,无种子)"
+  },
+  {
+   "gun": "P0c",
+   "criterion": "row5([4,4,5,5]+walk 0.0+漂移<=1e-12)+ row4([6,6,6,6] 精确)",
+   "expected": "逐位/整数;漂移 9.2e-16",
+   "threshold": "整数 + 1e-12",
+   "margin": "整数通道 + 漂移 1090x",
+   "basis": "预飞 (iv) 在册"
+  },
+  {
+   "gun": "END",
+   "criterion": "rms_growth ∈ [0.25, 4](报告级,非判定)",
+   "expected": 0.894,
+   "threshold": "[0.25, 4]",
+   "margin": "带内(3.6x / 4.5x 到带边);H 漂移预期 ~1e-14;物质范数 1.000000",
+   "basis": "设计期 pilot T=2000(seed 5)"
+  }
+ ],
+ "seeds": {
+  "C3": 20260753,
+  "C4A": 20260757,
+  "C4B": 20260759,
+  "LAG": 20260763,
+  "endurance": 20260761,
+  "deterministic_no_seed": "C1/C2/C5/符号表(零背景确定性协议,无随机源,如实声明)",
+  "exclusions": "轮1/轮2/M1'/R30/控制行/见证/pilot 全排除(名单见脚本头)"
+ },
+ "two_way_content": "零(裁定三:M2' 内不再追加任何双向探测预算)",
+ "wording_redline": "五炮全击穿 + 三正控全绿也不宣告 M2' PASS:判定 = 全门 + 全炮 + eps 分扇区 + 双环境四者同时,收口在车道A 复核四件 + PI(红线 12);禁句'自旋 2 涌现'(eps_geo=0,涌现主语不成立);v1 封存主句原样不动;本件为 lane B 宿主单环境交付状态",
+ "hash_verification": {
+  "m2_pinned": {
+   "pass": true,
+   "checked": {
+    "rulespace_v2/invariants.py": {
+     "sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+     "expected": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+     "match": true
+    },
+    "rulespace_v2/sigma.py": {
+     "sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+     "expected": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+     "match": true
+    },
+    "rulespace_v2/epsilon.py": {
+     "sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+     "expected": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+     "match": true
+    },
+    "rulespace_v2/controls.py": {
+     "sha256": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+     "expected": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+     "match": true
+    },
+    "rulespace_v2/gates.py": {
+     "sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+     "expected": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+     "match": true
+    },
+    "rulespace_v2/candidate.py": {
+     "sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+     "expected": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+     "match": true
+    },
+    "rulespace_v2/frozen.py": {
+     "sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+     "expected": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+     "match": true
+    },
+    "rulespace_v2/spin1.py": {
+     "sha256": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+     "expected": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+     "match": true
+    },
+    "experiments/v2m2_candidate.py": {
+     "sha256": "01e647c0e47ec3946a1576c5e4e9d43b96e8d253a0bdb0780cfd41a9084a73ac",
+     "expected": "01e647c0e47ec3946a1576c5e4e9d43b96e8d253a0bdb0780cfd41a9084a73ac",
+     "match": true
+    },
+    "experiments/r25_moving_source_symbol.py": {
+     "sha256": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+     "expected": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+     "match": true
+    },
+    "experiments/r25_moving_source_realspace.py": {
+     "sha256": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+     "expected": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+     "match": true
+    },
+    "experiments/r25_static_newton.py": {
+     "sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+     "expected": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+     "match": true
+    },
+    "experiments/r25_eddington.py": {
+     "sha256": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+     "expected": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+     "match": true
+    },
+    "experiments/r26_hyperbolic_constraint.py": {
+     "sha256": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+     "expected": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+     "match": true
+    },
+    "experiments/r10_current_generator.py": {
+     "sha256": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+     "expected": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+     "match": true
+    },
+    "rulespace_gpu/tensor_coin_feedback.py": {
+     "sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+     "expected": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+     "match": true
+    },
+    "data/results/v2m2_preflight.json": {
+     "sha256": "15bff5f799c1aad00ae0ff85a9674f22d16a61f52d7f621c9f7cefc903e722a9",
+     "expected": "15bff5f799c1aad00ae0ff85a9674f22d16a61f52d7f621c9f7cefc903e722a9",
+     "match": true
+    },
+    "data/results/v2m2_candidate.json": {
+     "sha256": "e446363a20e9bf593af36a4abbd46f4df64aa551a021c6a733d2eb6ba8973604",
+     "expected": "e446363a20e9bf593af36a4abbd46f4df64aa551a021c6a733d2eb6ba8973604",
+     "match": true
+    },
+    "data/results/v2m2_coupled_loop.json": {
+     "sha256": "463f194a540a3b26583038093ff50e588e7130698640b7a153389a07f18f761e",
+     "expected": "463f194a540a3b26583038093ff50e588e7130698640b7a153389a07f18f761e",
+     "match": true
+    },
+    "data/results/v2m2_dw_scaling_results.json": {
+     "sha256": "b9c6269c51edddf144afc9b54ec90ddd9663e0a1f222c80bcb96018a3d5733d1",
+     "expected": "b9c6269c51edddf144afc9b54ec90ddd9663e0a1f222c80bcb96018a3d5733d1",
+     "match": true
+    },
+    "data/results/v2m2_dm26_results.json": {
+     "sha256": "4190ade66868ed9e6d9aaf3e7854122243ccb0a9fe6cf39f22d85d2efc940eb8",
+     "expected": "4190ade66868ed9e6d9aaf3e7854122243ccb0a9fe6cf39f22d85d2efc940eb8",
+     "match": true
+    },
+    "data/results/v2m1_candidate.json": {
+     "sha256": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+     "expected": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+     "match": true
+    },
+    "data/results/v2m1_maxwell_loop_r3.json": {
+     "sha256": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+     "expected": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+     "match": true
+    },
+    "data/results/v2m1_guns_r2.json": {
+     "sha256": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+     "expected": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+     "match": true
+    }
+   }
+  },
+  "m0_registry_pass": true,
+  "construction_sha256": {
+   "got": "70f2c1504f1b5cc5c9186700e039993b4c1c3077ca8c2196459984f6cb508eae",
+   "expected": "70f2c1504f1b5cc5c9186700e039993b4c1c3077ca8c2196459984f6cb508eae",
+   "match": true
+  },
+  "round2_settlement": {
+   "coupled_loop_status_as_recorded": "FAIL-HALT-追因",
+   "dw_scaling_branch": "a:SCALING-CONFIRMED",
+   "dm26_status": "REJUDGE-PASS",
+   "semantics": "轮 2 原始 FAIL-HALT 记录保留不改写;三裁 + 两补测落定 8/8(G1 按核 PASS 不计数,G6 重判 PASS 计数清结),轮 3 据此放行(裁定文执行编排)",
+   "pass": true
+  },
+  "trace_row_processing_present": false
+ },
+ "guns": {
+  "C1_tr_sign_zero": {
+   "protocol": "L=16 静源段(T_RAMP=128+T_HOLD=128,零背景确定性无随机源)一次运行;读出层迹反转关断(canary tr_sign=0 + Eddington raw h̄)+ evaluator row6(tensor_qca v1 谱系)",
+   "ratio_A_tr0": 4.0,
+   "ratio_A_tr1_paired_healthy": 1.9999999999999998,
+   "edd_raw_tr_off": 1.0048439443415296,
+   "edd_with_tr_paired_healthy": 2.0097593422141005,
+   "canary_tr0_gate_pass": false,
+   "row6_evaluator": {
+    "h00_over_phi": 4.000118877514989,
+    "deflection_ratio": 1.0,
+    "pass_judged_FAIL": true
+   },
+   "lesion_located": "M2-G2 比值 2->4(带崩 100x)+ M2-G3 偏折 2->1(带崩 49.8x),v1 记录 43c 方向逐一复现;paired 健康读出 2.000000/2.0098 => 杀点在迹结构本身,非静源机器",
+   "FAILS_as_required": true,
+   "seconds": 1.5108261108398438
+  },
+  "C2_wrong_sign_onsite_source": {
+   "protocol": "(i) 错符号:同 C1 静源协议 drive=-lift(确定性);(ii) on-site 双线性源 T̄=u u^T 代精确键流,κ^m T̄_mn 残差 BZ 12^3 x v∈{0.05,0.15,0.25}(确定性)",
+   "wrong_sign": {
+    "A_hbar00": -3.9578353407322537,
+    "well_not_hill": false,
+    "ratio_A": 1.9999999999999998,
+    "gate_pass": false
+   },
+   "onsite": {
+    "deDonder_resid_max": 3.690970479105847,
+    "exact_machine_same_functional": 1.1157603309187458e-15,
+    "ratio_onsite_over_exact": 3308031641586152.0
+   },
+   "lesion_located": "井变山(A_hbar00 翻号,M2-G2 源链病灶)+ 键流优势消失(源 deDonder 残差 O(1) vs 精确机器 1e-15,M2-G4 源线/M2-G5 T̄ 行守恒击穿)",
+   "FAILS_as_required": true,
+   "seconds": 0.6489579677581787
+  },
+  "C3_cocone_detune": {
+   "protocol": "θ_m=0.4(c_m=0.9211)vs θ_g=π/3(c_g=0.5);(i) 算子谱相(确定性精确);(ii) 数据级符号演化 T=320 trials=4 seed=20260753;(iii) 锥速比精确算术",
+   "operator_rows": [
+    {
+     "n16": [
+      2,
+      0,
+      0
+     ],
+     "w_walk_op": 0.7204285887345235,
+     "w_leap": 0.3850578759034778,
+     "dW": 0.33537071283104575
+    },
+    {
+     "n16": [
+      0,
+      2,
+      0
+     ],
+     "w_walk_op": 0.7204285887345235,
+     "w_leap": 0.3850578759034778,
+     "dW": 0.33537071283104575
+    },
+    {
+     "n16": [
+      0,
+      0,
+      2
+     ],
+     "w_walk_op": 0.7204285887345236,
+     "w_leap": 0.3850578759034778,
+     "dW": 0.33537071283104586
+    },
+    {
+     "n16": [
+      2,
+      2,
+      0
+     ],
+     "w_walk_op": 0.9839347033859526,
+     "w_leap": 0.5480284076203128,
+     "dW": 0.4359062957656398
+    },
+    {
+     "n16": [
+      3,
+      1,
+      0
+     ],
+     "w_walk_op": 1.1157608072324605,
+     "w_leap": 0.59768465928662,
+     "dW": 0.5180761479458406
+    },
+    {
+     "n16": [
+      2,
+      2,
+      2
+     ],
+     "w_walk_op": 1.0110508376687193,
+     "w_leap": 0.6756028564802484,
+     "dW": 0.33544798118847086
+    }
+   ],
+   "op_min_dW": 0.33537071283104575,
+   "data_rows": [
+    {
+     "n16": [
+      2,
+      0,
+      0
+     ],
+     "w_peak_matter": 0.724982920059183,
+     "w_leap": 0.3850578759034778,
+     "dev_bins": 8.439717165065359
+    },
+    {
+     "n16": [
+      0,
+      2,
+      0
+     ],
+     "w_peak_matter": 0.724982920059183,
+     "w_leap": 0.3850578759034778,
+     "dev_bins": 8.439717165065359
+    },
+    {
+     "n16": [
+      0,
+      0,
+      2
+     ],
+     "w_peak_matter": 0.724982920059183,
+     "w_leap": 0.3850578759034778,
+     "dev_bins": 8.439717165065359
+    },
+    {
+     "n16": [
+      2,
+      2,
+      0
+     ],
+     "w_peak_matter": 0.9666438934122441,
+     "w_leap": 0.5480284076203128,
+     "dev_bins": 10.39345691570175
+    },
+    {
+     "n16": [
+      3,
+      1,
+      0
+     ],
+     "w_peak_matter": 1.1277512089809514,
+     "w_leap": 0.59768465928662,
+     "dev_bins": 13.160583002036907
+    },
+    {
+     "n16": [
+      2,
+      2,
+      2
+     ],
+     "w_peak_matter": 1.0069207223044208,
+     "w_leap": 0.6756028564802484,
+     "dev_bins": 8.226016668569601
+    }
+   ],
+   "data_min_dev_bins": 8.226016668569601,
+   "fft_bin_width": 0.04027682889217683,
+   "cone_escape_ratio_cm_over_ccone": 1.8421219880057698,
+   "lesion_located": "M2-G1 J5 线崩(min dW=0.3354 对门 1e-6 为 3.4e+05 倍)+ 共锥数据级崩(min 8.2 bins,线 2)+ G4 锥哨兵连带(物质前沿 c_m=0.921 超几何锥 c=0.5,比 1.84)——直打共锥纽带心脏",
+   "FAILS_as_required": true,
+   "seconds": 0.011871814727783203
+  },
+  "C4_integer_placement": {
+   "protocol": "κ_int = r15.kappa_central(冻结负控符号);(i) 符号表 4 方向;(ii) 整数框架复形 L=16 T=320 trials=4 seed=20260757;(iii) placed 正规跑整数簿记判读 seed=20260759",
+   "symbol_rows": [
+    {
+     "n16": [
+      2,
+      0,
+      0
+     ],
+     "null_defect_placed": 0.0,
+     "null_defect_integer": 0.06433982822017881,
+     "Kc_at_Gc": 0.08564648546508132,
+     "Kc_at_TTp_as_recorded": 0.0
+    },
+    {
+     "n16": [
+      2,
+      2,
+      0
+     ],
+     "null_defect_placed": 0.0,
+     "null_defect_integer": 0.0857864376269053,
+     "Kc_at_Gc": 0.08232778429930716,
+     "Kc_at_TTp_as_recorded": 2.299347170293092e-17
+    },
+    {
+     "n16": [
+      3,
+      1,
+      0
+     ],
+     "null_defect_placed": 0.0,
+     "null_defect_integer": 0.26666033982698667,
+     "Kc_at_Gc": 0.23693452128877224,
+     "Kc_at_TTp_as_recorded": 0.05496947043398634
+    },
+    {
+     "n16": [
+      2,
+      2,
+      2
+     ],
+     "null_defect_placed": 2.220446049250313e-16,
+     "null_defect_integer": 0.06433982822017925,
+     "Kc_at_Gc": 0.051441585508430726,
+     "Kc_at_TTp_as_recorded": 4.098060100286161e-17
+    }
+   ],
+   "null_defect_integer_min": 0.06433982822017881,
+   "Kc_at_Gc_min": 0.051441585508430726,
+   "run_integer_frame": [
+    {
+     "n16": [
+      2,
+      0,
+      0
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.5697944630036293,
+      3.180951539627492e-16,
+      2.217392343973304e-16
+     ],
+     "darkness_int": 0.12942044991712992,
+     "kerK_int_resid_mean": 9.385991146116326e-16,
+     "kerK_int_resid_max": 1.2645360748417233e-15
+    },
+    {
+     "n16": [
+      2,
+      2,
+      0
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.694604487887739,
+      8.714055626708871e-16,
+      3.507513397678621e-16
+     ],
+     "darkness_int": 0.10566083278121378,
+     "kerK_int_resid_mean": 8.701017906219627e-16,
+     "kerK_int_resid_max": 1.1395688367800267e-15
+    },
+    {
+     "n16": [
+      3,
+      1,
+      0
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.6637413833463662,
+      5.225623799584166e-16,
+      3.032511583117009e-16
+     ],
+     "darkness_int": 0.28946893726273665,
+     "kerK_int_resid_mean": 1.2056716998763358e-15,
+     "kerK_int_resid_max": 1.6630995807549902e-15
+    },
+    {
+     "n16": [
+      2,
+      2,
+      2
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.7973459013981562,
+      5.570106841856606e-16,
+      2.94175925641211e-16
+     ],
+     "darkness_int": 0.060471135823366585,
+     "kerK_int_resid_mean": 1.345418596169729e-15,
+     "kerK_int_resid_max": 1.8501393124492536e-15
+    }
+   ],
+   "run_placed_frame_integer_bookkeeping": [
+    {
+     "n16": [
+      2,
+      0,
+      0
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.3203537782079114,
+      0.04841280751568871,
+      0.004646429503683392
+     ],
+     "darkness_int": 0.0679373607853887,
+     "kerK_int_resid_mean": 0.022156328204363456,
+     "kerK_int_resid_max": 0.02725092658105487
+    },
+    {
+     "n16": [
+      2,
+      2,
+      0
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.7189693548323379,
+      0.03339490677435939,
+      0.02774507903297804
+     ],
+     "darkness_int": 0.0766776374092249,
+     "kerK_int_resid_mean": 0.01435956019233266,
+     "kerK_int_resid_max": 0.019399436803763586
+    },
+    {
+     "n16": [
+      3,
+      1,
+      0
+     ],
+     "N_prop_int_frame": 3,
+     "sv_int": [
+      1.0,
+      0.39871352219530415,
+      0.10597420238712632,
+      0.03524061678464541
+     ],
+     "darkness_int": 0.24637300413837265,
+     "kerK_int_resid_mean": 0.04915802175111843,
+     "kerK_int_resid_max": 0.05610156806335526
+    },
+    {
+     "n16": [
+      2,
+      2,
+      2
+     ],
+     "N_prop_int_frame": 2,
+     "sv_int": [
+      1.0,
+      0.3413677302172995,
+      0.016674401755902308,
+      0.011391050742383422
+     ],
+     "darkness_int": 0.04201098344719534,
+     "kerK_int_resid_mean": 0.00918303995360225,
+     "kerK_int_resid_max": 0.009945269737353055
+    }
+   ],
+   "N_break_directions": [
+    [
+     3,
+     1,
+     0
+    ]
+   ],
+   "boundary_note": "(2,2,0) sv3 预期 ~0.05 边界骑线,预注册为 as-recorded 诊断不进判定;计数判据证据方向 = sv3 >= 2x 阈者(预期 (3,1,0))",
+   "v1_lineage_note": "|Kc@TTp| 表 = v1 炮 6 同型观测(v1 记录 ≈0.23)as-recorded;新主语 oracle 重推,不抄 v1 数字(任务书 G5 血统注)",
+   "lesion_located": "M2-G6 约束线崩(null 亏损 O(0.1),K@gauge 不湮灭,darkness O(0.1) vs A=0 线 1e-12)+ M2-G1 计数崩(整数簿记下 N != 2 于 [[3, 1, 0]])——div curl=0 地基拆除",
+   "FAILS_as_required": true,
+   "seconds": 0.8141031265258789
+  },
+  "C5_no_clearance_no_sponge": {
+   "protocol": "构造冻结 RHO_PROTOCOL 逐字(L=16, DeltaT=32, 50 层),唯一改动 = κ_work=0 且 sp=None(关 R26 清除 + L4 sponge;确定性无随机源)",
+   "per_dir": {
+    "(2, 0, 0)": {
+     "rho_no_clear": 0.40892977472837283,
+     "floor_3dT": 0.3267450039273029,
+     "b_layer_rel": 0.48686297308840754,
+     "rho_pred_frozen": 0.09967797328075316,
+     "ratio_over_pred": 4.10250892217261,
+     "boundedness_max_rel": 0.23328540905208586
+    },
+    "(2, 2, 2)": {
+     "rho_no_clear": 0.1859887799070364,
+     "floor_3dT": 0.5112312028429362,
+     "b_layer_rel": 0.46074924126803585,
+     "rho_pred_frozen": 0.04097024954116829,
+     "ratio_over_pred": 4.539605738064851,
+     "boundedness_max_rel": 0.1230261449246677
+    }
+   },
+   "ratio_over_pred_min": 4.10250892217261,
+   "b_layer_rel_min": 0.46074924126803585,
+   "g7_boundedness_report": {
+    "max_rel_amplitude": 0.23328540905208586,
+    "note": "酉输运无爆破(如实报告):杀点 = 清除缺失(归纳地基),非失稳"
+   },
+   "lesion_located": "M2-G6 单层归纳击穿:rho 脱预言窗 4.1-4.5x + b_layer O(0.5) 超线 5e+11 倍(线 1e-12)——约束违反永不清除,分层归纳地基拆除",
+   "FAILS_as_required": true,
+   "seconds": 0.19443511962890625
+  }
+ },
+ "demotion_retirement_table": {
+  "gun3_lagged_damping": {
+   "status": "降级回归抽查(执行一发)",
+   "auto_promote_condition": "耦合层任何实现引入时间滞后项(演化更新引用 t-1 层状态)即升回主炮",
+   "condition_check": "geo_step = (h,ps) 当前层纯函数;耦合一步符号严格上三角(CERT-C 下左块 0.0)=> 无滞后项,维持降级",
+   "regression_shot": {
+    "eps": 0.05,
+    "bz_overgrowth_max": 0.006230589874906656,
+    "overgrowth_gt_1e-9": true,
+    "realspace_H_drift_rel": 22.79462795096851,
+    "H_drift_ge_1e-3": true,
+    "seed": 20260763,
+    "caught_as_required": true,
+    "note": "仪器对滞后项有牙:注入即破酉(G7 线)+ 破 H 不变量(G5 线)"
+   }
+  },
+  "gun7_slave_0nu": {
+   "status": "降级回归抽查——条件不满足,记名不跑",
+   "condition": "仅当物质走行约束装配复用 slave 行时对物质扇区抽查",
+   "condition_check": "物质载体 = v1 冻结走行物质半裸 walk(无约束装配层、无 slave 行机器)=> 不触发",
+   "revival": "物质扇区引入 slave 行约束装配即复活"
+  },
+  "gun8_Z_mu_carrier": {
+   "status": "记名退役",
+   "reason": "候选无 Z_μ 辅助场(靶不存在)",
+   "revival": "未来变体引入任何辅助场即强制复活(v1 评审原话:辅助场是最容易夹带私货的地方)"
+  },
+  "c5_v1_trace_row_triplet": {
+   "status": "记名退役(自动裁定,candidate CERT-E)",
+   "trace_row_processing_present": false,
+   "auto_adjudication_verbatim": "自动裁定条件(签发进 v2m2_guns.py 头,同滞后阻尼炮先例):若 trace_row_processing_present == true,或耦合层任何实现变更引入演化期迹行处理,则 C5(v1) T 行三元组(仅W/仅A/W+A)自动升格为主炮(预飞先行);若为 false,三元组记名退役,仅当变体引入迹行处理时强制复活。",
+   "verdict": "C5(v1) T 行三元组:记名退役(字段 false);变体引入迹行处理即强制复活升主炮"
+  }
+ },
+ "p0_positive_controls": {
+  "a_r30_geometry_anchor": {
+   "n_prop_seq": [
+    2,
+    2,
+    2,
+    2
+   ],
+   "epsilon_dof": 0.0,
+   "max_abs_diff": 0.0,
+   "pass": true
+  },
+  "b_m1_closed_loop_lineage": {
+   "hash_readonly_three_files": true,
+   "row2_r23_max_abs_diff": 1.7763568394002505e-15,
+   "note": "引用而非重跑长跑(任务书 §4.3):hash 逐位 + 同评估器符号层对拍",
+   "pass": true
+  },
+  "c_negative_controls": {
+   "row5_frozen_walk": {
+    "N_prop": [
+     4,
+     4,
+     5,
+     5
+    ],
+    "walk_factor_max_diff": 0.0,
+    "basis_drift_max": 9.159339953157541e-16,
+    "pass": true
+   },
+   "row4_teeth": {
+    "n_prop_all": [
+     6,
+     6,
+     6,
+     6
+    ],
+    "pass": true
+   },
+   "pass": true
+  },
+  "pass": true,
+  "seconds": 2.508765935897827
+ },
+ "endurance_negative_control": {
+  "protocol": "L=24 trials=2 T=12000 纯 rule 定长跑(几何 staggered leapfrog + 物质走行并行)seed=20260761(新)",
+  "H_drift_rel": 7.269981808196153e-15,
+  "rms_growth_geo": 0.9382981210934866,
+  "rms_checkpoints": [
+   [
+    1000,
+    0.9383043777965657
+   ],
+   [
+    3000,
+    0.9016643586273119
+   ],
+   [
+    5000,
+    0.9337465007841496
+   ],
+   [
+    7000,
+    0.9420938672821254
+   ],
+   [
+    9000,
+    0.9275981768022722
+   ],
+   [
+    11000,
+    0.8909945819784179
+   ],
+   [
+    12000,
+    0.9382981210934866
+   ]
+  ],
+  "matter_norm_growth": 1.0000000000032958,
+  "rms_in_band_report": true,
+  "note": "负控列,报告级,不作 PASS 依据(任务书 G7 行;北极星 §四分层归纳条);异常如实入册",
+  "seconds": 120.27841114997864
+ },
+ "all_guns_fail_as_required": true,
+ "regression_shot_caught": true,
+ "p0_all_green": true,
+ "verdict": "五主炮全部按预期病灶击穿(C1 迹结构 / C2 源链 / C3 共锥纽带 / C4 div curl=0 地基 / C5 清除归纳地基)+ 滞后阻尼回归抽查捕获 + 退役表照候选证书自动裁定入册 + 三正控全绿 + endurance 负控入册,全新种子,零双向内容(裁定三)。按红线 12:不宣告 M2' PASS——判定 = 全门 + 全炮 + eps 分扇区 + 双环境四者同时,收口在车道A 复核四件 + PI。无任何涌现主张;eps_geo=0 如实记账;v1 封存主句原样不动。",
+ "sandbox": {
+  "status": "PENDING",
+  "note": "双环境判据字段比对归车道A 复核(判据字段 1e-12)"
+ },
+ "source_sha256": "485d1fe147be3b422e12ae91b48a4ff9b39a717572941964bf8ae131cd50605a",
+ "total_seconds": 126.5596969127655,
+ "results_sha256": "d0c85c322014feb955fd450eeee2e0b8a573a0a05a1f03e241450fd5553df87b"
+}
