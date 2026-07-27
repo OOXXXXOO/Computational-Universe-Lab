@@ -1,0 +1,273 @@
+{
+ "register": "v2m2_dm26_rejudge",
+ "authority": "docsv2/v2-裁定-M2轮2三裁-2026-07-27.md 裁定二",
+ "backend": "numpy fp64",
+ "started_utc": "2026-07-27T12:59:53Z",
+ "frozen_protocol": {
+  "T1": "全模型重拟合 A'+B'x^α+C'x^(α+2)(α 同网格重扫);ΔAIC=AIC_power−AIC_high≥2 且 |A'|≤|A|/5 → 判截断污染",
+  "T2": "半窗 = 去最大 x 点(4→3 点,窗×2/3;x≤x_max/2 仅 2 点欠定不可执行),幂律全网格重拟合;|A_half|≤|A|/2 → 判截断污染",
+  "combined": "两测同判污染 ⇔ σ-ii 排零 PASS;任一不判 → FAIL 不通融",
+  "implementation_selection": "H1(2点/冻结幂律α)控制A无牙弃;H2(2点/冻结高阶α)控制B误塌缩弃;H3(3点/全重拟合)唯一幸存,冻结",
+  "alpha_grid": "0.05..4.00 step 0.01 (R37 逐字)",
+  "daic_line": 2.0,
+  "collapse_high": 5.0,
+  "collapse_half": 2.0
+ },
+ "double_control": {
+  "rows": [
+   {
+    "name": "A1",
+    "family": "A",
+    "truth": {
+     "A0": 0.0,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.05,
+     "D": 0.01
+    },
+    "A_fit_full": -0.00019077085462718135,
+    "alpha_fit_full": 1.9400000000000004,
+    "T1_dAIC": 27.465597456498813,
+    "T1_A_high": 1.9991023447150924e-06,
+    "T1_collapse_ratio": 95.42825815372129,
+    "T1_pollution": true,
+    "A_half": -5.3353431304569596e-05,
+    "T2_half_ratio": 0.2796728641219166,
+    "T2_pollution": true,
+    "zero_exclusion_got": "PASS",
+    "zero_exclusion_want": "PASS",
+    "ok": true
+   },
+   {
+    "name": "A2",
+    "family": "A",
+    "truth": {
+     "A0": 0.0,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.02,
+     "D": -0.005
+    },
+    "A_fit_full": -3.920909529731356e-05,
+    "alpha_fit_full": 1.9800000000000004,
+    "T1_dAIC": 29.79466401001548,
+    "T1_A_high": -9.995511723696893e-07,
+    "T1_collapse_ratio": 39.22670132471404,
+    "T1_pollution": true,
+    "A_half": -1.1850234868149594e-05,
+    "T2_half_ratio": 0.30223178520932414,
+    "T2_pollution": true,
+    "zero_exclusion_got": "PASS",
+    "zero_exclusion_want": "PASS",
+    "ok": true
+   },
+   {
+    "name": "A3",
+    "family": "A",
+    "truth": {
+     "A0": 0.0,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.1,
+     "D": 0.02
+    },
+    "A_fit_full": -0.0003032407021078057,
+    "alpha_fit_full": 1.8900000000000003,
+    "T1_dAIC": 26.23113424396361,
+    "T1_A_high": 3.998204689423246e-06,
+    "T1_collapse_ratio": 75.84421650797202,
+    "T1_pollution": true,
+    "A_half": -0.0001490084559974584,
+    "T2_half_ratio": 0.491386726655461,
+    "T2_pollution": true,
+    "zero_exclusion_got": "PASS",
+    "zero_exclusion_want": "PASS",
+    "ok": true
+   },
+   {
+    "name": "A4",
+    "family": "A",
+    "truth": {
+     "A0": 0.0,
+     "B": 0.236,
+     "alpha": 1.9,
+     "C": -0.05,
+     "D": 0.01
+    },
+    "A_fit_full": -0.00023292406150198647,
+    "alpha_fit_full": 1.8400000000000003,
+    "T1_dAIC": 26.63863769978022,
+    "T1_A_high": 2.4891564193926796e-06,
+    "T1_collapse_ratio": 93.57550200031896,
+    "T1_pollution": true,
+    "A_half": -6.681710567893882e-05,
+    "T2_half_ratio": 0.2868621869637499,
+    "T2_pollution": true,
+    "zero_exclusion_got": "PASS",
+    "zero_exclusion_want": "PASS",
+    "ok": true
+   },
+   {
+    "name": "B1",
+    "family": "B",
+    "truth": {
+     "A0": -0.00012,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.05,
+     "D": 0.01
+    },
+    "A_fit_full": -0.00031077085462717646,
+    "alpha_fit_full": 1.9400000000000004,
+    "T1_dAIC": 27.46559745650825,
+    "T1_A_high": -0.00011800089765528002,
+    "T1_collapse_ratio": 2.633631275713188,
+    "T1_pollution": false,
+    "A_half": -0.00017335343130456675,
+    "T2_half_ratio": 0.5578175325113234,
+    "T2_pollution": false,
+    "zero_exclusion_got": "FAIL",
+    "zero_exclusion_want": "FAIL",
+    "ok": true
+   },
+   {
+    "name": "B2",
+    "family": "B",
+    "truth": {
+     "A0": 0.00012,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.05,
+     "D": 0.01
+    },
+    "A_fit_full": -7.07708546271793e-05,
+    "alpha_fit_full": 1.9400000000000004,
+    "T1_dAIC": 27.465597456492745,
+    "T1_A_high": 0.00012199910234471714,
+    "T1_collapse_ratio": 0.5800932405814857,
+    "T1_pollution": false,
+    "A_half": 6.664656869543757e-05,
+    "T2_half_ratio": 0.9417233838213702,
+    "T2_pollution": false,
+    "zero_exclusion_got": "FAIL",
+    "zero_exclusion_want": "FAIL",
+    "ok": true
+   },
+   {
+    "name": "B3",
+    "family": "B",
+    "truth": {
+     "A0": -0.00024,
+     "B": 0.236,
+     "alpha": 2.0,
+     "C": -0.02,
+     "D": -0.005
+    },
+    "A_fit_full": -0.0002792090952973142,
+    "alpha_fit_full": 1.9800000000000004,
+    "T1_dAIC": 29.794664010032207,
+    "T1_A_high": -0.00024099955117237032,
+    "T1_collapse_ratio": 1.1585461215137915,
+    "T1_pollution": false,
+    "A_half": -0.0002518502348681519,
+    "T2_half_ratio": 0.9020130042682551,
+    "T2_pollution": false,
+    "zero_exclusion_got": "FAIL",
+    "zero_exclusion_want": "FAIL",
+    "ok": true
+   },
+   {
+    "name": "B4",
+    "family": "B",
+    "truth": {
+     "A0": -0.00012,
+     "B": 0.236,
+     "alpha": 1.9,
+     "C": -0.05,
+     "D": 0.01
+    },
+    "A_fit_full": -0.0003529240615019816,
+    "alpha_fit_full": 1.8400000000000003,
+    "T1_dAIC": 26.638637699808882,
+    "T1_A_high": -0.00011751084358061631,
+    "T1_collapse_ratio": 3.003331869197791,
+    "T1_pollution": false,
+    "A_half": -0.00018681710567893797,
+    "T2_half_ratio": 0.529340801768737,
+    "T2_pollution": false,
+    "zero_exclusion_got": "FAIL",
+    "zero_exclusion_want": "FAIL",
+    "ok": true
+   }
+  ],
+  "all_ok": true,
+  "verdict": "口径有牙"
+ },
+ "rejudge": {
+  "source": "data/results/v2m2_coupled_loop.json M2-G6 sigma_branch_ii_sourced.y_per_L(只读)",
+  "xs_2pi_over_L": [
+   0.39269908169872414,
+   0.2617993877991494,
+   0.19634954084936207,
+   0.1308996938995747
+  ],
+  "ys": [
+   0.03768751594167317,
+   0.01696358473225302,
+   0.0095841172506926,
+   0.004272980201108287
+  ],
+  "round2_fit_reproduction": {
+   "A_round2": -0.00012265669635452142,
+   "A_here": -0.00012265669635452142,
+   "alpha_round2": 1.9600000000000004,
+   "alpha_here": 1.9600000000000004,
+   "match": true
+  },
+  "dm26": {
+   "power_full": {
+    "A": -0.00012265669635452142,
+    "B": 0.23618858083471136,
+    "alpha": 1.9600000000000004,
+    "RSS": 2.1373033987636905e-10,
+    "AIC": -88.61040140259323,
+    "p": 3
+   },
+   "high_order": {
+    "A": 7.85048555294876e-08,
+    "B": 0.2499944999809159,
+    "C": -0.03636679848224206,
+    "alpha": 2.0000000000000004,
+    "RSS": 5.544019287405153e-16,
+    "AIC": -138.05974443269554,
+    "p": 4
+   },
+   "T1_dAIC_power_minus_high": 49.44934303010231,
+   "T1_aic_supported": true,
+   "T1_collapse_ratio": 1562.4090449851185,
+   "T1_pollution": true,
+   "half_window_xs": [
+    0.1308996938995747,
+    0.19634954084936207,
+    0.2617993877991494
+   ],
+   "A_half": -3.513917995894423e-05,
+   "alpha_half": 1.9800000000000004,
+   "T2_half_ratio": 0.28648399152525283,
+   "T2_pollution": true,
+   "both_pollution": true,
+   "zero_exclusion": "PASS(A 与 0 一致)"
+  },
+  "sigma_ii_other_subgates_round2": {
+   "dAIC_const_minus_power_round2": 55.67945378271355,
+   "decisive_ge2": true,
+   "alpha_ge1": true
+  },
+  "sigma_ii_verdict": "PASS",
+  "g6_verdict": "PASS",
+  "g6_basis": "σ-i PASS(6.0e-13)、ρ 全中、b_layer≤1e-12、层间引理 Fraction 证书 PASS(轮 2 已过,零回改)+ 本重判 σ-ii"
+ },
+ "status": "REJUDGE-PASS",
+ "total_seconds": 0.137,
+ "source_sha256": "347efc260fc10066ea11ebb175cbc053424fe6b456ad29e579132d28737338ea"
+}
