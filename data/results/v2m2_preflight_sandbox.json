@@ -1,0 +1,653 @@
+{
+  "register": "v2m2-preflight (M2' 预飞对拍行;任务书 §5;lane B 轮 1)",
+  "status": "DONE",
+  "backend": "numpy (fp64)",
+  "authority": [
+    "docsv2/v2-任务书-M2-自旋2耦合闭环.md §5/§9",
+    "docsv2/v2-审定-M2任务书-2026-07-27.md(R3 源速口径)",
+    "docsv2/v2-收口-M0-2026-07-26.md(可移植性 spec 终态)",
+    "docsv2/v2-收口-M1-2026-07-27.md(D2 硬门解除依据)"
+  ],
+  "tol": {
+    "judge": 1e-12,
+    "oracle_e2": 1e-11,
+    "bianchi_realspace": 1e-10,
+    "re_collapse_teeth_min": 0.1
+  },
+  "v_lattice_set": [
+    0.0,
+    0.05,
+    0.15,
+    0.25
+  ],
+  "v_speed_convention": "审定 R3 钉死:源速上限 v/c <= 0.5 即格点单位 v <= 0.25(c = cos theta_g = 0.5);本预飞 v 集 = 格点 {0, 0.05, 0.15, 0.25}",
+  "environment": {
+    "numpy_version": "2.2.6",
+    "blas": "scipy-openblas",
+    "lapack": "scipy-openblas",
+    "threadpoolctl": "threadpoolctl unavailable",
+    "python": "3.10.12",
+    "platform": "Linux-6.8.0-124-generic-aarch64-with-glibc2.35",
+    "machine": "aarch64",
+    "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+  },
+  "started_utc": "2026-07-27T13:33:27.518504+00:00",
+  "wording_redline": "预飞无任何涌现主张;eps_geo=0 是候选定义属性,不是待测项;PASS 只解锁'构造冻结后可开主跑'(任务书 §9 红线 10/11/12)",
+  "sandbox": {
+    "status": "PENDING",
+    "note": "双环境语义(M0' 终态):判据字段宿主+沙盒双跑 diff <= 1e-12;沙盒侧由车道A 复核执行,本 JSON 为宿主参考值"
+  },
+  "hash_verification": {
+    "m2_pinned": {
+      "pass": true,
+      "missing": [],
+      "checked": {
+        "rulespace_v2/invariants.py": {
+          "sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "expected": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "match": true
+        },
+        "rulespace_v2/sigma.py": {
+          "sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "expected": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "match": true
+        },
+        "rulespace_v2/epsilon.py": {
+          "sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "expected": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "match": true
+        },
+        "rulespace_v2/controls.py": {
+          "sha256": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "expected": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "match": true
+        },
+        "rulespace_v2/gates.py": {
+          "sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "expected": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "match": true
+        },
+        "rulespace_v2/candidate.py": {
+          "sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "expected": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "match": true
+        },
+        "rulespace_v2/frozen.py": {
+          "sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "expected": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "match": true
+        },
+        "rulespace_v2/spin1.py": {
+          "sha256": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+          "expected": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+          "match": true
+        },
+        "experiments/v2m1_preflight.py": {
+          "sha256": "3dfef16aac712d2726226185cf03ed2638ce15abcd76ac37358809598fe8d563",
+          "expected": "3dfef16aac712d2726226185cf03ed2638ce15abcd76ac37358809598fe8d563",
+          "match": true
+        },
+        "experiments/v2m1_candidate.py": {
+          "sha256": "8aa00b0a9847ec0a6c05b857f6d8375e6d13879fd639342623d6f95b7f96b1ac",
+          "expected": "8aa00b0a9847ec0a6c05b857f6d8375e6d13879fd639342623d6f95b7f96b1ac",
+          "match": true
+        },
+        "experiments/v2m1_maxwell_loop_r3.py": {
+          "sha256": "d8535f912ed3d18521c681b1846cd98a0adf4bf1e1999e69549f804c911f2ce1",
+          "expected": "d8535f912ed3d18521c681b1846cd98a0adf4bf1e1999e69549f804c911f2ce1",
+          "match": true
+        },
+        "experiments/v2m1_guns_r2.py": {
+          "sha256": "b9743ae56a786fe68fdadfcdf2578dcb2d80cf7b491368fa2dd3666fd428d5ea",
+          "expected": "b9743ae56a786fe68fdadfcdf2578dcb2d80cf7b491368fa2dd3666fd428d5ea",
+          "match": true
+        },
+        "experiments/v2m1_verdict_probe.py": {
+          "sha256": "81da853a1261fc36a85d8254a4cfcd71214497252acae3d42675f640125168e6",
+          "expected": "81da853a1261fc36a85d8254a4cfcd71214497252acae3d42675f640125168e6",
+          "match": true
+        },
+        "data/results/v2m1_preflight.json": {
+          "sha256": "6736cd758b3dffbebdbb0a6ae6f687e053feeba42688846eb603da9833e55284",
+          "expected": "6736cd758b3dffbebdbb0a6ae6f687e053feeba42688846eb603da9833e55284",
+          "match": true
+        },
+        "data/results/v2m1_candidate.json": {
+          "sha256": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+          "expected": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+          "match": true
+        },
+        "data/results/v2m1_maxwell_loop_r3.json": {
+          "sha256": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+          "expected": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+          "match": true
+        },
+        "data/results/v2m1_guns_r2.json": {
+          "sha256": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+          "expected": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+          "match": true
+        },
+        "data/results/v2m1_verdict_probe.json": {
+          "sha256": "1bd30d7dbd0b27b7245e0996b6bb660eb8b5b2c76c10ca2a1feca707ada9478d",
+          "expected": "1bd30d7dbd0b27b7245e0996b6bb660eb8b5b2c76c10ca2a1feca707ada9478d",
+          "match": true
+        },
+        "experiments/r25_moving_source_symbol.py": {
+          "sha256": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+          "expected": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+          "match": true
+        },
+        "experiments/r25_moving_source_realspace.py": {
+          "sha256": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+          "expected": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+          "match": true
+        },
+        "experiments/r25_static_newton.py": {
+          "sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "expected": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "match": true
+        },
+        "experiments/r25_eddington.py": {
+          "sha256": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+          "expected": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+          "match": true
+        },
+        "experiments/r26_hyperbolic_constraint.py": {
+          "sha256": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+          "expected": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+          "match": true
+        },
+        "experiments/r10_current_generator.py": {
+          "sha256": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "expected": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "match": true
+        }
+      }
+    },
+    "m0_registry_pass": true,
+    "m0_registry": {
+      "pass": true,
+      "checked": {
+        "experiments/rc1a_tensor_index_scan.py": {
+          "sha256": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+          "expected": "ca57a32534c865542d5057eba0e578e7c3aee6e8ca36f779ab103fac6f2ab84f",
+          "match": true
+        },
+        "experiments/r32_reachability_probe.py": {
+          "sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+          "expected": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+          "match": true
+        },
+        "experiments/r15_walk_dedonder.py": {
+          "sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+          "expected": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+          "match": true
+        },
+        "experiments/r25_dynamic_symbol.py": {
+          "sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+          "expected": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+          "match": true
+        },
+        "experiments/r25_realspace_step.py": {
+          "sha256": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+          "expected": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+          "match": true
+        },
+        "experiments/cp1_v4_L2.py": {
+          "sha256": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+          "expected": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+          "match": true
+        },
+        "experiments/r25_auxiliary_wilson_complex.py": {
+          "sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+          "expected": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+          "match": true
+        },
+        "experiments/r16_cp1_invitro.py": {
+          "sha256": "5696d921903043ba91f3c287cba3eba8d2f2f68e1c69a04c482999bcaec26478",
+          "expected": "5696d921903043ba91f3c287cba3eba8d2f2f68e1c69a04c482999bcaec26478",
+          "match": true
+        },
+        "rulespace_gpu/emergence_judge.py": {
+          "sha256": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+          "expected": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+          "match": true
+        },
+        "experiments/r28_placed_judge_reverdict.py": {
+          "sha256": "3c10cd669b3f9e49daf91eab362bc249df23d9b25f38d478f66628ac07afabc7",
+          "expected": "3c10cd669b3f9e49daf91eab362bc249df23d9b25f38d478f66628ac07afabc7",
+          "match": true
+        },
+        "experiments/r30_tensor_complex_dynamical.py": {
+          "sha256": "eae6034d8403a93977988d0a56e80c8899b9ffe80fcacc4084fc0244b2d519a4",
+          "expected": "eae6034d8403a93977988d0a56e80c8899b9ffe80fcacc4084fc0244b2d519a4",
+          "match": true
+        },
+        "experiments/rc3ii_relaxation_framework.py": {
+          "sha256": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+          "expected": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+          "match": true
+        },
+        "experiments/r36_r3_verification.py": {
+          "sha256": "2169f7acbaef06c0954750d9e63441e880389fb48613e2d38092095a22ff1abe",
+          "expected": "2169f7acbaef06c0954750d9e63441e880389fb48613e2d38092095a22ff1abe",
+          "match": true
+        },
+        "experiments/r37_residual_scaling_audit.py": {
+          "sha256": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0",
+          "expected": "b847808c96ef8c64c72973d0e415db202497beb0236575d351a91c1fa9508df0",
+          "match": true
+        },
+        "experiments/r25_emergence_timeseries.py": {
+          "sha256": "ccb3de344eaba5593526fc06e13a709c52967e61bbbd3d16127f0e70ae3b9594",
+          "expected": "ccb3de344eaba5593526fc06e13a709c52967e61bbbd3d16127f0e70ae3b9594",
+          "match": true
+        }
+      },
+      "record_only": {
+        "experiments/r23_maxwell_control.py": {
+          "sha256": "807b1f7fd00fc3ed141ab1ac6bc950e1325be61b33a8bf0cb78d98da76292b10",
+          "note": "record-only (无先行 hash 记录可比对)"
+        },
+        "experiments/r17_placement_operators.py": {
+          "sha256": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "note": "record-only (无先行 hash 记录可比对)"
+        },
+        "rulespace_gpu/tensor_qca.py": {
+          "sha256": "172a38d5be927ec7f9632e3bd2ba8caaa5fca006659c9fd8f280ddc37091a507",
+          "note": "record-only (无先行 hash 记录可比对)"
+        },
+        "rulespace_gpu/pathB_spin2.py": {
+          "sha256": "a9cb039445caa90ab944449215d1c3459d59b88e06883d3eba0d7ef6e5dc2cd7",
+          "note": "record-only (无先行 hash 记录可比对)"
+        },
+        "rulespace_gpu/spin2_evolver.py": {
+          "sha256": "dc9a1a8a28e87288cf858f4dea0c275983d606e2a15b34fe0e819f98e7150900",
+          "note": "record-only (无先行 hash 记录可比对)"
+        },
+        "rulespace_gpu/tensor_coin_feedback.py": {
+          "sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+          "note": "record-only (无先行 hash 记录可比对)"
+        }
+      },
+      "result_jsons_sha256": {
+        "data/results/r30_results.json": "e7af6d09fefb571bb8adcea54373a2f67b0eeb701b26e342c779e4d042bacf71",
+        "data/results/r23_results.json": "4c2ccf59e6cae55e35fd0e2bd55e4a8bb83c050c9859e981181ef8bc8eef969f",
+        "data/results/r25_emergence_timeseries_results.json": "b5bd0f6ff5603da5b38fd3d9039cbc7c4acfbf0032bd4b52dbad4cdf1f20933a",
+        "data/results/r28_results.json": "8441ad86d615cf9f9e62554a4d8f41c7c36d944926f870ea241daf3be195e113",
+        "data/results/r32_results.json": "ebbb1365397aa3f2d202433537755ddbb557eb99e39dfef26b02750fa40cfdbc",
+        "data/results/rc3ii_results.json": "89c58556da3d8ad1cdbda36d92600102c57e37deafb2ab2bf73efaa8a2207be6",
+        "data/results/r36_results.json": "04c6955653d65648a9f80b4d04307dda5c4b4c517d51692cd30cf033d7ce2451",
+        "data/results/r37_results.json": "3d86f2e3bebb3178369a56822cc47dd1726ee4a1ced2774918654c224885e9bb",
+        "data/results/tensor_qca_results.json": "db6360e28ee810f40221071169c9298b4c14f0f374313e03ec837170772e13fe"
+      }
+    }
+  },
+  "preflight_i_r30_anchor": {
+    "row1_r30": {
+      "name": "R30 复形 (G1 svn 断崖 + eps_DOF=0)",
+      "remeasured": {
+        "n_prop_seq": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "epsilon_dof": 0.0,
+        "sv_L16": [
+          [
+            1.0,
+            0.7865087264985369,
+            1.2013229188288445e-15,
+            8.186586826588173e-16,
+            1.7764528817652312e-16,
+            2.819923829920948e-18
+          ],
+          [
+            1.0,
+            0.4822307687282302,
+            6.611868961144012e-16,
+            3.951113060800973e-16,
+            3.6902254652790777e-16,
+            1.4319698954472004e-18
+          ],
+          [
+            1.0,
+            0.2743632338728755,
+            1.3516353509736037e-15,
+            1.0806623730572126e-15,
+            7.051515706614367e-16,
+            1.6516078978194722e-16
+          ],
+          [
+            1.0,
+            0.6059844690875528,
+            1.7986766752637648e-15,
+            1.138922697753451e-15,
+            9.173690221624576e-16,
+            4.071380545958774e-16
+          ]
+        ]
+      },
+      "frozen": {
+        "n_prop_seq": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "epsilon_dof_anchor": 0.0,
+        "source": "r30_results.json decisive_run"
+      },
+      "tol": 1e-12,
+      "max_abs_diff": 1.1102230246251565e-15,
+      "pass": true
+    },
+    "bianchi_recert": {
+      "recomputed": {
+        "n_k_on_shell": 342,
+        "div_inc_contracted_Bianchi_kappaG": 5.617047174252467e-15,
+        "div_inc_full_second_Bianchi": 4.378051803668557e-15,
+        "inc_D_riemann_of_gauge": 2.6645352591003757e-15,
+        "maxwell_divcurl_baseline": 1.302414952438327e-15,
+        "div_inc_realspace_operator_identity": 5.566705740848049e-16
+      },
+      "frozen": {
+        "n_k_on_shell": 342,
+        "div_inc_contracted_Bianchi_kappaG": 5.617047174252467e-15,
+        "div_inc_full_second_Bianchi": 4.378051803668557e-15,
+        "inc_D_riemann_of_gauge": 2.6645352591003757e-15,
+        "maxwell_divcurl_baseline": 1.0269562977782698e-15,
+        "div_inc_realspace_operator_identity": 5.566705740848049e-16
+      },
+      "per_key_diff": {
+        "div_inc_contracted_Bianchi_kappaG": 0.0,
+        "div_inc_full_second_Bianchi": 0.0,
+        "inc_D_riemann_of_gauge": 0.0,
+        "maxwell_divcurl_baseline": 2.7545865466005715e-16,
+        "div_inc_realspace_operator_identity": 0.0
+      },
+      "pass": true
+    },
+    "j5_freq_minus_shell_diff_vs_frozen": 0.0,
+    "epsilon_note": "此处 eps_DOF=0 是 D1 定义锚(hand_built=all),非 M2-G8 实测;实测在主跑轮 2(红线 5)",
+    "seconds": 2.164872646331787,
+    "pass": true
+  },
+  "preflight_ii_m1_anchor": {
+    "m1_lineage": {
+      "v2m1_candidate_status": "DONE",
+      "v2m1_construction_sha256": "b7daa970f0702c9e4e12603740d4f40de33dee92cec17036dd61b76bb7f29da8",
+      "expected_construction_sha256": "b7daa970f0702c9e4e12603740d4f40de33dee92cec17036dd61b76bb7f29da8",
+      "v2m1_state_lit": true,
+      "v2m1_state_sha256_at_read": "6e0a50ce714959e1b12623d1dbdcc08862116ae18b8e6e5e3847ee3ced5d4b3a",
+      "pass": true
+    },
+    "row2_r23_vs_r23_frozen": {
+      "name": "R23 Yee/Maxwell (光子 2 + Lorenz 闭合 + eps_DOF=1)",
+      "remeasured": {
+        "null": 7.35170199188412e-16,
+        "cg": 7.35170199188412e-16,
+        "dist_transverse": 3.332000937312528e-08,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.9011515871026481,
+        "transverse_retention": 1.000000000000027,
+        "constraint_decay": 5.409741040345224e-16,
+        "operator_err": 2.775557561562891e-16,
+        "dims": [
+          2
+        ],
+        "ranks": [
+          1
+        ],
+        "all_pass": true,
+        "epsilon_dof": 1.0
+      },
+      "frozen": {
+        "null": 7.35170199188412e-16,
+        "cg": 7.35170199188412e-16,
+        "dist_transverse": 3.332000937312528e-08,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.9011515871026481,
+        "transverse_retention": 1.000000000000027,
+        "constraint_decay": 5.409741040345224e-16,
+        "operator_err": 2.775557561562891e-16,
+        "dims": [
+          2
+        ],
+        "ranks": [
+          1
+        ],
+        "all_pass": true,
+        "epsilon_dof_anchor": 1.0,
+        "source": "r23_results.json"
+      },
+      "frozen_json_lineage": "沙盒系(Linux/OpenBLAS):复核 ② 确证冻结 r23_results.json 与沙盒重跑逐位 diff=0.0,与宿主(darwin/Accelerate)差 1.8e-15 ⟹ 偏差纯环境属性(ULP 级),在 tol 1e-12 内",
+      "tol": 1e-12,
+      "max_abs_diff": 0.0,
+      "per_key_diff": {
+        "null": 0.0,
+        "cg": 0.0,
+        "dist_transverse": 0.0,
+        "F_gauge": 0.0,
+        "F_transverse_min": 0.0,
+        "transverse_retention": 0.0,
+        "constraint_decay": 0.0,
+        "operator_err": 0.0
+      },
+      "pass": true
+    },
+    "judge_field_diffs_vs_v2m1_candidate": {
+      "null": 4.198591804919753e-17,
+      "cg": 4.198591804919753e-17,
+      "dist_transverse": 0.0,
+      "F_gauge": 0.0,
+      "F_transverse_min": 3.3306690738754696e-16,
+      "transverse_retention": 1.7763568394002505e-15,
+      "constraint_decay": 6.977024612579027e-16,
+      "operator_err": 2.1651915657454297e-17
+    },
+    "integers_booleans_ok": true,
+    "note": "D2 串行硬门脚本层落地:M1' 证书链五件 .py + 五件 .json hash 逐位在册(见 hash_verification);判据字段对拍 = 引用件级,不重跑 M1' 长跑(任务书 §4.3 P0b 口径)",
+    "seconds": 0.027261972427368164,
+    "pass": true
+  },
+  "preflight_iii_coupling_symbol_certs": {
+    "a_source_compat_kappa_eta_hbar_max": 1.2342500579001462e-15,
+    "b_static_z1_bitwise_vs_static_newton": 5.373904263009267e-14,
+    "c_e2_mirror_hbar0i_realspace_vs_symbol_oracle": 3.101181028300686e-15,
+    "d_mirror_pairing_residual": 0.0,
+    "e_re_collapse_negative_control": {
+      "deDonder_residual": 2.3524062850590437,
+      "min_required": 0.1,
+      "momentum_current_annihilated": 0.0,
+      "note": "负控有牙判据:Re(hbar_+) 塌缩必须湮灭动量流(==0)且击穿 deDonder(>=0.1;冻结 E2-1 实测 2.328)——镜像 sector 承重,h̄0i 语义由镜像 sector 保持"
+    },
+    "protocol": "(a) BZ 16^3 x v 格点 {0,0.05,0.15,0.25}(审定 R3 口径);(b) S2(b) 冻结协议 200 随机 k;(c) cert_E2_1(a) 冻结模式名单 N=12;(d) cert_E2_2(b) 冻结步配对 N=8/T=8,v 取预注册区间内点 0.15;判据核全部只读 import",
+    "seconds": 2.6904077529907227,
+    "pass": true
+  },
+  "preflight_iv_negative_controls": {
+    "row5_frozen_walk": {
+      "name": "冻结走行族 (逐位:N_prop=[4,4,5,5]+walk 因子;不变量:j_hand_inv/主角谱基稳健;legacy 逐模统计降级诊断)",
+      "remeasured": {
+        "N_prop": [
+          4,
+          4,
+          5,
+          5
+        ],
+        "walk_factor_max_diff": 0.0,
+        "j_hand_invariant": {
+          "(2, 0, 0)": 2,
+          "(2, 2, 0)": 3,
+          "(2, 2, 2)": 3
+        },
+        "epsilon_dof_min_max_invariant": [
+          0.25,
+          0.5
+        ],
+        "epsilon_basis_stable": true,
+        "bplus_invariants_per_k": {
+          "(2, 0, 0)": {
+            "sin_theta": [
+              1.483592152343572e-16,
+              3.5517722358597116e-16,
+              0.030314705997083996,
+              0.1007472610694291,
+              0.2453781944566644,
+              0.9999999999999999
+            ],
+            "max_sin_theta": 0.9999999999999999,
+            "frob_leak": 1.03502630417178,
+            "rms_sin": 0.4225477192632595,
+            "n_ge_thresh": 3,
+            "basis_drift": 5.551115123125783e-16
+          },
+          "(0, 3, 0)": {
+            "sin_theta": [
+              5.905500959765026e-17,
+              1.0086696180792056e-16,
+              0.06906731058930957,
+              0.15780243202696534,
+              0.3797885557640386,
+              0.9999999999999997
+            ],
+            "max_sin_theta": 0.9999999999999997,
+            "frob_leak": 1.083471849212059,
+            "rms_sin": 0.44232553020654347,
+            "n_ge_thresh": 4,
+            "basis_drift": 3.858025010572419e-15
+          },
+          "(2, 2, 0)": {
+            "sin_theta": [
+              1.5524024562014758e-16,
+              3.2778325344392284e-16,
+              0.002549841768045754,
+              0.14481530163410886,
+              0.18349673530665114,
+              0.19483381682198517
+            ],
+            "max_sin_theta": 0.19483381682198517,
+            "frob_leak": 0.3043176651560702,
+            "rms_sin": 0.12423716655791997,
+            "n_ge_thresh": 3,
+            "basis_drift": 3.3306690738754696e-16
+          },
+          "(2, 2, 2)": {
+            "sin_theta": [
+              1.5868477504746648e-16,
+              2.3608907645305933e-16,
+              0.002390052409559047,
+              0.0969984239821988,
+              0.11383536746939489,
+              0.14934475208408232
+            ],
+            "max_sin_theta": 0.14934475208408232,
+            "frob_leak": 0.21136875944069647,
+            "rms_sin": 0.08629093469913185,
+            "n_ge_thresh": 3,
+            "basis_drift": 2.498001805406602e-16
+          }
+        },
+        "basis_drift_max": 3.858025010572419e-15
+      },
+      "frozen": {
+        "N_prop": [
+          4,
+          4,
+          5,
+          5
+        ],
+        "walk_factor_max_diff": 0.0,
+        "source": "r32/rc3ii/r36 results.json(逐位档比对);不变量档无先行冻结记录,本 JSON 即宿主参考值"
+      },
+      "legacy_diagnostics_basis_dependent": {
+        "note": "非判据(复核 §三:逐模统计随 LAPACK 基漂移);as-recorded 环境绑定诊断",
+        "leak_resid_mean": [
+          0.4802421439036733,
+          0.5077026859278009,
+          0.3581360335616605,
+          0.36748322106390857
+        ],
+        "leak_resid_mean_frozen": [
+          0.4687231817295054,
+          0.4845856775574397,
+          0.3408081533099882,
+          0.38943581051829784
+        ],
+        "leak_diff_vs_r32": 0.02311700837036118,
+        "curv_sv_diff_vs_r32": 0.300574544756234,
+        "j_hand_greedy": {
+          "(2, 0, 0)": 4,
+          "(2, 2, 0)": 4,
+          "(2, 2, 2)": 2
+        },
+        "j_hand_greedy_frozen_rc3ii": {
+          "(2, 0, 0)": 4,
+          "(2, 2, 0)": 3,
+          "(2, 2, 2)": 3
+        },
+        "j_greedy_matches_frozen": false,
+        "epsilon_anchor_legacy_D1": [
+          0.0,
+          0.25
+        ]
+      },
+      "tol": 1e-13,
+      "invariant_drift_tol": 1e-12,
+      "max_abs_diff": 0.0,
+      "basis_robustness_check": {
+        "seeds": [
+          0,
+          1,
+          2
+        ],
+        "max_drift": 3.858025010572419e-15,
+        "pass": true
+      },
+      "environment": {
+        "numpy_version": "2.2.6",
+        "blas": "scipy-openblas",
+        "lapack": "scipy-openblas",
+        "threadpoolctl": "threadpoolctl unavailable",
+        "python": "3.10.12",
+        "platform": "Linux-6.8.0-124-generic-aarch64-with-glibc2.35",
+        "machine": "aarch64",
+        "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+      },
+      "cross_environment_status": "待沙盒确认:整改后判据要求宿主+沙盒双环境不变量 diff <= 1e-12;沙盒双跑由车道A 复核时执行(本 JSON 为宿主参考值)",
+      "pass": true
+    },
+    "row4_teeth": {
+      "name": "teeth 裸波负控 (N_prop=6 精确)",
+      "remeasured": {
+        "n_prop_all": [
+          6,
+          6,
+          6,
+          6
+        ]
+      },
+      "frozen": {
+        "n_prop_all": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "source": "r25_emergence_timeseries_results.json teeth_bare_wave"
+      },
+      "tol": "exact",
+      "max_abs_diff": 0,
+      "pass": true
+    },
+    "seconds": 2.5905144214630127,
+    "pass": true
+  },
+  "preflight_pass": true,
+  "verdict": "预飞 PASS(宿主):(i) R30 几何锚行 1 复跑 + Bianchi 恒等式复证全 <=1e-12;(ii) M1' 产物锚 hash 链齐 + 判据字段对拍 <=1e-12(D2 硬门满足);(iii) 耦合层符号证书四项落位(源相容/静态逐位/E2 oracle/镜像配对)+ Re-collapse 负控有牙;(iv) 冻结走行族与 teeth 负控按冻结值落位。构造冻结(v2m2_candidate)解锁;本轮零主跑零炮组(轮 1 纪律);沙盒双跑位留待车道A。无任何涌现主张;eps_geo=0 为候选定义属性。",
+  "source_sha256": "7b2758cdfc22ab922f6d8128b745635e4a642b3f011f8a7c1e193c04e56ae839",
+  "total_seconds": 7.506952524185181,
+  "results_sha256": "111cccd5e4ffda14828ad5d6731c92ad96f0d589f571e09438cdb388d211960e"
+}

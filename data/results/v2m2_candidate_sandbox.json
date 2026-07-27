@@ -1,0 +1,1075 @@
+{
+  "register": "v2m2-candidate (M2' 候选构造件;任务书 §2/§2.4;lane B 轮 1)",
+  "status": "DONE",
+  "backend": "numpy (fp64)",
+  "authority": [
+    "docsv2/v2-任务书-M2-自旋2耦合闭环.md §1/§2/§3/§9",
+    "docsv2/v2-审定-M2任务书-2026-07-27.md(R1-R6)",
+    "docsv2/v2-纲领-北极星-涌现边界制图.md §四补条"
+  ],
+  "environment": {
+    "numpy_version": "2.2.6",
+    "blas": "scipy-openblas",
+    "lapack": "scipy-openblas",
+    "threadpoolctl": "threadpoolctl unavailable",
+    "python": "3.10.12",
+    "platform": "Linux-6.8.0-124-generic-aarch64-with-glibc2.35",
+    "machine": "aarch64",
+    "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
+  },
+  "tol": {
+    "judge": 1e-12,
+    "oracle_e2": 1e-11,
+    "bianchi_realspace": 1e-10,
+    "spec_union": 1e-10,
+    "re_collapse_teeth_min": 0.1,
+    "seed_unitary": 20260727,
+    "seed_static": 250725
+  },
+  "started_utc": "2026-07-27T13:33:59.299336+00:00",
+  "wording_redline": "本件无任何涌现主张;'自旋 2 涌现'为禁句(几何扇区 eps=0,涌现主语不成立);v1 封存主句原样不动;构造冻结 != 闭环;eps 实测在主跑轮 2(红线 5/10/11)",
+  "sealed_v1_boundary": "v1 封存主句 -- '纲领四承诺全要时,自旋 2 的 M3 结构性不可达,死于极化计数与稳定性死锁' -- 原样不动;本候选是封存文档 §八 选项 A(RC3-(ii) R2 落点)的正面化:手搭正确几何 + 涌现物质耦合,eps 轴 eps_geo=0 端的耦合闭环点,非任何位移",
+  "hash_verification": {
+    "m2_pinned": {
+      "pass": true,
+      "checked": {
+        "rulespace_v2/invariants.py": {
+          "sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "expected": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "match": true
+        },
+        "rulespace_v2/sigma.py": {
+          "sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "expected": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "match": true
+        },
+        "rulespace_v2/epsilon.py": {
+          "sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "expected": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "match": true
+        },
+        "rulespace_v2/controls.py": {
+          "sha256": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "expected": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "match": true
+        },
+        "rulespace_v2/gates.py": {
+          "sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "expected": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "match": true
+        },
+        "rulespace_v2/candidate.py": {
+          "sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "expected": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "match": true
+        },
+        "rulespace_v2/frozen.py": {
+          "sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "expected": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "match": true
+        },
+        "rulespace_v2/spin1.py": {
+          "sha256": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+          "expected": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+          "match": true
+        },
+        "data/results/v2m1_candidate.json": {
+          "sha256": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+          "expected": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+          "match": true
+        },
+        "data/results/v2m1_maxwell_loop_r3.json": {
+          "sha256": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+          "expected": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+          "match": true
+        },
+        "data/results/v2m1_guns_r2.json": {
+          "sha256": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+          "expected": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+          "match": true
+        },
+        "experiments/r25_moving_source_symbol.py": {
+          "sha256": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+          "expected": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+          "match": true
+        },
+        "experiments/r25_moving_source_realspace.py": {
+          "sha256": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+          "expected": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+          "match": true
+        },
+        "experiments/r25_static_newton.py": {
+          "sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "expected": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "match": true
+        },
+        "experiments/r25_eddington.py": {
+          "sha256": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+          "expected": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+          "match": true
+        },
+        "experiments/r26_hyperbolic_constraint.py": {
+          "sha256": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+          "expected": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+          "match": true
+        },
+        "experiments/r10_current_generator.py": {
+          "sha256": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "expected": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "match": true
+        }
+      }
+    },
+    "m0_registry_pass": true
+  },
+  "preflight_precondition": {
+    "file": "data/results/v2m2_preflight.json",
+    "sha256_at_read": "f6434594cb31163f8572878fa8abebe64f6e869277d240f76fc6e1541906fcaf",
+    "preflight_pass": true
+  },
+  "CERT_A_geometry_base": {
+    "yee_certificates": {
+      "max_abs_eig_minus_1": 2.220446049250313e-16,
+      "max_det_minus_1": 2.220446049250313e-16,
+      "max_symplectic_defect": 2.220446049250313e-16,
+      "max_freq_minus_shell": 2.220446049250313e-16,
+      "cfl_ok": true
+    },
+    "bianchi_identities": {
+      "n_k_on_shell": 342,
+      "div_inc_contracted_Bianchi_kappaG": 5.617047174252467e-15,
+      "div_inc_full_second_Bianchi": 4.378051803668557e-15,
+      "inc_D_riemann_of_gauge": 2.6645352591003757e-15,
+      "maxwell_divcurl_baseline": 1.302414952438327e-15,
+      "div_inc_realspace_operator_identity": 5.566705740848049e-16
+    },
+    "dt_equals_c": 0.5000000000000001,
+    "theta_g": 1.0471975511965976,
+    "epsilon_geo_declaration": "eps_geo = 0:几何扇区全部传播-曲率 DOF 手搭(hand_built=all),零涌现,如实记账(任务书 §1.1);主跑 j_inv 实测落位",
+    "seconds": 1.3239750862121582,
+    "pass": true
+  },
+  "CERT_B_matter_sector": {
+    "rc1a_faithfulness": {
+      "walk_symbol_max_diff": 0.0,
+      "K_state_max_diff": 0.0,
+      "damped_map_max_diff": 0.0,
+      "PASS": true
+    },
+    "walk_unitarity_max_dev": 1.776359649547145e-15,
+    "su2_identity_a2_plus_bb_minus_1": 1.559754469311548e-15,
+    "n_randk": 300,
+    "matter_n_prop_per_judge_k": {
+      "(2, 0, 0)": 2,
+      "(0, 2, 0)": 2,
+      "(0, 0, 2)": 2,
+      "(2, 2, 0)": 2,
+      "(3, 1, 0)": 2,
+      "(2, 2, 2)": 2,
+      "(8, 0, 0)": 2
+    },
+    "j5_cocone_across_theta": [
+      {
+        "theta": 0.4,
+        "c": 0.9210609940028851,
+        "n_k": 6,
+        "max_abs_w_leapfrog_minus_walkshell": 1.1102230246251565e-16
+      },
+      {
+        "theta": 1.0471975511965976,
+        "c": 0.5000000000000001,
+        "n_k": 6,
+        "max_abs_w_leapfrog_minus_walkshell": 3.0531133177191805e-16
+      },
+      {
+        "theta": 1.0,
+        "c": 0.5403023058681398,
+        "n_k": 6,
+        "max_abs_w_leapfrog_minus_walkshell": 1.3877787807814457e-16
+      },
+      {
+        "theta": 1.2,
+        "c": 0.3623577544766736,
+        "n_k": 6,
+        "max_abs_w_leapfrog_minus_walkshell": 3.3306690738754696e-16
+      }
+    ],
+    "j5_worst": 3.3306690738754696e-16,
+    "theta_m_equals_theta_g": {
+      "theta": 1.0471975511965976,
+      "in_j5_line": true
+    },
+    "carrier_decision": "D-M2-1 已裁(审定 R4):基线物质载体 = v1 冻结走行物质半(I 类资产,证书链最全);其他局域酉 Dirac 载体归 M3' 族参数,不进 M2'",
+    "seconds": 0.0429995059967041,
+    "pass": true
+  },
+  "CERT_C_coupling_block_triangular": {
+    "structure": "一步耦合符号 A(k, z_v) = [[M_geo(20x20, kron(I10, leap_M)), B(源注入 pi 行)], [0, z_v]] -- 严格上三角,单向按构造(几何 -> 物质回授不存在,基线);测试场 Eddington 读数在 h 背景上(置零 h_ij 反事实),不进演化",
+    "lower_left_block_max": 0.0,
+    "spectrum_union_dev_max": 4.002966042486721e-16,
+    "spectrum_statement": "spec(A) = spec(M_geo) ∪ {z_v};几何谱严格单位圆(酉),z_v 单位圆;共振间隙严格正 => A 可对角化,响应有界(S3 resolvent 血统),无新增长模",
+    "resonance_gap_min_over_BZ_and_v": 0.09718797623025359,
+    "min_phase_speed_lattice": 0.3333333333333334,
+    "source_compat_kappa_eta_hbar_max": 1.2773518913946844e-15,
+    "static_z1_bitwise_vs_static_newton": 5.373904263009267e-14,
+    "e2_mirror_oracle_dev": 3.101181028300686e-15,
+    "re_collapse_negative_control": {
+      "deDonder_residual": 2.3524062850590437,
+      "momentum_current_annihilated": 0.0,
+      "min_required": 0.1
+    },
+    "eta_baseline": 1.0,
+    "two_way_probe_policy": "双向反作用仅记名探测项(审定 R4):预算 <= 单轮计算时间 10%、哨兵必备(D-M2-5 定量线)、任何不稳即停,结果只入册不进判定;基线全绿前不试跑 -- 本轮不含任何双向内容",
+    "seconds": 0.6189689636230469,
+    "pass": true
+  },
+  "CERT_D_no_cherenkov": {
+    "v_over_c_max": 0.5,
+    "v_lattice_max": 0.25,
+    "c_cone": 0.5000000000000001,
+    "v_lattice_set": [
+      0.05,
+      0.15,
+      0.25
+    ],
+    "min_phase_speed": 0.3333333333333334,
+    "gap_min": 0.09718797623025359,
+    "cone_separation_ratio": 2.0000000000000004,
+    "phase_speed_separation_ratio": 1.3333333333333337,
+    "declaration": "无 Cherenkov 相配:源速上限 v/c <= 0.5(即格点单位 v <= 0.25,c = cos theta_g = 0.5,审定 R3 钉死)。亚声速论证三项:(a) 对几何锥速分离 2.00x;(b) 几何带格点最坏相速 min_k w(k)/|k| = 0.3333 > v_max = 0.25(分离比 1.333,明示分离论证,§四补条允许形式);(c) 相位匹配间隙 min|z_v - e^{±i w}| = 0.0972 > 0 严格(全 BZ 16^3 x 预注册 v 集)=> 不存在 w(k) = v.k 的相位匹配增长通道;受迫响应有界于线性包络(稳态辐射 + 传播,G7 哨兵语言)。",
+    "pass": true
+  },
+  "CERT_E_trace_row_detection": {
+    "rule": "trace_row_processing_present := 候选在演化期对演化态执行任何迹行读取/回馈处理(v1 CP1v4-L3 走行约束装配层 T 行语义)。检测三证据(全部数值/结构,本件 CERT-E):(1) 几何步与迹投影算子严格对易(component-diagonal 标量 leapfrog,对易子 == 0 位级);(2) 单向结构:耦合一步符号严格上三角,几何态不回读(下左块恒 0)=> 演化期不存在对几何态迹的任何处理;(3) 源构造使用 eta-迹反转(trace-reversed T̄,R16 约定)-- 静态源侧映射,与 v1 走行装配层 T 行不同物(任务书 §3 G5 血统注),如实申报不计入本字段。",
+    "evidence": {
+      "1_geometry_step_trace_commutator_bitwise": 0.0,
+      "2_one_way_no_state_readback": "耦合一步符号严格上三角(CERT-C 下左块 == 0)=> 演化期几何态(含其迹行)不被读取/回馈",
+      "3_source_side_trace_reversal_declared": "源构造使用 eta-迹反转(trace-reversed T̄,R16 约定,de Donder 相容源形式)-- 静态源侧映射,非演化期迹行处理;与 v1 走行装配层 T 行不同物(任务书 §3 G5 血统注:凡涉迹处理,oracle 新主语重推,不抄 v1 数字)"
+    },
+    "trace_row_processing_present": false,
+    "auto_adjudication": {
+      "condition_for_guns_header": "自动裁定条件(签发进 v2m2_guns.py 头,同滞后阻尼炮先例):若 trace_row_processing_present == true,或耦合层任何实现变更引入演化期迹行处理,则 C5(v1) T 行三元组(仅W/仅A/W+A)自动升格为主炮(预飞先行);若为 false,三元组记名退役,仅当变体引入迹行处理时强制复活。",
+      "verdict_now": "C5(v1) T 行三元组:记名退役(字段 false);变体引入迹行处理即强制复活升主炮"
+    },
+    "seconds": 0.00029087066650390625,
+    "pass": true
+  },
+  "CERT_F_rho_calibration": {
+    "protocol": {
+      "machine": "冻结 R26 清除机:r36_r3_verification.hyper_step(双曲输运,kappa_work 阻尼)+ tensor_coin_feedback._sponge_field(L4 sponge)-- 全部只读 import,判据核零重写",
+      "kappa_work_rule": "r36.recompute_kappa_window(c=0.5) 冻结规则 win_max/25",
+      "layer_rule": "DeltaT_L = round(L/c) = 2L(R26 清除时标 ~L/c, k-无关)",
+      "lattice_scaling": "sponge 宽 w_sp = max(3, round(10*L/44)),sp_max = 0.30;pad = max(2, round(12*L/44));包络 sigma = 6*L/44;k = 2*pi*n_L/L,n_L = round(n16*L/16);全部与 r36 part_C(NA=44)等比",
+      "observable": "rho_L,k = bulk_AC(DeltaT)/bulk_AC(0),bulk = pad 内 |z| 总量,AC = 去 DC(R26/A2 受保护守恒零模按正控记账,r36 冻结口径);floor_L,k = bulk_AC(3*DeltaT)/bulk_AC(0) 入册为 b_layer 预期量级参考",
+      "prediction_rule": "rho_pred 逐 L = max_k rho_L,k(本件冻结);全局 rho_pred_max <= 0.67 必须成立(R1:对 1 分离 >= 1.5x),否则 HALT 重设计;主跑 G6(a) 以同一协议同一方向集实测,逐 L 落 rho_pred_L ±30% 方计 PASS",
+      "b_layer": "预期量级 = 机器底(r36 part_C 血统:T→inf retained clearable AC <= 2.33e-15);线 = 1e-12(相对);主跑长段末端读取"
+    },
+    "kappa_window": {
+      "window": [
+        0.0,
+        0.5
+      ],
+      "kappa_work_rule": "win_max/25",
+      "kappa_work": 0.02
+    },
+    "rho_per_L_per_k": {
+      "16": {
+        "(2, 0, 0)": 0.09967797328075316,
+        "(0, 3, 0)": 0.08934590876993867,
+        "(2, 2, 0)": 0.06530497948615084,
+        "(2, 2, 2)": 0.04097024954116829
+      },
+      "24": {
+        "(2, 0, 0)": 0.0640475202142469,
+        "(0, 3, 0)": 0.06058484897216728,
+        "(2, 2, 0)": 0.018544345882314715,
+        "(2, 2, 2)": 0.004773172276231073
+      },
+      "32": {
+        "(2, 0, 0)": 0.04733242730557946,
+        "(0, 3, 0)": 0.03117351329621489,
+        "(2, 2, 0)": 0.00476163145955682,
+        "(2, 2, 2)": 0.0005811414652400026
+      },
+      "48": {
+        "(2, 0, 0)": 0.01471516200320156,
+        "(0, 3, 0)": 0.010602831502696747,
+        "(2, 2, 0)": 0.00025995969335434766,
+        "(2, 2, 2)": 2.8727957288122654e-05
+      }
+    },
+    "rho_pred_per_L": {
+      "16": 0.09967797328075316,
+      "24": 0.0640475202142469,
+      "32": 0.04733242730557946,
+      "48": 0.01471516200320156
+    },
+    "rho_pred_max": 0.09967797328075316,
+    "rho_window_rel": 0.3,
+    "rho_max_allowed": 0.67,
+    "separation_vs_1": 10.032306708157058,
+    "floor_3dT_per_L_per_k": {
+      "16": {
+        "(2, 0, 0)": 0.001394476146637913,
+        "(0, 3, 0)": 0.0029036773031236897,
+        "(2, 2, 0)": 0.001235338901818716,
+        "(2, 2, 2)": 0.0010586017400408842
+      },
+      "24": {
+        "(2, 0, 0)": 0.0007502915527283441,
+        "(0, 3, 0)": 0.0005107427708765526,
+        "(2, 2, 0)": 0.0002496419008097774,
+        "(2, 2, 2)": 8.286537159916885e-05
+      },
+      "32": {
+        "(2, 0, 0)": 0.00023299235671045662,
+        "(0, 3, 0)": 6.189055937008789e-05,
+        "(2, 2, 0)": 2.706730019908956e-05,
+        "(2, 2, 2)": 3.3294653627655793e-06
+      },
+      "48": {
+        "(2, 0, 0)": 5.819859273874521e-06,
+        "(0, 3, 0)": 1.03781725145776e-06,
+        "(2, 2, 0)": 1.9831949444204575e-07,
+        "(2, 2, 2)": 1.6208245164924198e-08
+      }
+    },
+    "b_layer_prediction": "预期量级 = 机器底(r36 part_C 血统:T→inf retained clearable AC <= 2.33e-15);线 = 1e-12(相对);主跑长段末端读取",
+    "derivation": "推导:约束违反以共享锥速 c 双曲输运至 L4 sponge 吸收(R26 四证书;R36 part_C 复认证 tau_clear ∈ [39,62] @ NA=44 < DeltaT = 2*NA/2 = NA/c,k-无关 1.59x);层长取 DeltaT_L = round(L/c) = 2L 一个满穿越 => 单层保留分数 rho_L 远小于 1;本件按 L 等比协议直接标定逐 L 数值并冻结为预言;主跑 G6(a) 同协议实测,落 ±30% 方计 PASS(R1)",
+    "seconds": 1.9808180332183838,
+    "pass": true
+  },
+  "epsilon_sector_accounting": {
+    "convention": "D1 口径 + M0' j_inv 不变量整改口径;报告一律 (eps_geo, eps_mat) 二元组,禁单一混合 eps(红线 11)",
+    "eps_geo": {
+      "declared": 0.0,
+      "mode": "定义属性(hand_built=all,几何扇区全部传播-曲率 DOF 手搭)",
+      "main_run_measurement": "主跑轮 2:j_inv = N_curv 整数逐位实测(宿主+沙盒),不引 R30 锚点定义值代填(红线 5)"
+    },
+    "eps_mat": {
+      "target": 1.0,
+      "preflight_small_grid": {
+        "matter_n_prop_measured": {
+          "(2, 0, 0)": 2,
+          "(0, 2, 0)": 2,
+          "(0, 0, 2)": 2,
+          "(2, 2, 0)": 2,
+          "(3, 1, 0)": 2,
+          "(2, 2, 2)": 2,
+          "(8, 0, 0)": 2
+        },
+        "hand_built_matter_dof_inventory": [],
+        "coupling_column_into_matter_block": 0.0,
+        "j_inv_mat_preflight": 0,
+        "eps_mat_preflight": 1.0,
+        "note": "预飞级:物质传播支恰 2(判据 k 逐点 |lam|=1 整数计数)+ 手搭清单空 + 上三角结构不向物质块注入 => j_inv_mat = 0;非主跑实测"
+      },
+      "main_run_measurement": "主跑轮 2:数据 SVD 主谱线振幅空间对物质扇区的 j_inv 全 L 全判据 k 实测(整数、双环境逐位);测不到 1 = 重大结果如实报"
+    }
+  },
+  "margin_declarations": {
+    "rules": {
+      "single_sided_min_factor": 1.5,
+      "band_spread_operationalized": "预期散布 <= 半带宽 x 0.1('<<' 的写死口径)",
+      "zero_margin_action": "HALT 重设计(M1' P0(a) 先例;北极星 §四补条边界骑线禁令)"
+    },
+    "table": [
+      {
+        "gate": "M2-G1",
+        "criterion": "N_prop(k;L) == 2 逐 L 全判据 k(体对角必含)",
+        "type": "integer",
+        "expected": "[2,2,2,2] 全 k 稳定",
+        "threshold": "整数逐位(散布 0)",
+        "margin_factor": "exact",
+        "basis": "r30_results.json decisive_run n_prop_seq(冻结)+ 预飞 (i) 复跑"
+      },
+      {
+        "gate": "M2-G1",
+        "criterion": "svn 断崖 sv3/sv1(计数阈之下)",
+        "type": "single-sided",
+        "expected": 1.7e-15,
+        "threshold": 0.05,
+        "margin_factor": 29411764705882.355,
+        "basis": "r30 冻结 sv 列 max sv3 = 1.64e-15;阈 = SV_THRESH 0.05(共享判据)"
+      },
+      {
+        "gate": "M2-G1",
+        "criterion": "J5 共锥 |w_geo - w_shell| 全 theta 线",
+        "type": "single-sided",
+        "expected": 3.1e-16,
+        "threshold": 1e-06,
+        "margin_factor": 3225806451.612903,
+        "basis": "rc3ii j5_cocone 冻结 worst 3.05e-16;r30 freq-shell 2.22e-16"
+      },
+      {
+        "gate": "M2-G2",
+        "criterion": "静源 h00/phi",
+        "type": "band",
+        "expected_value": 2.0000015,
+        "expected_spread": 1.6e-06,
+        "band_center": 2.0,
+        "half_band": 0.02,
+        "spread_over_halfband": 7.999999999999999e-05,
+        "basis": "v1 tensor_qca 冻结 judge_fact2 h00_over_phi = 2.0000015373975284;p 预注册 = 2.0(本件 [2])"
+      },
+      {
+        "gate": "M2-G3",
+        "criterion": "偏折比(置零 h_ij 反事实)",
+        "type": "band",
+        "expected_value": 1.9999866,
+        "expected_spread": 1.4e-05,
+        "band_center": 2.0,
+        "half_band": 0.02,
+        "spread_over_halfband": 0.0007,
+        "basis": "v1 tensor_qca 冻结 judge3 evolved_field_ratio = 1.999986572093466;p 预注册 = 2.0(本件 [2])"
+      },
+      {
+        "gate": "M2-G4",
+        "criterion": "锥外分量(严格局域公理哨兵)",
+        "type": "single-sided",
+        "expected": 1e-15,
+        "threshold": 1e-12,
+        "margin_factor": 999.9999999999999,
+        "basis": "整数 roll 支撑半径 1 结构 + M1' 动源段锥外实测位级零(先例);预期报位级零,声明 1e-15 为保守上界"
+      },
+      {
+        "gate": "M2-G4",
+        "criterion": "h̄0i 对符号层 oracle",
+        "type": "single-sided",
+        "expected": 2.9e-15,
+        "threshold": 1e-11,
+        "margin_factor": 3448.275862068965,
+        "basis": "E2-1 冻结 2.59e-15;本件预飞 (iii) 实测 2.9e-15"
+      },
+      {
+        "gate": "M2-G4",
+        "criterion": "源处 de Donder 残差",
+        "type": "single-sided",
+        "expected": 1.5e-15,
+        "threshold": 1e-10,
+        "margin_factor": 66666.66666666667,
+        "basis": "S2 冻结 1.40e-15;本件预飞 (iii) kappa.eta.hbar 实测 1.3e-15"
+      },
+      {
+        "gate": "M2-G5",
+        "criterion": "T̄ 行守恒残差 kappa^m T̄_mn",
+        "type": "single-sided",
+        "expected": 1.5e-15,
+        "threshold": 1e-12,
+        "margin_factor": 666.6666666666667,
+        "basis": "kappa.eta.hbar == 0 为多项式恒等式(S2/本件 CERT-C 机器实测 ~1.4e-15);新主语 oracle 本件重推,不抄 v1 数字(G5 血统注)"
+      },
+      {
+        "gate": "M2-G5",
+        "criterion": "无源段离散能量 H 相对漂移",
+        "type": "single-sided",
+        "expected": 1e-14,
+        "threshold": 1e-12,
+        "margin_factor": 100.0,
+        "basis": "辛 leapfrog 无长期漂移:件10 Yee 能量漂移实测 2.97e-16;R30 |eig|-1 = 2.22e-16;声明 1e-14 为保守上界"
+      },
+      {
+        "gate": "M2-G6",
+        "criterion": "单层压缩 rho < 1(R1 预言先行)",
+        "type": "single-sided",
+        "expected": 0.09967797328075316,
+        "threshold": 1.0,
+        "margin_factor": 10.032306708157058,
+        "window_rule": "主跑实测 rho 逐 L 落 rho_pred_L ±30% 方计 PASS",
+        "basis": "本件 CERT-F 冻结 R26 机按 L 等比标定(协议 RHO_PROTOCOL)"
+      },
+      {
+        "gate": "M2-G6",
+        "criterion": "b_layer(相对)",
+        "type": "single-sided",
+        "expected": 2.4e-15,
+        "threshold": 1e-12,
+        "margin_factor": 416.6666666666667,
+        "basis": "r36 part_C 冻结 retained clearable AC <= 2.33e-15(机器底血统)"
+      },
+      {
+        "gate": "M2-G6",
+        "criterion": "sigma 外壳 A=0 分支:无源段 resid",
+        "type": "single-sided",
+        "expected": 1.4e-14,
+        "threshold": 1e-12,
+        "margin_factor": 71.42857142857143,
+        "basis": "r30 冻结 deDonder darkness max 1.33e-14(恒等式护约束);有源段非机器零则走 D3 两档预写分支(不降档通融)"
+      },
+      {
+        "gate": "M2-G7",
+        "criterion": "BZ 谱半径超增长",
+        "type": "single-sided",
+        "expected": 2.3e-16,
+        "threshold": 1e-09,
+        "margin_factor": 4347826.086956522,
+        "basis": "R30 严格酉 |eig|-1 = 2.22e-16(冻结);哨兵定量线 = 审定 R5 D-M2-5(基线段与门同线 1e-9)"
+      },
+      {
+        "gate": "M2-G7",
+        "criterion": "受迫共振哨兵(线性包络,审定 R3)",
+        "type": "structural-separation",
+        "expected": "有界稳态响应:共振间隙 min|z_v - e^{±i w_geo}| = 0.0972 严格正(全 BZ x v 集)",
+        "threshold": "超线性增长 = FAIL(哨兵)",
+        "margin_factor": "结构性(间隙严格正 => 无 Jordan 增长通道)",
+        "basis": "本件 CERT-C/D 数值 + S3 冻结 resolvent 间隙血统(no secular growth)"
+      },
+      {
+        "gate": "M2-G8",
+        "criterion": "eps 分扇区:j_inv_geo == N_curv 且 j_inv_mat == 0",
+        "type": "integer",
+        "expected": "(eps_geo, eps_mat) = (0, 1),整数逐位,双环境",
+        "threshold": "整数逐位(散布 0)",
+        "margin_factor": "exact",
+        "basis": "M0' j_inv 不变量口径(整数、基稳健);主跑实测,不引锚点定义值代填(红线 5);本件预飞级小格验证见 CERT-B/epsilon 节"
+      },
+      {
+        "gate": "CERT-D",
+        "criterion": "无 Cherenkov 相配(声明)",
+        "type": "structural-separation",
+        "expected": {
+          "v_over_c_max": 0.5,
+          "v_lattice_max": 0.25,
+          "cone_separation": 2.0000000000000004,
+          "min_phase_speed_lattice": 0.3333333333333334,
+          "phase_speed_separation": 1.3333333333333337,
+          "gap_min": 0.09718797623025359
+        },
+        "threshold": "间隙 > 0 严格(相位匹配通道不存在)",
+        "margin_factor": "分离论证(§四补条允许的明示分离形式)",
+        "basis": "审定 R3 原文口径;本件 CERT-D 数值"
+      }
+    ],
+    "scan": {
+      "pass": true,
+      "single_min_factor": 10.032306708157058,
+      "band_max_ratio": 0.0007
+    },
+    "note": "本表 = 交付物 3/4 脚本头 margin_declarations 的构造冻结版;v2m2_coupled_loop.py 与 v2m2_guns.py 脚本头须原样携带(guns 增列逐炮行)"
+  },
+  "D_M2_1": {
+    "decision": "R4-CONFIRMED",
+    "decision_record": "D-M2-1 已由车道A 审定 R4 裁定:基线物质载体 = v1 冻结走行物质半;单向 + 测试场基线批准;双向反作用仅记名探测(预算 <=10%、哨兵必备、不稳即停、只入册不进判定)。本件核验其前提成立:预飞 PASS + CERT-A..F 全过 + margin 全表无零裕度,故落 R4-CONFIRMED。"
+  },
+  "candidate_v2": {
+    "sector": "spin2",
+    "geometry": {
+      "family": "R30",
+      "params": {
+        "dt": 0.5000000000000001,
+        "theta_g": 1.0471975511965976,
+        "role": "几何扇区 = R30 手搭复形(eps_geo=0 定义属性);placed kappa 微积分 + leapfrog,ker K 按构造保持"
+      }
+    },
+    "coupling": {
+      "variant": "one_way_source_testfield",
+      "eta_baseline": 1.0,
+      "v_lattice_max": 0.25,
+      "v_lattice_set": [
+        0.05,
+        0.15,
+        0.25
+      ],
+      "matter": {
+        "carrier": "v1 冻结走行物质半(审定 R4)",
+        "symbol": "cp1_v4_L2.walk_symbol(theta_m=pi/3)",
+        "realspace": "r25_realspace_step step/step_minus",
+        "theta_m": 1.0471975511965976
+      },
+      "source_chain": [
+        "R10 精确键流(de Donder 相容按放置)",
+        "R25 source-lift 静态件 -> Newton 井",
+        "R25-E2 运动源镜像 sector(保 h̄0i;reality 生成镜像,非 Re(h̄+))"
+      ],
+      "clearance": "R26 双曲输运 + L4 sponge(C5 炮的靶机制)",
+      "readout": "测试场/零测地 Eddington 于 h 背景(置零 h_ij 反事实,同一次运行内)",
+      "two_way": "仅记名探测项,不进判定(审定 R4)"
+    },
+    "hand_built": {
+      "dof_indices": "all",
+      "scope_note": "hand_built 仅指几何扇区;物质扇区手搭清单空"
+    },
+    "lattice": {
+      "L": [
+        16,
+        24,
+        32,
+        48
+      ],
+      "judge_k_set": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ],
+        [
+          2,
+          2,
+          0
+        ],
+        [
+          3,
+          1,
+          0
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          8,
+          0,
+          0
+        ]
+      ],
+      "ray_directions": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ]
+    },
+    "backend": "numpy",
+    "frozen_refs": {
+      "rulespace_v2/invariants.py": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+      "rulespace_v2/sigma.py": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+      "rulespace_v2/epsilon.py": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+      "rulespace_v2/controls.py": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+      "rulespace_v2/gates.py": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+      "rulespace_v2/candidate.py": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+      "rulespace_v2/frozen.py": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+      "rulespace_v2/spin1.py": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+      "data/results/v2m1_candidate.json": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+      "data/results/v2m1_maxwell_loop_r3.json": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+      "data/results/v2m1_guns_r2.json": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+      "experiments/r25_moving_source_symbol.py": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+      "experiments/r25_moving_source_realspace.py": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+      "experiments/r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+      "experiments/r25_eddington.py": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+      "experiments/r26_hyperbolic_constraint.py": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+      "experiments/r10_current_generator.py": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd"
+    },
+    "cand_id": "v2m2_spin2_r30geo_walkmatter_sourcelink"
+  },
+  "construction_freeze": {
+    "construction_spec": {
+      "cand": {
+        "sector": "spin2",
+        "geometry": {
+          "family": "R30",
+          "params": {
+            "dt": 0.5000000000000001,
+            "theta_g": 1.0471975511965976,
+            "role": "几何扇区 = R30 手搭复形(eps_geo=0 定义属性);placed kappa 微积分 + leapfrog,ker K 按构造保持"
+          }
+        },
+        "coupling": {
+          "variant": "one_way_source_testfield",
+          "eta_baseline": 1.0,
+          "v_lattice_max": 0.25,
+          "v_lattice_set": [
+            0.05,
+            0.15,
+            0.25
+          ],
+          "matter": {
+            "carrier": "v1 冻结走行物质半(审定 R4)",
+            "symbol": "cp1_v4_L2.walk_symbol(theta_m=pi/3)",
+            "realspace": "r25_realspace_step step/step_minus",
+            "theta_m": 1.0471975511965976
+          },
+          "source_chain": [
+            "R10 精确键流(de Donder 相容按放置)",
+            "R25 source-lift 静态件 -> Newton 井",
+            "R25-E2 运动源镜像 sector(保 h̄0i;reality 生成镜像,非 Re(h̄+))"
+          ],
+          "clearance": "R26 双曲输运 + L4 sponge(C5 炮的靶机制)",
+          "readout": "测试场/零测地 Eddington 于 h 背景(置零 h_ij 反事实,同一次运行内)",
+          "two_way": "仅记名探测项,不进判定(审定 R4)"
+        },
+        "hand_built": {
+          "dof_indices": "all",
+          "scope_note": "hand_built 仅指几何扇区;物质扇区手搭清单空"
+        },
+        "lattice": {
+          "L": [
+            16,
+            24,
+            32,
+            48
+          ],
+          "judge_k_set": [
+            [
+              2,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              2
+            ],
+            [
+              2,
+              2,
+              0
+            ],
+            [
+              3,
+              1,
+              0
+            ],
+            [
+              2,
+              2,
+              2
+            ],
+            [
+              8,
+              0,
+              0
+            ]
+          ],
+          "ray_directions": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              1,
+              1,
+              0
+            ],
+            [
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        "backend": "numpy",
+        "frozen_refs": {
+          "rulespace_v2/invariants.py": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "rulespace_v2/sigma.py": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "rulespace_v2/epsilon.py": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "rulespace_v2/controls.py": "8785a70e5defe89399c1c39e3deae0042ab08a0aeb1cddf8af599aa4d69c2d1f",
+          "rulespace_v2/gates.py": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "rulespace_v2/candidate.py": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "rulespace_v2/frozen.py": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "rulespace_v2/spin1.py": "69317d39ce304740b4e096df63a85ccfd63beb2a3094038ba9ebd2d923b17384",
+          "data/results/v2m1_candidate.json": "4b6db37993ee69cc2e2a452888e510f8b8f1369001c85d03d5ef22e52efc3a31",
+          "data/results/v2m1_maxwell_loop_r3.json": "2cd50d89e5dee3407db911da1a462c14292049559bc2aaa968c04b45951ceb57",
+          "data/results/v2m1_guns_r2.json": "e8e9d80dbf77f6a39fc1bd3ca16ef027c6eb459455f6b550d7656cfb651d33ff",
+          "experiments/r25_moving_source_symbol.py": "babdf2c53a0cbfb4d7a2bf84fe94a298d59a16199d8e43730952f8f272c50118",
+          "experiments/r25_moving_source_realspace.py": "8023e3b0f106a87c65eab67ef632f3f705adb706646f9d1781e27e6b557eb498",
+          "experiments/r25_static_newton.py": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "experiments/r25_eddington.py": "3b391201c31c2ce5ced7c25abed9bc466fb3f8a2da2cb67710a13748bf9529f0",
+          "experiments/r26_hyperbolic_constraint.py": "f08dffd352243df4f37e784e130d7ac8213e1f0ac16e5fd6078a7ee39d0f6ec8",
+          "experiments/r10_current_generator.py": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd"
+        },
+        "cand_id": "v2m2_spin2_r30geo_walkmatter_sourcelink"
+      },
+      "three_piece_assembly": {
+        "geometry": "R30 复形(r30_tensor_complex_dynamical,只读)",
+        "matter": "v1 冻结走行物质半(cp1_v4_L2 / r25_realspace_step)",
+        "coupling": "源链(R10 + R25 static + R25-E2 镜像 sector),弱场单向"
+      },
+      "shared_theta": {
+        "theta_g": 1.0471975511965976,
+        "theta_m": 1.0471975511965976,
+        "dt_equals_c": 0.5000000000000001
+      },
+      "judge_k_rescale_rule": "n_L = round(n16 * L / 16),实采 k 入册",
+      "rho_prediction": {
+        "per_L": {
+          "16": 0.09967797328075316,
+          "24": 0.0640475202142469,
+          "32": 0.04733242730557946,
+          "48": 0.01471516200320156
+        },
+        "max": 0.09967797328075316,
+        "window_rel": 0.3,
+        "protocol": {
+          "machine": "冻结 R26 清除机:r36_r3_verification.hyper_step(双曲输运,kappa_work 阻尼)+ tensor_coin_feedback._sponge_field(L4 sponge)-- 全部只读 import,判据核零重写",
+          "kappa_work_rule": "r36.recompute_kappa_window(c=0.5) 冻结规则 win_max/25",
+          "layer_rule": "DeltaT_L = round(L/c) = 2L(R26 清除时标 ~L/c, k-无关)",
+          "lattice_scaling": "sponge 宽 w_sp = max(3, round(10*L/44)),sp_max = 0.30;pad = max(2, round(12*L/44));包络 sigma = 6*L/44;k = 2*pi*n_L/L,n_L = round(n16*L/16);全部与 r36 part_C(NA=44)等比",
+          "observable": "rho_L,k = bulk_AC(DeltaT)/bulk_AC(0),bulk = pad 内 |z| 总量,AC = 去 DC(R26/A2 受保护守恒零模按正控记账,r36 冻结口径);floor_L,k = bulk_AC(3*DeltaT)/bulk_AC(0) 入册为 b_layer 预期量级参考",
+          "prediction_rule": "rho_pred 逐 L = max_k rho_L,k(本件冻结);全局 rho_pred_max <= 0.67 必须成立(R1:对 1 分离 >= 1.5x),否则 HALT 重设计;主跑 G6(a) 以同一协议同一方向集实测,逐 L 落 rho_pred_L ±30% 方计 PASS",
+          "b_layer": "预期量级 = 机器底(r36 part_C 血统:T→inf retained clearable AC <= 2.33e-15);线 = 1e-12(相对);主跑长段末端读取"
+        }
+      },
+      "p_preregistration": {
+        "G2": 2.0,
+        "G3": 2.0,
+        "derivation": "placed 半角符号 kappa_i = 2 sin(k_i/2) = k_i + O(k_i^3)(奇函数,无二阶项)=> 连续极限符号误差 O(a^2);静源 Newton 井 h00/phi 与测试场偏折比的格点读数误差由该二阶符号误差主导 => 收敛阶 p = 2(G2 与 G3 同)。同阶差分家族先例:M1' 光速各向同性实测 p = 2.0019(v2-收口-M1)。主跑逐 L 序列以此 p 预注册拟合,不得运行后改 p。"
+      },
+      "no_cherenkov": {
+        "v_over_c_max": 0.5,
+        "v_lattice_max": 0.25,
+        "c_cone": 0.5000000000000001,
+        "v_lattice_set": [
+          0.05,
+          0.15,
+          0.25
+        ],
+        "min_phase_speed": 0.3333333333333334,
+        "gap_min": 0.09718797623025359,
+        "cone_separation_ratio": 2.0000000000000004,
+        "phase_speed_separation_ratio": 1.3333333333333337,
+        "declaration": "无 Cherenkov 相配:源速上限 v/c <= 0.5(即格点单位 v <= 0.25,c = cos theta_g = 0.5,审定 R3 钉死)。亚声速论证三项:(a) 对几何锥速分离 2.00x;(b) 几何带格点最坏相速 min_k w(k)/|k| = 0.3333 > v_max = 0.25(分离比 1.333,明示分离论证,§四补条允许形式);(c) 相位匹配间隙 min|z_v - e^{±i w}| = 0.0972 > 0 严格(全 BZ 16^3 x 预注册 v 集)=> 不存在 w(k) = v.k 的相位匹配增长通道;受迫响应有界于线性包络(稳态辐射 + 传播,G7 哨兵语言)。"
+      },
+      "trace_row_processing_present": false,
+      "trace_row_rule": "trace_row_processing_present := 候选在演化期对演化态执行任何迹行读取/回馈处理(v1 CP1v4-L3 走行约束装配层 T 行语义)。检测三证据(全部数值/结构,本件 CERT-E):(1) 几何步与迹投影算子严格对易(component-diagonal 标量 leapfrog,对易子 == 0 位级);(2) 单向结构:耦合一步符号严格上三角,几何态不回读(下左块恒 0)=> 演化期不存在对几何态迹的任何处理;(3) 源构造使用 eta-迹反转(trace-reversed T̄,R16 约定)-- 静态源侧映射,与 v1 走行装配层 T 行不同物(任务书 §3 G5 血统注),如实申报不计入本字段。",
+      "trace_row_auto_adjudication": "自动裁定条件(签发进 v2m2_guns.py 头,同滞后阻尼炮先例):若 trace_row_processing_present == true,或耦合层任何实现变更引入演化期迹行处理,则 C5(v1) T 行三元组(仅W/仅A/W+A)自动升格为主炮(预飞先行);若为 false,三元组记名退役,仅当变体引入迹行处理时强制复活。",
+      "margin_declarations": [
+        {
+          "gate": "M2-G1",
+          "criterion": "N_prop(k;L) == 2 逐 L 全判据 k(体对角必含)",
+          "type": "integer",
+          "expected": "[2,2,2,2] 全 k 稳定",
+          "threshold": "整数逐位(散布 0)",
+          "margin_factor": "exact",
+          "basis": "r30_results.json decisive_run n_prop_seq(冻结)+ 预飞 (i) 复跑"
+        },
+        {
+          "gate": "M2-G1",
+          "criterion": "svn 断崖 sv3/sv1(计数阈之下)",
+          "type": "single-sided",
+          "expected": 1.7e-15,
+          "threshold": 0.05,
+          "margin_factor": 29411764705882.355,
+          "basis": "r30 冻结 sv 列 max sv3 = 1.64e-15;阈 = SV_THRESH 0.05(共享判据)"
+        },
+        {
+          "gate": "M2-G1",
+          "criterion": "J5 共锥 |w_geo - w_shell| 全 theta 线",
+          "type": "single-sided",
+          "expected": 3.1e-16,
+          "threshold": 1e-06,
+          "margin_factor": 3225806451.612903,
+          "basis": "rc3ii j5_cocone 冻结 worst 3.05e-16;r30 freq-shell 2.22e-16"
+        },
+        {
+          "gate": "M2-G2",
+          "criterion": "静源 h00/phi",
+          "type": "band",
+          "expected_value": 2.0000015,
+          "expected_spread": 1.6e-06,
+          "band_center": 2.0,
+          "half_band": 0.02,
+          "spread_over_halfband": 7.999999999999999e-05,
+          "basis": "v1 tensor_qca 冻结 judge_fact2 h00_over_phi = 2.0000015373975284;p 预注册 = 2.0(本件 [2])"
+        },
+        {
+          "gate": "M2-G3",
+          "criterion": "偏折比(置零 h_ij 反事实)",
+          "type": "band",
+          "expected_value": 1.9999866,
+          "expected_spread": 1.4e-05,
+          "band_center": 2.0,
+          "half_band": 0.02,
+          "spread_over_halfband": 0.0007,
+          "basis": "v1 tensor_qca 冻结 judge3 evolved_field_ratio = 1.999986572093466;p 预注册 = 2.0(本件 [2])"
+        },
+        {
+          "gate": "M2-G4",
+          "criterion": "锥外分量(严格局域公理哨兵)",
+          "type": "single-sided",
+          "expected": 1e-15,
+          "threshold": 1e-12,
+          "margin_factor": 999.9999999999999,
+          "basis": "整数 roll 支撑半径 1 结构 + M1' 动源段锥外实测位级零(先例);预期报位级零,声明 1e-15 为保守上界"
+        },
+        {
+          "gate": "M2-G4",
+          "criterion": "h̄0i 对符号层 oracle",
+          "type": "single-sided",
+          "expected": 2.9e-15,
+          "threshold": 1e-11,
+          "margin_factor": 3448.275862068965,
+          "basis": "E2-1 冻结 2.59e-15;本件预飞 (iii) 实测 2.9e-15"
+        },
+        {
+          "gate": "M2-G4",
+          "criterion": "源处 de Donder 残差",
+          "type": "single-sided",
+          "expected": 1.5e-15,
+          "threshold": 1e-10,
+          "margin_factor": 66666.66666666667,
+          "basis": "S2 冻结 1.40e-15;本件预飞 (iii) kappa.eta.hbar 实测 1.3e-15"
+        },
+        {
+          "gate": "M2-G5",
+          "criterion": "T̄ 行守恒残差 kappa^m T̄_mn",
+          "type": "single-sided",
+          "expected": 1.5e-15,
+          "threshold": 1e-12,
+          "margin_factor": 666.6666666666667,
+          "basis": "kappa.eta.hbar == 0 为多项式恒等式(S2/本件 CERT-C 机器实测 ~1.4e-15);新主语 oracle 本件重推,不抄 v1 数字(G5 血统注)"
+        },
+        {
+          "gate": "M2-G5",
+          "criterion": "无源段离散能量 H 相对漂移",
+          "type": "single-sided",
+          "expected": 1e-14,
+          "threshold": 1e-12,
+          "margin_factor": 100.0,
+          "basis": "辛 leapfrog 无长期漂移:件10 Yee 能量漂移实测 2.97e-16;R30 |eig|-1 = 2.22e-16;声明 1e-14 为保守上界"
+        },
+        {
+          "gate": "M2-G6",
+          "criterion": "单层压缩 rho < 1(R1 预言先行)",
+          "type": "single-sided",
+          "expected": 0.09967797328075316,
+          "threshold": 1.0,
+          "margin_factor": 10.032306708157058,
+          "window_rule": "主跑实测 rho 逐 L 落 rho_pred_L ±30% 方计 PASS",
+          "basis": "本件 CERT-F 冻结 R26 机按 L 等比标定(协议 RHO_PROTOCOL)"
+        },
+        {
+          "gate": "M2-G6",
+          "criterion": "b_layer(相对)",
+          "type": "single-sided",
+          "expected": 2.4e-15,
+          "threshold": 1e-12,
+          "margin_factor": 416.6666666666667,
+          "basis": "r36 part_C 冻结 retained clearable AC <= 2.33e-15(机器底血统)"
+        },
+        {
+          "gate": "M2-G6",
+          "criterion": "sigma 外壳 A=0 分支:无源段 resid",
+          "type": "single-sided",
+          "expected": 1.4e-14,
+          "threshold": 1e-12,
+          "margin_factor": 71.42857142857143,
+          "basis": "r30 冻结 deDonder darkness max 1.33e-14(恒等式护约束);有源段非机器零则走 D3 两档预写分支(不降档通融)"
+        },
+        {
+          "gate": "M2-G7",
+          "criterion": "BZ 谱半径超增长",
+          "type": "single-sided",
+          "expected": 2.3e-16,
+          "threshold": 1e-09,
+          "margin_factor": 4347826.086956522,
+          "basis": "R30 严格酉 |eig|-1 = 2.22e-16(冻结);哨兵定量线 = 审定 R5 D-M2-5(基线段与门同线 1e-9)"
+        },
+        {
+          "gate": "M2-G7",
+          "criterion": "受迫共振哨兵(线性包络,审定 R3)",
+          "type": "structural-separation",
+          "expected": "有界稳态响应:共振间隙 min|z_v - e^{±i w_geo}| = 0.0972 严格正(全 BZ x v 集)",
+          "threshold": "超线性增长 = FAIL(哨兵)",
+          "margin_factor": "结构性(间隙严格正 => 无 Jordan 增长通道)",
+          "basis": "本件 CERT-C/D 数值 + S3 冻结 resolvent 间隙血统(no secular growth)"
+        },
+        {
+          "gate": "M2-G8",
+          "criterion": "eps 分扇区:j_inv_geo == N_curv 且 j_inv_mat == 0",
+          "type": "integer",
+          "expected": "(eps_geo, eps_mat) = (0, 1),整数逐位,双环境",
+          "threshold": "整数逐位(散布 0)",
+          "margin_factor": "exact",
+          "basis": "M0' j_inv 不变量口径(整数、基稳健);主跑实测,不引锚点定义值代填(红线 5);本件预飞级小格验证见 CERT-B/epsilon 节"
+        },
+        {
+          "gate": "CERT-D",
+          "criterion": "无 Cherenkov 相配(声明)",
+          "type": "structural-separation",
+          "expected": {
+            "v_over_c_max": 0.5,
+            "v_lattice_max": 0.25,
+            "cone_separation": 2.0000000000000004,
+            "min_phase_speed_lattice": 0.3333333333333334,
+            "phase_speed_separation": 1.3333333333333337,
+            "gap_min": 0.09718797623025359
+          },
+          "threshold": "间隙 > 0 严格(相位匹配通道不存在)",
+          "margin_factor": "分离论证(§四补条允许的明示分离形式)",
+          "basis": "审定 R3 原文口径;本件 CERT-D 数值"
+        }
+      ],
+      "g6_probe_protocol": {
+        "machine": "冻结 R26 清除机:r36_r3_verification.hyper_step(双曲输运,kappa_work 阻尼)+ tensor_coin_feedback._sponge_field(L4 sponge)-- 全部只读 import,判据核零重写",
+        "kappa_work_rule": "r36.recompute_kappa_window(c=0.5) 冻结规则 win_max/25",
+        "layer_rule": "DeltaT_L = round(L/c) = 2L(R26 清除时标 ~L/c, k-无关)",
+        "lattice_scaling": "sponge 宽 w_sp = max(3, round(10*L/44)),sp_max = 0.30;pad = max(2, round(12*L/44));包络 sigma = 6*L/44;k = 2*pi*n_L/L,n_L = round(n16*L/16);全部与 r36 part_C(NA=44)等比",
+        "observable": "rho_L,k = bulk_AC(DeltaT)/bulk_AC(0),bulk = pad 内 |z| 总量,AC = 去 DC(R26/A2 受保护守恒零模按正控记账,r36 冻结口径);floor_L,k = bulk_AC(3*DeltaT)/bulk_AC(0) 入册为 b_layer 预期量级参考",
+        "prediction_rule": "rho_pred 逐 L = max_k rho_L,k(本件冻结);全局 rho_pred_max <= 0.67 必须成立(R1:对 1 分离 >= 1.5x),否则 HALT 重设计;主跑 G6(a) 以同一协议同一方向集实测,逐 L 落 rho_pred_L ±30% 方计 PASS",
+        "b_layer": "预期量级 = 机器底(r36 part_C 血统:T→inf retained clearable AC <= 2.33e-15);线 = 1e-12(相对);主跑长段末端读取"
+      },
+      "seeds": {
+        "unitary": 20260727,
+        "static": 250725
+      },
+      "epsilon_accounting": {
+        "convention": "D1 口径 + M0' j_inv 不变量整改口径;报告一律 (eps_geo, eps_mat) 二元组,禁单一混合 eps(红线 11)",
+        "eps_geo": {
+          "declared": 0.0,
+          "mode": "定义属性(hand_built=all,几何扇区全部传播-曲率 DOF 手搭)",
+          "main_run_measurement": "主跑轮 2:j_inv = N_curv 整数逐位实测(宿主+沙盒),不引 R30 锚点定义值代填(红线 5)"
+        },
+        "eps_mat": {
+          "target": 1.0,
+          "preflight_small_grid": {
+            "matter_n_prop_measured": {
+              "(2, 0, 0)": 2,
+              "(0, 2, 0)": 2,
+              "(0, 0, 2)": 2,
+              "(2, 2, 0)": 2,
+              "(3, 1, 0)": 2,
+              "(2, 2, 2)": 2,
+              "(8, 0, 0)": 2
+            },
+            "hand_built_matter_dof_inventory": [],
+            "coupling_column_into_matter_block": 0.0,
+            "j_inv_mat_preflight": 0,
+            "eps_mat_preflight": 1.0,
+            "note": "预飞级:物质传播支恰 2(判据 k 逐点 |lam|=1 整数计数)+ 手搭清单空 + 上三角结构不向物质块注入 => j_inv_mat = 0;非主跑实测"
+          },
+          "main_run_measurement": "主跑轮 2:数据 SVD 主谱线振幅空间对物质扇区的 j_inv 全 L 全判据 k 实测(整数、双环境逐位);测不到 1 = 重大结果如实报"
+        }
+      }
+    },
+    "construction_sha256": "170497b2226a4193342146f8c7430ef731ba53f2ac96f65721230ebb1c98bc2e",
+    "frozen_before_main_run": true,
+    "prediction_timepoint": "构造冻结 = M2' 预言时点(审定 R6):rho 预言 + p 预注册 + margin 全表 + trace_row 字段四要素本件同批交付",
+    "note": "主跑(轮 2)唯一合法输入 = 本 construction_spec + 本脚本 source_sha256;构造冻结前禁开主跑已遵守(本轮零主跑零炮组)。"
+  },
+  "sandbox": {
+    "status": "PENDING",
+    "note": "双环境语义:符号层证书判据字段沙盒双跑由车道A 复核执行;本 JSON 为宿主参考值"
+  },
+  "verdict": "候选构造冻结完成(宿主):三件套装配 CERT-A..F 全过;四要素同批落位 -- rho 预言(逐 L 冻结,max 对 1 分离达标)、G2/G3 收敛阶 p=2 预注册、margin_declarations 全表(无零裕度)、trace_row_processing_present 如实检测(自动裁定已出);D-M2-1 落 R4-CONFIRMED;构造 sha256 冻结。本件无任何涌现主张;eps_geo=0 如实记账;eps 实测在主跑;主跑(轮 2)自此解锁(预飞 PASS + 构造冻结双前提齐)。",
+  "source_sha256": "01e647c0e47ec3946a1576c5e4e9d43b96e8d253a0bdb0780cfd41a9084a73ac",
+  "total_seconds": 4.950882434844971,
+  "results_sha256": "20fb3c6a88bc837aa848a073cae35dcee0647a119700047a2a5bc454fc4fa887"
+}

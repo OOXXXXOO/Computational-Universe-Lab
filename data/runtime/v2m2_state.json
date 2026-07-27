@@ -17,7 +17,7 @@
   "machine": "arm64",
   "lineage_note": "宿主 = darwin/arm64 + Accelerate;冻结 r23_results.json 环境谱系 = 沙盒系 Linux/OpenBLAS(复核确证:与沙盒逐位 diff=0.0,与宿主差 1.8e-15,ULP 级环境属性)"
  },
- "lit": false,
+ "lit": true,
  "m2_status": {
   "lane_b": "R3-GUNS-DELIVERED(轮 2 8/8 落定(三裁+两补测)+ 五主炮击穿 + 回归抽查捕获 + 三正控全绿 + endurance 负控入册,宿主单环境)",
   "swimlane_state": "执行中(非点亮)",
