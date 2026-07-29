@@ -21,3 +21,6 @@ exp4_cache.npz
 
 # 隔离实施工作区
 .worktrees/
+
+# V3-M0 Lean 构建缓存（依赖版本由 lake-manifest.json 锁定）
+formal/v3m0/.lake/
