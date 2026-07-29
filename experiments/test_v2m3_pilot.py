@@ -428,6 +428,89 @@ class PilotRunnerTests(unittest.TestCase):
         self.assertFalse(decision["pass"])
         self.assertIn("protocol_changed", decision["failures"])
 
+    def test_json_roundtrip_restores_nonfinite_diagnostics(self) -> None:
+        from experiments import v2m3_pilot as runner
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nonfinite.json"
+            runner._write_json_atomic(
+                path,
+                {"positive": float("inf"), "negative": float("-inf")},
+            )
+            restored = runner._read_json(path)
+        self.assertTrue(math.isinf(restored["positive"]))
+        self.assertGreater(restored["positive"], 0.0)
+        self.assertTrue(math.isinf(restored["negative"]))
+        self.assertLess(restored["negative"], 0.0)
+
+    def test_thirty_cells_allow_runner_only_finalization_amendment(self) -> None:
+        from experiments import v2m3_pilot as runner
+
+        old_protocol = {
+            "code": {
+                "experiments/v2m3_pilot.py": {
+                    "path": "experiments/v2m3_pilot.py",
+                    "sha256": "1" * 64,
+                },
+                "rulespace_v2/m3_pilot.py": {"sha256": "2" * 64},
+            },
+            "frozen_verification": {"pass": True},
+        }
+        new_protocol = copy.deepcopy(old_protocol)
+        new_protocol["code"]["experiments/v2m3_pilot.py"]["sha256"] = "3" * 64
+        payload = {
+            "status": "RUNNING-PILOT",
+            "main_pilot_executed": False,
+            "inputs": {"preflight": {"sha256": "4" * 64}},
+            "protocol": old_protocol,
+            "cells": [{"cell_id": f"cell-{index}"} for index in range(30)],
+        }
+        decision = runner.validate_existing_payload(
+            payload,
+            payload["inputs"],
+            new_protocol,
+        )
+        self.assertTrue(decision["pass"])
+        self.assertEqual(decision["action"], "finalize-runner-amendment")
+
+    def test_runner_amendment_rejects_missing_or_changed_runner_record(self) -> None:
+        from experiments import v2m3_pilot as runner
+
+        old_protocol = {
+            "code": {
+                "experiments/v2m3_pilot.py": {
+                    "path": "experiments/v2m3_pilot.py",
+                    "sha256": "1" * 64,
+                },
+                "rulespace_v2/m3_pilot.py": {"sha256": "2" * 64},
+            },
+            "frozen_verification": {"pass": True},
+        }
+        payload = {
+            "status": "RUNNING-PILOT",
+            "main_pilot_executed": False,
+            "inputs": {"preflight": {"sha256": "4" * 64}},
+            "protocol": old_protocol,
+            "cells": [{"cell_id": f"cell-{index}"} for index in range(30)],
+        }
+        for changed in ("missing", "path"):
+            current = copy.deepcopy(old_protocol)
+            if changed == "missing":
+                del current["code"]["experiments/v2m3_pilot.py"]
+            else:
+                current["code"]["experiments/v2m3_pilot.py"]["path"] = (
+                    "experiments/other.py"
+                )
+                current["code"]["experiments/v2m3_pilot.py"]["sha256"] = "3" * 64
+            decision = runner.validate_existing_payload(
+                payload,
+                payload["inputs"],
+                current,
+            )
+            with self.subTest(changed=changed):
+                self.assertFalse(decision["pass"])
+                self.assertIn("protocol_changed", decision["failures"])
+
     def test_protocol_pins_environment_and_all_execution_dependencies(self) -> None:
         from experiments import v2m3_pilot as runner
 

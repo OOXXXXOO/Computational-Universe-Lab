@@ -61,7 +61,23 @@ def _read_json(path: Path) -> dict[str, Any]:
         payload = json.load(handle)
     if not isinstance(payload, dict):
         raise TypeError(f"{path} must contain a JSON object")
-    return payload
+    return _restore_nonfinite(payload)
+
+
+def _restore_nonfinite(value: Any) -> Any:
+    """Invert the JSON-safe representation used for non-finite diagnostics."""
+
+    if isinstance(value, dict):
+        return {key: _restore_nonfinite(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_restore_nonfinite(item) for item in value]
+    if value == "inf":
+        return float("inf")
+    if value == "-inf":
+        return float("-inf")
+    if value == "nan":
+        return float("nan")
+    return value
 
 
 def _json_safe(value: Any) -> Any:
@@ -420,7 +436,90 @@ def validate_existing_payload(
     failures = []
     if payload.get("inputs") != input_records:
         failures.append("input_lineage_changed")
-    if payload.get("protocol") != current_protocol:
+    stored_protocol = payload.get("protocol", {})
+    protocol_equal = stored_protocol == current_protocol
+    stored_without_runner = {
+        **stored_protocol,
+        "code": {
+            path: record
+            for path, record in stored_protocol.get("code", {}).items()
+            if path != "experiments/v2m3_pilot.py"
+        },
+    }
+    current_without_runner = {
+        **current_protocol,
+        "code": {
+            path: record
+            for path, record in current_protocol.get("code", {}).items()
+            if path != "experiments/v2m3_pilot.py"
+        },
+    }
+    stored_runner_record = stored_protocol.get("code", {}).get(
+        "experiments/v2m3_pilot.py"
+    )
+    current_runner_record = current_protocol.get("code", {}).get(
+        "experiments/v2m3_pilot.py"
+    )
+    old_runner_sha = (
+        stored_runner_record.get("sha256")
+        if isinstance(stored_runner_record, dict)
+        else None
+    )
+    new_runner_sha = (
+        current_runner_record.get("sha256")
+        if isinstance(current_runner_record, dict)
+        else None
+    )
+
+    def valid_sha256(value: object) -> bool:
+        return bool(
+            isinstance(value, str)
+            and len(value) == 64
+            and all(character in "0123456789abcdef" for character in value)
+        )
+
+    runner_records_match_except_sha = bool(
+        isinstance(stored_runner_record, dict)
+        and isinstance(current_runner_record, dict)
+        and set(stored_runner_record) == set(current_runner_record)
+        and stored_runner_record.get("path") == "experiments/v2m3_pilot.py"
+        and current_runner_record.get("path") == "experiments/v2m3_pilot.py"
+        and {
+            key: value
+            for key, value in stored_runner_record.items()
+            if key != "sha256"
+        }
+        == {
+            key: value
+            for key, value in current_runner_record.items()
+            if key != "sha256"
+        }
+        and valid_sha256(old_runner_sha)
+        and valid_sha256(new_runner_sha)
+        and old_runner_sha != new_runner_sha
+    )
+    runner_only_change = bool(
+        not protocol_equal
+        and stored_without_runner == current_without_runner
+        and runner_records_match_except_sha
+    )
+    recorded_amendment = payload.get("finalization_amendment", {})
+    amendment_already_applied = bool(
+        runner_only_change
+        and payload.get("main_pilot_executed") is True
+        and recorded_amendment.get("old_runner_sha256") == old_runner_sha
+        and recorded_amendment.get("new_runner_sha256") == new_runner_sha
+        and recorded_amendment.get("measurement_cells_reexecuted") is False
+    )
+    amendment_is_eligible = bool(
+        runner_only_change
+        and payload.get("status") == "RUNNING-PILOT"
+        and payload.get("main_pilot_executed") is False
+        and len(payload.get("cells", [])) == 30
+    )
+    if not protocol_equal and not (
+        amendment_is_eligible or amendment_already_applied
+    ):
         failures.append("protocol_changed")
     status = payload.get("status")
     resource_halt = bool(
@@ -434,6 +533,8 @@ def validate_existing_payload(
         action = "reject"
     elif resource_halt:
         action = "halt-resource"
+    elif amendment_is_eligible:
+        action = "finalize-runner-amendment"
     elif payload.get("main_pilot_executed") is True:
         action = "complete"
     elif status == "RUNNING-PILOT":
@@ -445,6 +546,9 @@ def validate_existing_payload(
         "pass": not failures,
         "action": action,
         "failures": failures,
+        "runner_only_change": runner_only_change,
+        "old_runner_sha256": old_runner_sha,
+        "new_runner_sha256": new_runner_sha,
     }
 
 
@@ -712,6 +816,20 @@ def run() -> dict[str, Any]:
             if not FIGURE_PATH.is_file():
                 make_figure(payload)
             return payload
+        if decision["action"] == "finalize-runner-amendment":
+            payload["finalization_amendment"] = {
+                "kind": "runner-only JSON nonfinite recovery finalizer",
+                "reason": (
+                    "30/30 measured cells were persisted under the original "
+                    "protocol; JSON-safe 'inf' diagnostics must be restored "
+                    "before the preregistered 2-sigma meta-judge."
+                ),
+                "old_runner_sha256": decision["old_runner_sha256"],
+                "new_runner_sha256": decision["new_runner_sha256"],
+                "scientific_protocol_unchanged": True,
+                "measurement_cells_reexecuted": False,
+                "applied_utc": datetime.now(timezone.utc).isoformat(),
+            }
     else:
         payload = {
             "_schema": "v2m3_pilot v1",
