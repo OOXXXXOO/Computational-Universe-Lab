@@ -82,5 +82,97 @@ class LocalFamilyStateTests(unittest.TestCase):
                 )
 
 
+class LocalOperatorCertificateTests(unittest.TestCase):
+    def test_constraint_operator_and_adjoint_match(self) -> None:
+        rng = np.random.default_rng(19)
+        h = rng.normal(size=(10, 7, 7, 7)) + 1j * rng.normal(
+            size=(10, 7, 7, 7)
+        )
+        zeta = rng.normal(size=(4, 7, 7, 7)) + 1j * rng.normal(
+            size=(4, 7, 7, 7)
+        )
+        lhs = np.vdot(local_family.constraint_spatial(h), zeta)
+        try:
+            adjoint = local_family.constraint_spatial_adjoint(zeta)
+        except NotImplementedError:
+            self.fail("constraint_spatial_adjoint is not implemented")
+        rhs = np.vdot(h, adjoint)
+        residual = abs(lhs - rhs) / max(abs(lhs), 1e-300)
+        self.assertLess(residual, 1e-13)
+
+    def test_floquet_retune_uses_the_actual_reference_shell(self) -> None:
+        try:
+            table = local_family.floquet_retune_table()
+        except NotImplementedError:
+            self.fail("floquet_retune_table is not implemented")
+
+        self.assertEqual(set(table), {0, 1, 2, 3, 4})
+        for q, row in table.items():
+            with self.subTest(q=q):
+                self.assertEqual(row["L_ref"], 32)
+                self.assertEqual(row["k_units_ref"], [1, 0, 0])
+                self.assertLess(row["frequency_residual"], 1e-12)
+                self.assertGreater(row["dt"], 0.99)
+                self.assertLessEqual(row["dt"], 1.000000000001)
+
+    def test_macro_step_support_is_finite_and_volume_independent(self) -> None:
+        self.assertTrue(hasattr(local_family, "measure_support_radii"))
+        support = local_family.measure_support_radii(L_values=(17, 21))
+        self.assertEqual(set(support["per_L"]), {"17", "21"})
+        self.assertEqual(len(set(support["per_L"].values())), 1)
+        self.assertTrue(support["independent_of_L"])
+        self.assertLessEqual(support["max_radius"], 6)
+
+    def test_adjoint_certificate_records_the_fp64_residual(self) -> None:
+        self.assertTrue(hasattr(local_family, "adjoint_certificate"))
+        certificate = local_family.adjoint_certificate(L=7, seed=19)
+        self.assertLess(certificate["constraint_adjoint_residual"], 1e-13)
+        self.assertLess(certificate["walk_stiffness_adjoint_residual"], 1e-13)
+        self.assertLess(certificate["r30_stiffness_adjoint_residual"], 1e-13)
+        self.assertTrue(certificate["pass"])
+
+
+class LocalFamilySymplecticTests(unittest.TestCase):
+    def test_constraint_coupling_is_a_positive_square_completed_penalty(self) -> None:
+        for q in local_family.Q_LEVELS:
+            dt = local_family.floquet_retune_table()[q]["dt"]
+            for kappa_c in local_family.KAPPA_C_LEVELS:
+                for k in local_family.K_CERT:
+                    with self.subTest(q=q, kappa_c=kappa_c, k=k):
+                        potential = local_family.symbol_of_potential(
+                            q, kappa_c, k
+                        )
+                        eigenvalues = np.linalg.eigvalsh(potential)
+                        self.assertGreaterEqual(float(eigenvalues.min()), -2e-12)
+                        self.assertLess(
+                            dt * dt * float(eigenvalues.max()),
+                            4.0,
+                        )
+
+    def test_all_thirty_cells_pass_the_fp64_symplectic_gate(self) -> None:
+        self.assertTrue(hasattr(local_family, "certify_local_family"))
+        certificate = local_family.certify_local_family()
+        self.assertEqual(certificate["cells_checked"], 30)
+        self.assertEqual(
+            certificate["zero_mode_policy"],
+            "analytic Jordan drift; spectral modulus excluded at k=0",
+        )
+        self.assertLess(certificate["max_verlet_cfl_number"], 4.0)
+        self.assertLessEqual(
+            certificate["max_symplectic_defect_fp64"],
+            1e-12,
+        )
+        self.assertLessEqual(
+            certificate["max_potential_hermitian_defect"],
+            1e-12,
+        )
+        self.assertLessEqual(
+            certificate["max_abs_eig_modulus_minus_1"],
+            1e-12,
+        )
+        self.assertTrue(certificate["stable_all"])
+        self.assertTrue(certificate["pass"])
+
+
 if __name__ == "__main__":
     unittest.main()

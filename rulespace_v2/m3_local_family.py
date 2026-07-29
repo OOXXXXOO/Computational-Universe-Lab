@@ -17,6 +17,7 @@ from . import frozen
 
 
 C_CONE = 0.5
+C_SP_NORMALIZATION = 0.5
 Q_LEVELS = (0, 1, 2, 3, 4)
 KAPPA_C_LEVELS = (0.0, 0.005, 0.01, 0.02, 0.04, 0.08)
 PACKED_SYM = tuple((m, n) for m in range(4) for n in range(m, 4))
@@ -211,8 +212,13 @@ def _half_potential_kick(
         force_h = force_h + apply_counter_stiffness(state.h, layer)
     force_zeta = apply_r30_stiffness(state.zeta)
     if kappa_c:
-        force_h = force_h + kappa_c * constraint_spatial_adjoint(state.zeta)
-        force_zeta = force_zeta + kappa_c * constraint_spatial(state.h)
+        mismatch = state.zeta - C_SP_NORMALIZATION * constraint_spatial(state.h)
+        force_h = force_h - (
+            kappa_c
+            * C_SP_NORMALIZATION
+            * constraint_spatial_adjoint(mismatch)
+        )
+        force_zeta = force_zeta + kappa_c * mismatch
     half_dt = 0.5 * dt
     return (
         state.p_h - half_dt * force_h,
@@ -254,7 +260,353 @@ def realspace_step_factory(q: int, kappa_c: float) -> LocalFamilyStep:
     return LocalFamilyStep(q=q, kappa_c=kappa_c, dt=float(row["dt"]))
 
 
+def _response_radius(
+    fields: tuple[np.ndarray, ...],
+    center: int,
+    relative_threshold: float = 1e-13,
+) -> int:
+    magnitude = np.maximum.reduce(
+        [np.max(np.abs(field), axis=0) for field in fields]
+    )
+    peak = float(magnitude.max())
+    if peak == 0.0:
+        return 0
+    active = np.argwhere(magnitude > relative_threshold * peak)
+    L = magnitude.shape[0]
+    radius = 0
+    for coordinate in active:
+        distances = []
+        for value in coordinate:
+            raw = abs(int(value) - center)
+            distances.append(min(raw, L - raw))
+        radius = max(radius, max(distances))
+    return radius
+
+
+def measure_support_radii(
+    L_values: tuple[int, ...] = (17, 21),
+) -> dict[str, object]:
+    """Measure one-step Chebyshev support without using a Fourier transform."""
+
+    probes: list[dict[str, object]] = []
+    per_L: dict[str, int] = {}
+    for L in L_values:
+        center = L // 2
+        radii: list[int] = []
+        for q, kappa_c in ((0, 0.0), (0, 0.08), (4, 0.0), (4, 0.08)):
+            for input_field, channels in (
+                ("h", 10),
+                ("p_h", 10),
+                ("zeta", 4),
+                ("p_zeta", 4),
+            ):
+                state = LocalFamilyState.zeros(L)
+                target = getattr(state, input_field)
+                target[:, center, center, center] = (
+                    np.arange(1, channels + 1) * (1.0 + 0.173j)
+                )
+                stepped = realspace_step_factory(q, kappa_c)(state)
+                radius = _response_radius(
+                    (stepped.h, stepped.p_h, stepped.zeta, stepped.p_zeta),
+                    center,
+                )
+                radii.append(radius)
+                probes.append(
+                    {
+                        "L": L,
+                        "q": q,
+                        "kappa_c": kappa_c,
+                        "input_field": input_field,
+                        "radius": radius,
+                    }
+                )
+        per_L[str(L)] = max(radii)
+    unique = set(per_L.values())
+    return {
+        "per_L": per_L,
+        "max_radius": max(per_L.values()),
+        "independent_of_L": len(unique) == 1,
+        "relative_threshold": 1e-13,
+        "probes": probes,
+    }
+
+
+def _relative_adjoint_residual(
+    lhs: complex,
+    rhs: complex,
+) -> float:
+    return float(abs(lhs - rhs) / max(abs(lhs), abs(rhs), 1e-300))
+
+
+def adjoint_certificate(L: int = 7, seed: int = 19) -> dict[str, object]:
+    """Measure all adjoint pairs used by the potential kick."""
+
+    rng = np.random.default_rng(seed)
+    h1 = rng.normal(size=(10, L, L, L)) + 1j * rng.normal(
+        size=(10, L, L, L)
+    )
+    h2 = rng.normal(size=(10, L, L, L)) + 1j * rng.normal(
+        size=(10, L, L, L)
+    )
+    zeta = rng.normal(size=(4, L, L, L)) + 1j * rng.normal(
+        size=(4, L, L, L)
+    )
+
+    constraint_residual = _relative_adjoint_residual(
+        np.vdot(constraint_spatial(h1), zeta),
+        np.vdot(h1, constraint_spatial_adjoint(zeta)),
+    )
+    walk_residual = _relative_adjoint_residual(
+        np.vdot(apply_walk_stiffness(h1), h2),
+        np.vdot(h1, apply_walk_stiffness(h2)),
+    )
+    r30_residual = _relative_adjoint_residual(
+        np.vdot(apply_r30_stiffness(h1), h2),
+        np.vdot(h1, apply_r30_stiffness(h2)),
+    )
+    return {
+        "L": L,
+        "seed": seed,
+        "constraint_adjoint_residual": constraint_residual,
+        "walk_stiffness_adjoint_residual": walk_residual,
+        "r30_stiffness_adjoint_residual": r30_residual,
+        "pass": max(constraint_residual, walk_residual, r30_residual) < 1e-13,
+    }
+
+
+K_CERT = (
+    (0.0, 0.0, 0.0),
+    (2.0 * math.pi / 32.0, 0.0, 0.0),
+    (2.0 * math.pi / 32.0, 2.0 * math.pi / 32.0, 0.0),
+    (
+        2.0 * math.pi / 32.0,
+        2.0 * math.pi / 32.0,
+        2.0 * math.pi / 32.0,
+    ),
+    (math.pi / 2.0, 0.0, 0.0),
+    (math.pi / 2.0, math.pi / 2.0, 0.0),
+    (math.pi / 2.0, math.pi / 2.0, math.pi / 2.0),
+    (math.pi, math.pi, math.pi),
+)
+
+
+def _constraint_symbol(k: np.ndarray) -> np.ndarray:
+    differences = np.exp(1j * k) - 1.0
+    return np.einsum("nai,i->na", C_SP_COEFF, differences)
+
+
+def symbol_of_potential(
+    q: int,
+    kappa_c: float,
+    k: tuple[float, float, float] | np.ndarray,
+) -> np.ndarray:
+    """Offline 14×14 potential symbol; never used by the real-space step."""
+
+    k_array = np.asarray(k, dtype=float)
+    r25 = _frozen_mod("r25_auxiliary_wilson_complex")
+    _, _, _, a_walk = r25.walk_data(k_array)
+    a_r30 = float(
+        C_CONE
+        * C_CONE
+        * sum(
+            (2.0 * math.sin(float(value) / 2.0)) ** 2
+            for value in k_array
+        )
+    )
+    a_q = float(a_walk + (q / 4.0) * (a_r30 - a_walk))
+    constraint = _constraint_symbol(k_array)
+    potential = np.zeros((14, 14), dtype=complex)
+    potential[:10, :10] = a_q * np.eye(10)
+    potential[10:, 10:] = a_r30 * np.eye(4)
+    normalized_constraint = C_SP_NORMALIZATION * constraint
+    potential[:10, :10] += (
+        kappa_c * normalized_constraint.conj().T @ normalized_constraint
+    )
+    potential[:10, 10:] = -kappa_c * normalized_constraint.conj().T
+    potential[10:, :10] = -kappa_c * normalized_constraint
+    potential[10:, 10:] += kappa_c * np.eye(4)
+    return potential
+
+
+def _verlet_symbol(potential: np.ndarray, dt: float) -> np.ndarray:
+    if not np.isfinite(potential).all() or not math.isfinite(dt):
+        raise FloatingPointError("non-finite input to Verlet symbol")
+    dimension = potential.shape[0]
+    identity = np.eye(dimension, dtype=complex)
+    zero = np.zeros_like(identity)
+    kick = np.block(
+        [
+            [identity, zero],
+            [-0.5 * dt * potential, identity],
+        ]
+    )
+    drift = np.block(
+        [
+            [identity, dt * identity],
+            [zero, identity],
+        ]
+    )
+    # Accelerate BLAS on macOS can inherit stale floating-point status flags
+    # from imported legacy modules.  Inputs/outputs are checked explicitly;
+    # suppress only those spurious status warnings around the finite matmul.
+    with np.errstate(all="ignore"):
+        macro = kick @ drift @ kick
+    if not np.isfinite(macro).all():
+        raise FloatingPointError("non-finite Verlet symbol")
+    return macro
+
+
+def _real_representation(matrix: np.ndarray) -> np.ndarray:
+    return np.block(
+        [
+            [matrix.real, -matrix.imag],
+            [matrix.imag, matrix.real],
+        ]
+    )
+
+
+def _real_symplectic_defect(matrix: np.ndarray) -> float:
+    complex_dimension = matrix.shape[0] // 2
+    identity = np.eye(complex_dimension)
+    zero = np.zeros_like(identity)
+    canonical = np.block([[zero, identity], [-identity, zero]])
+    canonical_real = np.block(
+        [
+            [canonical, np.zeros_like(canonical)],
+            [np.zeros_like(canonical), canonical],
+        ]
+    )
+    real_matrix = _real_representation(matrix)
+    with np.errstate(all="ignore"):
+        defect = real_matrix.T @ canonical_real @ real_matrix - canonical_real
+    if not np.isfinite(defect).all():
+        raise FloatingPointError("non-finite symplectic defect")
+    return float(np.max(np.abs(defect)))
+
+
+def certify_local_family() -> dict[str, object]:
+    """Measure H0 admission certificates on all 30 construction cells."""
+
+    floquet = floquet_retune_table()
+    adjoint = adjoint_certificate()
+    support = measure_support_radii()
+    per_cell: list[dict[str, object]] = []
+    worst_symplectic = 0.0
+    worst_hermitian = 0.0
+    worst_modulus = 0.0
+    worst_cfl = 0.0
+    minimum_potential_eigenvalue = math.inf
+
+    for q in Q_LEVELS:
+        dt = float(floquet[q]["dt"])
+        for kappa_c in KAPPA_C_LEVELS:
+            cell_symplectic = 0.0
+            cell_hermitian = 0.0
+            cell_modulus = 0.0
+            cell_cfl = 0.0
+            cell_minimum_potential_eigenvalue = math.inf
+            worst_k = None
+            for k in K_CERT:
+                potential = symbol_of_potential(q, kappa_c, k)
+                hermitian = float(
+                    np.max(np.abs(potential - potential.conj().T))
+                )
+                potential_eigenvalues = np.linalg.eigvalsh(potential)
+                potential_minimum = float(potential_eigenvalues.min())
+                cfl_number = dt * dt * float(potential_eigenvalues.max())
+                macro = _verlet_symbol(potential, dt)
+                symplectic = _real_symplectic_defect(macro)
+                if any(abs(component) > 1e-15 for component in k):
+                    eigenvalues = np.linalg.eigvals(macro)
+                    modulus = float(
+                        np.max(np.abs(np.abs(eigenvalues) - 1.0))
+                    )
+                else:
+                    # The exact zero-stiffness modes are Jordan drifts.  A
+                    # generic eigensolver splits their repeated λ=1 roots by
+                    # O(sqrt(eps)); stability is instead certified by the
+                    # Hermitian potential spectrum and the Verlet CFL bound.
+                    modulus = 0.0
+                cell_hermitian = max(cell_hermitian, hermitian)
+                cell_symplectic = max(cell_symplectic, symplectic)
+                cell_cfl = max(cell_cfl, cfl_number)
+                cell_minimum_potential_eigenvalue = min(
+                    cell_minimum_potential_eigenvalue,
+                    potential_minimum,
+                )
+                if modulus > cell_modulus:
+                    cell_modulus = modulus
+                    worst_k = list(k)
+            worst_symplectic = max(worst_symplectic, cell_symplectic)
+            worst_hermitian = max(worst_hermitian, cell_hermitian)
+            worst_modulus = max(worst_modulus, cell_modulus)
+            worst_cfl = max(worst_cfl, cell_cfl)
+            minimum_potential_eigenvalue = min(
+                minimum_potential_eigenvalue,
+                cell_minimum_potential_eigenvalue,
+            )
+            stable = (
+                cell_minimum_potential_eigenvalue >= -2e-12
+                and cell_cfl < 4.0
+                and cell_modulus <= 1e-12
+            )
+            per_cell.append(
+                {
+                    "q": q,
+                    "kappa_c": kappa_c,
+                    "dt": dt,
+                    "max_symplectic_defect_fp64": cell_symplectic,
+                    "max_potential_hermitian_defect": cell_hermitian,
+                    "max_abs_eig_modulus_minus_1": cell_modulus,
+                    "minimum_potential_eigenvalue": (
+                        cell_minimum_potential_eigenvalue
+                    ),
+                    "max_verlet_cfl_number": cell_cfl,
+                    "worst_modulus_k": worst_k,
+                    "stable": stable,
+                }
+            )
+
+    stable_all = all(bool(row["stable"]) for row in per_cell)
+    floquet_residual = max(
+        float(row["frequency_residual"]) for row in floquet.values()
+    )
+    passed = (
+        adjoint["pass"]
+        and support["independent_of_L"]
+        and int(support["max_radius"]) <= 6
+        and worst_symplectic <= 1e-12
+        and worst_hermitian <= 1e-12
+        and worst_modulus <= 1e-12
+        and minimum_potential_eigenvalue >= -2e-12
+        and worst_cfl < 4.0
+        and floquet_residual <= 1e-12
+    )
+    return {
+        "_schema": "v2m3_local_family_certificate v1",
+        "construction": "walk-to-R30 four-counter-shear family",
+        "cells_checked": len(per_cell),
+        "k_samples": [list(k) for k in K_CERT],
+        "max_symplectic_defect_fp64": worst_symplectic,
+        "max_potential_hermitian_defect": worst_hermitian,
+        "max_abs_eig_modulus_minus_1": worst_modulus,
+        "minimum_potential_eigenvalue": minimum_potential_eigenvalue,
+        "max_verlet_cfl_number": worst_cfl,
+        "zero_mode_policy": (
+            "analytic Jordan drift; spectral modulus excluded at k=0"
+        ),
+        "max_floquet_frequency_residual": floquet_residual,
+        "stable_all": stable_all,
+        "adjoint": adjoint,
+        "support": support,
+        "floquet_retune": floquet,
+        "per_cell": per_cell,
+        "pass": bool(passed),
+    }
+
+
 __all__ = [
+    "C_SP_NORMALIZATION",
     "C_SP_COEFF",
     "KAPPA_C_LEVELS",
     "LocalFamilyState",
@@ -263,9 +615,13 @@ __all__ = [
     "apply_counter_stiffness",
     "apply_r30_stiffness",
     "apply_walk_stiffness",
+    "adjoint_certificate",
     "constraint_spatial",
     "constraint_spatial_adjoint",
+    "certify_local_family",
     "floquet_retune_table",
+    "measure_support_radii",
     "negative_laplacian",
     "realspace_step_factory",
+    "symbol_of_potential",
 ]
