@@ -35,20 +35,21 @@ v1 纲领的北极星("自旋 2 从涌现走行动力学闭合",M3 二值门)已
    (为什么会有 v2)与 `../docs/reports/讨论-2026-07-26-DHM长时推导范式对M3判定语言与可达性战役的启发.md`
    (极限语言门的方法论来源)
 
-## 当前战役状态（2026-07-29）
+## 当前战役状态（2026-07-30）
 
-M3′ 已完成设计自审、任务书签发和 Round 0 预飞：
+M3′ 已完成设计自审、任务书签发、Round 0 预飞与 30 格 pilot：
 
 1. `v2-任务书-M3-涌现边界制图.md` —— 签发终稿；
-2. `v2-小报告-M3-预飞-2026-07-29.md` —— 当前权威判读；
-3. `../data/results/v2m3_preflight.json` —— 结果真文件；
+2. `v2-小报告-M3-30格pilot-2026-07-30.md` —— 当前权威判读；
+3. `../data/results/v2m3_pilot.json` —— 结果真文件；
 4. `../data/runtime/v2m3_state.json` —— 当前运行态。
 
-当前状态为 **`READY-PILOT`**：legacy RC3-(ii) R2 仍因逐 `k` 谱投影被拒绝；独立的新
-严格局域实空间 `q` 族已通过同一 Round 0 审计，其中稳定性覆盖冻结的 `64³` 全布里渊区，
-生产宏步另与独立 symbol 和实际 Floquet 壳对拍。30 格 pilot 已解锁但未运行，M3′ 未 PASS、
-未 FAIL，正式 `10²–10³` 扫描仍锁定。家族证书见
-`../data/results/v2m3_local_family_certificate.json`，当前判读见预飞报告。
+当前状态为 **`HALT-PILOT-UNRESOLVED`**：legacy RC3-(ii) R2 仍因逐 `k` 谱投影被拒绝；
+独立的新严格局域实空间 `q` 族已通过同一 Round 0 审计，30 格 pilot 也已完整运行。
+30/30 构造格均有效，但全部方向的 `ε_geo=1/3`，σ 常数模型在 90/90 方向拟合中取胜，
+家族没有形成可分辨边界牙齿。该状态不是 M3′ 物理 FAIL，也不是 M3′ PASS；正式预注册与
+`10²–10³` 扫描仍锁定。下一步只允许回 M0′ evaluator / 构造族追因。家族证书见
+`../data/results/v2m3_local_family_certificate.json`，当前判读见 pilot 报告。
 
 ## 与 v1 术语的对照(防混用)
 
