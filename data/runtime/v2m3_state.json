@@ -1,21 +1,34 @@
 {
-  "_schema": "v2m3_state v2",
-  "generated_utc": "2026-07-29T16:14:30.356626+00:00",
-  "generator": "experiments/v2m3_preflight.py",
+  "_schema": "v2m3_state v3",
+  "generated_utc": "2026-07-29T17:30:05.017534+00:00",
+  "generator": "experiments/v2m3_pilot.py",
   "lit": false,
-  "status": "READY-PILOT",
-  "round": 0,
-  "main_pilot_unlocked": true,
-  "main_pilot_executed": false,
+  "status": "HALT-PILOT-UNRESOLVED",
+  "round": 1,
+  "main_pilot_unlocked": false,
+  "main_pilot_executed": true,
+  "completed_cells": 30,
   "pilot_manifest_cell_count": 30,
+  "pilot_inputs": {
+    "preflight": {
+      "path": "data/results/v2m3_preflight.json",
+      "sha256": "0d452eca83dfac43b8df95c2919801bffcacbb9c6863614d86f8390c58cb48fe"
+    },
+    "local_certificate": {
+      "path": "data/results/v2m3_local_family_certificate.json",
+      "sha256": "a693d0a4a4edfb844b1caf1f2486ec6c0e492f768f9fe2af9f56acbb1d522eb9"
+    },
+    "design": {
+      "path": "docsv2/v2-设计-M3-30格pilot实测-2026-07-30.md",
+      "sha256": "254968c3ce405e7a52ce98c8b8807bf395be1b9ad541f998de7c70ce6eb1a5ee"
+    }
+  },
   "result": {
-    "path": "data/results/v2m3_preflight.json",
-    "sha256": "0d452eca83dfac43b8df95c2919801bffcacbb9c6863614d86f8390c58cb48fe"
+    "path": "data/results/v2m3_pilot.json",
+    "sha256": "6358edc238095c7662b2a5e91c3a62ba72eac066cca57c8d6e70b5586b8caab0"
   },
-  "local_family_certificate": {
-    "path": "data/results/v2m3_local_family_certificate.json",
-    "sha256": "a693d0a4a4edfb844b1caf1f2486ec6c0e492f768f9fe2af9f56acbb1d522eb9"
-  },
-  "next_unlock_condition": "Run only the frozen 30-cell pilot and measure epsilon_geo and sigma=(alpha,A) after each real-space run; formal scanning remains locked until pilot resolvability and resource review pass.",
-  "wording": "M3′ Round 0 admitted the strict-local family and unlocked only the 30-cell pilot; M3′ has neither passed nor failed, and the pilot was not run."
+  "formal_preregistration_unlocked": false,
+  "formal_scan_unlocked": false,
+  "next_unlock_condition": "回 M0′ evaluator/构造族追因；禁止扩展正式扫描",
+  "wording": "M3′ 30 格 pilot 已执行；该结果不是 M3′ PASS，正式扫描仍锁定。"
 }
