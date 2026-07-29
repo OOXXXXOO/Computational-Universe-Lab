@@ -1,4 +1,8 @@
-# docsv2:纲领 v2 文档体系(已生效,2026-07-26,依 `v2-裁定-D1D5` D5)
+<p align="center">
+  <img src="../visualizations/assets/logo.png" alt="Computational Universe Lab · Projective Rule-Space Program" width="72%">
+</p>
+
+# docsv2：纲领 v2 文档体系（已生效，2026-07-26，依 `v2-裁定-D1D5` D5）
 
 *建立于 2026-07-26,承可达性战役封存(`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`)与 PI 决定("升级来看:四承诺该人为定义还是涌现?")。*
 

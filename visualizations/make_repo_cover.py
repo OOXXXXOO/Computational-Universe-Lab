@@ -1,9 +1,10 @@
-"""Generate the repo cover banner (1280x640 + @2x).
+"""Generate the legacy schematic cover under non-canonical filenames.
 
 Schematic of the v2 program state: an (emergence-degree ε, constraint-scale σ)
 map with the three closed-loop benchmark points and the v1-sealed spin-2 wall.
 This is a clearly-labeled schematic (示意图), not a measured plot — positions
-are qualitative. Re-run after any program-state pivot to keep the cover honest.
+are qualitative. The canonical brand cover is visualizations/assets/repo_cover.png;
+this reference generator must never overwrite it.
 """
 import matplotlib
 
@@ -29,6 +30,8 @@ RED = "#c34459"       # sealed / unreachable
 GREEN = "#2f9b5c"
 
 FIG_W, FIG_H = 12.8, 6.4  # inches @ 100dpi -> 1280x640
+OUT_1X = "repo_cover_legacy_generated.png"
+OUT_2X = "repo_cover_legacy_generated@2x.png"
 
 
 def make(dpi=100, out="repo_cover.png"):
@@ -135,6 +138,6 @@ def make(dpi=100, out="repo_cover.png"):
 
 
 if __name__ == "__main__":
-    make(dpi=100, out="repo_cover.png")
-    make(dpi=200, out="repo_cover@2x.png")
-    print("cover written: assets/repo_cover.png (+@2x)")
+    make(dpi=100, out=OUT_1X)
+    make(dpi=200, out=OUT_2X)
+    print(f"legacy covers written: assets/{OUT_1X}, assets/{OUT_2X}")

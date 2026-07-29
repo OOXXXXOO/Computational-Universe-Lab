@@ -9,6 +9,27 @@
 > M0′ 完成前,v1 证书不得直接当 v2 门的 PASS 依据;v1 术语(M3/M4/四承诺)只在 v1
 > 语境内使用。下文保留为 v1 历史约束,其仓库纪律与验证最低线条款继续有效。
 
+## 视觉系统（当前与后续材料）
+
+一级品牌为 **Computational Universe Lab**，研究计划副标题为
+**Projective Rule-Space Program**。所有新生成的报告封面、README 入口、活跃仪表、演示图与
+宣传材料必须先引用以下权威资产和规范，不得另起一套视觉语言：
+
+- Logo：`visualizations/assets/logo.png`
+- Repo cover：`visualizations/assets/repo_cover.png`
+- 视觉蓝本：`visualizations/dashboards/program_atlas.html`
+- 完整规范与图像生成提示词：
+  `docsv2/v2-设计规范-Computational-Universe-Lab视觉系统与图像生成提示词.md`
+
+视觉基调为“可复核的科学图册”：`#0B1013` ground、`#111B22` panel、`#1E2C35` line、
+`#DDE6EC` ink、`#AEBAC4` dim、`#7F909D` muted、`#45D4C6` geometry/metric、
+`#E7A24E` matter、`#5FD08A` PASS、`#E5687A` sealed。标题用编辑式 old-style serif，
+数字、坐标和状态用等宽字体。图形母题固定为“稀疏规则空间格点 + 可测边界 + 三个锚点”；
+禁用行星、银河、火箭、原子轨道、AI 大脑、芯片纹和泛科技六边形。
+
+颜色必须服从科学语义：视觉 PASS 不是科学 PASS，状态色不得越权表达实验裁定。冻结的 v1
+`docs/` 证据链不追溯换肤；只更新当前入口和 v2 活跃材料。
+
 本仓库当前处于 **R25 pre-M3**。默认先维护研究仪器和证据链，不得把局部符号 PASS 宣告为 M3，
 也不得把单个 GR-compatible 构造描述为宽规则空间中的 GR 涌现。
 

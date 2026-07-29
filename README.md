@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="visualizations/assets/repo_cover.png" alt="Projective Rule-Space Program — Emergence Boundary Cartography (v2)" width="100%">
+  <img src="visualizations/assets/repo_cover.png" alt="Computational Universe Lab — Projective Rule-Space Program · Emergence Boundary Cartography v2" width="100%">
 </p>
 
-<h1 align="center">Projective Rule-Space Program · Computational Universe Lab</h1>
+<h1 align="center">Computational Universe Lab</h1>
+
+<p align="center"><strong>Projective Rule-Space Program · Emergence Boundary Cartography v2</strong></p>
 
 <p align="center">
   <em>A QA-pruning search over local QCA rule-space for rules whose projections yield law-like<br>

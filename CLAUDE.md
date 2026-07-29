@@ -3,6 +3,23 @@
 本文件给 Claude Code 提供仓库级工作约束。先读同目录的 `AGENTS.md`；两者冲突时，以
 `AGENTS.md` 和用户最新指令为准。
 
+## 视觉系统
+
+一级品牌为 **Computational Universe Lab**，副标题为 **Projective Rule-Space Program**。
+后续所有新生成材料共同引用：
+
+- `visualizations/assets/logo.png`
+- `visualizations/assets/repo_cover.png`
+- `visualizations/dashboards/program_atlas.html`
+- `docsv2/v2-设计规范-Computational-Universe-Lab视觉系统与图像生成提示词.md`
+
+基调是克制、编辑式、可审计的科学图册：深黑底 `#0B1013`，青绿 `#45D4C6` 只表示几何、
+测量与边界，琥珀 `#E7A24E` 只表示物质/能量，绿色 `#5FD08A` 只表示真实 PASS，封存红
+`#E5687A` 只表示已裁定边界。标题用 old-style serif，数字与状态用等宽字；主图形使用
+“规则空间格点 + 可测边界 + 三个锚点”。禁止用行星、银河、火箭、原子轨道、AI 大脑、
+电路板或六边形 HUD 代替研究母题。视觉 PASS 不等于科学 PASS；冻结的 v1 `docs/` 不追溯
+换肤。
+
 ## 项目是什么
 
 这是“投影规则空间纲领”的计算物理实验仓库，不是产品工程。研究目标是在局域 QCA 规则空间中，
