@@ -18,3 +18,6 @@ exp4_cache.npz
 
 # 本地视觉伴随工具运行态
 .superpowers/
+
+# 隔离实施工作区
+.worktrees/
