@@ -22,9 +22,11 @@
 
 ## 项目是什么
 
-这是“投影规则空间纲领”的计算物理实验仓库，不是产品工程。研究目标是在局域 QCA 规则空间中，
+这是“投影规则空间纲领”的计算物理实验仓库，不是产品工程。研究目标是在严格局域的
+quantum-unitary QCA 本体主线中，
 用数学自洽、Maxwell/Einstein/Yang–Mills 与真实 3+1D 实验做 QA 剪枝，寻找投影后涌现场论的
-规则等价类，同时保留可诊断的高维投影残差。
+规则等价类，同时保留可诊断的高维投影残差。classical-symplectic 只作分栏的结构探针与
+构造预飞，不能替代 quantum L4。
 
 以下 **R25 pre-M3** 是 v1 历史状态，不是当前 v2 进度：
 
@@ -34,23 +36,23 @@
   sponge/endurance、证伪炮和 M4 参数族尚未完成；
 - R25 是 GR-compatible 存在性构造，不得写成“GR 已从宽规则空间涌现”。
 
-当前权威入口：`docs/status/阶段复盘-2026-07-24-M3与主线校准.md`。
+v1 历史入口：`docs/status/阶段复盘-2026-07-24-M3与主线校准.md`。
 
-> **状态覆盖(2026-07-26,纲领 v2 生效)**:v1 北极星(自旋 2 涌现 M3)已正式封存
-> (`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`);
-> 纲领升级为 v2"涌现边界制图",**当前权威入口移至 `docsv2/README.md`**
-> (主张阶梯、M0′–M4′ 门、D1–D5 裁定、M0′ 任务书)。`docs/` 冻结为 v1 历史与证据链,
-> 只加状态行不改史;上文"当前状态"段保留为 v1 历史描述。
+> **状态覆盖（2026-07-30，纲领 v3 生效）**：v1 北极星继续封存，v2 M3′
+> `HALT-PILOT-UNRESOLVED` 作为历史事实保留。当前权威入口为 `docsv3/README.md`；
+> 依次读取 v3 北极星、v3 裁定、V3-M0 任务书和实施计划。`docs/` 冻结为 v1 历史，
+> `docsv2/` 保留 v2 证据链，不追溯改写。
 
-当前活跃战役为 **M3′ / `HALT-PILOT-UNRESOLVED`**（2026-07-30）。先读
-`docsv2/v2-任务书-M3-涌现边界制图.md` 和
-`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`。legacy RC3-(ii) R2 仍被拒绝；独立的新
-严格局域实空间 `q` 族已过 Round 0，30 格 pilot 已完整运行，但在实测
-`(ε_geo,σ)` 中没有形成可分辨边界。正式预注册和正式扫描仍锁定。不得将方向级 σ FAIL、
-`HALT-PILOT-UNRESOLVED` 或局域族 H0 证书写成 M3′ PASS/FAIL；下一步只允许回 M0′
-evaluator / 构造族追因。
-稳定性准入读取 `64³` 全布里渊区证书；稀疏 `K_CERT` 仅用于辛性/Hermitian 探针，不得
-外推成全域稳定性。
+当前活跃战役为 **V3-M0 / 双轴仪器迁移**。仅实施 construction trace、matched ablation、
+共同响应链、`ε_causal`、`δ_geom`、`σ`、形式化 no-go 与 synthetic controls；最高状态
+`READY-V3-M1-ANCHOR-CERTIFICATION`。R30/R23/R25 物理重测、新 family、Round 0、
+30 格 pilot、正式 `10²–10³` 扫描与 GPU 长跑均继续锁定。
+
+底层候选空间仍是
+`target_spec × 复形族 × 物质耦合 × 微观规则参数`；三坐标只是观测坐标。当前 spin 2
+曲率仪器切片不得缩窄 spin 0、Maxwell、Einstein 与未来 Yang–Mills 的多目标主线。
+任何参数或系数经 target-aware 设计、搜索、筛选或人工择优后必须记为
+`target_conditioned`，不得用 numeric literal 洗白。
 
 ## 诚实边界
 
@@ -65,6 +67,8 @@ evaluator / 构造族追因。
 
 - `rulespace/`：CPU/numpy 参考物理包。为保持导入契约暂留顶层。
 - `rulespace_gpu/`：MLX/JAX/numpy 多后端包。为保持 `python -m rulespace_gpu...` 暂留顶层。
+- `rulespace_v3/`：V3-M0 双轴仪器包；科学数值路径显式使用 numpy complex128，不走会
+  自动选择 MLX fp32 的 backend。
 - `experiments/`：历史与当前独立实验脚本；保持平铺以保护脚本间 import 和冻结 SHA。
 - `data/results/`：JSON 结果真文件；`data/campaigns/`、`data/sealed/`、`data/runtime/` 分别存战役、
   封存数据和可恢复运行状态。
@@ -102,3 +106,5 @@ python tools/tensor_campaign_runner.py status
 4. 科学脚本原则上写入 `data/results/`；旧脚本通过 `experiments/` 兼容链接落到该目录。
 5. UI、阶段汇报和项目文档使用中文。
 6. 改 engine 后至少运行 numpy/jax 验证；长跑前先做小规模 compose 和负控。
+7. v3 L4 只归属于从含非目标候选族经 QA 剪出的 target-blind matched-ablated
+   representative；带冗余目标编码的 actual 不能凭几何正确冒充强涌现主张。

@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="visualizations/assets/repo_cover.png" alt="Computational Universe Lab — Projective Rule-Space Program · Emergence Boundary Cartography v2" width="100%">
+  <img src="visualizations/assets/repo_cover.png" alt="Computational Universe Lab — Projective Rule-Space Program · Causally Identifiable Emergence Boundary Cartography v3" width="100%">
 </p>
 
 <h1 align="center">Computational Universe Lab</h1>
 
-<p align="center"><strong>Projective Rule-Space Program · Emergence Boundary Cartography v2</strong></p>
+<p align="center"><strong>Projective Rule-Space Program · Causally Identifiable Emergence Boundary Cartography v3</strong></p>
 
 <p align="center">
   <em>A QA-pruning search over local QCA rule-space for rules whose projections yield law-like<br>
@@ -25,34 +25,52 @@ dimension is deferred past fixed-3+1D.
 This is not product engineering. Verification is split into syntax/import checks, symbolic
 certificates, physics gates, and long-run reproduction — there is no conventional unit-test framework.
 
-## Status (2026-07-29)
+## Status (2026-07-30)
 
-> **The program has been upgraded to v2 “Emergence Boundary Cartography”; the authoritative entry is
-> now [`docsv2/README.md`](docsv2/README.md).** The v1 North Star (spin-2 emergence M3) was formally
-> sealed on 2026-07-26; `docs/` is frozen as v1 history and evidence chain — append-only, history
-> never rewritten.
+> **The program has been upgraded to v3 “Causally Identifiable Emergence Boundary Cartography”; the
+> authoritative entry is now [`docsv3/README.md`](docsv3/README.md).** The v1 North Star remains
+> sealed; v2 and its completed 30-cell pilot remain immutable history and evidence. Neither evidence
+> chain is retrospectively rewritten.
 
-**v2 has closed two complete loops, M0′–M2′:**
+v2 closed M0′–M2′, then its M3′ pilot exposed an observer-identifiability failure:
 
 | Milestone | Content | State |
 |---|---|---|
 | **M0′** | Instrument migration: basis-invariant calibers (principal-angle spectrum), dual-environment consistency, ε_DOF dimension criterion | ✅ |
 | **M1′** | Maxwell full closed loop: one spin-1 rule passes every extreme-language gate; photons exactly 2, **ε_DOF=1 measured, zero hand-built** | ✅ PASS |
 | **M2′** | Spin-2 coupled loop: R30 hand-built complex geometry sets the stage, emergent Dirac matter plays — **(ε_geo=0, ε_mat=1) point on the map** | ✅ PASS |
-| **M3′** | Boundary cartography: the `(ε_geo, σ)` map is frozen as a 30-cell pilot before the formal `10²–10³` scan | ▶ Round 0 `READY-PILOT`; 30 cells unlocked, not run |
+| **M3′** | Strict-local 30-cell `(ε_geo,σ)` pilot | ⏹ `HALT-PILOT-UNRESOLVED`: all cells collapsed to one measured observer point; neither physical PASS nor physical FAIL |
 
-M3′ now has a signed [task book](docsv2/v2-任务书-M3-涌现边界制图.md) and a reproducible
-[Round 0 report](docsv2/v2-小报告-M3-预飞-2026-07-29.md). The legacy partial-Yee R2 remains
-rejected as spectral bookkeeping, while an independent same-state-space, strict-local real-space
-`q` family passes Round 0 with fp64 symplectic defect `7.77e-16`, measured support radius 4, and a
-`64³` full-Brillouin-zone maximum Verlet CFL number of `3.96396 < 4`.
-**Only the 30-cell pilot is unlocked; it has not run, M3′ has neither passed nor failed, and the
-formal scan remains locked.**
+The pilot's [signed task book](docsv2/v2-任务书-M3-涌现边界制图.md), [Round 0
+report](docsv2/v2-小报告-M3-预飞-2026-07-29.md), and [30-cell
+report](docsv2/v2-小报告-M3-30格pilot-2026-07-30.md) remain the v2 record. Cross-audit then proved
+that construction provenance and extensional geometry had been conflated in a single `ε`, while
+the full-positive observer structurally erased the family variation.
 
-**The (ε,σ) map now has three complete closed-loop benchmark points:** R30 (ε=0, bare geometry),
+v3 separates the observer coordinates:
+
+```text
+ε_causal  = causal survival after matched ablation
+δ_geom    = extensional distance to the target complex
+σ=(α,A)   = limiting constraint scaling
+```
+
+| Milestone | Content | State |
+|---|---|---|
+| **V3-M0** | Formal no-go, construction trace, matched ablation, shared response chain, synthetic controls | ▶ signed and active; highest possible state `READY-V3-M1-ANCHOR-CERTIFICATION` |
+| **V3-M1** | Finite historical-anchor audit and physical causal-anchor certification | 🔒 |
+| **V3-M2+** | Family design, pilot, formal boundary scan and large-scale selection | 🔒 |
+
+The quantum target lane remains strict-local unitary QCA. Classical-symplectic constructions are
+segregated probes, not substitutes for quantum evidence. No new family, pilot, `10²–10³` scan, or
+GPU long run is authorized by the v3 signing.
+
+**The historical v2 (ε,σ) map contained three closed-loop benchmark points:** R30 (ε=0, bare geometry),
 Maxwell (ε=1, M1′), and the coupled point ((ε_geo=0, ε_mat=1), M2′). The coupled point's entire value
 is accounting honesty — the stage is hand-built, the play is emergent, two integers each in their
 place; **it is not “spin-2 emergence”** (ε_geo=0). The forbidden phrase holds.
+These legacy labels are not v3 `(ε_causal,δ_geom,σ)` anchors; no physical causal anchor has yet been
+certified by matched actual/ablated runs.
 
 **v1 sealed statement (red line, untouchable):** under all four commitments (exact constraint
 propagation + emergent matter + strict locality + unitarity), **spin-2 M3 is structurally unreachable** —
@@ -160,12 +178,14 @@ in [`visualizations/dashboards/`](visualizations/dashboards/) (`dashboard_v2.htm
 | `rulespace/` | CPU/numpy reference physics package (kept at top level for import contracts) |
 | `rulespace_gpu/` | MLX/JAX/numpy multi-backend physics package |
 | `rulespace_v2/` | v2 frozen physics package (seven files + invariants/spin1) |
+| `rulespace_v3/` | v3 causal/geometry instrument package (created by V3-M0) |
 | `experiments/` | Standalone experiment & certificate scripts; byte-faithful migration preserves SHAs |
 | `data/results/` | All JSON result files of record (read-only during freeze orders) |
 | `data/campaigns/`, `data/sealed/` | campaign and sealed data |
 | `data/runtime/` | runner-resumable state (has delete semantics; never reset without explicit request) |
 | `visualizations/` | dashboards, figs, assets (incl. repo cover) |
-| `docsv2/` | **v2 document system (authoritative entry)**: program, preregistrations, reports, reviews, rulings, closures |
+| `docsv3/` | **v3 document system (authoritative entry)**: ruling, North Star, V3-M0 task book and plans |
+| `docsv2/` | v2 frozen program and M3′ evidence chain |
 | `docs/` | v1 history & evidence chain (frozen, append-only) |
 | `tools/` | campaign runner, local observation server |
 
@@ -196,7 +216,15 @@ python tools/tensor_campaign_runner.py status
 
 ## Reading order
 
-**v2 (current program, authoritative):**
+**v3 (current program, authoritative):**
+
+1. [`docsv3/README.md`](docsv3/README.md) — v3 document-system entry
+2. [`docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md`](docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md) — thesis and claim ladder
+3. [`docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`](docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md) — signed paradigm ruling
+4. [`docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`](docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md) — currently authorized scope
+5. [`docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`](docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md) — executable TDD dependency plan
+
+**v2 (history and evidence):**
 
 1. [`docsv2/README.md`](docsv2/README.md) — v2 document-system entry
 2. [`docsv2/v2-纲领-北极星-涌现边界制图.md`](docsv2/v2-纲领-北极星-涌现边界制图.md) — thesis, claim tiers, M0′–M4′ gates
@@ -223,8 +251,8 @@ Working discipline and red lines are in [`AGENTS.md`](AGENTS.md) (on conflict wi
   passed in a single unified real-space run.
 - **Negative results, corrections and voided runs are logged with the same weight as positive ones**;
   thresholds are never moved after a run (moving a threshold = moving the goalposts).
-- The v1 seal is untouchable; new results go to `data/results/`, new v2 reports to `docsv2/`, v1 history
-  status-lines to `docs/`.
+- The v1 seal and v2 evidence are untouchable; new results go to `data/results/`, new v3 reports to
+  `docsv3/`, and older document systems are not rewritten.
 - Certificates are fp64 only; the forbidden phrase “spin-2 emergence” holds permanently in the v2 context.
 - Fixed 3+1D is the current testable projection, not an ontological dimension claim; dynamical dimension
   is deferred past fixed 3+1D.
