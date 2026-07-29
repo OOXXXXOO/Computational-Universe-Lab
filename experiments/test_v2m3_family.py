@@ -2,9 +2,19 @@
 
 from importlib.util import find_spec
 from importlib import import_module
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 m3_family = import_module("rulespace_v2.m3_family")
+
+
+def synthetic_step_factory(q: int) -> int:
+    """Importable callable used only to prove descriptor resolution."""
+
+    return q
+
 
 class M3FamilyModuleTests(unittest.TestCase):
     def test_m3_family_module_exists(self) -> None:
@@ -20,6 +30,43 @@ class M3FamilyModuleTests(unittest.TestCase):
         ):
             with self.subTest(name=name):
                 self.assertTrue(hasattr(module, name), name)
+
+
+class M3PreflightModuleTests(unittest.TestCase):
+    def test_preflight_module_exists(self) -> None:
+        self.assertIsNotNone(find_spec("experiments.v2m3_preflight"))
+
+    def test_preflight_evaluator_interface_exists(self) -> None:
+        module = import_module("experiments.v2m3_preflight")
+        self.assertTrue(hasattr(module, "evaluate_preflight"))
+
+    def test_direct_script_bootstraps_the_repository_import_path(self) -> None:
+        script = Path(__file__).with_name("v2m3_preflight.py").resolve()
+        probe = (
+            "import runpy; "
+            f"runpy.run_path({str(script)!r}, run_name='direct_import_probe')"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-I", "-c", probe],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_current_preflight_halts_at_family_admission(self) -> None:
+        module = import_module("experiments.v2m3_preflight")
+        try:
+            result = module.evaluate_preflight()
+        except NotImplementedError:
+            self.fail("evaluate_preflight is not implemented")
+
+        self.assertEqual(result["status"], "HALT-FAMILY-ADMISSION")
+        self.assertFalse(result["main_pilot_unlocked"])
+        self.assertEqual(result["pilot_manifest"]["cell_count"], 30)
+        self.assertTrue(result["upstream_certificates"]["pass"])
+        self.assertTrue(result["topology_anchor"]["pass"])
+        self.assertFalse(result["family_admission"]["pass"])
 
 
 class PilotManifestTests(unittest.TestCase):
@@ -61,7 +108,9 @@ class FamilyAdmissionTests(unittest.TestCase):
     def valid_descriptor() -> dict[str, object]:
         return {
             "construction_kind": "strict_local_realspace",
-            "realspace_step_factory": "rulespace_v2.m3_runtime:make_step",
+            "realspace_step_factory": (
+                "experiments.test_v2m3_family:synthetic_step_factory"
+            ),
             "support_radius": 2,
             "declared_composition_radius": 2,
             "support_radius_independent_of_L": True,
@@ -110,6 +159,19 @@ class FamilyAdmissionTests(unittest.TestCase):
                     self.fail("audit_family_descriptor is not implemented")
                 self.assertFalse(result["pass"])
                 self.assertIn("measured_coordinate_injection", result["failures"])
+
+    def test_step_factory_reference_must_resolve_to_a_callable(self) -> None:
+        descriptor = self.valid_descriptor() | {
+            "realspace_step_factory": "rulespace_v2.missing_runtime:make_step"
+        }
+
+        result = m3_family.audit_family_descriptor(descriptor)
+
+        self.assertFalse(result["pass"])
+        self.assertIn(
+            "unresolvable_realspace_step_factory",
+            result["failures"],
+        )
 
 
 if __name__ == "__main__":

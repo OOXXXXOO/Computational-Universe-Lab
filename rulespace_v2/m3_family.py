@@ -8,6 +8,7 @@ physics and cannot pronounce an M3′ verdict.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from importlib import import_module
 from math import isfinite
 from typing import Mapping
 
@@ -111,6 +112,21 @@ def _finite_number_at_most(value: object, ceiling: float) -> bool:
     )
 
 
+def _resolves_to_callable(reference: object) -> bool:
+    if not isinstance(reference, str) or ":" not in reference:
+        return False
+    module_name, attribute_path = reference.split(":", 1)
+    if not module_name or not attribute_path:
+        return False
+    try:
+        target: object = import_module(module_name)
+        for attribute in attribute_path.split("."):
+            target = getattr(target, attribute)
+    except (ImportError, AttributeError):
+        return False
+    return callable(target)
+
+
 def audit_family_descriptor(
     descriptor: Mapping[str, object],
 ) -> dict[str, object]:
@@ -125,10 +141,9 @@ def audit_family_descriptor(
 
     checks = {
         "strict_local_realspace": construction_kind == "strict_local_realspace",
-        "realspace_step_factory": isinstance(
-            descriptor.get("realspace_step_factory"), str
-        )
-        and bool(str(descriptor["realspace_step_factory"]).strip()),
+        "realspace_step_factory": _resolves_to_callable(
+            descriptor.get("realspace_step_factory")
+        ),
         "finite_support_radius": _finite_nonnegative_int(support_radius),
         "declared_radius_matches": _finite_nonnegative_int(support_radius)
         and support_radius == declared_radius,
@@ -163,8 +178,14 @@ def audit_family_descriptor(
             if construction_kind == "spectral_bookkeeping"
             else "not_strict_local_realspace"
         )
+    if not checks["realspace_step_factory"]:
+        factory_reference = descriptor.get("realspace_step_factory")
+        failures.append(
+            "missing_realspace_step_factory"
+            if not isinstance(factory_reference, str) or not factory_reference.strip()
+            else "unresolvable_realspace_step_factory"
+        )
     failure_names = (
-        ("realspace_step_factory", "missing_realspace_step_factory"),
         ("finite_support_radius", "invalid_support_radius"),
         ("declared_radius_matches", "support_radius_mismatch"),
         ("support_radius_independent_of_L", "support_radius_depends_on_L"),

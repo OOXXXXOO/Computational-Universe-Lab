@@ -26,7 +26,7 @@
 用数学自洽、Maxwell/Einstein/Yang–Mills 与真实 3+1D 实验做 QA 剪枝，寻找投影后涌现场论的
 规则等价类，同时保留可诊断的高维投影残差。
 
-当前状态是 **R25 pre-M3**，不是 M3 完成：
+以下 **R25 pre-M3** 是 v1 历史状态，不是当前 v2 进度：
 
 - 一般 walk 壳上的 Laurent/de Donder/detour complex 已闭合；
 - auxiliary Wilson 与静态 Newton 有候选证书；
@@ -41,6 +41,12 @@
 > 纲领升级为 v2"涌现边界制图",**当前权威入口移至 `docsv2/README.md`**
 > (主张阶梯、M0′–M4′ 门、D1–D5 裁定、M0′ 任务书)。`docs/` 冻结为 v1 历史与证据链,
 > 只加状态行不改史;上文"当前状态"段保留为 v1 历史描述。
+
+当前活跃战役为 **M3′ Round 0 / `HALT-FAMILY-ADMISSION`**（2026-07-29）。先读
+`docsv2/v2-任务书-M3-涌现边界制图.md` 和
+`docsv2/v2-小报告-M3-预飞-2026-07-29.md`。上游证书与拓扑锚已过，但现有 RC3-(ii) R2
+不是可执行的严格局域实空间族；30 格 pilot 未运行且保持锁定。不得将该停手状态写成
+M3′ PASS 或 M3′ FAIL。
 
 ## 诚实边界
 

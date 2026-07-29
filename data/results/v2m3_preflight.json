@@ -1,0 +1,472 @@
+{
+  "_schema": "v2m3_preflight v1",
+  "generated_utc": "2026-07-29T15:06:02.181774+00:00",
+  "generator": "experiments/v2m3_preflight.py",
+  "backend": "numpy fp64",
+  "environment": {
+    "python": "3.9.6",
+    "platform": "macOS-26.3.1-arm64-arm-64bit",
+    "machine": "arm64"
+  },
+  "taskbook": "docsv2/v2-任务书-M3-涌现边界制图.md",
+  "round": 0,
+  "status": "HALT-FAMILY-ADMISSION",
+  "main_pilot_unlocked": false,
+  "main_pilot_executed": false,
+  "claim_ceiling": "family-admission preflight only; neither M3′ PASS nor M3′ FAIL",
+  "upstream_certificates": {
+    "pass": true,
+    "checks": {
+      "pinned_sha256": true,
+      "m2_lit": true,
+      "m2_gates_8_of_8": true
+    },
+    "pins": {
+      "docsv2/v2-收口-M2-2026-07-27.md": {
+        "expected_sha256": "f791c355bd57d49f9c7b63ee733631c4c13dfe06d8ea611d05e73c28a4ed88d8",
+        "actual_sha256": "f791c355bd57d49f9c7b63ee733631c4c13dfe06d8ea611d05e73c28a4ed88d8",
+        "match": true
+      },
+      "data/runtime/v2m2_state.json": {
+        "expected_sha256": "c4a518a4206d4e2bdf6590a0b0a8607baabb395a308a14b2510cc32e66831835",
+        "actual_sha256": "c4a518a4206d4e2bdf6590a0b0a8607baabb395a308a14b2510cc32e66831835",
+        "match": true
+      },
+      "experiments/rc3ii_relaxation_framework.py": {
+        "expected_sha256": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+        "actual_sha256": "23cfc187db9454f5a89bb1b7467db6887efd465b8cbe964ec74633ce54a994a6",
+        "match": true
+      },
+      "data/results/rc3ii_results.json": {
+        "expected_sha256": "89c58556da3d8ad1cdbda36d92600102c57e37deafb2ab2bf73efaa8a2207be6",
+        "actual_sha256": "89c58556da3d8ad1cdbda36d92600102c57e37deafb2ab2bf73efaa8a2207be6",
+        "match": true
+      },
+      "experiments/v2m2_coupled_loop.py": {
+        "expected_sha256": "e3ae75932511f36e63f1775d3dc732808af1a4f3902f98922dc6099ffa263078",
+        "actual_sha256": "e3ae75932511f36e63f1775d3dc732808af1a4f3902f98922dc6099ffa263078",
+        "match": true
+      },
+      "data/results/v2m2_guns.json": {
+        "expected_sha256": "86608e6098a2d3cd2e72afc14cde5c4839e388e348be2f259c8e541321b16b82",
+        "actual_sha256": "86608e6098a2d3cd2e72afc14cde5c4839e388e348be2f259c8e541321b16b82",
+        "match": true
+      }
+    },
+    "m2_gate_verdicts": {
+      "M2-G1": "PASS",
+      "M2-G2": "PASS",
+      "M2-G3": "PASS",
+      "M2-G4": "PASS",
+      "M2-G5": "PASS",
+      "M2-G6": "PASS",
+      "M2-G7": "PASS",
+      "M2-G8": "PASS"
+    },
+    "m2_state_error": null,
+    "note": "M2 runtime prose retains historical pending text; the authoritative machine fields are lit=true and eight PASS gate verdicts."
+  },
+  "topology_anchor": {
+    "pass": true,
+    "checks": {
+      "axis": true,
+      "face": true,
+      "body": true
+    },
+    "expected_N_prop_by_q": {
+      "axis": [
+        4,
+        4,
+        3,
+        3,
+        2
+      ],
+      "face": [
+        4,
+        4,
+        3,
+        2,
+        2
+      ],
+      "body": [
+        4,
+        3,
+        3,
+        2,
+        2
+      ]
+    },
+    "observed_N_prop_by_q": {
+      "axis": [
+        4,
+        4,
+        3,
+        3,
+        2
+      ],
+      "face": [
+        4,
+        4,
+        3,
+        2,
+        2
+      ],
+      "body": [
+        4,
+        3,
+        3,
+        2,
+        2
+      ]
+    },
+    "metadata": {
+      "axis": {
+        "source_k": "(2, 0, 0)",
+        "min_handbuilt_DOF_for_2": 4,
+        "handbuilt_fraction": 1.0,
+        "TT_emergent_energy": 0.14199714588368612
+      },
+      "face": {
+        "source_k": "(2, 2, 0)",
+        "min_handbuilt_DOF_for_2": 3,
+        "handbuilt_fraction": 0.75,
+        "TT_emergent_energy": 0.22529681923867648
+      },
+      "body": {
+        "source_k": "(2, 2, 2)",
+        "min_handbuilt_DOF_for_2": 3,
+        "handbuilt_fraction": 0.75,
+        "TT_emergent_energy": 0.39161205368485724
+      }
+    },
+    "error": null,
+    "interpretation": "This reproduces the frozen RC3-(ii) topology ledger only. It does not make R2 an executable real-space family."
+  },
+  "pilot_manifest": {
+    "cell_count": 30,
+    "q_levels": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "kappa_c_levels": [
+      0.0,
+      0.005,
+      0.01,
+      0.02,
+      0.04,
+      0.08
+    ],
+    "eta_core": 0.0,
+    "epsilon_mat_fixed": 1.0,
+    "manifest_sha256": "9807e2aad9261d44c35d34816e84e359afd56a705fc313b988326931f159c39e",
+    "cells": [
+      {
+        "cell_id": "m3-q0-kc0p000",
+        "q": 0,
+        "kappa_c": 0.0,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q0-kc0p005",
+        "q": 0,
+        "kappa_c": 0.005,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q0-kc0p010",
+        "q": 0,
+        "kappa_c": 0.01,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q0-kc0p020",
+        "q": 0,
+        "kappa_c": 0.02,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q0-kc0p040",
+        "q": 0,
+        "kappa_c": 0.04,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q0-kc0p080",
+        "q": 0,
+        "kappa_c": 0.08,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p000",
+        "q": 1,
+        "kappa_c": 0.0,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p005",
+        "q": 1,
+        "kappa_c": 0.005,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p010",
+        "q": 1,
+        "kappa_c": 0.01,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p020",
+        "q": 1,
+        "kappa_c": 0.02,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p040",
+        "q": 1,
+        "kappa_c": 0.04,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q1-kc0p080",
+        "q": 1,
+        "kappa_c": 0.08,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p000",
+        "q": 2,
+        "kappa_c": 0.0,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p005",
+        "q": 2,
+        "kappa_c": 0.005,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p010",
+        "q": 2,
+        "kappa_c": 0.01,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p020",
+        "q": 2,
+        "kappa_c": 0.02,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p040",
+        "q": 2,
+        "kappa_c": 0.04,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q2-kc0p080",
+        "q": 2,
+        "kappa_c": 0.08,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p000",
+        "q": 3,
+        "kappa_c": 0.0,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p005",
+        "q": 3,
+        "kappa_c": 0.005,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p010",
+        "q": 3,
+        "kappa_c": 0.01,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p020",
+        "q": 3,
+        "kappa_c": 0.02,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p040",
+        "q": 3,
+        "kappa_c": 0.04,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q3-kc0p080",
+        "q": 3,
+        "kappa_c": 0.08,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p000",
+        "q": 4,
+        "kappa_c": 0.0,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p005",
+        "q": 4,
+        "kappa_c": 0.005,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p010",
+        "q": 4,
+        "kappa_c": 0.01,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p020",
+        "q": 4,
+        "kappa_c": 0.02,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p040",
+        "q": 4,
+        "kappa_c": 0.04,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      },
+      {
+        "cell_id": "m3-q4-kc0p080",
+        "q": 4,
+        "kappa_c": 0.08,
+        "eta": 0.0,
+        "matter_epsilon_fixed": 1.0,
+        "retune_mode": "actual-floquet-shell"
+      }
+    ],
+    "measured_coordinates_present": false
+  },
+  "family_descriptor": {
+    "name": "RC3-(ii)-R2-partial-Yee",
+    "construction_kind": "spectral_bookkeeping",
+    "realspace_step_factory": null,
+    "support_radius": null,
+    "declared_composition_radius": null,
+    "support_radius_independent_of_L": false,
+    "unitarity_error_fp64": null,
+    "same_state_space_all_q": true,
+    "k_dependent_projection": true,
+    "explicit_local_shears": [],
+    "q_layer_counts": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "coordinates_are_measured": true,
+    "floquet_retune_mode": "not-applicable-no-realspace-step",
+    "evidence": "experiments/rc3ii_relaxation_framework.py:candidate_R2 projects selected S_curv modes into ker(C) per k"
+  },
+  "family_admission": {
+    "pass": false,
+    "thresholds": {
+      "unitarity_error_fp64_max": 1e-12
+    },
+    "checks": {
+      "strict_local_realspace": false,
+      "realspace_step_factory": false,
+      "finite_support_radius": false,
+      "declared_radius_matches": false,
+      "support_radius_independent_of_L": false,
+      "unitarity_fp64": false,
+      "same_state_space_all_q": true,
+      "no_k_dependent_projection": false,
+      "explicit_local_shears": false,
+      "q_layer_mapping": true,
+      "coordinates_are_measured": true,
+      "no_measured_coordinate_injection": true,
+      "actual_floquet_shell_retune": false
+    },
+    "failures": [
+      "spectral_bookkeeping_only",
+      "missing_realspace_step_factory",
+      "invalid_support_radius",
+      "support_radius_mismatch",
+      "support_radius_depends_on_L",
+      "unitarity_error_above_fp64_gate",
+      "k_dependent_projection",
+      "missing_explicit_local_shears",
+      "invalid_floquet_retune"
+    ]
+  },
+  "next_unlock_condition": "Provide one same-state-space strict-local real-space q-family with an executable step factory, explicit local shears, L-independent support, fp64 unitarity <=1e-12, no per-k projection, and measured rather than injected epsilon_geo/sigma coordinates.",
+  "eta_diagnostic": {
+    "part_of_core_map": false,
+    "locked_until_core_stable_point": true,
+    "future_levels": [
+      0.05,
+      0.1
+    ]
+  }
+}

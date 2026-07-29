@@ -25,7 +25,7 @@ dimension is deferred past fixed-3+1D.
 This is not product engineering. Verification is split into syntax/import checks, symbolic
 certificates, physics gates, and long-run reproduction — there is no conventional unit-test framework.
 
-## Status (2026-07-28)
+## Status (2026-07-29)
 
 > **The program has been upgraded to v2 “Emergence Boundary Cartography”; the authoritative entry is
 > now [`docsv2/README.md`](docsv2/README.md).** The v1 North Star (spin-2 emergence M3) was formally
@@ -39,7 +39,13 @@ certificates, physics gates, and long-run reproduction — there is no conventio
 | **M0′** | Instrument migration: basis-invariant calibers (principal-angle spectrum), dual-environment consistency, ε_DOF dimension criterion | ✅ |
 | **M1′** | Maxwell full closed loop: one spin-1 rule passes every extreme-language gate; photons exactly 2, **ε_DOF=1 measured, zero hand-built** | ✅ PASS |
 | **M2′** | Spin-2 coupled loop: R30 hand-built complex geometry sets the stage, emergent Dirac matter plays — **(ε_geo=0, ε_mat=1) point on the map** | ✅ PASS |
-| **M3′** | Boundary cartography: instruments go from point-closure to line/surface scanning; lane-B GPU first unleashed on a claim-aligned evaluator | ⏳ task book pending (lane A drafts) |
+| **M3′** | Boundary cartography: the `(ε_geo, σ)` map is frozen as a 30-cell pilot before the formal `10²–10³` scan | ⏸ Round 0 `HALT-FAMILY-ADMISSION`; pilot locked |
+
+M3′ now has a signed [task book](docsv2/v2-任务书-M3-涌现边界制图.md) and a reproducible
+[Round 0 report](docsv2/v2-小报告-M3-预飞-2026-07-29.md). Upstream certificates and the frozen
+RC3-(ii) topology ladder pass, but the current partial-Yee R2 is spectral bookkeeping rather than an
+executable strict-local real-space family. This is a pre-run admission halt: **M3′ has neither passed
+nor failed, and the 30-cell pilot was not run.**
 
 **The (ε,σ) map now has three complete closed-loop benchmark points:** R30 (ε=0, bare geometry),
 Maxwell (ε=1, M1′), and the coupled point ((ε_geo=0, ε_mat=1), M2′). The coupled point's entire value
