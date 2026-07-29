@@ -15,3 +15,6 @@ data/logs/
 # 可重建的中间缓存（兼容 experiments/ 下的链接名）
 data/cache/
 exp4_cache.npz
+
+# 本地视觉伴随工具运行态
+.superpowers/
