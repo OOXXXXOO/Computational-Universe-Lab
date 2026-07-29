@@ -39,13 +39,15 @@ certificates, physics gates, and long-run reproduction — there is no conventio
 | **M0′** | Instrument migration: basis-invariant calibers (principal-angle spectrum), dual-environment consistency, ε_DOF dimension criterion | ✅ |
 | **M1′** | Maxwell full closed loop: one spin-1 rule passes every extreme-language gate; photons exactly 2, **ε_DOF=1 measured, zero hand-built** | ✅ PASS |
 | **M2′** | Spin-2 coupled loop: R30 hand-built complex geometry sets the stage, emergent Dirac matter plays — **(ε_geo=0, ε_mat=1) point on the map** | ✅ PASS |
-| **M3′** | Boundary cartography: the `(ε_geo, σ)` map is frozen as a 30-cell pilot before the formal `10²–10³` scan | ⏸ Round 0 `HALT-FAMILY-ADMISSION`; pilot locked |
+| **M3′** | Boundary cartography: the `(ε_geo, σ)` map is frozen as a 30-cell pilot before the formal `10²–10³` scan | ▶ Round 0 `READY-PILOT`; 30 cells unlocked, not run |
 
 M3′ now has a signed [task book](docsv2/v2-任务书-M3-涌现边界制图.md) and a reproducible
-[Round 0 report](docsv2/v2-小报告-M3-预飞-2026-07-29.md). Upstream certificates and the frozen
-RC3-(ii) topology ladder pass, but the current partial-Yee R2 is spectral bookkeeping rather than an
-executable strict-local real-space family. This is a pre-run admission halt: **M3′ has neither passed
-nor failed, and the 30-cell pilot was not run.**
+[Round 0 report](docsv2/v2-小报告-M3-预飞-2026-07-29.md). The legacy partial-Yee R2 remains
+rejected as spectral bookkeeping, while an independent same-state-space, strict-local real-space
+`q` family passes Round 0 with fp64 symplectic defect `7.77e-16`, measured support radius 4, and a
+`64³` full-Brillouin-zone maximum Verlet CFL number of `3.96396 < 4`.
+**Only the 30-cell pilot is unlocked; it has not run, M3′ has neither passed nor failed, and the
+formal scan remains locked.**
 
 **The (ε,σ) map now has three complete closed-loop benchmark points:** R30 (ε=0, bare geometry),
 Maxwell (ε=1, M1′), and the coupled point ((ε_geo=0, ε_mat=1), M2′). The coupled point's entire value

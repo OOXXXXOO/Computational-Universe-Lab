@@ -59,6 +59,11 @@ class LocalFamilyStateTests(unittest.TestCase):
                     self.assertEqual(field.dtype, np.complex128)
 
     def test_q_is_an_explicit_four_layer_stiffness_prefix(self) -> None:
+        self.assertTrue(hasattr(local_family, "COUNTER_SHEARS"))
+        self.assertEqual(
+            tuple(shear.name for shear in local_family.COUNTER_SHEARS),
+            ("counter_1", "counter_2", "counter_3", "counter_4"),
+        )
         rng = np.random.default_rng(11)
         h = rng.normal(size=(10, 7, 7, 7)) + 1j * rng.normal(
             size=(10, 7, 7, 7)
@@ -72,8 +77,8 @@ class LocalFamilyStateTests(unittest.TestCase):
         for q in range(5):
             with self.subTest(q=q):
                 accumulated = walk.copy()
-                for layer in range(q):
-                    accumulated += local_family.apply_counter_stiffness(h, layer)
+                for shear in local_family.COUNTER_SHEARS[:q]:
+                    accumulated += shear(h)
                 expected = walk + (q / 4.0) * (r30 - walk)
                 np.testing.assert_allclose(
                     accumulated,
@@ -138,6 +143,18 @@ class LocalOperatorCertificateTests(unittest.TestCase):
                 self.assertGreater(row["dt"], 0.99)
                 self.assertLessEqual(row["dt"], 1.000000000001)
 
+    def test_floquet_retune_is_replayed_through_the_production_step(self) -> None:
+        self.assertTrue(
+            hasattr(local_family, "realspace_floquet_shell_certificate")
+        )
+        certificate = local_family.realspace_floquet_shell_certificate()
+        self.assertEqual(certificate["q_levels_checked"], 5)
+        self.assertLessEqual(
+            certificate["max_frequency_residual"],
+            1e-12,
+        )
+        self.assertTrue(certificate["pass"])
+
     def test_macro_step_support_is_finite_and_volume_independent(self) -> None:
         self.assertTrue(hasattr(local_family, "measure_support_radii"))
         support = local_family.measure_support_radii(L_values=(17, 21))
@@ -153,6 +170,13 @@ class LocalOperatorCertificateTests(unittest.TestCase):
         self.assertLess(certificate["walk_stiffness_adjoint_residual"], 1e-13)
         self.assertLess(certificate["r30_stiffness_adjoint_residual"], 1e-13)
         self.assertTrue(certificate["pass"])
+
+    def test_realspace_macrostep_matches_the_offline_symbol(self) -> None:
+        self.assertTrue(hasattr(local_family, "plane_wave_bridge_certificate"))
+        bridge = local_family.plane_wave_bridge_certificate()
+        self.assertEqual(bridge["cells_checked"], 30)
+        self.assertLessEqual(bridge["max_relative_residual"], 1e-12)
+        self.assertTrue(bridge["pass"])
 
 
 class LocalFamilySymplecticTests(unittest.TestCase):
@@ -195,6 +219,15 @@ class LocalFamilySymplecticTests(unittest.TestCase):
         )
         self.assertTrue(certificate["stable_all"])
         self.assertTrue(certificate["pass"])
+
+    def test_dense_full_bz_audit_covers_the_intermediate_walk_uv_peak(self) -> None:
+        certificate = local_family.certify_local_family()
+        full_bz = certificate["full_bz_stability"]
+
+        self.assertGreaterEqual(full_bz["N"], 64)
+        self.assertEqual(full_bz["points_checked"], 64**3)
+        self.assertLess(full_bz["max_verlet_cfl_number"], 4.0)
+        self.assertTrue(full_bz["pass"])
 
 
 if __name__ == "__main__":

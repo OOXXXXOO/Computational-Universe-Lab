@@ -44,9 +44,11 @@ M3′ 已完成设计自审、任务书签发和 Round 0 预飞：
 3. `../data/results/v2m3_preflight.json` —— 结果真文件；
 4. `../data/runtime/v2m3_state.json` —— 当前运行态。
 
-当前状态为 **`HALT-FAMILY-ADMISSION`**：上游证书、M2′ 八门、RC3-(ii) 三方向拓扑锚和
-30 格 manifest 通过；现有 R2 因不是可执行的严格局域实空间族而被拒绝。M3′ 未 PASS、
-未 FAIL，30 格 pilot 未运行。唯一解锁条件见任务书 §2.2 与预飞报告 §四。
+当前状态为 **`READY-PILOT`**：legacy RC3-(ii) R2 仍因逐 `k` 谱投影被拒绝；独立的新
+严格局域实空间 `q` 族已通过同一 Round 0 审计，其中稳定性覆盖冻结的 `64³` 全布里渊区，
+生产宏步另与独立 symbol 和实际 Floquet 壳对拍。30 格 pilot 已解锁但未运行，M3′ 未 PASS、
+未 FAIL，正式 `10²–10³` 扫描仍锁定。家族证书见
+`../data/results/v2m3_local_family_certificate.json`，当前判读见预飞报告。
 
 ## 与 v1 术语的对照(防混用)
 

@@ -134,7 +134,7 @@
       <span class="chip"><span class="dot" style="background:var(--metric)"></span>M0′ instruments ✓</span>
       <span class="chip"><span class="dot" style="background:var(--ok)"></span>M1′ Maxwell ✓ PASS</span>
       <span class="chip"><span class="dot" style="background:var(--matter)"></span>M2′ coupled point ✓ PASS</span>
-      <span class="chip"><span class="dot" style="background:var(--matter)"></span>M3′ Round 0 · family admission halt</span>
+      <span class="chip"><span class="dot" style="background:var(--metric)"></span>M3′ Round 0 · READY-PILOT</span>
       <span class="chip"><span class="dot" style="background:var(--ceil)"></span>v1 spin-2 M3 sealed</span>
     </div>
   </div>
@@ -360,18 +360,18 @@
 <footer class="wrap">
   <div class="eyebrow">The next door</div>
   <h2 style="font-size:clamp(22px,3.2vw,32px);margin:12px 0 4px;max-width:22ch">M3′: map the boundary, don't re-aim at it</h2>
-  <p style="color:var(--ink-dim);max-width:66ch">Round 0 now guards the transition from point closure to line and surface scanning. The 30-cell <span class="mono">q × κ<sub>C</sub></span> manifest is frozen, but no GPU scan is allowed until one same-state-space, strict-local real-space family passes admission.</p>
+  <p style="color:var(--ink-dim);max-width:66ch">Round 0 已完成结构准入：同状态空间、严格局域的实空间 <span class="mono">q</span> 族通过 H0。30 格 <span class="mono">q × κ<sub>C</sub></span> pilot 已解锁但尚未运行；正式扫描仍禁止启动。</p>
   <div class="coda-grid">
     <div class="card next">
-      <h4>M3′ Round 0 — evidence admitted, family halted</h4>
-      <p>All six upstream hashes, M2′ 8/8 gates, and the RC3-(ii) axis/face/body topology ladder reproduce. The current partial-Yee R2 is nevertheless <strong>spectral bookkeeping, not an executable local family</strong>: it has no real-space step factory and uses per-<span class="mono">k</span> projection. Status: <span class="mono">HALT-FAMILY-ADMISSION</span>; pilot not run.</p>
+      <h4>M3′ Round 0 — 新家族准入，pilot 未运行</h4>
+      <p>六项上游 SHA、M2′ 8/8 门与 RC3-(ii) 三方向拓扑锚全部复现。legacy R2 仍因逐 <span class="mono">k</span> 投影被拒绝；独立的新家族具备真实 factory、显式局域 shear、体积无关的半径 4 支撑，fp64 辛缺陷 <strong>7.77×10<sup>−16</sup></strong>。稳定性覆盖 <span class="mono">64³</span> 全布里渊区，最大 Verlet CFL <strong>3.96396 &lt; 4</strong>；生产宏步另与独立 symbol 和实际 Floquet 壳对拍。状态：<span class="mono">READY-PILOT</span>；30 格仅解锁，未执行。</p>
     </div>
     <div class="card sealed">
       <h4>What stays sealed</h4>
       <p>The v1 spin-2 M3 主句 is untouched. The forbidden phrase holds. M3′ does not re-open the wall — it measures the reachable shape on this side of it, with the wall as a labeled, understood boundary on the map.</p>
     </div>
   </div>
-  <p class="foot-note">FAIL-STOP; history is append-only; frozen files are read-only with runtime SHA-256 checks; fp64 only for certificates. Negative results, HALTs and voided runs are logged with the same weight as positive ones. Updated 2026-07-29 from the v2 closure chain (M0′→M2′) and the M3′ Round 0 preflight; authoritative entry: docsv2/README.md.</p>
+  <p class="foot-note">FAIL-STOP；历史只追加；冻结文件以运行时 SHA-256 校验；证书只认 fp64。负结果、HALT 与作废运行和正结果同权入册。2026-07-29 更新：M3′ Round 0 为 READY-PILOT，不等于 M3′ PASS/FAIL；权威入口：docsv2/README.md。</p>
 </footer>
 
 </body>

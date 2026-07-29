@@ -9,10 +9,13 @@
 > M0′ 完成前,v1 证书不得直接当 v2 门的 PASS 依据;v1 术语(M3/M4/四承诺)只在 v1
 > 语境内使用。下文保留为 v1 历史约束,其仓库纪律与验证最低线条款继续有效。
 
-当前活跃战役为 **M3′ Round 0 / `HALT-FAMILY-ADMISSION`**（2026-07-29）。权威任务书：
+当前活跃战役为 **M3′ / `READY-PILOT`**（2026-07-29）。权威任务书：
 `docsv2/v2-任务书-M3-涌现边界制图.md`；当前判读：
-`docsv2/v2-小报告-M3-预飞-2026-07-29.md`。上游证书与拓扑锚已过，但现有 RC3-(ii) R2
-不是可执行的严格局域实空间族；30 格 pilot 保持锁定，M3′ 未 PASS、未 FAIL。
+`docsv2/v2-小报告-M3-预飞-2026-07-29.md`。legacy RC3-(ii) R2 仍被拒绝；独立的新严格
+局域实空间 `q` 族已通过 Round 0。30 格 pilot 已解锁但未运行，正式扫描仍锁定，M3′
+未 PASS、未 FAIL。不得把 `READY-PILOT` 或局域族 H0 证书写成 M3′ PASS。
+当前稳定性准入以 `64³` 全布里渊区为准；8 个 `K_CERT` 只作辛性/Hermitian 探针，不得
+再引用为全域稳定性证明。
 
 ## 视觉系统（当前与后续材料）
 
@@ -51,7 +54,8 @@ PASS 宣告为 v1 M3，也不得把单个 GR-compatible 构造描述为宽规则
 - `experiments/` 中 CP1/R25 等脚本包含 SHA 证书链。仅为美化路径不得改写其内容。
 - `experiments/*.json`、`experiments/figs`、`experiments/campaigns` 是兼容链接；真数据在 `data/`
   和 `visualizations/`。不要复制成双份。
-- 新结果写入 `data/results/`，新图写入 `visualizations/figs/`，新报告按类型写入 `docs/`。
+- 新结果写入 `data/results/`，新图写入 `visualizations/figs/`；v2 新报告写入 `docsv2/`，
+  冻结的 v1 `docs/` 只保留历史证据链。
 - `data/runtime/` 是可恢复运行态；reset 操作具有删除语义，除非用户明确要求，不得执行。
 - 核心包暂留 `rulespace/`、`rulespace_gpu/` 顶层以保护导入和模块运行契约，不要擅自搬入 `src/`。
 
@@ -68,7 +72,7 @@ PASS 宣告为 v1 M3，也不得把单个 GR-compatible 构造描述为宽规则
 按改动风险选择：
 
 ```bash
-python -m compileall -q rulespace rulespace_gpu experiments tools
+python -m compileall -q rulespace rulespace_gpu rulespace_v2 experiments tools
 python -m rulespace_gpu.verify
 git diff --check
 ```

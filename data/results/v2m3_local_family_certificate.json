@@ -1,8 +1,8 @@
 {
-  "_schema": "v2m3_local_family_certificate v1",
+  "_schema": "v2m3_local_family_certificate v2",
   "construction": "walk-to-R30 four-counter-shear family",
   "cells_checked": 30,
-  "k_samples": [
+  "k_symplectic_probes": [
     [
       0.0,
       0.0,
@@ -44,11 +44,12 @@
       3.141592653589793
     ]
   ],
-  "max_symplectic_defect_fp64": 8.881784197001252e-16,
-  "max_potential_hermitian_defect": 1.734723475976807e-18,
-  "max_abs_eig_modulus_minus_1": 4.884981308350689e-15,
+  "max_symplectic_defect_fp64": 7.771561172376096e-16,
+  "max_potential_hermitian_defect": 4.336808689942018e-19,
+  "max_abs_eig_modulus_minus_1": 4.218847493575595e-15,
   "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-  "max_verlet_cfl_number": 3.480000000000004,
+  "max_k_probe_verlet_cfl_number": 3.1800000000000033,
+  "max_verlet_cfl_number": 3.9639613599491597,
   "zero_mode_policy": "analytic Jordan drift; spectral modulus excluded at k=0",
   "max_floquet_frequency_residual": 4.163336342344337e-17,
   "stable_all": true,
@@ -372,6 +373,741 @@
       "a_q_ref": 0.009607359798384776
     }
   },
+  "realspace_floquet_shell": {
+    "L_ref": 32,
+    "k_units_ref": [
+      1,
+      0,
+      0
+    ],
+    "q_levels_checked": 5,
+    "max_frequency_residual": 2.3175905639050143e-15,
+    "max_half_trace_imaginary_residual": 1.0961599852363126e-16,
+    "per_q": {
+      "0": {
+        "dt": 0.9998665911489343,
+        "omega_target": 0.0980564197125421,
+        "omega_measured_from_realspace_step": 0.09805641971254442,
+        "frequency_residual": 2.3175905639050143e-15,
+        "half_trace_imaginary_residual": 7.106029872704746e-17
+      },
+      "1": {
+        "dt": 0.9998999383559798,
+        "omega_target": 0.0980564197125421,
+        "omega_measured_from_realspace_step": 0.09805641971254442,
+        "frequency_residual": 2.3175905639050143e-15,
+        "half_trace_imaginary_residual": 1.0961599852363126e-16
+      },
+      "2": {
+        "dt": 0.9999332888998016,
+        "omega_target": 0.0980564197125421,
+        "omega_measured_from_realspace_step": 0.09805641971254442,
+        "frequency_residual": 2.3175905639050143e-15,
+        "half_trace_imaginary_residual": 7.90788416195342e-17
+      },
+      "3": {
+        "dt": 0.9999666427809563,
+        "omega_target": 0.0980564197125421,
+        "omega_measured_from_realspace_step": 0.09805641971254442,
+        "frequency_residual": 2.3175905639050143e-15,
+        "half_trace_imaginary_residual": 5.853182427974659e-17
+      },
+      "4": {
+        "dt": 1.0000000000000004,
+        "omega_target": 0.0980564197125421,
+        "omega_measured_from_realspace_step": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "half_trace_imaginary_residual": 5.898059818321147e-17
+      }
+    },
+    "pass": true
+  },
+  "plane_wave_bridge": {
+    "L": 8,
+    "k_units": [
+      1,
+      2,
+      3
+    ],
+    "seed": 260729,
+    "cells_checked": 30,
+    "max_relative_residual": 3.2728534525451625e-16,
+    "per_cell": [
+      {
+        "q": 0,
+        "kappa_c": 0.0,
+        "relative_residual": 2.1688485127245769e-16
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.005,
+        "relative_residual": 3.2728534525451625e-16
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.01,
+        "relative_residual": 2.6756200033190464e-16
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.02,
+        "relative_residual": 3.079031559083057e-16
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.04,
+        "relative_residual": 2.637077091158456e-16
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.08,
+        "relative_residual": 3.0485498621190344e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.0,
+        "relative_residual": 2.328897158993242e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.005,
+        "relative_residual": 2.3928189698292176e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.01,
+        "relative_residual": 2.540982613136362e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.02,
+        "relative_residual": 2.619565127173286e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.04,
+        "relative_residual": 2.5799810539537486e-16
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.08,
+        "relative_residual": 2.8872110364457203e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.0,
+        "relative_residual": 1.7480399238701643e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.005,
+        "relative_residual": 2.564600672200749e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.01,
+        "relative_residual": 2.496643613783414e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.02,
+        "relative_residual": 1.8079890949744462e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.04,
+        "relative_residual": 3.0567957465361674e-16
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.08,
+        "relative_residual": 2.1872902174179505e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.0,
+        "relative_residual": 2.0558054344768615e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.005,
+        "relative_residual": 2.481513142638305e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.01,
+        "relative_residual": 2.0026895928306606e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.02,
+        "relative_residual": 1.874083847133199e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.04,
+        "relative_residual": 2.408443334967532e-16
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.08,
+        "relative_residual": 2.2661835104025285e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.0,
+        "relative_residual": 2.0054817184475587e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.005,
+        "relative_residual": 2.268877786214545e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.01,
+        "relative_residual": 2.391328168266537e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.02,
+        "relative_residual": 2.1613949958303723e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.04,
+        "relative_residual": 2.7194143802589494e-16
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.08,
+        "relative_residual": 2.3340115861225684e-16
+      }
+    ],
+    "pass": true
+  },
+  "full_bz_stability": {
+    "N": 64,
+    "grid": "k_i=2*pi*n_i/N, n_i=0,...,N-1",
+    "points_checked": 262144,
+    "cell_point_evaluations": 7864320,
+    "max_verlet_cfl_number": 3.9639613599491597,
+    "minimum_base_potential_eigenvalue": -3.9968028886505635e-15,
+    "max_formula_vs_direct_eigvalsh_residual": 3.552713678800501e-15,
+    "per_cell": [
+      {
+        "q": 0,
+        "kappa_c": 0.0,
+        "max_verlet_cfl_number": 3.8781264845563963,
+        "worst_index": [
+          31,
+          28,
+          16
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.748893571891069,
+          1.5707963267948966
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.1086244689504383e-15,
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.005,
+        "max_verlet_cfl_number": 3.8832100906149782,
+        "worst_index": [
+          31,
+          28,
+          16
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.748893571891069,
+          1.5707963267948966
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.1086244689504383e-15,
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.01,
+        "max_verlet_cfl_number": 3.8883293721924965,
+        "worst_index": [
+          31,
+          28,
+          16
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.748893571891069,
+          1.5707963267948966
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.1086244689504383e-15,
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.02,
+        "max_verlet_cfl_number": 3.898674904032369,
+        "worst_index": [
+          31,
+          28,
+          16
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.748893571891069,
+          1.5707963267948966
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.6645352591003757e-15,
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.04,
+        "max_verlet_cfl_number": 3.9197931377578406,
+        "worst_index": [
+          31,
+          28,
+          16
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.748893571891069,
+          1.5707963267948966
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.1086244689504383e-15,
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.08,
+        "max_verlet_cfl_number": 3.9639613599491597,
+        "worst_index": [
+          30,
+          28,
+          17
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          1.6689710972195777
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.220446049250313e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.0,
+        "max_verlet_cfl_number": 3.5379588690551587,
+        "worst_index": [
+          30,
+          28,
+          18
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          1.7671458676442586
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.6645352591003757e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.005,
+        "max_verlet_cfl_number": 3.543263398215751,
+        "worst_index": [
+          30,
+          28,
+          18
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          1.7671458676442586
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.220446049250313e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.01,
+        "max_verlet_cfl_number": 3.548621249046759,
+        "worst_index": [
+          30,
+          28,
+          18
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          1.7671458676442586
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.552713678800501e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.02,
+        "max_verlet_cfl_number": 3.5595428684970054,
+        "worst_index": [
+          30,
+          27,
+          19
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.650718801466388,
+          1.8653206380689396
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.1086244689504383e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.04,
+        "max_verlet_cfl_number": 3.582240403871475,
+        "worst_index": [
+          30,
+          27,
+          19
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.650718801466388,
+          1.8653206380689396
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.6645352591003757e-15,
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.08,
+        "max_verlet_cfl_number": 3.6303357613261222,
+        "worst_index": [
+          30,
+          28,
+          19
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          1.8653206380689396
+        ],
+        "formula_vs_direct_eigvalsh_residual": 3.552713678800501e-15,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.0,
+        "max_verlet_cfl_number": 3.241476253578722,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 1.3322676295501878e-15,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.005,
+        "max_verlet_cfl_number": 3.2472102964761653,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 1.7763568394002505e-15,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.01,
+        "max_verlet_cfl_number": 3.2530547717035296,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 1.3322676295501878e-15,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.02,
+        "max_verlet_cfl_number": 3.2650722820590814,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 2.6645352591003757e-15,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.04,
+        "max_verlet_cfl_number": 3.2903951487021215,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.08,
+        "max_verlet_cfl_number": 3.3458899680124152,
+        "worst_index": [
+          30,
+          28,
+          22
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.748893571891069,
+          2.1598449493429825
+        ],
+        "formula_vs_direct_eigvalsh_residual": 1.3322676295501878e-15,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.0,
+        "max_verlet_cfl_number": 3.0365213576271928,
+        "worst_index": [
+          30,
+          29,
+          27
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.84706834231575,
+          2.650718801466388
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.005,
+        "max_verlet_cfl_number": 3.0428191070606836,
+        "worst_index": [
+          30,
+          29,
+          27
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.84706834231575,
+          2.650718801466388
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.01,
+        "max_verlet_cfl_number": 3.049576871734906,
+        "worst_index": [
+          30,
+          29,
+          27
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.84706834231575,
+          2.650718801466388
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.02,
+        "max_verlet_cfl_number": 3.0643654059492555,
+        "worst_index": [
+          30,
+          29,
+          27
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.84706834231575,
+          2.650718801466388
+        ],
+        "formula_vs_direct_eigvalsh_residual": 8.881784197001252e-16,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.04,
+        "max_verlet_cfl_number": 3.0980770911980833,
+        "worst_index": [
+          30,
+          29,
+          27
+        ],
+        "worst_k": [
+          2.945243112740431,
+          2.84706834231575,
+          2.650718801466388
+        ],
+        "formula_vs_direct_eigvalsh_residual": 0.0,
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.08,
+        "max_verlet_cfl_number": 3.178354573122542,
+        "worst_index": [
+          31,
+          30,
+          28
+        ],
+        "worst_k": [
+          3.043417883165112,
+          2.945243112740431,
+          2.748893571891069
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.0,
+        "max_verlet_cfl_number": 3.0000000000000027,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 0.0,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.005,
+        "max_verlet_cfl_number": 3.011250000000003,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.01,
+        "max_verlet_cfl_number": 3.0225000000000026,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.02,
+        "max_verlet_cfl_number": 3.0450000000000026,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 0.0,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.04,
+        "max_verlet_cfl_number": 3.0900000000000025,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 4.440892098500626e-16,
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.08,
+        "max_verlet_cfl_number": 3.1800000000000024,
+        "worst_index": [
+          32,
+          32,
+          32
+        ],
+        "worst_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "formula_vs_direct_eigvalsh_residual": 8.881784197001252e-16,
+        "stable": true
+      }
+    ],
+    "pass": true
+  },
   "per_cell": [
     {
       "q": 0,
@@ -381,7 +1117,13 @@
       "max_potential_hermitian_defect": 0.0,
       "max_abs_eig_modulus_minus_1": 4.440892098500626e-16,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 2.9991996002873704,
+      "max_k_probe_verlet_cfl_number": 2.9991996002873704,
+      "max_verlet_cfl_number": 3.8781264845563963,
+      "full_bz_worst_index": [
+        31,
+        28,
+        16
+      ],
       "worst_modulus_k": [
         1.5707963267948966,
         0.0,
@@ -393,11 +1135,17 @@
       "q": 0,
       "kappa_c": 0.005,
       "dt": 0.9998665911489343,
-      "max_symplectic_defect_fp64": 6.661338147750939e-16,
-      "max_potential_hermitian_defect": 1.0842021724855044e-19,
-      "max_abs_eig_modulus_minus_1": 3.885780586188048e-15,
+      "max_symplectic_defect_fp64": 7.771561172376096e-16,
+      "max_potential_hermitian_defect": 2.710505431213761e-20,
+      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 3.0047403217118327,
+      "max_k_probe_verlet_cfl_number": 3.004323797544939,
+      "max_verlet_cfl_number": 3.8832100906149782,
+      "full_bz_worst_index": [
+        31,
+        28,
+        16
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.0,
@@ -409,14 +1157,20 @@
       "q": 0,
       "kappa_c": 0.01,
       "dt": 0.9998665911489343,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 2.168404344971009e-19,
-      "max_abs_eig_modulus_minus_1": 4.440892098500626e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 5.421010862427522e-20,
+      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 3.0115508568617932,
+      "max_k_probe_verlet_cfl_number": 3.0097008218944583,
+      "max_verlet_cfl_number": 3.8883293721924965,
+      "full_bz_worst_index": [
+        31,
+        28,
+        16
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
-        0.0,
+        0.19634954084936207,
         0.0
       ],
       "stable": true
@@ -426,13 +1180,19 @@
       "kappa_c": 0.02,
       "dt": 0.9998665911489343,
       "max_symplectic_defect_fp64": 6.661338147750939e-16,
-      "max_potential_hermitian_defect": 4.336808689942018e-19,
-      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+      "max_potential_hermitian_defect": 1.0842021724855044e-19,
+      "max_abs_eig_modulus_minus_1": 3.552713678800501e-15,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 3.03023818054864,
+      "max_k_probe_verlet_cfl_number": 3.021217818315309,
+      "max_verlet_cfl_number": 3.898674904032369,
+      "full_bz_worst_index": [
+        31,
+        28,
+        16
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
-        1.5707963267948966,
+        0.19634954084936207,
+        0.0,
         0.0
       ],
       "stable": true
@@ -442,14 +1202,20 @@
       "kappa_c": 0.04,
       "dt": 0.9998665911489343,
       "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 8.673617379884035e-19,
-      "max_abs_eig_modulus_minus_1": 3.552713678800501e-15,
+      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 3.094299142939804,
+      "max_k_probe_verlet_cfl_number": 3.0472492619697,
+      "max_verlet_cfl_number": 3.9197931377578406,
+      "full_bz_worst_index": [
+        31,
+        28,
+        16
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
-        1.5707963267948966,
-        0.0
+        0.19634954084936207,
+        0.19634954084936207,
+        0.19634954084936207
       ],
       "stable": true
     },
@@ -457,15 +1223,21 @@
       "q": 0,
       "kappa_c": 0.08,
       "dt": 0.9998665911489343,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 1.734723475976807e-18,
+      "max_symplectic_defect_fp64": 5.551115123125783e-16,
+      "max_potential_hermitian_defect": 4.336808689942018e-19,
       "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -1.3322676295501878e-15,
-      "max_verlet_cfl_number": 3.296397548078104,
+      "max_k_probe_verlet_cfl_number": 3.109858091576814,
+      "max_verlet_cfl_number": 3.9639613599491597,
+      "full_bz_worst_index": [
+        30,
+        28,
+        17
+      ],
       "worst_modulus_k": [
-        3.141592653589793,
-        3.141592653589793,
-        3.141592653589793
+        1.5707963267948966,
+        0.0,
+        0.0
       ],
       "stable": true
     },
@@ -477,7 +1249,13 @@
       "max_potential_hermitian_defect": 0.0,
       "max_abs_eig_modulus_minus_1": 2.220446049250313e-16,
       "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 2.9993996601728767,
+      "max_k_probe_verlet_cfl_number": 2.9993996601728767,
+      "max_verlet_cfl_number": 3.5379588690551587,
+      "full_bz_worst_index": [
+        30,
+        28,
+        18
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.19634954084936207,
@@ -489,15 +1267,21 @@
       "q": 1,
       "kappa_c": 0.005,
       "dt": 0.9998999383559798,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 1.0842021724855044e-19,
-      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 2.710505431213761e-20,
+      "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
       "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 3.0051414840083273,
+      "max_k_probe_verlet_cfl_number": 3.0045662604161967,
+      "max_verlet_cfl_number": 3.543263398215751,
+      "full_bz_worst_index": [
+        30,
+        28,
+        18
+      ],
       "worst_modulus_k": [
-        0.19634954084936207,
-        0.19634954084936207,
-        0.19634954084936207
+        1.5707963267948966,
+        1.5707963267948966,
+        1.5707963267948966
       ],
       "stable": true
     },
@@ -506,10 +1290,38 @@
       "kappa_c": 0.01,
       "dt": 0.9998999383559798,
       "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_potential_hermitian_defect": 5.421010862427522e-20,
       "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
       "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 3.0127123088109253,
+      "max_k_probe_verlet_cfl_number": 3.0100707500866264,
+      "max_verlet_cfl_number": 3.548621249046759,
+      "full_bz_worst_index": [
+        30,
+        28,
+        18
+      ],
+      "worst_modulus_k": [
+        0.19634954084936207,
+        0.19634954084936207,
+        0.0
+      ],
+      "stable": true
+    },
+    {
+      "q": 1,
+      "kappa_c": 0.02,
+      "dt": 0.9998999383559798,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 1.0842021724855044e-19,
+      "max_abs_eig_modulus_minus_1": 3.885780586188048e-15,
+      "minimum_potential_eigenvalue": -9.992007221626409e-16,
+      "max_k_probe_verlet_cfl_number": 3.0220949047646855,
+      "max_verlet_cfl_number": 3.5595428684970054,
+      "full_bz_worst_index": [
+        30,
+        27,
+        19
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.19634954084936207,
@@ -519,33 +1331,23 @@
     },
     {
       "q": 1,
-      "kappa_c": 0.02,
-      "dt": 0.9998999383559798,
-      "max_symplectic_defect_fp64": 6.661338147750939e-16,
-      "max_potential_hermitian_defect": 4.336808689942018e-19,
-      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
-      "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 3.035564253063951,
-      "worst_modulus_k": [
-        1.5707963267948966,
-        1.5707963267948966,
-        0.0
-      ],
-      "stable": true
-    },
-    {
-      "q": 1,
       "kappa_c": 0.04,
       "dt": 0.9998999383559798,
-      "max_symplectic_defect_fp64": 6.661338147750939e-16,
-      "max_potential_hermitian_defect": 8.673617379884035e-19,
-      "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
+      "max_symplectic_defect_fp64": 4.440892098500626e-16,
+      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_abs_eig_modulus_minus_1": 4.218847493575595e-15,
       "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 3.116119737249576,
+      "max_k_probe_verlet_cfl_number": 3.05002042430992,
+      "max_verlet_cfl_number": 3.582240403871475,
+      "full_bz_worst_index": [
+        30,
+        27,
+        19
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
-        0.0,
-        0.0
+        3.141592653589793,
+        3.141592653589793,
+        3.141592653589793
       ],
       "stable": true
     },
@@ -553,15 +1355,21 @@
       "q": 1,
       "kappa_c": 0.08,
       "dt": 0.9998999383559798,
-      "max_symplectic_defect_fp64": 8.881784197001252e-16,
-      "max_potential_hermitian_defect": 1.734723475976807e-18,
-      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 4.336808689942018e-19,
+      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -9.992007221626409e-16,
-      "max_verlet_cfl_number": 3.3363413942544207,
+      "max_k_probe_verlet_cfl_number": 3.118157773946914,
+      "max_verlet_cfl_number": 3.6303357613261222,
+      "full_bz_worst_index": [
+        30,
+        28,
+        19
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.19634954084936207,
-        0.0
+        0.19634954084936207
       ],
       "stable": true
     },
@@ -573,7 +1381,13 @@
       "max_potential_hermitian_defect": 0.0,
       "max_abs_eig_modulus_minus_1": 1.887379141862766e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 2.9995997467499222,
+      "max_k_probe_verlet_cfl_number": 2.9995997467499222,
+      "max_verlet_cfl_number": 3.241476253578722,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
         1.5707963267948966,
         0.0,
@@ -585,14 +1399,20 @@
       "q": 2,
       "kappa_c": 0.005,
       "dt": 0.9999332888998016,
-      "max_symplectic_defect_fp64": 5.551115123125783e-16,
-      "max_potential_hermitian_defect": 1.0842021724855044e-19,
-      "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
+      "max_symplectic_defect_fp64": 4.440892098500626e-16,
+      "max_potential_hermitian_defect": 2.710505431213761e-20,
+      "max_abs_eig_modulus_minus_1": 1.9984014443252818e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 3.0057761989755654,
+      "max_k_probe_verlet_cfl_number": 3.004851058078146,
+      "max_verlet_cfl_number": 3.2472102964761653,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
-        0.0,
+        0.19634954084936207,
         0.0
       ],
       "stable": true
@@ -601,11 +1421,17 @@
       "q": 2,
       "kappa_c": 0.01,
       "dt": 0.9999332888998016,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 2.168404344971009e-19,
-      "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 5.421010862427522e-20,
+      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 3.0151211074293274,
+      "max_k_probe_verlet_cfl_number": 3.0106103245744458,
+      "max_verlet_cfl_number": 3.2530547717035296,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.0,
@@ -617,15 +1443,21 @@
       "q": 2,
       "kappa_c": 0.02,
       "dt": 0.9999332888998016,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 4.336808689942018e-19,
-      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 1.0842021724855044e-19,
+      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 3.047155862059644,
+      "max_k_probe_verlet_cfl_number": 3.0236277829299634,
+      "max_verlet_cfl_number": 3.2650722820590814,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
-        0.19634954084936207,
-        0.0,
-        0.0
+        1.5707963267948966,
+        1.5707963267948966,
+        1.5707963267948966
       ],
       "stable": true
     },
@@ -633,15 +1465,21 @@
       "q": 2,
       "kappa_c": 0.04,
       "dt": 0.9999332888998016,
-      "max_symplectic_defect_fp64": 5.551115123125783e-16,
-      "max_potential_hermitian_defect": 8.673617379884035e-19,
-      "max_abs_eig_modulus_minus_1": 2.55351295663786e-15,
+      "max_symplectic_defect_fp64": 6.661338147750939e-16,
+      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 3.148218546386043,
+      "max_k_probe_verlet_cfl_number": 3.054936374298108,
+      "max_verlet_cfl_number": 3.2903951487021215,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
-        3.141592653589793,
-        3.141592653589793,
-        3.141592653589793
+        1.5707963267948966,
+        1.5707963267948966,
+        0.0
       ],
       "stable": true
     },
@@ -649,11 +1487,17 @@
       "q": 2,
       "kappa_c": 0.08,
       "dt": 0.9999332888998016,
-      "max_symplectic_defect_fp64": 6.661338147750939e-16,
-      "max_potential_hermitian_defect": 1.734723475976807e-18,
-      "max_abs_eig_modulus_minus_1": 4.884981308350689e-15,
+      "max_symplectic_defect_fp64": 4.440892098500626e-16,
+      "max_potential_hermitian_defect": 4.336808689942018e-19,
+      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
       "minimum_potential_eigenvalue": -6.661338147750939e-16,
-      "max_verlet_cfl_number": 3.3807797111094944,
+      "max_k_probe_verlet_cfl_number": 3.1307945832578596,
+      "max_verlet_cfl_number": 3.3458899680124152,
+      "full_bz_worst_index": [
+        30,
+        28,
+        22
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.0,
@@ -669,7 +1513,13 @@
       "max_potential_hermitian_defect": 0.0,
       "max_abs_eig_modulus_minus_1": 1.1102230246251565e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 2.99979986002385,
+      "max_k_probe_verlet_cfl_number": 2.99979986002385,
+      "max_verlet_cfl_number": 3.0365213576271928,
+      "full_bz_worst_index": [
+        30,
+        29,
+        27
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.19634954084936207,
@@ -681,14 +1531,20 @@
       "q": 3,
       "kappa_c": 0.005,
       "dt": 0.9999666427809563,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 1.0842021724855044e-19,
-      "max_abs_eig_modulus_minus_1": 2.7755575615628914e-15,
+      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+      "max_potential_hermitian_defect": 2.710505431213761e-20,
+      "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 3.0075610581043457,
+      "max_k_probe_verlet_cfl_number": 3.0053055162122413,
+      "max_verlet_cfl_number": 3.0428191070606836,
+      "full_bz_worst_index": [
+        30,
+        29,
+        27
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
-        0.0,
+        0.19634954084936207,
         0.0
       ],
       "stable": true
@@ -697,15 +1553,21 @@
       "q": 3,
       "kappa_c": 0.01,
       "dt": 0.9999666427809563,
-      "max_symplectic_defect_fp64": 2.220446049250313e-16,
-      "max_potential_hermitian_defect": 2.168404344971009e-19,
-      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+      "max_symplectic_defect_fp64": 5.551115123125783e-16,
+      "max_potential_hermitian_defect": 5.421010862427522e-20,
+      "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 3.0235795039920075,
+      "max_k_probe_verlet_cfl_number": 3.011814679608968,
+      "max_verlet_cfl_number": 3.049576871734906,
+      "full_bz_worst_index": [
+        30,
+        29,
+        27
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
-        1.5707963267948966,
-        0.0
+        0.19634954084936207,
+        0.19634954084936207,
+        0.19634954084936207
       ],
       "stable": true
     },
@@ -713,14 +1575,20 @@
       "q": 3,
       "kappa_c": 0.02,
       "dt": 0.9999666427809563,
-      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
-      "max_potential_hermitian_defect": 4.336808689942018e-19,
-      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+      "max_symplectic_defect_fp64": 4.440892098500626e-16,
+      "max_potential_hermitian_defect": 1.0842021724855044e-19,
+      "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 3.07411421726908,
+      "max_k_probe_verlet_cfl_number": 3.0274700196431623,
+      "max_verlet_cfl_number": 3.0643654059492555,
+      "full_bz_worst_index": [
+        30,
+        29,
+        27
+      ],
       "worst_modulus_k": [
-        0.19634954084936207,
-        0.0,
+        1.5707963267948966,
+        1.5707963267948966,
         0.0
       ],
       "stable": true
@@ -730,12 +1598,18 @@
       "kappa_c": 0.04,
       "dt": 0.9999666427809563,
       "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 8.673617379884035e-19,
-      "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 3.190402557095132,
+      "max_k_probe_verlet_cfl_number": 3.0654016544997273,
+      "max_verlet_cfl_number": 3.0980770911980833,
+      "full_bz_worst_index": [
+        30,
+        29,
+        27
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
+        0.19634954084936207,
         0.0,
         0.0
       ],
@@ -745,15 +1619,21 @@
       "q": 3,
       "kappa_c": 0.08,
       "dt": 0.9999666427809563,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 1.734723475976807e-18,
-      "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
+      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+      "max_potential_hermitian_defect": 4.336808689942018e-19,
+      "max_abs_eig_modulus_minus_1": 3.219646771412954e-15,
       "minimum_potential_eigenvalue": -3.3306690738754696e-16,
-      "max_verlet_cfl_number": 3.4289221430499763,
+      "max_k_probe_verlet_cfl_number": 3.150472187542185,
+      "max_verlet_cfl_number": 3.178354573122542,
+      "full_bz_worst_index": [
+        31,
+        30,
+        28
+      ],
       "worst_modulus_k": [
-        3.141592653589793,
-        3.141592653589793,
-        3.141592653589793
+        0.19634954084936207,
+        0.0,
+        0.0
       ],
       "stable": true
     },
@@ -765,7 +1645,13 @@
       "max_potential_hermitian_defect": 0.0,
       "max_abs_eig_modulus_minus_1": 4.440892098500626e-16,
       "minimum_potential_eigenvalue": 0.0,
+      "max_k_probe_verlet_cfl_number": 3.0000000000000027,
       "max_verlet_cfl_number": 3.0000000000000027,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.19634954084936207,
@@ -777,15 +1663,21 @@
       "q": 4,
       "kappa_c": 0.005,
       "dt": 1.0000000000000004,
-      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
-      "max_potential_hermitian_defect": 1.0842021724855044e-19,
-      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+      "max_symplectic_defect_fp64": 4.440892098500626e-16,
+      "max_potential_hermitian_defect": 2.710505431213761e-20,
+      "max_abs_eig_modulus_minus_1": 2.4424906541753444e-15,
       "minimum_potential_eigenvalue": 0.0,
-      "max_verlet_cfl_number": 3.0300000000000034,
+      "max_k_probe_verlet_cfl_number": 3.0112500000000026,
+      "max_verlet_cfl_number": 3.011250000000003,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
       "worst_modulus_k": [
-        0.19634954084936207,
-        0.0,
-        0.0
+        3.141592653589793,
+        3.141592653589793,
+        3.141592653589793
       ],
       "stable": true
     },
@@ -793,13 +1685,19 @@
       "q": 4,
       "kappa_c": 0.01,
       "dt": 1.0000000000000004,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 2.168404344971009e-19,
-      "max_abs_eig_modulus_minus_1": 2.220446049250313e-15,
+      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+      "max_potential_hermitian_defect": 5.421010862427522e-20,
+      "max_abs_eig_modulus_minus_1": 2.4424906541753444e-15,
       "minimum_potential_eigenvalue": 0.0,
-      "max_verlet_cfl_number": 3.060000000000003,
+      "max_k_probe_verlet_cfl_number": 3.022500000000003,
+      "max_verlet_cfl_number": 3.0225000000000026,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
       "worst_modulus_k": [
-        0.19634954084936207,
+        1.5707963267948966,
         0.0,
         0.0
       ],
@@ -810,26 +1708,16 @@
       "kappa_c": 0.02,
       "dt": 1.0000000000000004,
       "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 4.336808689942018e-19,
-      "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
-      "minimum_potential_eigenvalue": 0.0,
-      "max_verlet_cfl_number": 3.120000000000004,
-      "worst_modulus_k": [
-        0.19634954084936207,
-        0.19634954084936207,
-        0.0
-      ],
-      "stable": true
-    },
-    {
-      "q": 4,
-      "kappa_c": 0.04,
-      "dt": 1.0000000000000004,
-      "max_symplectic_defect_fp64": 4.440892098500626e-16,
-      "max_potential_hermitian_defect": 8.673617379884035e-19,
+      "max_potential_hermitian_defect": 1.0842021724855044e-19,
       "max_abs_eig_modulus_minus_1": 1.9984014443252818e-15,
       "minimum_potential_eigenvalue": 0.0,
-      "max_verlet_cfl_number": 3.240000000000003,
+      "max_k_probe_verlet_cfl_number": 3.0450000000000026,
+      "max_verlet_cfl_number": 3.0450000000000026,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
       "worst_modulus_k": [
         0.19634954084936207,
         0.0,
@@ -839,16 +1727,44 @@
     },
     {
       "q": 4,
+      "kappa_c": 0.04,
+      "dt": 1.0000000000000004,
+      "max_symplectic_defect_fp64": 5.551115123125783e-16,
+      "max_potential_hermitian_defect": 2.168404344971009e-19,
+      "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
+      "minimum_potential_eigenvalue": 0.0,
+      "max_k_probe_verlet_cfl_number": 3.090000000000002,
+      "max_verlet_cfl_number": 3.0900000000000025,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
+      "worst_modulus_k": [
+        0.19634954084936207,
+        0.19634954084936207,
+        0.0
+      ],
+      "stable": true
+    },
+    {
+      "q": 4,
       "kappa_c": 0.08,
       "dt": 1.0000000000000004,
-      "max_symplectic_defect_fp64": 3.3306690738754696e-16,
-      "max_potential_hermitian_defect": 1.734723475976807e-18,
-      "max_abs_eig_modulus_minus_1": 2.220446049250313e-15,
+      "max_symplectic_defect_fp64": 5.551115123125783e-16,
+      "max_potential_hermitian_defect": 4.336808689942018e-19,
+      "max_abs_eig_modulus_minus_1": 2.4424906541753444e-15,
       "minimum_potential_eigenvalue": 0.0,
-      "max_verlet_cfl_number": 3.480000000000004,
+      "max_k_probe_verlet_cfl_number": 3.1800000000000033,
+      "max_verlet_cfl_number": 3.1800000000000024,
+      "full_bz_worst_index": [
+        32,
+        32,
+        32
+      ],
       "worst_modulus_k": [
-        1.5707963267948966,
-        1.5707963267948966,
+        0.19634954084936207,
+        0.19634954084936207,
         0.0
       ],
       "stable": true

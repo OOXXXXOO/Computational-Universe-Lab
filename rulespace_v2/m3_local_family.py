@@ -17,8 +17,9 @@ from . import frozen
 
 
 C_CONE = 0.5
-C_SP_NORMALIZATION = 0.5
+C_SP_NORMALIZATION = 0.25
 DECLARED_COMPOSITION_RADIUS = 4
+FULL_BZ_N = 64
 Q_LEVELS = (0, 1, 2, 3, 4)
 KAPPA_C_LEVELS = (0.0, 0.005, 0.01, 0.02, 0.04, 0.08)
 PACKED_SYM = tuple((m, n) for m in range(4) for n in range(m, 4))
@@ -80,6 +81,23 @@ def apply_counter_stiffness(field: np.ndarray, layer: int) -> np.ndarray:
     return 0.25 * (
         apply_r30_stiffness(field) - apply_walk_stiffness(field)
     )
+
+
+@dataclass(frozen=True)
+class CounterShear:
+    """One named, executable layer in the four-shear stiffness prefix."""
+
+    name: str
+    layer: int
+
+    def __call__(self, field: np.ndarray) -> np.ndarray:
+        return apply_counter_stiffness(field, self.layer)
+
+
+COUNTER_SHEARS = tuple(
+    CounterShear(name=f"counter_{layer + 1}", layer=layer)
+    for layer in range(4)
+)
 
 
 def _forward_difference(field: np.ndarray, spatial_axis: int) -> np.ndarray:
@@ -209,8 +227,8 @@ def _half_potential_kick(
     dt: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     force_h = apply_walk_stiffness(state.h)
-    for layer in range(q):
-        force_h = force_h + apply_counter_stiffness(state.h, layer)
+    for shear in COUNTER_SHEARS[:q]:
+        force_h = force_h + shear(state.h)
     force_zeta = apply_r30_stiffness(state.zeta)
     if kappa_c:
         mismatch = state.zeta - C_SP_NORMALIZATION * constraint_spatial(state.h)
@@ -485,12 +503,311 @@ def _real_symplectic_defect(matrix: np.ndarray) -> float:
     return float(np.max(np.abs(defect)))
 
 
+def _lattice_plane_wave(
+    L: int,
+    k_units: tuple[int, int, int],
+) -> tuple[np.ndarray, np.ndarray]:
+    k = 2.0 * math.pi * np.asarray(k_units, dtype=float) / L
+    coordinates = np.indices((L, L, L), dtype=float)
+    phase = np.exp(1j * np.einsum("i,ixyz->xyz", k, coordinates))
+    return k, phase
+
+
+@lru_cache(maxsize=1)
+def plane_wave_bridge_certificate(
+    L: int = 8,
+    k_units: tuple[int, int, int] = (1, 2, 3),
+    seed: int = 260729,
+) -> dict[str, object]:
+    """Compare the production macro-step with its independent 28×28 symbol."""
+
+    k, phase = _lattice_plane_wave(L, k_units)
+    rng = np.random.default_rng(seed)
+    coordinate_amplitude = rng.normal(size=14) + 1j * rng.normal(size=14)
+    momentum_amplitude = rng.normal(size=14) + 1j * rng.normal(size=14)
+    amplitude = np.concatenate([coordinate_amplitude, momentum_amplitude])
+    rows: list[dict[str, object]] = []
+    worst = 0.0
+
+    def field(values: np.ndarray) -> np.ndarray:
+        return values[:, None, None, None] * phase[None, ...]
+
+    state = LocalFamilyState(
+        h=field(coordinate_amplitude[:10]),
+        p_h=field(momentum_amplitude[:10]),
+        zeta=field(coordinate_amplitude[10:]),
+        p_zeta=field(momentum_amplitude[10:]),
+    )
+    for q in Q_LEVELS:
+        dt = float(floquet_retune_table()[q]["dt"])
+        for kappa_c in KAPPA_C_LEVELS:
+            stepped = realspace_step_factory(q, kappa_c)(state)
+            measured = np.concatenate(
+                [
+                    stepped.h[:, 0, 0, 0],
+                    stepped.zeta[:, 0, 0, 0],
+                    stepped.p_h[:, 0, 0, 0],
+                    stepped.p_zeta[:, 0, 0, 0],
+                ]
+            )
+            macro = _verlet_symbol(
+                symbol_of_potential(q, kappa_c, k),
+                dt,
+            )
+            with np.errstate(all="ignore"):
+                expected = macro @ amplitude
+            if not np.isfinite(expected).all():
+                raise FloatingPointError("non-finite plane-wave bridge output")
+            residual = float(
+                np.linalg.norm(measured - expected)
+                / max(float(np.linalg.norm(expected)), 1e-300)
+            )
+            worst = max(worst, residual)
+            rows.append(
+                {
+                    "q": q,
+                    "kappa_c": kappa_c,
+                    "relative_residual": residual,
+                }
+            )
+    return {
+        "L": L,
+        "k_units": list(k_units),
+        "seed": seed,
+        "cells_checked": len(rows),
+        "max_relative_residual": worst,
+        "per_cell": rows,
+        "pass": worst <= 1e-12,
+    }
+
+
+@lru_cache(maxsize=1)
+def realspace_floquet_shell_certificate() -> dict[str, object]:
+    """Replay the frozen retuning shell through the production factory."""
+
+    retune = floquet_retune_table()
+    L = int(retune[0]["L_ref"])
+    k_units = tuple(int(value) for value in retune[0]["k_units_ref"])
+    _, phase = _lattice_plane_wave(L, k_units)
+    rows: dict[int, dict[str, object]] = {}
+    worst_frequency = 0.0
+    worst_imaginary = 0.0
+
+    for q in Q_LEVELS:
+        columns: list[tuple[complex, complex]] = []
+        for coordinate_input in (True, False):
+            state = LocalFamilyState.zeros(L)
+            if coordinate_input:
+                state.h[0] = phase
+            else:
+                state.p_h[0] = phase
+            stepped = realspace_step_factory(q, 0.0)(state)
+            columns.append(
+                (
+                    complex(stepped.h[0, 0, 0, 0]),
+                    complex(stepped.p_h[0, 0, 0, 0]),
+                )
+            )
+        macro = np.array(
+            [
+                [columns[0][0], columns[1][0]],
+                [columns[0][1], columns[1][1]],
+            ],
+            dtype=complex,
+        )
+        half_trace = 0.5 * np.trace(macro)
+        omega = math.acos(float(np.clip(half_trace.real, -1.0, 1.0)))
+        frequency_residual = abs(omega - float(retune[q]["omega_target"]))
+        imaginary_trace = abs(float(half_trace.imag))
+        worst_frequency = max(worst_frequency, frequency_residual)
+        worst_imaginary = max(worst_imaginary, imaginary_trace)
+        rows[q] = {
+            "dt": float(retune[q]["dt"]),
+            "omega_target": float(retune[q]["omega_target"]),
+            "omega_measured_from_realspace_step": omega,
+            "frequency_residual": frequency_residual,
+            "half_trace_imaginary_residual": imaginary_trace,
+        }
+    return {
+        "L_ref": L,
+        "k_units_ref": list(k_units),
+        "q_levels_checked": len(rows),
+        "max_frequency_residual": worst_frequency,
+        "max_half_trace_imaginary_residual": worst_imaginary,
+        "per_q": rows,
+        "pass": worst_frequency <= 1e-12 and worst_imaginary <= 1e-12,
+    }
+
+
+def _walk_stiffness_full_bz(N: int) -> np.ndarray:
+    """Vectorized frozen walk stiffness on the exact N³ periodic grid."""
+
+    r25 = _frozen_mod("r25_auxiliary_wilson_complex")
+    wave_numbers = 2.0 * math.pi * np.arange(N, dtype=float) / N
+    ux = np.asarray(
+        [r25.L2.walk_symbol((k, 0.0, 0.0)) for k in wave_numbers]
+    )
+    uy = np.asarray(
+        [r25.L2.walk_symbol((0.0, k, 0.0)) for k in wave_numbers]
+    )
+    uz = np.asarray(
+        [r25.L2.walk_symbol((0.0, 0.0, k)) for k in wave_numbers]
+    )
+    uy_ux = np.einsum("yab,xbc->xyac", uy, ux, optimize=True)
+    walk = np.einsum("zab,xybc->xyzac", uz, uy_ux, optimize=True)
+    trace_half = 0.5 * (walk[..., 0, 0] + walk[..., 1, 1]).real
+    sin_squared = np.sin(0.5 * wave_numbers) ** 2
+    q_spatial = (
+        sin_squared[:, None, None]
+        + sin_squared[None, :, None]
+        + sin_squared[None, None, :]
+    ) / 3.0
+    wilson_r = 0.5 * q_spatial
+    return 2.0 - 2.0 * trace_half + wilson_r * wilson_r
+
+
+@lru_cache(maxsize=1)
+def full_bz_stability_certificate(
+    N: int = FULL_BZ_N,
+) -> dict[str, object]:
+    """Audit every periodic momentum without using it in production time."""
+
+    if N < 64:
+        raise ValueError("the frozen full-BZ certificate requires N >= 64")
+    wave_numbers = 2.0 * math.pi * np.arange(N, dtype=float) / N
+    differences = np.exp(1j * wave_numbers) - 1.0
+    sin_squared = np.sin(0.5 * wave_numbers) ** 2
+    a_r30 = C_CONE * C_CONE * 4.0 * (
+        sin_squared[:, None, None]
+        + sin_squared[None, :, None]
+        + sin_squared[None, None, :]
+    )
+    a_walk = _walk_stiffness_full_bz(N)
+    maxima = np.full((len(Q_LEVELS), len(KAPPA_C_LEVELS)), -math.inf)
+    worst_indices = np.zeros(
+        (len(Q_LEVELS), len(KAPPA_C_LEVELS), 3),
+        dtype=int,
+    )
+    minimum_base = math.inf
+
+    for ix in range(N):
+        constraint = (
+            C_SP_COEFF[:, :, 0, None, None] * differences[ix]
+            + C_SP_COEFF[:, :, 1, None, None]
+            * differences[None, :, None]
+            + C_SP_COEFF[:, :, 2, None, None]
+            * differences[None, None, :]
+        )
+        constraint = np.moveaxis(constraint, (2, 3), (0, 1))
+        gram = np.einsum(
+            "...ra,...sa->...rs",
+            constraint,
+            constraint.conj(),
+            optimize=True,
+        )
+        largest_singular_squared = (
+            C_SP_NORMALIZATION * C_SP_NORMALIZATION
+        ) * np.linalg.eigvalsh(gram)[..., -1]
+        ar_slice = a_r30[ix]
+        aw_slice = a_walk[ix]
+        for q_index, q in enumerate(Q_LEVELS):
+            aq_slice = aw_slice + (q / 4.0) * (ar_slice - aw_slice)
+            minimum_base = min(
+                minimum_base,
+                float(np.min(aq_slice)),
+                float(np.min(ar_slice)),
+            )
+            dt_squared = float(floquet_retune_table()[q]["dt"]) ** 2
+            for kappa_index, kappa_c in enumerate(KAPPA_C_LEVELS):
+                x_block = aq_slice + kappa_c * largest_singular_squared
+                y_block = ar_slice + kappa_c
+                top_eigenvalue = 0.5 * (
+                    x_block
+                    + y_block
+                    + np.sqrt(
+                        (x_block - y_block) ** 2
+                        + 4.0
+                        * kappa_c
+                        * kappa_c
+                        * largest_singular_squared
+                    )
+                )
+                top_eigenvalue = np.maximum(
+                    top_eigenvalue,
+                    np.maximum(aq_slice, y_block),
+                )
+                cfl = dt_squared * top_eigenvalue
+                flat_index = int(np.argmax(cfl))
+                value = float(cfl.reshape(-1)[flat_index])
+                if value > maxima[q_index, kappa_index]:
+                    iy, iz = np.unravel_index(flat_index, cfl.shape)
+                    maxima[q_index, kappa_index] = value
+                    worst_indices[q_index, kappa_index] = (ix, iy, iz)
+
+    rows: list[dict[str, object]] = []
+    formula_residual = 0.0
+    for q_index, q in enumerate(Q_LEVELS):
+        dt = float(floquet_retune_table()[q]["dt"])
+        for kappa_index, kappa_c in enumerate(KAPPA_C_LEVELS):
+            index = worst_indices[q_index, kappa_index]
+            k = 2.0 * math.pi * index.astype(float) / N
+            direct_top = float(
+                np.linalg.eigvalsh(
+                    symbol_of_potential(q, kappa_c, k)
+                ).max()
+            )
+            direct_cfl = dt * dt * direct_top
+            residual = abs(
+                direct_cfl - float(maxima[q_index, kappa_index])
+            )
+            formula_residual = max(formula_residual, residual)
+            rows.append(
+                {
+                    "q": q,
+                    "kappa_c": kappa_c,
+                    "max_verlet_cfl_number": float(
+                        maxima[q_index, kappa_index]
+                    ),
+                    "worst_index": index.tolist(),
+                    "worst_k": k.tolist(),
+                    "formula_vs_direct_eigvalsh_residual": residual,
+                    "stable": bool(
+                        maxima[q_index, kappa_index] < 4.0
+                        and minimum_base >= -2e-12
+                    ),
+                }
+            )
+    worst_cfl = float(np.max(maxima))
+    return {
+        "N": N,
+        "grid": "k_i=2*pi*n_i/N, n_i=0,...,N-1",
+        "points_checked": N**3,
+        "cell_point_evaluations": len(rows) * N**3,
+        "max_verlet_cfl_number": worst_cfl,
+        "minimum_base_potential_eigenvalue": minimum_base,
+        "max_formula_vs_direct_eigvalsh_residual": formula_residual,
+        "per_cell": rows,
+        "pass": bool(
+            all(row["stable"] for row in rows)
+            and formula_residual <= 1e-12
+        ),
+    }
+
+
+@lru_cache(maxsize=1)
 def certify_local_family() -> dict[str, object]:
     """Measure H0 admission certificates on all 30 construction cells."""
 
     floquet = floquet_retune_table()
+    realspace_floquet = realspace_floquet_shell_certificate()
+    bridge = plane_wave_bridge_certificate()
+    full_bz = full_bz_stability_certificate()
     adjoint = adjoint_certificate()
     support = measure_support_radii()
+    full_bz_by_cell = {
+        (int(row["q"]), float(row["kappa_c"])): row
+        for row in full_bz["per_cell"]
+    }
     per_cell: list[dict[str, object]] = []
     worst_symplectic = 0.0
     worst_hermitian = 0.0
@@ -550,6 +867,7 @@ def certify_local_family() -> dict[str, object]:
                 cell_minimum_potential_eigenvalue >= -2e-12
                 and cell_cfl < 4.0
                 and cell_modulus <= 1e-12
+                and bool(full_bz_by_cell[(q, kappa_c)]["stable"])
             )
             per_cell.append(
                 {
@@ -562,7 +880,15 @@ def certify_local_family() -> dict[str, object]:
                     "minimum_potential_eigenvalue": (
                         cell_minimum_potential_eigenvalue
                     ),
-                    "max_verlet_cfl_number": cell_cfl,
+                    "max_k_probe_verlet_cfl_number": cell_cfl,
+                    "max_verlet_cfl_number": float(
+                        full_bz_by_cell[(q, kappa_c)][
+                            "max_verlet_cfl_number"
+                        ]
+                    ),
+                    "full_bz_worst_index": full_bz_by_cell[
+                        (q, kappa_c)
+                    ]["worst_index"],
                     "worst_modulus_k": worst_k,
                     "stable": stable,
                 }
@@ -580,19 +906,22 @@ def certify_local_family() -> dict[str, object]:
         and worst_hermitian <= 1e-12
         and worst_modulus <= 1e-12
         and minimum_potential_eigenvalue >= -2e-12
-        and worst_cfl < 4.0
+        and full_bz["pass"]
         and floquet_residual <= 1e-12
+        and realspace_floquet["pass"]
+        and bridge["pass"]
     )
     return {
-        "_schema": "v2m3_local_family_certificate v1",
+        "_schema": "v2m3_local_family_certificate v2",
         "construction": "walk-to-R30 four-counter-shear family",
         "cells_checked": len(per_cell),
-        "k_samples": [list(k) for k in K_CERT],
+        "k_symplectic_probes": [list(k) for k in K_CERT],
         "max_symplectic_defect_fp64": worst_symplectic,
         "max_potential_hermitian_defect": worst_hermitian,
         "max_abs_eig_modulus_minus_1": worst_modulus,
         "minimum_potential_eigenvalue": minimum_potential_eigenvalue,
-        "max_verlet_cfl_number": worst_cfl,
+        "max_k_probe_verlet_cfl_number": worst_cfl,
+        "max_verlet_cfl_number": full_bz["max_verlet_cfl_number"],
         "zero_mode_policy": (
             "analytic Jordan drift; spectral modulus excluded at k=0"
         ),
@@ -601,6 +930,9 @@ def certify_local_family() -> dict[str, object]:
         "adjoint": adjoint,
         "support": support,
         "floquet_retune": floquet,
+        "realspace_floquet_shell": realspace_floquet,
+        "plane_wave_bridge": bridge,
+        "full_bz_stability": full_bz,
         "per_cell": per_cell,
         "pass": bool(passed),
     }
@@ -631,25 +963,25 @@ def local_family_descriptor(
         "k_dependent_projection": False,
         "time_step_uses_fft": False,
         "explicit_local_shears": [
-            "counter_1",
-            "counter_2",
-            "counter_3",
-            "counter_4",
+            shear.name for shear in COUNTER_SHEARS
         ],
         "q_layer_counts": list(Q_LEVELS),
         "coordinates_are_measured": True,
         "floquet_retune_mode": "actual-floquet-shell",
         "constraint_penalty": (
-            "0.5*kappa_c*||zeta-0.5*C_sp*h||^2"
+            "0.5*kappa_c*||zeta-0.25*C_sp*h||^2"
         ),
         "construction_certificate_pass": bool(certificate["pass"]),
     }
 
 
 __all__ = [
+    "COUNTER_SHEARS",
     "C_SP_NORMALIZATION",
     "C_SP_COEFF",
+    "CounterShear",
     "DECLARED_COMPOSITION_RADIUS",
+    "FULL_BZ_N",
     "K_CERT",
     "KAPPA_C_LEVELS",
     "LocalFamilyState",
@@ -663,9 +995,12 @@ __all__ = [
     "constraint_spatial_adjoint",
     "certify_local_family",
     "floquet_retune_table",
+    "full_bz_stability_certificate",
     "local_family_descriptor",
     "measure_support_radii",
     "negative_laplacian",
+    "plane_wave_bridge_certificate",
     "realspace_step_factory",
+    "realspace_floquet_shell_certificate",
     "symbol_of_potential",
 ]

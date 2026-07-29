@@ -1,6 +1,6 @@
 {
   "_schema": "v2m3_state v2",
-  "generated_utc": "2026-07-29T15:44:05.945291+00:00",
+  "generated_utc": "2026-07-29T16:14:30.356626+00:00",
   "generator": "experiments/v2m3_preflight.py",
   "lit": false,
   "status": "READY-PILOT",
@@ -10,11 +10,11 @@
   "pilot_manifest_cell_count": 30,
   "result": {
     "path": "data/results/v2m3_preflight.json",
-    "sha256": "e6652219c4f66ccb91cf9393a5f439c6169749bc77a91a6d7064b23667af3a91"
+    "sha256": "0d452eca83dfac43b8df95c2919801bffcacbb9c6863614d86f8390c58cb48fe"
   },
   "local_family_certificate": {
     "path": "data/results/v2m3_local_family_certificate.json",
-    "sha256": "dcdf1700e78731989fba284c9cbca421c3617e852a1b2aeea2a48b6084fcf593"
+    "sha256": "a693d0a4a4edfb844b1caf1f2486ec6c0e492f768f9fe2af9f56acbb1d522eb9"
   },
   "next_unlock_condition": "Run only the frozen 30-cell pilot and measure epsilon_geo and sigma=(alpha,A) after each real-space run; formal scanning remains locked until pilot resolvability and resource review pass.",
   "wording": "M3′ Round 0 admitted the strict-local family and unlocked only the 30-cell pilot; M3′ has neither passed nor failed, and the pilot was not run."

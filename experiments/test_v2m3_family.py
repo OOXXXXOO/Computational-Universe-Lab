@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 
 m3_family = import_module("rulespace_v2.m3_family")
 
@@ -70,6 +71,39 @@ class M3PreflightModuleTests(unittest.TestCase):
         self.assertFalse(result["legacy_rc3ii_admission"]["pass"])
         self.assertTrue(result["local_family_certificate"]["pass"])
         self.assertTrue(result["local_family_admission"]["pass"])
+
+    def test_failed_local_certificate_keeps_the_pilot_locked(self) -> None:
+        module = import_module("experiments.v2m3_preflight")
+        failed = module.certify_local_family() | {"pass": False}
+
+        with patch.object(
+            module,
+            "certify_local_family",
+            return_value=failed,
+        ):
+            result = module.evaluate_preflight()
+
+        self.assertEqual(result["status"], "HALT-FAMILY-ADMISSION")
+        self.assertFalse(result["main_pilot_unlocked"])
+        self.assertFalse(result["main_pilot_executed"])
+
+    def test_failed_local_admission_keeps_the_pilot_locked(self) -> None:
+        module = import_module("experiments.v2m3_preflight")
+        invalid_descriptor = (
+            module.local_family_descriptor(module.certify_local_family())
+            | {"realspace_step_factory": None}
+        )
+
+        with patch.object(
+            module,
+            "local_family_descriptor",
+            return_value=invalid_descriptor,
+        ):
+            result = module.evaluate_preflight()
+
+        self.assertEqual(result["status"], "HALT-FAMILY-ADMISSION")
+        self.assertFalse(result["main_pilot_unlocked"])
+        self.assertFalse(result["main_pilot_executed"])
 
 
 class PilotManifestTests(unittest.TestCase):
