@@ -1,9 +1,8 @@
 """M3′ Round 0 read-only certificate and family-admission preflight.
 
-This probe may unlock the 30-cell pilot, but it never runs that pilot.  Under
-the current repository state it is expected to stop at family admission
-because RC3-(ii) R2 is spectral bookkeeping, not an executable strict-local
-real-space family.
+This probe may unlock the 30-cell pilot, but it never runs that pilot.  The
+legacy RC3-(ii) R2 descriptor remains rejected; an independent executable
+strict-local family may satisfy the current admission gate.
 """
 
 from __future__ import annotations
@@ -29,8 +28,15 @@ from rulespace_v2.m3_family import (  # noqa: E402
     build_pilot_manifest,
     legacy_rc3ii_descriptor,
 )
+from rulespace_v2.m3_local_family import (  # noqa: E402
+    certify_local_family,
+    local_family_descriptor,
+)
 
 RESULT_PATH = ROOT / "data" / "results" / "v2m3_preflight.json"
+LOCAL_CERTIFICATE_PATH = (
+    ROOT / "data" / "results" / "v2m3_local_family_certificate.json"
+)
 STATE_PATH = ROOT / "data" / "runtime" / "v2m3_state.json"
 
 PINNED_SHA256 = {
@@ -204,19 +210,22 @@ def evaluate_preflight() -> dict[str, Any]:
     topology = audit_topology_anchor()
     manifest = _pilot_manifest_record()
     legacy_descriptor = legacy_rc3ii_descriptor()
-    family_admission = audit_family_descriptor(legacy_descriptor)
+    legacy_admission = audit_family_descriptor(legacy_descriptor)
+    local_certificate = certify_local_family()
+    local_descriptor = local_family_descriptor(local_certificate)
+    local_admission = audit_family_descriptor(local_descriptor)
 
     if not upstream["pass"]:
         status = "HALT-UPSTREAM-CERTIFICATE"
     elif not topology["pass"]:
         status = "HALT-TOPOLOGY-ANCHOR"
-    elif not family_admission["pass"]:
+    elif not local_certificate["pass"] or not local_admission["pass"]:
         status = "HALT-FAMILY-ADMISSION"
     else:
         status = "READY-PILOT"
 
     return {
-        "_schema": "v2m3_preflight v1",
+        "_schema": "v2m3_preflight v2",
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "generator": "experiments/v2m3_preflight.py",
         "backend": "numpy fp64",
@@ -236,13 +245,21 @@ def evaluate_preflight() -> dict[str, Any]:
         "upstream_certificates": upstream,
         "topology_anchor": topology,
         "pilot_manifest": manifest,
-        "family_descriptor": legacy_descriptor,
-        "family_admission": family_admission,
+        "legacy_rc3ii_descriptor": legacy_descriptor,
+        "legacy_rc3ii_admission": legacy_admission,
+        "local_family_certificate": local_certificate,
+        "local_family_descriptor": local_descriptor,
+        "local_family_admission": local_admission,
+        "family_descriptor": local_descriptor,
+        "family_admission": local_admission,
         "next_unlock_condition": (
-            "Provide one same-state-space strict-local real-space q-family with "
-            "an executable step factory, explicit local shears, L-independent "
-            "support, fp64 unitarity <=1e-12, no per-k projection, and measured "
-            "rather than injected epsilon_geo/sigma coordinates."
+            "Run only the frozen 30-cell pilot and measure epsilon_geo and "
+            "sigma=(alpha,A) after each real-space run; formal scanning remains "
+            "locked until pilot resolvability and resource review pass."
+            if status == "READY-PILOT"
+            else
+            "Repair the reported Round 0 hard-gate failure without changing "
+            "thresholds, then rerun this preflight."
         ),
         "eta_diagnostic": {
             "part_of_core_map": False,
@@ -262,10 +279,15 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 def write_outputs(result: dict[str, Any]) -> dict[str, Any]:
     """Write the preflight evidence and recoverable state, without reset semantics."""
 
+    _write_json(LOCAL_CERTIFICATE_PATH, result["local_family_certificate"])
+    result["local_family_certificate_record"] = {
+        "path": str(LOCAL_CERTIFICATE_PATH.relative_to(ROOT)),
+        "sha256": sha256_file(LOCAL_CERTIFICATE_PATH),
+    }
     _write_json(RESULT_PATH, result)
     result_sha256 = sha256_file(RESULT_PATH)
     state = {
-        "_schema": "v2m3_state v1",
+        "_schema": "v2m3_state v2",
         "generated_utc": result["generated_utc"],
         "generator": result["generator"],
         "lit": False,
@@ -278,10 +300,16 @@ def write_outputs(result: dict[str, Any]) -> dict[str, Any]:
             "path": str(RESULT_PATH.relative_to(ROOT)),
             "sha256": result_sha256,
         },
+        "local_family_certificate": result["local_family_certificate_record"],
         "next_unlock_condition": result["next_unlock_condition"],
         "wording": (
-            "M3′ Round 0 started. M3′ has neither passed nor failed; "
-            "the main pilot was not run."
+            "M3′ Round 0 admitted the strict-local family and unlocked only "
+            "the 30-cell pilot; M3′ has neither passed nor failed, and the "
+            "pilot was not run."
+            if result["status"] == "READY-PILOT"
+            else
+            "M3′ Round 0 stopped at a hard gate. M3′ has neither passed nor "
+            "failed, and the main pilot was not run."
         ),
     }
     _write_json(STATE_PATH, state)
@@ -295,7 +323,8 @@ def main() -> int:
         f"M3′ Round 0: {result['status']} | "
         f"upstream={result['upstream_certificates']['pass']} | "
         f"topology={result['topology_anchor']['pass']} | "
-        f"family={result['family_admission']['pass']} | "
+        f"legacy_family={result['legacy_rc3ii_admission']['pass']} | "
+        f"local_family={result['local_family_admission']['pass']} | "
         f"pilot_unlocked={result['main_pilot_unlocked']}"
     )
     print(

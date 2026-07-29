@@ -54,19 +54,22 @@ class M3PreflightModuleTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
-    def test_current_preflight_halts_at_family_admission(self) -> None:
+    def test_current_preflight_admits_the_new_local_family_only(self) -> None:
         module = import_module("experiments.v2m3_preflight")
         try:
             result = module.evaluate_preflight()
         except NotImplementedError:
             self.fail("evaluate_preflight is not implemented")
 
-        self.assertEqual(result["status"], "HALT-FAMILY-ADMISSION")
-        self.assertFalse(result["main_pilot_unlocked"])
+        self.assertEqual(result["status"], "READY-PILOT")
+        self.assertTrue(result["main_pilot_unlocked"])
+        self.assertFalse(result["main_pilot_executed"])
         self.assertEqual(result["pilot_manifest"]["cell_count"], 30)
         self.assertTrue(result["upstream_certificates"]["pass"])
         self.assertTrue(result["topology_anchor"]["pass"])
-        self.assertFalse(result["family_admission"]["pass"])
+        self.assertFalse(result["legacy_rc3ii_admission"]["pass"])
+        self.assertTrue(result["local_family_certificate"]["pass"])
+        self.assertTrue(result["local_family_admission"]["pass"])
 
 
 class PilotManifestTests(unittest.TestCase):
@@ -145,6 +148,19 @@ class FamilyAdmissionTests(unittest.TestCase):
         self.assertTrue(result["pass"])
         self.assertEqual(result["failures"], [])
         self.assertTrue(all(result["checks"].values()))
+
+    def test_measured_local_family_descriptor_is_admitted(self) -> None:
+        local_family = import_module("rulespace_v2.m3_local_family")
+        certificate = local_family.certify_local_family()
+        descriptor = local_family.local_family_descriptor(certificate)
+        result = m3_family.audit_family_descriptor(descriptor)
+
+        self.assertTrue(certificate["pass"])
+        self.assertTrue(result["pass"])
+        self.assertEqual(descriptor["support_radius"], 4)
+        self.assertEqual(descriptor["declared_composition_radius"], 4)
+        self.assertNotIn("epsilon_geo", descriptor)
+        self.assertNotIn("sigma", descriptor)
 
     def test_descriptor_cannot_inject_measured_coordinates(self) -> None:
         for measured_field, value in (

@@ -18,6 +18,7 @@ from . import frozen
 
 C_CONE = 0.5
 C_SP_NORMALIZATION = 0.5
+DECLARED_COMPOSITION_RADIUS = 4
 Q_LEVELS = (0, 1, 2, 3, 4)
 KAPPA_C_LEVELS = (0.0, 0.005, 0.01, 0.02, 0.04, 0.08)
 PACKED_SYM = tuple((m, n) for m in range(4) for n in range(m, 4))
@@ -605,9 +606,51 @@ def certify_local_family() -> dict[str, object]:
     }
 
 
+def local_family_descriptor(
+    certificate: dict[str, object],
+) -> dict[str, object]:
+    """Build the admission descriptor from measured construction evidence."""
+
+    support = certificate["support"]
+    error = max(
+        float(certificate["max_symplectic_defect_fp64"]),
+        float(certificate["max_abs_eig_modulus_minus_1"]),
+    )
+    return {
+        "name": "M3-local-counter-shear-q-family-v1",
+        "construction_kind": "strict_local_realspace",
+        "realspace_step_factory": (
+            "rulespace_v2.m3_local_family:realspace_step_factory"
+        ),
+        "support_radius": int(support["max_radius"]),
+        "declared_composition_radius": DECLARED_COMPOSITION_RADIUS,
+        "support_radius_independent_of_L": bool(support["independent_of_L"]),
+        "unitarity_error_fp64": error,
+        "same_state_space_all_q": True,
+        "state_schema": ["h[10]", "p_h[10]", "zeta[4]", "p_zeta[4]"],
+        "k_dependent_projection": False,
+        "time_step_uses_fft": False,
+        "explicit_local_shears": [
+            "counter_1",
+            "counter_2",
+            "counter_3",
+            "counter_4",
+        ],
+        "q_layer_counts": list(Q_LEVELS),
+        "coordinates_are_measured": True,
+        "floquet_retune_mode": "actual-floquet-shell",
+        "constraint_penalty": (
+            "0.5*kappa_c*||zeta-0.5*C_sp*h||^2"
+        ),
+        "construction_certificate_pass": bool(certificate["pass"]),
+    }
+
+
 __all__ = [
     "C_SP_NORMALIZATION",
     "C_SP_COEFF",
+    "DECLARED_COMPOSITION_RADIUS",
+    "K_CERT",
     "KAPPA_C_LEVELS",
     "LocalFamilyState",
     "LocalFamilyStep",
@@ -620,6 +663,7 @@ __all__ = [
     "constraint_spatial_adjoint",
     "certify_local_family",
     "floquet_retune_table",
+    "local_family_descriptor",
     "measure_support_radii",
     "negative_laplacian",
     "realspace_step_factory",

@@ -3,6 +3,7 @@
 from importlib import import_module
 from importlib.util import find_spec
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -80,6 +81,28 @@ class LocalFamilyStateTests(unittest.TestCase):
                     atol=2e-14,
                     rtol=2e-14,
                 )
+
+    def test_all_thirty_steps_run_with_numpy_fft_disabled(self) -> None:
+        state = local_family.LocalFamilyState.zeros(L=7)
+
+        def forbidden_fft(*_args: object, **_kwargs: object) -> None:
+            raise AssertionError("FFT entered the production time-step path")
+
+        fft_names = ("fft", "ifft", "fftn", "ifftn", "rfft", "irfft")
+        patchers = [
+            patch.object(np.fft, name, forbidden_fft)
+            for name in fft_names
+        ]
+        for patcher in patchers:
+            patcher.start()
+        try:
+            for q in local_family.Q_LEVELS:
+                for kappa_c in local_family.KAPPA_C_LEVELS:
+                    with self.subTest(q=q, kappa_c=kappa_c):
+                        local_family.realspace_step_factory(q, kappa_c)(state)
+        finally:
+            for patcher in reversed(patchers):
+                patcher.stop()
 
 
 class LocalOperatorCertificateTests(unittest.TestCase):

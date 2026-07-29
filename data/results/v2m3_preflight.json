@@ -1,6 +1,6 @@
 {
-  "_schema": "v2m3_preflight v1",
-  "generated_utc": "2026-07-29T15:06:02.181774+00:00",
+  "_schema": "v2m3_preflight v2",
+  "generated_utc": "2026-07-29T15:44:05.945291+00:00",
   "generator": "experiments/v2m3_preflight.py",
   "backend": "numpy fp64",
   "environment": {
@@ -10,8 +10,8 @@
   },
   "taskbook": "docsv2/v2-任务书-M3-涌现边界制图.md",
   "round": 0,
-  "status": "HALT-FAMILY-ADMISSION",
-  "main_pilot_unlocked": false,
+  "status": "READY-PILOT",
+  "main_pilot_unlocked": true,
   "main_pilot_executed": false,
   "claim_ceiling": "family-admission preflight only; neither M3′ PASS nor M3′ FAIL",
   "upstream_certificates": {
@@ -406,7 +406,7 @@
     ],
     "measured_coordinates_present": false
   },
-  "family_descriptor": {
+  "legacy_rc3ii_descriptor": {
     "name": "RC3-(ii)-R2-partial-Yee",
     "construction_kind": "spectral_bookkeeping",
     "realspace_step_factory": null,
@@ -428,7 +428,7 @@
     "floquet_retune_mode": "not-applicable-no-realspace-step",
     "evidence": "experiments/rc3ii_relaxation_framework.py:candidate_R2 projects selected S_curv modes into ker(C) per k"
   },
-  "family_admission": {
+  "legacy_rc3ii_admission": {
     "pass": false,
     "thresholds": {
       "unitarity_error_fp64_max": 1e-12
@@ -460,7 +460,979 @@
       "invalid_floquet_retune"
     ]
   },
-  "next_unlock_condition": "Provide one same-state-space strict-local real-space q-family with an executable step factory, explicit local shears, L-independent support, fp64 unitarity <=1e-12, no per-k projection, and measured rather than injected epsilon_geo/sigma coordinates.",
+  "local_family_certificate": {
+    "_schema": "v2m3_local_family_certificate v1",
+    "construction": "walk-to-R30 four-counter-shear family",
+    "cells_checked": 30,
+    "k_samples": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.19634954084936207,
+        0.0,
+        0.0
+      ],
+      [
+        0.19634954084936207,
+        0.19634954084936207,
+        0.0
+      ],
+      [
+        0.19634954084936207,
+        0.19634954084936207,
+        0.19634954084936207
+      ],
+      [
+        1.5707963267948966,
+        0.0,
+        0.0
+      ],
+      [
+        1.5707963267948966,
+        1.5707963267948966,
+        0.0
+      ],
+      [
+        1.5707963267948966,
+        1.5707963267948966,
+        1.5707963267948966
+      ],
+      [
+        3.141592653589793,
+        3.141592653589793,
+        3.141592653589793
+      ]
+    ],
+    "max_symplectic_defect_fp64": 8.881784197001252e-16,
+    "max_potential_hermitian_defect": 1.734723475976807e-18,
+    "max_abs_eig_modulus_minus_1": 4.884981308350689e-15,
+    "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+    "max_verlet_cfl_number": 3.480000000000004,
+    "zero_mode_policy": "analytic Jordan drift; spectral modulus excluded at k=0",
+    "max_floquet_frequency_residual": 4.163336342344337e-17,
+    "stable_all": true,
+    "adjoint": {
+      "L": 7,
+      "seed": 19,
+      "constraint_adjoint_residual": 5.96386875413613e-14,
+      "walk_stiffness_adjoint_residual": 7.711736802292583e-16,
+      "r30_stiffness_adjoint_residual": 1.1316212663890884e-15,
+      "pass": true
+    },
+    "support": {
+      "per_L": {
+        "17": 4,
+        "21": 4
+      },
+      "max_radius": 4,
+      "independent_of_L": true,
+      "relative_threshold": 1e-13,
+      "probes": [
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "h",
+          "radius": 4
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "p_h",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "h",
+          "radius": 4
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "p_h",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "zeta",
+          "radius": 3
+        },
+        {
+          "L": 17,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "h",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "p_h",
+          "radius": 1
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "h",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "p_h",
+          "radius": 1
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 17,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "h",
+          "radius": 4
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "p_h",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.0,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "h",
+          "radius": 4
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "p_h",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "zeta",
+          "radius": 3
+        },
+        {
+          "L": 21,
+          "q": 0,
+          "kappa_c": 0.08,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "h",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "p_h",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.0,
+          "input_field": "p_zeta",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "h",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "p_h",
+          "radius": 1
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "zeta",
+          "radius": 2
+        },
+        {
+          "L": 21,
+          "q": 4,
+          "kappa_c": 0.08,
+          "input_field": "p_zeta",
+          "radius": 1
+        }
+      ]
+    },
+    "floquet_retune": {
+      "0": {
+        "dt": 0.9998665911489343,
+        "L_ref": 32,
+        "k_units_ref": [
+          1,
+          0,
+          0
+        ],
+        "omega_target": 0.0980564197125421,
+        "omega_measured": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "a_walk_ref": 0.009609923725114109,
+        "a_r30_ref": 0.009607359798384776,
+        "a_q_ref": 0.009609923725114109
+      },
+      "1": {
+        "dt": 0.9998999383559798,
+        "L_ref": 32,
+        "k_units_ref": [
+          1,
+          0,
+          0
+        ],
+        "omega_target": 0.0980564197125421,
+        "omega_measured": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "a_walk_ref": 0.009609923725114109,
+        "a_r30_ref": 0.009607359798384776,
+        "a_q_ref": 0.009609282743431775
+      },
+      "2": {
+        "dt": 0.9999332888998016,
+        "L_ref": 32,
+        "k_units_ref": [
+          1,
+          0,
+          0
+        ],
+        "omega_target": 0.0980564197125421,
+        "omega_measured": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "a_walk_ref": 0.009609923725114109,
+        "a_r30_ref": 0.009607359798384776,
+        "a_q_ref": 0.009608641761749442
+      },
+      "3": {
+        "dt": 0.9999666427809563,
+        "L_ref": 32,
+        "k_units_ref": [
+          1,
+          0,
+          0
+        ],
+        "omega_target": 0.0980564197125421,
+        "omega_measured": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "a_walk_ref": 0.009609923725114109,
+        "a_r30_ref": 0.009607359798384776,
+        "a_q_ref": 0.00960800078006711
+      },
+      "4": {
+        "dt": 1.0000000000000004,
+        "L_ref": 32,
+        "k_units_ref": [
+          1,
+          0,
+          0
+        ],
+        "omega_target": 0.0980564197125421,
+        "omega_measured": 0.09805641971254214,
+        "frequency_residual": 4.163336342344337e-17,
+        "a_walk_ref": 0.009609923725114109,
+        "a_r30_ref": 0.009607359798384776,
+        "a_q_ref": 0.009607359798384776
+      }
+    },
+    "per_cell": [
+      {
+        "q": 0,
+        "kappa_c": 0.0,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 1.1102230246251565e-16,
+        "max_potential_hermitian_defect": 0.0,
+        "max_abs_eig_modulus_minus_1": 4.440892098500626e-16,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 2.9991996002873704,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.005,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 6.661338147750939e-16,
+        "max_potential_hermitian_defect": 1.0842021724855044e-19,
+        "max_abs_eig_modulus_minus_1": 3.885780586188048e-15,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 3.0047403217118327,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.01,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 2.168404344971009e-19,
+        "max_abs_eig_modulus_minus_1": 4.440892098500626e-15,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 3.0115508568617932,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.02,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 6.661338147750939e-16,
+        "max_potential_hermitian_defect": 4.336808689942018e-19,
+        "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 3.03023818054864,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          1.5707963267948966,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.04,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 8.673617379884035e-19,
+        "max_abs_eig_modulus_minus_1": 3.552713678800501e-15,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 3.094299142939804,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          1.5707963267948966,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 0,
+        "kappa_c": 0.08,
+        "dt": 0.9998665911489343,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 1.734723475976807e-18,
+        "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
+        "minimum_potential_eigenvalue": -1.3322676295501878e-15,
+        "max_verlet_cfl_number": 3.296397548078104,
+        "worst_modulus_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.0,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 1.1102230246251565e-16,
+        "max_potential_hermitian_defect": 0.0,
+        "max_abs_eig_modulus_minus_1": 2.220446049250313e-16,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 2.9993996601728767,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.005,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 1.0842021724855044e-19,
+        "max_abs_eig_modulus_minus_1": 3.1086244689504383e-15,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 3.0051414840083273,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.19634954084936207
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.01,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 2.168404344971009e-19,
+        "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 3.0127123088109253,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.19634954084936207
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.02,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 6.661338147750939e-16,
+        "max_potential_hermitian_defect": 4.336808689942018e-19,
+        "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 3.035564253063951,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          1.5707963267948966,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.04,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 6.661338147750939e-16,
+        "max_potential_hermitian_defect": 8.673617379884035e-19,
+        "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 3.116119737249576,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 1,
+        "kappa_c": 0.08,
+        "dt": 0.9998999383559798,
+        "max_symplectic_defect_fp64": 8.881784197001252e-16,
+        "max_potential_hermitian_defect": 1.734723475976807e-18,
+        "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+        "minimum_potential_eigenvalue": -9.992007221626409e-16,
+        "max_verlet_cfl_number": 3.3363413942544207,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.0,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 2.220446049250313e-16,
+        "max_potential_hermitian_defect": 0.0,
+        "max_abs_eig_modulus_minus_1": 1.887379141862766e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 2.9995997467499222,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.005,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 5.551115123125783e-16,
+        "max_potential_hermitian_defect": 1.0842021724855044e-19,
+        "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 3.0057761989755654,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.01,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 2.168404344971009e-19,
+        "max_abs_eig_modulus_minus_1": 2.886579864025407e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 3.0151211074293274,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.02,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 4.336808689942018e-19,
+        "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 3.047155862059644,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.04,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 5.551115123125783e-16,
+        "max_potential_hermitian_defect": 8.673617379884035e-19,
+        "max_abs_eig_modulus_minus_1": 2.55351295663786e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 3.148218546386043,
+        "worst_modulus_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "stable": true
+      },
+      {
+        "q": 2,
+        "kappa_c": 0.08,
+        "dt": 0.9999332888998016,
+        "max_symplectic_defect_fp64": 6.661338147750939e-16,
+        "max_potential_hermitian_defect": 1.734723475976807e-18,
+        "max_abs_eig_modulus_minus_1": 4.884981308350689e-15,
+        "minimum_potential_eigenvalue": -6.661338147750939e-16,
+        "max_verlet_cfl_number": 3.3807797111094944,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.0,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 2.220446049250313e-16,
+        "max_potential_hermitian_defect": 0.0,
+        "max_abs_eig_modulus_minus_1": 1.1102230246251565e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 2.99979986002385,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.005,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 1.0842021724855044e-19,
+        "max_abs_eig_modulus_minus_1": 2.7755575615628914e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 3.0075610581043457,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.01,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 2.220446049250313e-16,
+        "max_potential_hermitian_defect": 2.168404344971009e-19,
+        "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 3.0235795039920075,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          1.5707963267948966,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.02,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+        "max_potential_hermitian_defect": 4.336808689942018e-19,
+        "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 3.07411421726908,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.04,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 8.673617379884035e-19,
+        "max_abs_eig_modulus_minus_1": 3.3306690738754696e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 3.190402557095132,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 3,
+        "kappa_c": 0.08,
+        "dt": 0.9999666427809563,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 1.734723475976807e-18,
+        "max_abs_eig_modulus_minus_1": 3.774758283725532e-15,
+        "minimum_potential_eigenvalue": -3.3306690738754696e-16,
+        "max_verlet_cfl_number": 3.4289221430499763,
+        "worst_modulus_k": [
+          3.141592653589793,
+          3.141592653589793,
+          3.141592653589793
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.0,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 1.1102230246251565e-16,
+        "max_potential_hermitian_defect": 0.0,
+        "max_abs_eig_modulus_minus_1": 4.440892098500626e-16,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.0000000000000027,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.19634954084936207
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.005,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+        "max_potential_hermitian_defect": 1.0842021724855044e-19,
+        "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.0300000000000034,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.01,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 2.168404344971009e-19,
+        "max_abs_eig_modulus_minus_1": 2.220446049250313e-15,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.060000000000003,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.02,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 4.336808689942018e-19,
+        "max_abs_eig_modulus_minus_1": 2.6645352591003757e-15,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.120000000000004,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.19634954084936207,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.04,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 4.440892098500626e-16,
+        "max_potential_hermitian_defect": 8.673617379884035e-19,
+        "max_abs_eig_modulus_minus_1": 1.9984014443252818e-15,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.240000000000003,
+        "worst_modulus_k": [
+          0.19634954084936207,
+          0.0,
+          0.0
+        ],
+        "stable": true
+      },
+      {
+        "q": 4,
+        "kappa_c": 0.08,
+        "dt": 1.0000000000000004,
+        "max_symplectic_defect_fp64": 3.3306690738754696e-16,
+        "max_potential_hermitian_defect": 1.734723475976807e-18,
+        "max_abs_eig_modulus_minus_1": 2.220446049250313e-15,
+        "minimum_potential_eigenvalue": 0.0,
+        "max_verlet_cfl_number": 3.480000000000004,
+        "worst_modulus_k": [
+          1.5707963267948966,
+          1.5707963267948966,
+          0.0
+        ],
+        "stable": true
+      }
+    ],
+    "pass": true
+  },
+  "local_family_descriptor": {
+    "name": "M3-local-counter-shear-q-family-v1",
+    "construction_kind": "strict_local_realspace",
+    "realspace_step_factory": "rulespace_v2.m3_local_family:realspace_step_factory",
+    "support_radius": 4,
+    "declared_composition_radius": 4,
+    "support_radius_independent_of_L": true,
+    "unitarity_error_fp64": 4.884981308350689e-15,
+    "same_state_space_all_q": true,
+    "state_schema": [
+      "h[10]",
+      "p_h[10]",
+      "zeta[4]",
+      "p_zeta[4]"
+    ],
+    "k_dependent_projection": false,
+    "time_step_uses_fft": false,
+    "explicit_local_shears": [
+      "counter_1",
+      "counter_2",
+      "counter_3",
+      "counter_4"
+    ],
+    "q_layer_counts": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "coordinates_are_measured": true,
+    "floquet_retune_mode": "actual-floquet-shell",
+    "constraint_penalty": "0.5*kappa_c*||zeta-0.5*C_sp*h||^2",
+    "construction_certificate_pass": true
+  },
+  "local_family_admission": {
+    "pass": true,
+    "thresholds": {
+      "unitarity_error_fp64_max": 1e-12
+    },
+    "checks": {
+      "strict_local_realspace": true,
+      "realspace_step_factory": true,
+      "finite_support_radius": true,
+      "declared_radius_matches": true,
+      "support_radius_independent_of_L": true,
+      "unitarity_fp64": true,
+      "same_state_space_all_q": true,
+      "no_k_dependent_projection": true,
+      "explicit_local_shears": true,
+      "q_layer_mapping": true,
+      "coordinates_are_measured": true,
+      "no_measured_coordinate_injection": true,
+      "actual_floquet_shell_retune": true
+    },
+    "failures": []
+  },
+  "family_descriptor": {
+    "name": "M3-local-counter-shear-q-family-v1",
+    "construction_kind": "strict_local_realspace",
+    "realspace_step_factory": "rulespace_v2.m3_local_family:realspace_step_factory",
+    "support_radius": 4,
+    "declared_composition_radius": 4,
+    "support_radius_independent_of_L": true,
+    "unitarity_error_fp64": 4.884981308350689e-15,
+    "same_state_space_all_q": true,
+    "state_schema": [
+      "h[10]",
+      "p_h[10]",
+      "zeta[4]",
+      "p_zeta[4]"
+    ],
+    "k_dependent_projection": false,
+    "time_step_uses_fft": false,
+    "explicit_local_shears": [
+      "counter_1",
+      "counter_2",
+      "counter_3",
+      "counter_4"
+    ],
+    "q_layer_counts": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "coordinates_are_measured": true,
+    "floquet_retune_mode": "actual-floquet-shell",
+    "constraint_penalty": "0.5*kappa_c*||zeta-0.5*C_sp*h||^2",
+    "construction_certificate_pass": true
+  },
+  "family_admission": {
+    "pass": true,
+    "thresholds": {
+      "unitarity_error_fp64_max": 1e-12
+    },
+    "checks": {
+      "strict_local_realspace": true,
+      "realspace_step_factory": true,
+      "finite_support_radius": true,
+      "declared_radius_matches": true,
+      "support_radius_independent_of_L": true,
+      "unitarity_fp64": true,
+      "same_state_space_all_q": true,
+      "no_k_dependent_projection": true,
+      "explicit_local_shears": true,
+      "q_layer_mapping": true,
+      "coordinates_are_measured": true,
+      "no_measured_coordinate_injection": true,
+      "actual_floquet_shell_retune": true
+    },
+    "failures": []
+  },
+  "next_unlock_condition": "Run only the frozen 30-cell pilot and measure epsilon_geo and sigma=(alpha,A) after each real-space run; formal scanning remains locked until pilot resolvability and resource review pass.",
   "eta_diagnostic": {
     "part_of_core_map": false,
     "locked_until_core_stable_point": true,
@@ -468,5 +1440,9 @@
       0.05,
       0.1
     ]
+  },
+  "local_family_certificate_record": {
+    "path": "data/results/v2m3_local_family_certificate.json",
+    "sha256": "dcdf1700e78731989fba284c9cbca421c3617e852a1b2aeea2a48b6084fcf593"
   }
 }

@@ -1,17 +1,21 @@
 {
-  "_schema": "v2m3_state v1",
-  "generated_utc": "2026-07-29T15:06:02.181774+00:00",
+  "_schema": "v2m3_state v2",
+  "generated_utc": "2026-07-29T15:44:05.945291+00:00",
   "generator": "experiments/v2m3_preflight.py",
   "lit": false,
-  "status": "HALT-FAMILY-ADMISSION",
+  "status": "READY-PILOT",
   "round": 0,
-  "main_pilot_unlocked": false,
+  "main_pilot_unlocked": true,
   "main_pilot_executed": false,
   "pilot_manifest_cell_count": 30,
   "result": {
     "path": "data/results/v2m3_preflight.json",
-    "sha256": "f3f3462e7eebf3f4ddd0f3963a85ddbdef68c94625706fa2db45f419da673a5f"
+    "sha256": "e6652219c4f66ccb91cf9393a5f439c6169749bc77a91a6d7064b23667af3a91"
   },
-  "next_unlock_condition": "Provide one same-state-space strict-local real-space q-family with an executable step factory, explicit local shears, L-independent support, fp64 unitarity <=1e-12, no per-k projection, and measured rather than injected epsilon_geo/sigma coordinates.",
-  "wording": "M3′ Round 0 started. M3′ has neither passed nor failed; the main pilot was not run."
+  "local_family_certificate": {
+    "path": "data/results/v2m3_local_family_certificate.json",
+    "sha256": "dcdf1700e78731989fba284c9cbca421c3617e852a1b2aeea2a48b6084fcf593"
+  },
+  "next_unlock_condition": "Run only the frozen 30-cell pilot and measure epsilon_geo and sigma=(alpha,A) after each real-space run; formal scanning remains locked until pilot resolvability and resource review pass.",
+  "wording": "M3′ Round 0 admitted the strict-local family and unlocked only the 30-cell pilot; M3′ has neither passed nor failed, and the pilot was not run."
 }
