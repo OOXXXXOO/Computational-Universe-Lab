@@ -40,7 +40,8 @@ v1 历史入口：`docs/status/阶段复盘-2026-07-24-M3与主线校准.md`。
 
 > **状态覆盖（2026-07-30，纲领 v3 生效）**：v1 北极星继续封存，v2 M3′
 > `HALT-PILOT-UNRESOLVED` 作为历史事实保留。当前权威入口为 `docsv3/README.md`；
-> 依次读取 v3 北极星、v3 裁定、V3-M0 任务书和实施计划。`docs/` 冻结为 v1 历史，
+> 依次读取 v3 北极星、v3 裁定、observer-collapse coisometry 勘误、V3-M0 任务书和
+> 实施计划。`docs/` 冻结为 v1 历史，
 > `docsv2/` 保留 v2 证据链，不追溯改写。
 
 当前活跃战役为 **V3-M0 / 双轴仪器迁移**。仅实施 construction trace、matched ablation、

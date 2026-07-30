@@ -7,10 +7,11 @@
 > “因果可识别涌现边界制图”。**权威阅读顺序移至：1. `docsv3/README.md`
 > 2. `docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md`
 > 3. `docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`
-> 4. `docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`
-> 5. `docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
-> 6. v2 当前事实：`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
-> 7. v1 背景：`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`。**
+> 4. `docsv3/v3-勘误-observer-collapse-coisometry-2026-07-30.md`
+> 5. `docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`
+> 6. `docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
+> 7. v2 当前事实：`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
+> 8. v1 背景：`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`。**
 
 当前活跃战役为 **V3-M0 / 双轴仪器迁移**。只允许实现与认证 construction trace、
 matched ablation、共同响应链、`ε_causal`、`δ_geom`、`σ`、形式化 no-go 和 synthetic

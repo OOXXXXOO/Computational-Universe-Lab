@@ -221,8 +221,9 @@ python tools/tensor_campaign_runner.py status
 1. [`docsv3/README.md`](docsv3/README.md) — v3 document-system entry
 2. [`docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md`](docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md) — thesis and claim ladder
 3. [`docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`](docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md) — signed paradigm ruling
-4. [`docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`](docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md) — currently authorized scope
-5. [`docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`](docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md) — executable TDD dependency plan
+4. [`docsv3/v3-勘误-observer-collapse-coisometry-2026-07-30.md`](docsv3/v3-勘误-observer-collapse-coisometry-2026-07-30.md) — signed metric-bridge correction
+5. [`docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`](docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md) — currently authorized scope
+6. [`docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`](docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md) — executable TDD dependency plan
 
 **v2 (history and evidence):**
 
