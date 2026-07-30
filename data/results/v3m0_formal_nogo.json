@@ -1,0 +1,4529 @@
+{
+  "artifact_kind": "formal_nogo_intermediate_evidence",
+  "certificate_sha": "2d6dcb09275e64f9cd80d5ca85e9fd8929519373e4b30b304ff48e817153c384",
+  "claim_ceiling": "conditional_full_positive_observer_collapse",
+  "environment": {
+    "attribution_only": true,
+    "blas": "accelerate",
+    "cross_platform_bit_identical_required": false,
+    "lapack": "accelerate",
+    "machine": "arm64",
+    "numpy_build": {
+      "Build Dependencies": {
+        "blas": {
+          "detection method": "system",
+          "found": true,
+          "include directory": "unknown",
+          "lib directory": "unknown",
+          "name": "accelerate",
+          "openblas configuration": "unknown",
+          "pc file directory": "unknown",
+          "version": "unknown"
+        },
+        "lapack": {
+          "detection method": "system",
+          "found": true,
+          "include directory": "unknown",
+          "lib directory": "unknown",
+          "name": "accelerate",
+          "openblas configuration": "unknown",
+          "pc file directory": "unknown",
+          "version": "unknown"
+        }
+      },
+      "Compilers": {
+        "c": {
+          "commands": "cc",
+          "linker": "ld64",
+          "name": "clang",
+          "version": "15.0.0"
+        },
+        "c++": {
+          "commands": "c++",
+          "linker": "ld64",
+          "name": "clang",
+          "version": "15.0.0"
+        },
+        "cython": {
+          "commands": "cython",
+          "linker": "cython",
+          "name": "cython",
+          "version": "3.0.11"
+        }
+      },
+      "Machine Information": {
+        "build": {
+          "cpu": "aarch64",
+          "endian": "little",
+          "family": "aarch64",
+          "system": "darwin"
+        },
+        "host": {
+          "cpu": "aarch64",
+          "endian": "little",
+          "family": "aarch64",
+          "system": "darwin"
+        }
+      },
+      "SIMD Extensions": {
+        "baseline": [
+          "NEON",
+          "NEON_FP16",
+          "NEON_VFPV4",
+          "ASIMD"
+        ],
+        "found": [
+          "ASIMDHP"
+        ],
+        "not found": [
+          "ASIMDFHM"
+        ]
+      }
+    },
+    "numpy_build_config_sha256": "a4b8bae93e28ac2f44e891e75021a3a0d1bf23c1a42c0b11bab38d3dc7af4517",
+    "numpy_version": "2.0.2",
+    "platform": "macOS-26.3.1-arm64-arm-64bit",
+    "python": "3.9.6",
+    "release": "25.3.0",
+    "system": "Darwin",
+    "threadpoolctl": []
+  },
+  "evidence_kind": "source_sha_static_symbol_reconstruction",
+  "exact": {
+    "curvature_row_order": "R[m,a,n,b] C-order flatten",
+    "directions": [
+      {
+        "direction": "axial",
+        "gauge_dimension": 4,
+        "gauge_t_phys_orthogonality_residual": "0",
+        "k_domain": "0<rho<=pi (first-Brillouin punctured ray)",
+        "k_sector_rank": 6,
+        "laurent_divisibility_claimed": false,
+        "minor": "(-2 + sqrt(2))^6/64",
+        "nu_active_component_count": 1,
+        "nu_claim_scope": "punctured_pointwise_second_order_analytic_scale",
+        "nu_definition": "4*sum_i(sin(rho*d_i/2)^2)",
+        "nu_ir_limit": 1,
+        "nu_order": 2,
+        "nu_positive_on_domain": true,
+        "nu_reference_value": "2 - sqrt(2)",
+        "nu_zero_set_on_domain": "EmptySet",
+        "p_b_hermitian_residual": "0",
+        "p_b_idempotence_residual": "0",
+        "p_k_hermitian_residual": "0",
+        "p_k_idempotence_residual": "0",
+        "physical_quotient_dimension": 2,
+        "pi_phys_gauge_residual": "0",
+        "pivot_columns": [
+          0,
+          2,
+          3,
+          7,
+          8,
+          9
+        ],
+        "quotient_dressing_residual": "0",
+        "rank": 6,
+        "reference_kappa": [
+          "sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))",
+          "0",
+          "0"
+        ],
+        "reference_ratio": [
+          1,
+          8
+        ],
+        "row_complement_dimension": 4,
+        "squared_sine_charpoly": "x^2*(x-1)^4",
+        "squared_sine_multiset": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ],
+        "whitened_coisometry_required": true,
+        "witness_columns": [
+          0,
+          2,
+          3,
+          7,
+          8,
+          9
+        ],
+        "witness_rows": [
+          17,
+          18,
+          19,
+          34,
+          35,
+          51
+        ]
+      },
+      {
+        "direction": "face-diagonal",
+        "gauge_dimension": 4,
+        "gauge_t_phys_orthogonality_residual": "0",
+        "k_domain": "0<rho<=pi (first-Brillouin punctured ray)",
+        "k_sector_rank": 6,
+        "laurent_divisibility_claimed": false,
+        "minor": "(-2 + sqrt(2))^6/4",
+        "nu_active_component_count": 2,
+        "nu_claim_scope": "punctured_pointwise_second_order_analytic_scale",
+        "nu_definition": "4*sum_i(sin(rho*d_i/2)^2)",
+        "nu_ir_limit": 2,
+        "nu_order": 2,
+        "nu_positive_on_domain": true,
+        "nu_reference_value": "-2*(-2 + sqrt(2))",
+        "nu_zero_set_on_domain": "EmptySet",
+        "p_b_hermitian_residual": "0",
+        "p_b_idempotence_residual": "0",
+        "p_k_hermitian_residual": "0",
+        "p_k_idempotence_residual": "0",
+        "physical_quotient_dimension": 2,
+        "pi_phys_gauge_residual": "0",
+        "pivot_columns": [
+          0,
+          1,
+          3,
+          4,
+          6,
+          9
+        ],
+        "quotient_dressing_residual": "0",
+        "rank": 6,
+        "reference_kappa": [
+          "sqrt(2)*sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))",
+          "0"
+        ],
+        "reference_ratio": [
+          1,
+          8
+        ],
+        "row_complement_dimension": 4,
+        "squared_sine_charpoly": "x^2*(x-1)^4",
+        "squared_sine_multiset": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ],
+        "whitened_coisometry_required": true,
+        "witness_columns": [
+          0,
+          1,
+          3,
+          4,
+          6,
+          9
+        ],
+        "witness_rows": [
+          17,
+          18,
+          19,
+          34,
+          35,
+          51
+        ]
+      },
+      {
+        "direction": "body-diagonal",
+        "gauge_dimension": 4,
+        "gauge_t_phys_orthogonality_residual": "0",
+        "k_domain": "0<rho<=pi (first-Brillouin punctured ray)",
+        "k_sector_rank": 6,
+        "laurent_divisibility_claimed": false,
+        "minor": "81*(-2 + sqrt(2))^6/64",
+        "nu_active_component_count": 3,
+        "nu_claim_scope": "punctured_pointwise_second_order_analytic_scale",
+        "nu_definition": "4*sum_i(sin(rho*d_i/2)^2)",
+        "nu_ir_limit": 3,
+        "nu_order": 2,
+        "nu_positive_on_domain": true,
+        "nu_reference_value": "-3*(-2 + sqrt(2))",
+        "nu_zero_set_on_domain": "EmptySet",
+        "p_b_hermitian_residual": "0",
+        "p_b_idempotence_residual": "0",
+        "p_k_hermitian_residual": "0",
+        "p_k_idempotence_residual": "0",
+        "physical_quotient_dimension": 2,
+        "pi_phys_gauge_residual": "0",
+        "pivot_columns": [
+          0,
+          1,
+          2,
+          4,
+          5,
+          7
+        ],
+        "quotient_dressing_residual": "0",
+        "rank": 6,
+        "reference_kappa": [
+          "sqrt(3)*sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))",
+          "sqrt(2 - sqrt(2))"
+        ],
+        "reference_ratio": [
+          1,
+          8
+        ],
+        "row_complement_dimension": 4,
+        "squared_sine_charpoly": "x^2*(x-1)^4",
+        "squared_sine_multiset": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          1
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ],
+        "whitened_coisometry_required": true,
+        "witness_columns": [
+          0,
+          1,
+          2,
+          4,
+          5,
+          7
+        ],
+        "witness_rows": [
+          17,
+          18,
+          19,
+          34,
+          35,
+          51
+        ]
+      }
+    ],
+    "laurent": {
+      "adjoint_difference_support": {
+        "zx": [
+          [
+            -1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "zy": [
+          [
+            0,
+            -1,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "zz": [
+          [
+            0,
+            0,
+            -1
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ]
+      },
+      "adjoint_residual": "0",
+      "c_dagger_c_support": [
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          -1,
+          0,
+          1
+        ],
+        [
+          -1,
+          1,
+          0
+        ],
+        [
+          0,
+          -1,
+          0
+        ],
+        [
+          0,
+          -1,
+          1
+        ],
+        [
+          0,
+          0,
+          -1
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          -1
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          -1,
+          0
+        ],
+        [
+          1,
+          0,
+          -1
+        ],
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "forward_difference_support": {
+        "zx": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ],
+        "zy": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        "zz": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "potential_hermitian_residual": "0",
+      "potential_scope": "constraint_coupling_block_only;q_dependent_diagonal_stiffness_excluded"
+    },
+    "packing": [
+      "h00",
+      "h01",
+      "h02",
+      "h03",
+      "h11",
+      "h12",
+      "h13",
+      "h22",
+      "h23",
+      "h33"
+    ],
+    "schema": "v3m0-exact-v1",
+    "symplectic": {
+      "half_step": "1/6",
+      "laurent_evaluation": [
+        "-1",
+        "I",
+        "1"
+      ],
+      "potential_symmetry_residual": "0",
+      "principal_indices": [
+        2,
+        10
+      ],
+      "realification_dimension": 4,
+      "residual": "0",
+      "scope": "constraint_coupling_block_h02_zeta0_principal_subblock;q_dependent_diagonal_stiffness_excluded",
+      "verlet_phase_dimension": 8
+    },
+    "variable_order": [
+      "zx",
+      "zy",
+      "zz"
+    ]
+  },
+  "formal": {
+    "build_command": "lake build",
+    "build_exit_code": 0,
+    "build_pass": true,
+    "forbidden_token_pass": true,
+    "forbidden_tokens": {},
+    "lean_toolchain": "leanprover/lean4:v4.32.1",
+    "lean_version_command": "lake env lean --version",
+    "lean_version_exit_code": 0,
+    "lean_version_expected": "4.32.1",
+    "lean_version_output": "Lean (version 4.32.1, arm64-apple-darwin24.6.0, commit f054605aea4b840552cca2e725580bffd1e1b704, Release)",
+    "lean_version_pass": true,
+    "python_version": "3.9.6",
+    "required_modules": [
+      "V3M0/Common.lean",
+      "V3M0/EpsilonComplement.lean",
+      "V3M0/ExtensionalNoGo.lean",
+      "V3M0/LocalSymplectic.lean",
+      "V3M0/ObserverCollapse.lean",
+      "V3M0/SubspaceSurvival.lean",
+      "V3M0.lean"
+    ],
+    "source_sha256": {
+      "formal/v3m0/V3M0.lean": "fd9cf930b069c00197422e960d5b93863320bd443a915e18d84fa29c24a9c59e",
+      "formal/v3m0/V3M0/Common.lean": "cd9b53cf9e045299e7e07b5ba25b4df88e312dd20d3e6eefb8bcd1f6310782a9",
+      "formal/v3m0/V3M0/EpsilonComplement.lean": "4f411e7d8e82ffcf71a9400e73faacc121589339c2fa070ca1dd532e728f5d99",
+      "formal/v3m0/V3M0/ExtensionalNoGo.lean": "8b5e645ebafab992442515c2475bb3873e360494e8f2c319c14179b7ce529d44",
+      "formal/v3m0/V3M0/LocalSymplectic.lean": "ae1aadcca0b4da7f667d2eeb02fb535652020fae8d6c6e76daa38e6477db488b",
+      "formal/v3m0/V3M0/ObserverCollapse.lean": "8ebb3f34ccf94f7823e5b14cb4bfd5f8098a759220a25dca3269aa4c17cfd265",
+      "formal/v3m0/V3M0/SubspaceSurvival.lean": "d7f5ff43f98b1c61009bca0d88289ad48e0a6742856b16ba38d84718c55fef3e"
+    },
+    "sympy_version": "1.14.0",
+    "toolchain_sha256": {
+      "formal/v3m0/lake-manifest.json": "0679347ba2cbb8a9c1e763859e4e4659fc5bbadb6df81693e5ebd32357fbdb8c",
+      "formal/v3m0/lakefile.toml": "488e047ccdfb66c7a08e5df3db4633b34c1cf755452f11e30c051c3ad431ef12",
+      "formal/v3m0/lean-toolchain": "8e3538e0ab5f81a3ee04927d8838c8c674e0e112838b4b3ce87ec218143276af"
+    }
+  },
+  "gates": {
+    "exact_reconstruction": true,
+    "fresh_process_runtime_closure": true,
+    "frozen_static_source_sha": true,
+    "lean_build": true,
+    "lean_no_forbidden_tokens": true,
+    "lean_version": true,
+    "manifest_lineage": true,
+    "parent_sha": true,
+    "saved_scalar_reduction": true,
+    "static_execution_closure_sha": true,
+    "static_symbol_reconstruction": true,
+    "whitened_coisometry_90": true
+  },
+  "lineage": {
+    "fresh_process_runtime_closure": {
+      "allowed_signed_lineage_files": [
+        "experiments/__init__.py",
+        "experiments/cp1_v4_L1.py",
+        "experiments/cp1_v4_L2.py",
+        "experiments/cp1_v4_L3.py",
+        "experiments/cp1_v4_damping.py",
+        "experiments/r10_current_generator.py",
+        "experiments/r15_walk_dedonder.py",
+        "experiments/r17_placement_operators.py",
+        "experiments/r18_realspace_damping.py",
+        "experiments/r25_auxiliary_wilson_complex.py",
+        "experiments/r25_detour_complex.py",
+        "experiments/r25_dynamic_symbol.py",
+        "experiments/r25_laurent_complex.py",
+        "experiments/r25_realspace_step.py",
+        "experiments/r25_static_newton.py",
+        "experiments/r25_walk_dedonder_complex.py",
+        "experiments/r32_reachability_probe.py",
+        "experiments/v3m0_formal_nogo.py",
+        "rulespace_gpu/__init__.py",
+        "rulespace_gpu/backend.py",
+        "rulespace_gpu/emergence_judge.py",
+        "rulespace_gpu/engine.py",
+        "rulespace_gpu/green_one_walk.py",
+        "rulespace_gpu/observables.py",
+        "rulespace_gpu/pathB_spin2.py",
+        "rulespace_gpu/spin2_evolver.py",
+        "rulespace_gpu/states.py",
+        "rulespace_gpu/tensor_coin_feedback.py",
+        "rulespace_gpu/tensor_qca.py",
+        "rulespace_v2/__init__.py",
+        "rulespace_v2/candidate.py",
+        "rulespace_v2/epsilon.py",
+        "rulespace_v2/frozen.py",
+        "rulespace_v2/gates.py",
+        "rulespace_v2/invariants.py",
+        "rulespace_v2/m3_family.py",
+        "rulespace_v2/m3_local_family.py",
+        "rulespace_v2/sigma.py",
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/contracts.py",
+        "rulespace_v3/evidence.py",
+        "rulespace_v3/exact.py"
+      ],
+      "event_order": [
+        "runner_import_complete",
+        "closure_preflight_complete",
+        "static_reference_complete"
+      ],
+      "loaded_local_module_files": [
+        "experiments/__init__.py",
+        "experiments/cp1_v4_L1.py",
+        "experiments/cp1_v4_L2.py",
+        "experiments/cp1_v4_L3.py",
+        "experiments/cp1_v4_damping.py",
+        "experiments/r10_current_generator.py",
+        "experiments/r15_walk_dedonder.py",
+        "experiments/r17_placement_operators.py",
+        "experiments/r25_auxiliary_wilson_complex.py",
+        "experiments/r25_detour_complex.py",
+        "experiments/r25_dynamic_symbol.py",
+        "experiments/r25_laurent_complex.py",
+        "experiments/r25_realspace_step.py",
+        "experiments/r25_static_newton.py",
+        "experiments/r25_walk_dedonder_complex.py",
+        "experiments/r32_reachability_probe.py",
+        "experiments/v3m0_formal_nogo.py",
+        "rulespace_gpu/__init__.py",
+        "rulespace_gpu/backend.py",
+        "rulespace_gpu/emergence_judge.py",
+        "rulespace_gpu/engine.py",
+        "rulespace_gpu/green_one_walk.py",
+        "rulespace_gpu/observables.py",
+        "rulespace_gpu/pathB_spin2.py",
+        "rulespace_gpu/spin2_evolver.py",
+        "rulespace_gpu/states.py",
+        "rulespace_gpu/tensor_coin_feedback.py",
+        "rulespace_gpu/tensor_qca.py",
+        "rulespace_v2/__init__.py",
+        "rulespace_v2/candidate.py",
+        "rulespace_v2/epsilon.py",
+        "rulespace_v2/frozen.py",
+        "rulespace_v2/gates.py",
+        "rulespace_v2/invariants.py",
+        "rulespace_v2/m3_family.py",
+        "rulespace_v2/m3_local_family.py",
+        "rulespace_v2/sigma.py",
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/contracts.py",
+        "rulespace_v3/evidence.py",
+        "rulespace_v3/exact.py"
+      ],
+      "loaded_subset_of_signed_lineage": true,
+      "missing_required_bootstrap_files": [],
+      "module_names_by_file": {
+        "experiments/__init__.py": [
+          "experiments"
+        ],
+        "experiments/cp1_v4_L1.py": [
+          "cp1_v4_L1"
+        ],
+        "experiments/cp1_v4_L2.py": [
+          "cp1_v4_L2"
+        ],
+        "experiments/cp1_v4_L3.py": [
+          "cp1_v4_L3"
+        ],
+        "experiments/cp1_v4_damping.py": [
+          "cp1_v4_damping"
+        ],
+        "experiments/r10_current_generator.py": [
+          "experiments.r10_current_generator",
+          "r10_current_generator"
+        ],
+        "experiments/r15_walk_dedonder.py": [
+          "r15_walk_dedonder"
+        ],
+        "experiments/r17_placement_operators.py": [
+          "r17_placement_operators"
+        ],
+        "experiments/r25_auxiliary_wilson_complex.py": [
+          "r25_auxiliary_wilson_complex"
+        ],
+        "experiments/r25_detour_complex.py": [
+          "r25_detour_complex"
+        ],
+        "experiments/r25_dynamic_symbol.py": [
+          "r25_dynamic_symbol"
+        ],
+        "experiments/r25_laurent_complex.py": [
+          "r25_laurent_complex"
+        ],
+        "experiments/r25_realspace_step.py": [
+          "r25_realspace_step"
+        ],
+        "experiments/r25_static_newton.py": [
+          "r25_static_newton"
+        ],
+        "experiments/r25_walk_dedonder_complex.py": [
+          "r25_walk_dedonder_complex"
+        ],
+        "experiments/r32_reachability_probe.py": [
+          "r32_reachability_probe"
+        ],
+        "experiments/v3m0_formal_nogo.py": [
+          "experiments.v3m0_formal_nogo"
+        ],
+        "rulespace_gpu/__init__.py": [
+          "rulespace_gpu"
+        ],
+        "rulespace_gpu/backend.py": [
+          "rulespace_gpu.backend"
+        ],
+        "rulespace_gpu/emergence_judge.py": [
+          "rulespace_gpu.emergence_judge"
+        ],
+        "rulespace_gpu/engine.py": [
+          "rulespace_gpu.engine"
+        ],
+        "rulespace_gpu/green_one_walk.py": [
+          "rulespace_gpu.green_one_walk"
+        ],
+        "rulespace_gpu/observables.py": [
+          "rulespace_gpu.observables"
+        ],
+        "rulespace_gpu/pathB_spin2.py": [
+          "rulespace_gpu.pathB_spin2"
+        ],
+        "rulespace_gpu/spin2_evolver.py": [
+          "rulespace_gpu.spin2_evolver"
+        ],
+        "rulespace_gpu/states.py": [
+          "rulespace_gpu.states"
+        ],
+        "rulespace_gpu/tensor_coin_feedback.py": [
+          "rulespace_gpu.tensor_coin_feedback"
+        ],
+        "rulespace_gpu/tensor_qca.py": [
+          "rulespace_gpu.tensor_qca"
+        ],
+        "rulespace_v2/__init__.py": [
+          "rulespace_v2"
+        ],
+        "rulespace_v2/candidate.py": [
+          "rulespace_v2.candidate"
+        ],
+        "rulespace_v2/epsilon.py": [
+          "rulespace_v2.epsilon"
+        ],
+        "rulespace_v2/frozen.py": [
+          "rulespace_v2.frozen"
+        ],
+        "rulespace_v2/gates.py": [
+          "rulespace_v2.gates"
+        ],
+        "rulespace_v2/invariants.py": [
+          "rulespace_v2.invariants"
+        ],
+        "rulespace_v2/m3_family.py": [
+          "rulespace_v2.m3_family"
+        ],
+        "rulespace_v2/m3_local_family.py": [
+          "rulespace_v2.m3_local_family"
+        ],
+        "rulespace_v2/sigma.py": [
+          "rulespace_v2.sigma"
+        ],
+        "rulespace_v3/__init__.py": [
+          "rulespace_v3"
+        ],
+        "rulespace_v3/contracts.py": [
+          "rulespace_v3.contracts"
+        ],
+        "rulespace_v3/evidence.py": [
+          "rulespace_v3.evidence"
+        ],
+        "rulespace_v3/exact.py": [
+          "rulespace_v3.exact"
+        ]
+      },
+      "preflight_boundary": {
+        "not_verified_before": "python_package_bootstrap_and_runner_top_level_import_execution",
+        "reachable": true,
+        "scope": "all observed bootstrap sources are signed in the closure; the SHA preflight runs after Python import execution but before LOCAL.symbol_of_potential/FROZEN.mod static evaluation",
+        "verified_before": "first_static_symbol_function_call"
+      },
+      "probe": "fresh_python_process_runner_import_then_sha_preflight_then_one_static_reference",
+      "required_bootstrap_files": [
+        "experiments/__init__.py",
+        "experiments/r10_current_generator.py",
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/contracts.py"
+      ],
+      "unexpected_local_module_files": []
+    },
+    "frozen_static_sources": {
+      "experiments/r15_walk_dedonder.py": {
+        "actual_sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+        "expected_sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+        "match": true
+      },
+      "experiments/r25_auxiliary_wilson_complex.py": {
+        "actual_sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+        "expected_sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+        "match": true
+      },
+      "experiments/r32_reachability_probe.py": {
+        "actual_sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+        "expected_sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+        "match": true
+      }
+    },
+    "historical_runner": {
+      "finalizer_sha256": "add4e517554407eef06d13afe425f92fe00a588a0e3c5eac017c3d023557c476",
+      "original_sha256": "d7111a241477a6aeffad91d97533ffc33bca4e0de131110eccfbc25c4d147c3f"
+    },
+    "local_family_certificate": {
+      "factory_static_plane_wave_max_relative_residual": 3.2728534525451625e-16,
+      "path": "data/results/v2m3_local_family_certificate.json",
+      "sha256": "a693d0a4a4edfb844b1caf1f2486ec6c0e492f768f9fe2af9f56acbb1d522eb9"
+    },
+    "measured_kernel_factory_plane_wave": {
+      "max_relative_residual": 3.129929141865289e-16,
+      "source": "parent_persisted_summary"
+    },
+    "source_files": {
+      "rulespace_v2/epsilon.py": {
+        "sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c"
+      },
+      "rulespace_v2/frozen.py": {
+        "sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f"
+      },
+      "rulespace_v2/invariants.py": {
+        "sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3"
+      },
+      "rulespace_v2/m3_family.py": {
+        "sha256": "7df683dee96ff7db4a56d786c639f8679a921744fc293a6f464fa317b3d01cd7"
+      },
+      "rulespace_v2/m3_local_family.py": {
+        "sha256": "aedd7f90d7606f6b021e7ce15fd9e0d405600cb915cdfa514a73606afa2827b3"
+      },
+      "rulespace_v2/m3_pilot.py": {
+        "sha256": "0dd7d2230a4f1c1d9856d308ae488abe69c2062105225b8624d34c86abeff22a"
+      }
+    },
+    "static_execution_closure": {
+      "all_match": true,
+      "closure_sha256": "e0cffe54f4dbf1e3072ae15d9c40e5e1c85071f00ff985dc1d707a48c55478ff",
+      "discovery": "python_ast_conservative_local_import_closure_v2_with_literal_importlib_import_module",
+      "file_count": 40,
+      "files": {
+        "experiments/__init__.py": {
+          "actual_sha256": "1b4bb82a4493cbf123326d43960ab6232ed0eb6aaec75205acb4c2773b1dc4bd",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "1b4bb82a4493cbf123326d43960ab6232ed0eb6aaec75205acb4c2773b1dc4bd",
+          "imports": [
+            "experiments/r10_current_generator.py"
+          ],
+          "literal_dynamic_imports": [
+            "experiments.r10_current_generator"
+          ],
+          "match": true,
+          "module": "experiments"
+        },
+        "experiments/cp1_v4_L1.py": {
+          "actual_sha256": "4dad03be4319da896f485d954f0efc97bc0a6f781700f97e3e8120178a5c6035",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "4dad03be4319da896f485d954f0efc97bc0a6f781700f97e3e8120178a5c6035",
+          "imports": [
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r17_placement_operators.py",
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/emergence_judge.py",
+            "rulespace_gpu/green_one_walk.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "cp1_v4_L1"
+        },
+        "experiments/cp1_v4_L2.py": {
+          "actual_sha256": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "556e56665766b29c22eedf226645e3530c95c8ddc27e2b99527eb6158a70fb67",
+          "imports": [
+            "experiments/cp1_v4_L1.py",
+            "experiments/cp1_v4_damping.py",
+            "experiments/r15_walk_dedonder.py",
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/emergence_judge.py",
+            "rulespace_gpu/green_one_walk.py",
+            "rulespace_gpu/tensor_coin_feedback.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "cp1_v4_L2"
+        },
+        "experiments/cp1_v4_L3.py": {
+          "actual_sha256": "dc7cdbea20e47328d0b652a5a9aefd25d8c8c2fae3f9d82b71926c02c150a9a3",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "dc7cdbea20e47328d0b652a5a9aefd25d8c8c2fae3f9d82b71926c02c150a9a3",
+          "imports": [
+            "experiments/cp1_v4_L1.py",
+            "experiments/cp1_v4_L2.py",
+            "experiments/cp1_v4_damping.py",
+            "experiments/r15_walk_dedonder.py",
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/green_one_walk.py",
+            "rulespace_gpu/observables.py",
+            "rulespace_gpu/tensor_coin_feedback.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "cp1_v4_L3"
+        },
+        "experiments/cp1_v4_damping.py": {
+          "actual_sha256": "0b868b0ffda835ff3cfdf0306952e71fc83599b4d25526756098736c1784c8ab",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "0b868b0ffda835ff3cfdf0306952e71fc83599b4d25526756098736c1784c8ab",
+          "imports": [
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r18_realspace_damping.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "cp1_v4_damping"
+        },
+        "experiments/r10_current_generator.py": {
+          "actual_sha256": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "da8c8c49ab323ba14d239a89682f00dfd81b0d8ccfd1b7082ac938a4c06623bd",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r10_current_generator"
+        },
+        "experiments/r15_walk_dedonder.py": {
+          "actual_sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "ce10bc05c5caa487154a72a4169a1095930afe2afd2d84e4f49bba1041bb18cc",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r15_walk_dedonder"
+        },
+        "experiments/r17_placement_operators.py": {
+          "actual_sha256": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "authority": "parent.protocol.frozen_verification.record_only",
+          "expected_sha256": "957bfa91284815c5223f7b41b7cb6cbd22dbaab4d7343ffe781e938a037340cf",
+          "imports": [
+            "experiments/r15_walk_dedonder.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r17_placement_operators"
+        },
+        "experiments/r18_realspace_damping.py": {
+          "actual_sha256": "1aa478ae379cec8935c7e3dbaa44675739eae68d7b20f27e2d083b7a08d6fa23",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "1aa478ae379cec8935c7e3dbaa44675739eae68d7b20f27e2d083b7a08d6fa23",
+          "imports": [
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r17_placement_operators.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r18_realspace_damping"
+        },
+        "experiments/r25_auxiliary_wilson_complex.py": {
+          "actual_sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "48eb8653dde48315104e0843d03c88e9947dd13fc2e5642a6264504e9330c1bd",
+          "imports": [
+            "experiments/cp1_v4_L2.py",
+            "experiments/r25_detour_complex.py",
+            "experiments/r25_walk_dedonder_complex.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_auxiliary_wilson_complex"
+        },
+        "experiments/r25_detour_complex.py": {
+          "actual_sha256": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+          "authority": "data/results/r25_detour_results.json.source_sha256",
+          "expected_sha256": "ba65bb4ff5d2a3706fdc9714f982f9b5b4836beb31d41b49f5fdd116a9d05112",
+          "imports": [
+            "experiments/cp1_v4_L2.py",
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r25_laurent_complex.py",
+            "experiments/r25_walk_dedonder_complex.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_detour_complex"
+        },
+        "experiments/r25_dynamic_symbol.py": {
+          "actual_sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "a2f458f61c61caf125eb59e700f20c5e603def3b98cdb1ca9169db9e1933bfdb",
+          "imports": [
+            "experiments/r25_auxiliary_wilson_complex.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_dynamic_symbol"
+        },
+        "experiments/r25_laurent_complex.py": {
+          "actual_sha256": "0df01b2ba3b5e6218dba926b6ad72ebd1de3d087e64b75d3f28ac748a9a66bb1",
+          "authority": "data/results/r25_laurent_results.json.source_sha256",
+          "expected_sha256": "0df01b2ba3b5e6218dba926b6ad72ebd1de3d087e64b75d3f28ac748a9a66bb1",
+          "imports": [
+            "experiments/cp1_v4_L2.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_laurent_complex"
+        },
+        "experiments/r25_realspace_step.py": {
+          "actual_sha256": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "a66f6082e03c45b55687ad60859257e0993dc04f30185e212ff3e4bd62331445",
+          "imports": [
+            "experiments/cp1_v4_L2.py",
+            "experiments/cp1_v4_L3.py",
+            "experiments/r25_auxiliary_wilson_complex.py",
+            "experiments/r25_dynamic_symbol.py",
+            "experiments/r25_static_newton.py",
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/green_one_walk.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_realspace_step"
+        },
+        "experiments/r25_static_newton.py": {
+          "actual_sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "authority": "data/results/r25_static_newton_results.json.source_sha256",
+          "expected_sha256": "79bdefb16219677f9c1d4365cc66f322e7c5b0c9d0b6f0f678efd95b901ca343",
+          "imports": [
+            "experiments/cp1_v4_L2.py",
+            "experiments/cp1_v4_L3.py",
+            "experiments/r25_auxiliary_wilson_complex.py",
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/green_one_walk.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_static_newton"
+        },
+        "experiments/r25_walk_dedonder_complex.py": {
+          "actual_sha256": "a19c1313bd0422830ab43faf6ef74b819e1ddcdaf656401cad991ab2d4cc01e4",
+          "authority": "data/results/r25_walk_complex_results.json.source_sha256",
+          "expected_sha256": "a19c1313bd0422830ab43faf6ef74b819e1ddcdaf656401cad991ab2d4cc01e4",
+          "imports": [
+            "experiments/cp1_v4_L2.py",
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r25_laurent_complex.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r25_walk_dedonder_complex"
+        },
+        "experiments/r32_reachability_probe.py": {
+          "actual_sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "f1ab9307ea2540a0e733ebf34f975a131790927553ded86a6e1134cd08227442",
+          "imports": [
+            "experiments/r15_walk_dedonder.py",
+            "experiments/r25_auxiliary_wilson_complex.py",
+            "experiments/r25_dynamic_symbol.py",
+            "experiments/r25_realspace_step.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "r32_reachability_probe"
+        },
+        "rulespace_gpu/__init__.py": {
+          "actual_sha256": "911e8a678bfc9c9ef7fd5b9d775135cf340823fc116f6b02adfabdaab8bcc32a",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "911e8a678bfc9c9ef7fd5b9d775135cf340823fc116f6b02adfabdaab8bcc32a",
+          "imports": [
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/engine.py",
+            "rulespace_gpu/observables.py",
+            "rulespace_gpu/states.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu"
+        },
+        "rulespace_gpu/backend.py": {
+          "actual_sha256": "de41d174b2b9a2969a35ab084692c1fb6a6bb5d4e19514330fb240b209b4fae9",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "de41d174b2b9a2969a35ab084692c1fb6a6bb5d4e19514330fb240b209b4fae9",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.backend"
+        },
+        "rulespace_gpu/emergence_judge.py": {
+          "actual_sha256": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+          "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
+          "expected_sha256": "0c0188e122f7ee9322b52c5f3901aeae39c1430f77728d878de3480f87312902",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/spin2_evolver.py",
+            "rulespace_gpu/tensor_qca.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.emergence_judge"
+        },
+        "rulespace_gpu/engine.py": {
+          "actual_sha256": "3b691ccdc2d690b9b90215761d2f393a29f478730b60f37097d8790ffb2f8ea0",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "3b691ccdc2d690b9b90215761d2f393a29f478730b60f37097d8790ffb2f8ea0",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.engine"
+        },
+        "rulespace_gpu/green_one_walk.py": {
+          "actual_sha256": "abd379d23e42347c5c861d9bb13ff4430c847cb686fddde8681be3b8d1d646c1",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "abd379d23e42347c5c861d9bb13ff4430c847cb686fddde8681be3b8d1d646c1",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/emergence_judge.py",
+            "rulespace_gpu/tensor_coin_feedback.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.green_one_walk"
+        },
+        "rulespace_gpu/observables.py": {
+          "actual_sha256": "739012855938e2faab2381769f44695cd1ea40e02a43ae373ac597ac4fd54913",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "739012855938e2faab2381769f44695cd1ea40e02a43ae373ac597ac4fd54913",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/engine.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.observables"
+        },
+        "rulespace_gpu/pathB_spin2.py": {
+          "actual_sha256": "a9cb039445caa90ab944449215d1c3459d59b88e06883d3eba0d7ef6e5dc2cd7",
+          "authority": "parent.protocol.frozen_verification.record_only",
+          "expected_sha256": "a9cb039445caa90ab944449215d1c3459d59b88e06883d3eba0d7ef6e5dc2cd7",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/observables.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.pathB_spin2"
+        },
+        "rulespace_gpu/spin2_evolver.py": {
+          "actual_sha256": "dc9a1a8a28e87288cf858f4dea0c275983d606e2a15b34fe0e819f98e7150900",
+          "authority": "parent.protocol.frozen_verification.record_only",
+          "expected_sha256": "dc9a1a8a28e87288cf858f4dea0c275983d606e2a15b34fe0e819f98e7150900",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/pathB_spin2.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.spin2_evolver"
+        },
+        "rulespace_gpu/states.py": {
+          "actual_sha256": "9d26f3ce4727d634376aebc48a55c49d0824525bb76badc67045f2881da793d8",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "9d26f3ce4727d634376aebc48a55c49d0824525bb76badc67045f2881da793d8",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/engine.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.states"
+        },
+        "rulespace_gpu/tensor_coin_feedback.py": {
+          "actual_sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+          "authority": "parent.protocol.frozen_verification.record_only",
+          "expected_sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/emergence_judge.py",
+            "rulespace_gpu/pathB_spin2.py",
+            "rulespace_gpu/spin2_evolver.py",
+            "rulespace_gpu/tensor_qca.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.tensor_coin_feedback"
+        },
+        "rulespace_gpu/tensor_qca.py": {
+          "actual_sha256": "172a38d5be927ec7f9632e3bd2ba8caaa5fca006659c9fd8f280ddc37091a507",
+          "authority": "parent.protocol.frozen_verification.record_only",
+          "expected_sha256": "172a38d5be927ec7f9632e3bd2ba8caaa5fca006659c9fd8f280ddc37091a507",
+          "imports": [
+            "rulespace_gpu/__init__.py",
+            "rulespace_gpu/backend.py",
+            "rulespace_gpu/pathB_spin2.py",
+            "rulespace_gpu/spin2_evolver.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_gpu.tensor_qca"
+        },
+        "rulespace_v2/__init__.py": {
+          "actual_sha256": "1a832f91ff0181af8c9d9e448821e53caf42dbfb685c4a7f0d3d437273f8464a",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "1a832f91ff0181af8c9d9e448821e53caf42dbfb685c4a7f0d3d437273f8464a",
+          "imports": [
+            "rulespace_v2/candidate.py",
+            "rulespace_v2/gates.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2"
+        },
+        "rulespace_v2/candidate.py": {
+          "actual_sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "1d56818709d9ae3f0f265460c82f3b5f24699645cb35900265596b36d45f1b23",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.candidate"
+        },
+        "rulespace_v2/epsilon.py": {
+          "actual_sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "authority": "parent.protocol.code",
+          "expected_sha256": "10fbfed89436bf0f1dd1996d7c1b03b10aa5d5e5c4756f1b674e199fc8cd881c",
+          "imports": [
+            "rulespace_v2/__init__.py",
+            "rulespace_v2/frozen.py",
+            "rulespace_v2/invariants.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.epsilon"
+        },
+        "rulespace_v2/frozen.py": {
+          "actual_sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "authority": "parent.protocol.code",
+          "expected_sha256": "45a31ecd7bd47c769da837a83b1cf6146fa249c10ff20af11e6fc0ca0c024d2f",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.frozen"
+        },
+        "rulespace_v2/gates.py": {
+          "actual_sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "f29f4cb8cd1a2d3e0c3730d4428c4870d151ba50eaa31a47f227135f981fcf68",
+          "imports": [
+            "rulespace_v2/__init__.py",
+            "rulespace_v2/candidate.py",
+            "rulespace_v2/epsilon.py",
+            "rulespace_v2/frozen.py",
+            "rulespace_v2/sigma.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.gates"
+        },
+        "rulespace_v2/invariants.py": {
+          "actual_sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "authority": "parent.protocol.code",
+          "expected_sha256": "5d51e9733b076a71e66ab29dcb67837ada813b43f15d369617c1dbf8e1b696b3",
+          "imports": [
+            "rulespace_v2/__init__.py",
+            "rulespace_v2/frozen.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.invariants"
+        },
+        "rulespace_v2/m3_family.py": {
+          "actual_sha256": "7df683dee96ff7db4a56d786c639f8679a921744fc293a6f464fa317b3d01cd7",
+          "authority": "parent.protocol.code",
+          "expected_sha256": "7df683dee96ff7db4a56d786c639f8679a921744fc293a6f464fa317b3d01cd7",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.m3_family"
+        },
+        "rulespace_v2/m3_local_family.py": {
+          "actual_sha256": "aedd7f90d7606f6b021e7ce15fd9e0d405600cb915cdfa514a73606afa2827b3",
+          "authority": "parent.protocol.code",
+          "expected_sha256": "aedd7f90d7606f6b021e7ce15fd9e0d405600cb915cdfa514a73606afa2827b3",
+          "imports": [
+            "rulespace_v2/__init__.py",
+            "rulespace_v2/frozen.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.m3_local_family"
+        },
+        "rulespace_v2/sigma.py": {
+          "actual_sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "5e68622ecd46fd084993cadb0e904875e3b57d2f45f35ca2fa5832c18e29ee3b",
+          "imports": [
+            "rulespace_v2/__init__.py",
+            "rulespace_v2/frozen.py",
+            "rulespace_v2/invariants.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v2.sigma"
+        },
+        "rulespace_v3/__init__.py": {
+          "actual_sha256": "d702baf26b02b5a371b6472a648458726739dacc1d03d152016baa9ec40e8b18",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "d702baf26b02b5a371b6472a648458726739dacc1d03d152016baa9ec40e8b18",
+          "imports": [
+            "rulespace_v3/contracts.py",
+            "rulespace_v3/evidence.py"
+          ],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v3"
+        },
+        "rulespace_v3/contracts.py": {
+          "actual_sha256": "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v3.contracts"
+        },
+        "rulespace_v3/evidence.py": {
+          "actual_sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004",
+          "authority": "v3m0_task7_signed_execution_closure_freeze",
+          "expected_sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004",
+          "imports": [],
+          "literal_dynamic_imports": [],
+          "match": true,
+          "module": "rulespace_v3.evidence"
+        }
+      },
+      "roots": [
+        "experiments",
+        "rulespace_v2.epsilon",
+        "rulespace_v2.frozen",
+        "rulespace_v2.invariants",
+        "rulespace_v2.m3_family",
+        "rulespace_v2.m3_local_family",
+        "rulespace_v3",
+        "r15_walk_dedonder",
+        "r32_reachability_probe",
+        "r25_auxiliary_wilson_complex"
+      ]
+    },
+    "v3_source_files": {
+      "experiments/v3m0_formal_nogo.py": {
+        "sha256": "45400db833a46ae3e568a5b0d766831aeb7adc09439cd832c43dbe2fa29c89f2"
+      },
+      "rulespace_v3/evidence.py": {
+        "sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004"
+      },
+      "rulespace_v3/exact.py": {
+        "sha256": "19386eeb481393d48814fa35a0618ef1f6edf3f6df4a8abb0039878865eaa934"
+      }
+    }
+  },
+  "manifest": {
+    "cell_count": 30,
+    "directions": [
+      {
+        "name": "axial",
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "name": "face-diagonal",
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "name": "body-diagonal",
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "kappa_c_levels": [
+      0.0,
+      0.005,
+      0.01,
+      0.02,
+      0.04,
+      0.08
+    ],
+    "q_levels": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "record_ids": [
+      "m3-q0-kc0p000:axial:1/8",
+      "m3-q0-kc0p000:face-diagonal:1/8",
+      "m3-q0-kc0p000:body-diagonal:1/8",
+      "m3-q0-kc0p005:axial:1/8",
+      "m3-q0-kc0p005:face-diagonal:1/8",
+      "m3-q0-kc0p005:body-diagonal:1/8",
+      "m3-q0-kc0p010:axial:1/8",
+      "m3-q0-kc0p010:face-diagonal:1/8",
+      "m3-q0-kc0p010:body-diagonal:1/8",
+      "m3-q0-kc0p020:axial:1/8",
+      "m3-q0-kc0p020:face-diagonal:1/8",
+      "m3-q0-kc0p020:body-diagonal:1/8",
+      "m3-q0-kc0p040:axial:1/8",
+      "m3-q0-kc0p040:face-diagonal:1/8",
+      "m3-q0-kc0p040:body-diagonal:1/8",
+      "m3-q0-kc0p080:axial:1/8",
+      "m3-q0-kc0p080:face-diagonal:1/8",
+      "m3-q0-kc0p080:body-diagonal:1/8",
+      "m3-q1-kc0p000:axial:1/8",
+      "m3-q1-kc0p000:face-diagonal:1/8",
+      "m3-q1-kc0p000:body-diagonal:1/8",
+      "m3-q1-kc0p005:axial:1/8",
+      "m3-q1-kc0p005:face-diagonal:1/8",
+      "m3-q1-kc0p005:body-diagonal:1/8",
+      "m3-q1-kc0p010:axial:1/8",
+      "m3-q1-kc0p010:face-diagonal:1/8",
+      "m3-q1-kc0p010:body-diagonal:1/8",
+      "m3-q1-kc0p020:axial:1/8",
+      "m3-q1-kc0p020:face-diagonal:1/8",
+      "m3-q1-kc0p020:body-diagonal:1/8",
+      "m3-q1-kc0p040:axial:1/8",
+      "m3-q1-kc0p040:face-diagonal:1/8",
+      "m3-q1-kc0p040:body-diagonal:1/8",
+      "m3-q1-kc0p080:axial:1/8",
+      "m3-q1-kc0p080:face-diagonal:1/8",
+      "m3-q1-kc0p080:body-diagonal:1/8",
+      "m3-q2-kc0p000:axial:1/8",
+      "m3-q2-kc0p000:face-diagonal:1/8",
+      "m3-q2-kc0p000:body-diagonal:1/8",
+      "m3-q2-kc0p005:axial:1/8",
+      "m3-q2-kc0p005:face-diagonal:1/8",
+      "m3-q2-kc0p005:body-diagonal:1/8",
+      "m3-q2-kc0p010:axial:1/8",
+      "m3-q2-kc0p010:face-diagonal:1/8",
+      "m3-q2-kc0p010:body-diagonal:1/8",
+      "m3-q2-kc0p020:axial:1/8",
+      "m3-q2-kc0p020:face-diagonal:1/8",
+      "m3-q2-kc0p020:body-diagonal:1/8",
+      "m3-q2-kc0p040:axial:1/8",
+      "m3-q2-kc0p040:face-diagonal:1/8",
+      "m3-q2-kc0p040:body-diagonal:1/8",
+      "m3-q2-kc0p080:axial:1/8",
+      "m3-q2-kc0p080:face-diagonal:1/8",
+      "m3-q2-kc0p080:body-diagonal:1/8",
+      "m3-q3-kc0p000:axial:1/8",
+      "m3-q3-kc0p000:face-diagonal:1/8",
+      "m3-q3-kc0p000:body-diagonal:1/8",
+      "m3-q3-kc0p005:axial:1/8",
+      "m3-q3-kc0p005:face-diagonal:1/8",
+      "m3-q3-kc0p005:body-diagonal:1/8",
+      "m3-q3-kc0p010:axial:1/8",
+      "m3-q3-kc0p010:face-diagonal:1/8",
+      "m3-q3-kc0p010:body-diagonal:1/8",
+      "m3-q3-kc0p020:axial:1/8",
+      "m3-q3-kc0p020:face-diagonal:1/8",
+      "m3-q3-kc0p020:body-diagonal:1/8",
+      "m3-q3-kc0p040:axial:1/8",
+      "m3-q3-kc0p040:face-diagonal:1/8",
+      "m3-q3-kc0p040:body-diagonal:1/8",
+      "m3-q3-kc0p080:axial:1/8",
+      "m3-q3-kc0p080:face-diagonal:1/8",
+      "m3-q3-kc0p080:body-diagonal:1/8",
+      "m3-q4-kc0p000:axial:1/8",
+      "m3-q4-kc0p000:face-diagonal:1/8",
+      "m3-q4-kc0p000:body-diagonal:1/8",
+      "m3-q4-kc0p005:axial:1/8",
+      "m3-q4-kc0p005:face-diagonal:1/8",
+      "m3-q4-kc0p005:body-diagonal:1/8",
+      "m3-q4-kc0p010:axial:1/8",
+      "m3-q4-kc0p010:face-diagonal:1/8",
+      "m3-q4-kc0p010:body-diagonal:1/8",
+      "m3-q4-kc0p020:axial:1/8",
+      "m3-q4-kc0p020:face-diagonal:1/8",
+      "m3-q4-kc0p020:body-diagonal:1/8",
+      "m3-q4-kc0p040:axial:1/8",
+      "m3-q4-kc0p040:face-diagonal:1/8",
+      "m3-q4-kc0p040:body-diagonal:1/8",
+      "m3-q4-kc0p080:axial:1/8",
+      "m3-q4-kc0p080:face-diagonal:1/8",
+      "m3-q4-kc0p080:body-diagonal:1/8"
+    ],
+    "reference_ratio": [
+      1,
+      8
+    ],
+    "reference_record_count": 90
+  },
+  "parent": {
+    "manifest_sha256": "9807e2aad9261d44c35d34816e84e359afd56a705fc313b988326931f159c39e",
+    "path": "data/results/v2m3_pilot.json",
+    "raw_kernel_persisted": false,
+    "sha256": "6358edc238095c7662b2a5e91c3a62ba72eac066cca57c8d6e70b5586b8caab0",
+    "status": "HALT-PILOT-UNRESOLVED"
+  },
+  "production_symbol_equivalence": "round0_plane_wave_spotcheck",
+  "raw_kernel_available": false,
+  "raw_kernel_independent_recomputation": false,
+  "raw_kernel_recomputed": false,
+  "saved_scalar_reduction": {
+    "conditional_no_go": "j=4,N_curv=6 => epsilon_geo=1/3",
+    "epsilon_geo": "1/3",
+    "max_saved_squared_spectrum_exact_residual": 8.881784197001252e-16,
+    "record_count": 90,
+    "reduction_rule": "N=len(sin_theta);j=count(sin_theta>=0.05);epsilon=1-j/N",
+    "unique_N_curv": [
+      6
+    ],
+    "unique_j": [
+      4
+    ]
+  },
+  "schema": "v3m0-formal-nogo-v1",
+  "static_bridge": {
+    "coisometry_tolerance": 1e-12,
+    "max_coisometry_residual_2": 2.8879956470660003e-15,
+    "max_saved_spectrum_residual": 4.440892098500626e-16,
+    "raw_kernel_content_verified": false,
+    "records": [
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p000:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.1888641935536853e-16,
+          4.219133360373121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p000:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.6727668588798146e-16,
+          5.036108474756417e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p000:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.954223499610515e-16,
+          4.20790114474407e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.1060687701882657e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p005:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.4198180780084365e-16,
+          5.128326948055573e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.658314527004287e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p005:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.829550319702184e-16,
+          4.2419008516905637e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.9871041360378904e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p005:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.338231592044818e-16,
+          4.1619114356761665e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.2936217898123667e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p010:axial:1/8",
+        "saved_spectrum_residual": 1.323910621893846e-16,
+        "sin_theta": [
+          2.3067456326154337e-16,
+          5.124784904315379e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5690443262662785e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p010:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.621276468928859e-16,
+          5.583300373531595e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.6780051420343702e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p010:body-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          3.0187862803702336e-16,
+          5.093883418509281e-16,
+          0.9999999999999997,
+          0.9999999999999997,
+          0.9999999999999999,
+          0.9999999999999999
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.758595821866273e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p020:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.1369116227893703e-16,
+          5.873993286282349e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.796459482745844e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p020:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.9804888446931955e-16,
+          5.520540507218547e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.4439173185273987e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p020:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          1.5327130901942517e-16,
+          4.589376477568282e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.966640134336568e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p040:axial:1/8",
+        "saved_spectrum_residual": 4.440892098500626e-16,
+        "sin_theta": [
+          1.7389951607565278e-16,
+          5.475056860834483e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.8880862348834397e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p040:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          3.1095426390793387e-16,
+          5.646281525444097e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.0478404489344833e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p040:body-diagonal:1/8",
+        "saved_spectrum_residual": 4.902006299791046e-17,
+        "sin_theta": [
+          2.834553299724437e-16,
+          4.278578053052794e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.239816965716429e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p080:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.648957666134898e-16,
+          5.924367021870162e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.93994676966541e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p080:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.156012798194684e-16,
+        "sin_theta": [
+          2.9970774415639925e-16,
+          6.111813757602566e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q0-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.567510289796954e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 0,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q0-kc0p080:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.4865819756907242e-16,
+          4.308483878365845e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p000:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.1888641935536853e-16,
+          4.219133360373121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p000:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.6727668588798146e-16,
+          5.036108474756417e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p000:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.954223499610515e-16,
+          4.20790114474407e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.6716400664204552e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p005:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.40579384902562e-16,
+          5.80740808998021e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5735461759148213e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p005:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.179341688797986e-16,
+        "sin_theta": [
+          3.0505872054438276e-16,
+          4.4034632186585954e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.0173073833053585e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p005:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.313203085020921e-16,
+          4.674117290273001e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.6590487774577739e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p010:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.328686855004091e-16,
+          5.381155773811776e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.604060764608785e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p010:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.451159336312442e-16,
+        "sin_theta": [
+          3.579856602079695e-16,
+          5.144298811632036e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5136771331131087e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p010:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.763377973689153e-16,
+          5.200129687111246e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.7613946835658571e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p020:axial:1/8",
+        "saved_spectrum_residual": 1.0264571360150619e-16,
+        "sin_theta": [
+          2.273732960825291e-16,
+          4.993900576082608e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.8136766712067045e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p020:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          3.71962660831163e-16,
+          4.319020688304373e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.091897041003079e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p020:body-diagonal:1/8",
+        "saved_spectrum_residual": 4.476778029778453e-17,
+        "sin_theta": [
+          2.811762612440709e-16,
+          4.2547815381696887e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.9112542932573345e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p040:axial:1/8",
+        "saved_spectrum_residual": 1.1609524227351934e-16,
+        "sin_theta": [
+          3.0073776169991936e-16,
+          4.907888122838391e-16,
+          0.9999999999999998,
+          0.9999999999999998,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3760868841802919e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p040:face-diagonal:1/8",
+        "saved_spectrum_residual": 4.440892098500626e-16,
+        "sin_theta": [
+          2.779009657568571e-16,
+          5.880606698849712e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.998589303958886e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p040:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.6479379990047318e-16,
+        "sin_theta": [
+          2.9363623301021824e-16,
+          5.365177979115812e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5346590432800996e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p080:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.0666872563511896e-16,
+          5.023708362650084e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.341848519865521e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p080:face-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.541162127207553e-16,
+          6.023028260982293e-16,
+          0.9999999999999997,
+          0.9999999999999997,
+          0.9999999999999997,
+          0.9999999999999999
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q1-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.3694263009865477e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 1,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q1-kc0p080:body-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          4.67511431571726e-16,
+          5.101045107487764e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p000:axial:1/8",
+        "saved_spectrum_residual": 1.9186183027918324e-16,
+        "sin_theta": [
+          2.1888641935536853e-16,
+          4.219133360373121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p000:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.6727668588798146e-16,
+          5.036108474756417e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p000:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.954223499610515e-16,
+          4.20790114474407e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.370396923940814e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p005:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.2491407886288e-16,
+          5.712461257925533e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2530307535057531e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p005:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.322226245844001e-16,
+          4.3154803103752844e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.636592871980023e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p005:body-diagonal:1/8",
+        "saved_spectrum_residual": 6.14240057714248e-17,
+        "sin_theta": [
+          3.119976186588137e-16,
+          3.995231368591879e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.7030074407097331e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p010:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          3.6131458429447023e-16,
+          4.636085530050702e-16,
+          0.9999999999999997,
+          0.9999999999999997,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.4211311521985156e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p010:face-diagonal:1/8",
+        "saved_spectrum_residual": 5.582394824025984e-17,
+        "sin_theta": [
+          3.272102691819874e-16,
+          5.083814205059715e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.968121362061024e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p010:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.0957002904946436e-16,
+          4.112200404073407e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3354880284055138e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p020:axial:1/8",
+        "saved_spectrum_residual": 3.475275436915732e-17,
+        "sin_theta": [
+          2.571500182500762e-16,
+          5.119586519026956e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2413326870953833e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p020:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.9108553851394055e-16,
+          5.194767777836873e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2177925851280757e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p020:body-diagonal:1/8",
+        "saved_spectrum_residual": 4.440892098500626e-16,
+        "sin_theta": [
+          1.8889990883537895e-16,
+          4.3765544995375833e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.4237582862194612e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p040:axial:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.811899946223817e-16,
+          5.35693985385697e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.033250601984124e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p040:face-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.5965009562425065e-16,
+          4.625803541520038e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.8869528800740925e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p040:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.8193261234121196e-16,
+          5.485541141634817e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.254596164012549e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p080:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.1979033306690738e-16,
+          5.049141812651779e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2212295012920238e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p080:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.9255139701249637e-16,
+          6.153248537369823e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q2-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.348494937625707e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 2,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q2-kc0p080:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1190690686372983e-16,
+        "sin_theta": [
+          2.804921195046186e-16,
+          5.26996320852692e-16,
+          0.9999999999999998,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p000:axial:1/8",
+        "saved_spectrum_residual": 1.9865369712320883e-16,
+        "sin_theta": [
+          2.1888641935536853e-16,
+          4.219133360373121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p000:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.6727668588798146e-16,
+          5.036108474756417e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 7.644858119779747e-16,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p000:body-diagonal:1/8",
+        "saved_spectrum_residual": 7.866444099808444e-17,
+        "sin_theta": [
+          2.2382807356585253e-16,
+          5.371181234929652e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.4496157537344282e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p005:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.890749495659237e-16,
+          5.1698915693214035e-16,
+          0.9999999999999996,
+          0.9999999999999996,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.387602996096627e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p005:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1148298707415685e-16,
+        "sin_theta": [
+          2.645466286070839e-16,
+          5.718649084157129e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.4246140565547622e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p005:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.271513612167839e-16,
+          4.872346396259664e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3942021214533962e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p010:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.327252890854659e-16,
+          5.635722316732939e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5998882340824455e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p010:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.3927201285611826e-16,
+          5.195265089537648e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.11114365444361e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p010:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          1.9065685332414754e-16,
+          5.579311122022513e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.0925735486823295e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p020:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.818870654947063e-16,
+          5.499739459810596e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.7889777615543973e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p020:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.717582729692363e-16,
+        "sin_theta": [
+          2.555114959846455e-16,
+          6.868372918852777e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3378064408582722e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p020:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          3.3878042319787623e-16,
+          4.343371070176742e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.4774179283725553e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p040:axial:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          1.8384133260129852e-16,
+          5.626176640318291e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.4472864868618023e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p040:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.6367696440603486e-16,
+        "sin_theta": [
+          3.0893729456113527e-16,
+          6.627081776961238e-16,
+          0.9999999999999997,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.810761764144388e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p040:body-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.5085220729009616e-16,
+          4.495443913468405e-16,
+          0.9999999999999998,
+          0.9999999999999998,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.7987900760469353e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p080:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.807169507861872e-16,
+          7.03700867577711e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.3348245464477924e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p080:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.1839043790038004e-16,
+          5.890247516858121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q3-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2039148751164065e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 3,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q3-kc0p080:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.14649321704353e-16,
+          4.470070898330713e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p000:axial:1/8",
+        "saved_spectrum_residual": 1.1982749088557597e-16,
+        "sin_theta": [
+          2.1888641935536853e-16,
+          4.219133360373121e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p000:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.6727668588798146e-16,
+          5.036108474756417e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p000",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 0.0,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.0,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p000:body-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.954223499610515e-16,
+          4.20790114474407e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.8461875325108884e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p005:axial:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          1.8892240449301234e-16,
+          5.78518111740527e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5444450449007276e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p005:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.9912289244662966e-17,
+        "sin_theta": [
+          3.208785018601972e-16,
+          5.820969717799766e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p005",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.8879956470660003e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.005,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p005:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.313502774486962e-16,
+          4.652699668439187e-16,
+          0.9999999999999999,
+          0.9999999999999999,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.2481076052865432e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p010:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.498074746991154e-16,
+          5.438821772821505e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.4018522267105464e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p010:face-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          3.360452984858065e-16,
+          4.998681630962312e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p010",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.908982095119547e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.01,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p010:body-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.957281657150085e-16,
+          4.801746344802555e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.4194473874440744e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p020:axial:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          2.5539907854792133e-16,
+          5.624236174958436e-16,
+          0.9999999999999997,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.635403065275034e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p020:face-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.357982106186115e-16,
+          4.886507245756841e-16,
+          0.9999999999999999,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p020",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.9567549794044656e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.02,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p020:body-diagonal:1/8",
+        "saved_spectrum_residual": 1.1102230246251565e-16,
+        "sin_theta": [
+          3.2495679782157466e-16,
+          4.616001273317408e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.5714422659166859e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p040:axial:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.475494468742207e-16,
+          4.2935862865265253e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.6956881039878332e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p040:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.963895089925848e-16,
+          5.678705073657564e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p040",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 2.3963864057300112e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.04,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p040:body-diagonal:1/8",
+        "saved_spectrum_residual": 3.3306690738754696e-16,
+        "sin_theta": [
+          2.7748024367920317e-16,
+          4.706633769150785e-16,
+          0.9999999999999996,
+          0.9999999999999998,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.975269679535916e-15,
+        "direction": "axial",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p080:axial:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          2.014463881784695e-16,
+          5.301160306217718e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3833964532218383e-15,
+        "direction": "face-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p080:face-diagonal:1/8",
+        "saved_spectrum_residual": 2.220446049250313e-16,
+        "sin_theta": [
+          3.3738233557407493e-16,
+          4.441780496036725e-16,
+          0.9999999999999998,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "N_curv": 6,
+        "cell_id": "m3-q4-kc0p080",
+        "coisometry_pass": true,
+        "coisometry_residual_2": 1.3385985303182093e-15,
+        "direction": "body-diagonal",
+        "epsilon_geo": 0.33333333333333337,
+        "incidence_rank": 6,
+        "j": 4,
+        "kappa_c": 0.08,
+        "positive_h_rank": 10,
+        "positive_phase_count": 14,
+        "q": 4,
+        "ratio": [
+          1,
+          8
+        ],
+        "record_id": "m3-q4-kc0p080:body-diagonal:1/8",
+        "saved_spectrum_residual": 6.492228628073438e-17,
+        "sin_theta": [
+          2.61003582946904e-16,
+          4.660450348530871e-16,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "vector": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "reference_count": 90,
+    "static_discrete_pass": true
+  },
+  "status": "READY-V3M0-CONTROLS"
+}
