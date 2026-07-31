@@ -1181,8 +1181,24 @@ _PARENT_WIRE_TYPES = (
     BasisManifest,
     FrozenComplexTensor,
 )
+_CANDIDATE_WIRE_TYPES = (
+    ParentFreezeCandidateManifest,
+    ParentFreezeCandidateApplication,
+    ParentFreezeCandidateScenario,
+    ScenarioBasisSelectorSpec,
+    ScenarioResponseTemplate,
+    ScenarioPredictionProfile,
+    ScenarioPredictionQuantity,
+    ApplicationScenarioExecutionSpec,
+    TaggedScalarWire,
+    FrozenComplexTensor,
+)
 _clone_parent_wire = _make_exact_wire_cloner(
     _PARENT_WIRE_TYPES,
+    atomic_types=(UndefinedReason,),
+)
+_clone_candidate_wire = _make_exact_wire_cloner(
+    _CANDIDATE_WIRE_TYPES,
     atomic_types=(UndefinedReason,),
 )
 
@@ -1238,6 +1254,19 @@ def _require_exact_parent_schema(
         elif current_type is _dict_type:
             for key, item in current.items():
                 pending.append((item, f"{current_field}[{key!r}]"))
+
+
+def _require_exact_candidate_schema(
+    value: object,
+    field: str,
+) -> None:
+    """Apply a candidate-only exact wire registry without widening Parent v1."""
+
+    _require_exact_parent_schema(
+        value,
+        field,
+        _allowed_types=_CANDIDATE_WIRE_TYPES,
+    )
 
 
 def tagged_scalar_wire_payload(wire: TaggedScalarWire) -> dict[str, object]:
@@ -4749,6 +4778,7 @@ def verify_parent_freeze_candidate(
 
     if type(candidate) is not ParentFreezeCandidateManifest:
         raise TypeError("candidate must be an exact ParentFreezeCandidateManifest")
+    _require_exact_candidate_schema(candidate, "parent freeze candidate")
     candidate.__post_init__()
     if candidate.candidate_schema_version != (
         PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION
@@ -4913,6 +4943,10 @@ def verify_parent_freeze_candidate(
                 raise ValueError("candidate prediction state mismatch")
             for quantity in profile.quantities:
                 quantity.__post_init__()
+                if quantity.semantics == "MEASURED_EXACT":
+                    raise ValueError(
+                        "provisional candidate prediction cannot be measured"
+                    )
                 if quantity.quantity_sha != canonical_sha(
                     scenario_prediction_quantity_payload(quantity)
                 ):
@@ -4928,11 +4962,13 @@ def verify_parent_freeze_candidate(
         parent_freeze_candidate_manifest_payload(candidate)
     ):
         raise ValueError("candidate_sha does not match the complete body")
+    if candidate != _CLOSED_PARENT_FREEZE_CANDIDATE_SNAPSHOT:
+        raise ValueError("candidate differs from the unique closed canonical body")
     return candidate
 
 
-def build_v3m0_parent_freeze_candidate() -> ParentFreezeCandidateManifest:
-    """Build the sole inert Phase-B review candidate; issue no authority."""
+def _build_closed_parent_freeze_candidate() -> ParentFreezeCandidateManifest:
+    """Construct the private canonical review body without issuing authority."""
 
     provisional = ParentFreezeCandidateManifest(
         candidate_schema_version=PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION,
@@ -4967,6 +5003,20 @@ def build_v3m0_parent_freeze_candidate() -> ParentFreezeCandidateManifest:
         candidate_sha=canonical_sha(
             parent_freeze_candidate_manifest_payload(provisional)
         ),
+    )
+    return candidate
+
+
+_CLOSED_PARENT_FREEZE_CANDIDATE_SNAPSHOT = _clone_candidate_wire(
+    _build_closed_parent_freeze_candidate()
+)
+
+
+def build_v3m0_parent_freeze_candidate() -> ParentFreezeCandidateManifest:
+    """Return a detached copy of the sole inert Phase-B review candidate."""
+
+    candidate = _clone_candidate_wire(
+        _CLOSED_PARENT_FREEZE_CANDIDATE_SNAPSHOT
     )
     return verify_parent_freeze_candidate(candidate)
 

@@ -2596,6 +2596,242 @@ class ParentFreezeCandidateTests(unittest.TestCase):
                 ),
             )
 
+    def test_candidate_rejects_unknown_fields_and_fully_resigned_splices(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+        from rulespace_v3.factory import freeze_complex_tensor
+
+        def resign_scenario(scenario):
+            provisional = dataclasses.replace(
+                scenario,
+                candidate_scenario_sha="0" * 64,
+            )
+            return dataclasses.replace(
+                provisional,
+                candidate_scenario_sha=canonical_sha(
+                    parent_freeze.parent_freeze_candidate_scenario_payload(
+                        provisional
+                    )
+                ),
+            )
+
+        def resign_application(application):
+            provisional = dataclasses.replace(
+                application,
+                candidate_application_sha="0" * 64,
+            )
+            return dataclasses.replace(
+                provisional,
+                candidate_application_sha=canonical_sha(
+                    parent_freeze.parent_freeze_candidate_application_payload(
+                        provisional
+                    )
+                ),
+            )
+
+        def replace_application(candidate, index, application):
+            provisional = dataclasses.replace(
+                candidate,
+                application_candidates=(
+                    *candidate.application_candidates[:index],
+                    resign_application(application),
+                    *candidate.application_candidates[index + 1 :],
+                ),
+                candidate_sha="0" * 64,
+            )
+            return dataclasses.replace(
+                provisional,
+                candidate_sha=canonical_sha(
+                    parent_freeze.parent_freeze_candidate_manifest_payload(
+                        provisional
+                    )
+                ),
+            )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        object.__setattr__(candidate, "hostile_unknown", "not-hashed")
+        with self.assertRaisesRegex(ValueError, "fields are not exact|record fields"):
+            parent_freeze.verify_parent_freeze_candidate(candidate)
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = dataclasses.replace(
+            candidate.application_candidates[0],
+            candidate_application_schema_version="hostile.resigned.schema.v1",
+        )
+        with self.assertRaisesRegex(ValueError, "canonical|closed|schema"):
+            parent_freeze.verify_parent_freeze_candidate(
+                replace_application(candidate, 0, application)
+            )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = candidate.application_candidates[0]
+        scenario = application.scenario_candidates[0]
+        execution = dataclasses.replace(
+            scenario.scenario_execution_spec,
+            execution_recipe_id="hostile-resigned-recipe-v1",
+            scenario_sha="0" * 64,
+        )
+        execution = dataclasses.replace(
+            execution,
+            scenario_sha=canonical_sha(
+                application_scenario_execution_spec_payload(execution)
+            ),
+        )
+        changed_scenario = resign_scenario(
+            dataclasses.replace(
+                scenario,
+                scenario_execution_spec=execution,
+            )
+        )
+        application = dataclasses.replace(
+            application,
+            scenario_candidates=(
+                changed_scenario,
+                *application.scenario_candidates[1:],
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "canonical|closed|scenario"):
+            parent_freeze.verify_parent_freeze_candidate(
+                replace_application(candidate, 0, application)
+            )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = candidate.application_candidates[4]
+        self.assertEqual(len(application.scenario_candidates), 2)
+        application = dataclasses.replace(
+            application,
+            scenario_candidates=tuple(reversed(application.scenario_candidates)),
+        )
+        with self.assertRaisesRegex(ValueError, "canonical|closed|scenario"):
+            parent_freeze.verify_parent_freeze_candidate(
+                replace_application(candidate, 4, application)
+            )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = candidate.application_candidates[0]
+        scenario = application.scenario_candidates[0]
+        selector = scenario.selector_spec
+        changed_selector_values = -frozen_tensor_array(selector.source_selector)
+        public_source = basis_manifest_array(
+            issue_v3m0_parent_freeze()
+            .manifest.synthetic_control_application_specs[0]
+            .basis_protocol.source_basis
+        )
+        provisional_selector = dataclasses.replace(
+            selector,
+            source_selector=freeze_complex_tensor(changed_selector_values),
+            source_injection=freeze_complex_tensor(
+                public_source.T @ changed_selector_values
+            ),
+            selector_sha="0" * 64,
+        )
+        changed_selector = dataclasses.replace(
+            provisional_selector,
+            selector_sha=canonical_sha(
+                parent_freeze.scenario_basis_selector_spec_payload(
+                    provisional_selector
+                )
+            ),
+        )
+        provisional_template = dataclasses.replace(
+            scenario.response_template,
+            selector_sha=changed_selector.selector_sha,
+            template_sha="0" * 64,
+        )
+        changed_template = dataclasses.replace(
+            provisional_template,
+            template_sha=canonical_sha(
+                parent_freeze.scenario_response_template_payload(
+                    provisional_template
+                )
+            ),
+        )
+        changed_scenario = resign_scenario(
+            dataclasses.replace(
+                scenario,
+                selector_spec=changed_selector,
+                response_template=changed_template,
+            )
+        )
+        application = dataclasses.replace(
+            application,
+            scenario_candidates=(
+                changed_scenario,
+                *application.scenario_candidates[1:],
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "canonical|closed|selector"):
+            parent_freeze.verify_parent_freeze_candidate(
+                replace_application(candidate, 0, application)
+            )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = candidate.application_candidates[0]
+        scenario = application.scenario_candidates[0]
+        wire = TaggedScalarWire(
+            value_kind="integer",
+            integer_value=1,
+            fp64_bits_value=None,
+            text_value=None,
+            complex128_bits_value=None,
+        )
+        provisional_quantity = parent_freeze.ScenarioPredictionQuantity(
+            quantity_schema_version=(
+                parent_freeze.SCENARIO_PREDICTION_QUANTITY_SCHEMA_VERSION
+            ),
+            quantity_id="hostile.measured.v1",
+            branch_scope="actual",
+            semantics="MEASURED_EXACT",
+            exact_values=(wire,),
+            side_labels=(),
+            formula_id=None,
+            formula_parameter_wires=(),
+            qualitative_labels=(),
+            quantity_sha="0" * 64,
+        )
+        quantity = dataclasses.replace(
+            provisional_quantity,
+            quantity_sha=canonical_sha(
+                parent_freeze.scenario_prediction_quantity_payload(
+                    provisional_quantity
+                )
+            ),
+        )
+        provisional_profile = dataclasses.replace(
+            scenario.prediction_profile,
+            quantities=(quantity,),
+            profile_sha="0" * 64,
+        )
+        changed_profile = dataclasses.replace(
+            provisional_profile,
+            profile_sha=canonical_sha(
+                parent_freeze.scenario_prediction_profile_payload(
+                    provisional_profile
+                )
+            ),
+        )
+        changed_scenario = resign_scenario(
+            dataclasses.replace(
+                scenario,
+                prediction_profile=changed_profile,
+            )
+        )
+        application = dataclasses.replace(
+            application,
+            scenario_candidates=(
+                changed_scenario,
+                *application.scenario_candidates[1:],
+            ),
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "measured|canonical|closed|prediction",
+        ):
+            parent_freeze.verify_parent_freeze_candidate(
+                replace_application(candidate, 0, application)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
