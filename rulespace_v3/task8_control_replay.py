@@ -13,8 +13,11 @@ re-labelling a v1 SHA cannot satisfy this replay.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, fields as dataclass_fields, replace
 import re
+import threading
+import weakref
 
 import numpy as np
 
@@ -46,6 +49,7 @@ from .grids import (
 from .parent_freeze import (
     VerifiedParentFreeze,
     _reverify_verified_parent_freeze,
+    issue_v3m0_parent_freeze,
 )
 from .parent_v2_contracts import CurrentScenarioAuthorityV2
 from .registry import (
@@ -241,40 +245,16 @@ class CurrentControlRegistryV2Unavailable(RuntimeError):
 
 
 class VerifiedCurrentControlRegistryV2:
-    """Reserved opaque type; positive issuance waits for the signed Parent-v2."""
+    """Opaque live registry whose body is replayed from the current Parent."""
 
-    __slots__ = ()
+    __slots__ = ("_registry_sha", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("current control registry v2 is issuer-only")
 
-
-def build_current_control_registry_v2(parent_v2) -> VerifiedCurrentControlRegistryV2:
-    """Fail before numerical replay unless a live signed current Parent exists."""
-
-    from .parent_authority import (
-        VerifiedParentFreezeV2,
-        require_current_parent,
-    )
-
-    if type(parent_v2) is not VerifiedParentFreezeV2:
-        raise TypeError("current registry requires an exact live current Parent")
-    require_current_parent(parent_v2)
-    raise CurrentControlRegistryV2Unavailable(
-        "live current control-registry issuance awaits the closed replay connector"
-    )
-
-
-def require_current_control_registry_v2(
-    value: VerifiedCurrentControlRegistryV2,
-) -> CurrentControlRegistryV2:
-    """No raw body or forged placeholder can cross the unfinished boundary."""
-
-    if type(value) is not VerifiedCurrentControlRegistryV2:
-        raise TypeError("current registry consumer requires its exact opaque type")
-    raise ValueError(
-        "current control-registry capability identity is not live"
-    )
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("current control registry v2 is immutable")
 
 
 @dataclass(frozen=True)
@@ -718,6 +698,8 @@ def verify_current_control_registry_v2_body(
     registry: CurrentControlRegistryV2,
     parent_freeze_v2_sha: str,
     replay: CurrentTask8ControlReplay,
+    *,
+    _builder=_build_current_control_registry_v2_body,
 ) -> CurrentControlRegistryV2:
     """Validate an inert raw body; this function issues no capability."""
 
@@ -743,13 +725,174 @@ def verify_current_control_registry_v2_body(
         current_control_registry_v2_payload(registry)
     ):
         raise ValueError("current control-registry SHA drifted")
-    expected = _build_current_control_registry_v2_body(
+    expected = _builder(
         parent_freeze_v2_sha,
         replay,
     )
     if registry != expected:
         raise ValueError("current control registry differs from fresh Task-8 replay")
     return registry
+
+
+@dataclass(frozen=True)
+class _LiveCurrentControlRegistryV2:
+    parent_v2: object
+    registry_sha: str
+
+
+def _make_current_control_registry_v2_api(
+    *,
+    parent_type: type,
+    parent_reverifier,
+    replay_builder,
+    body_builder=_build_current_control_registry_v2_body,
+    body_verifier=verify_current_control_registry_v2_body,
+    wrapper_type=VerifiedCurrentControlRegistryV2,
+):
+    """Freeze the sole issuer and consumer over the complete replay graph."""
+
+    registry: dict[
+        int,
+        tuple[
+            weakref.ReferenceType[VerifiedCurrentControlRegistryV2],
+            _LiveCurrentControlRegistryV2,
+        ],
+    ] = {}
+    lock = threading.RLock()
+
+    def _replay(parent_v2):
+        if type(parent_v2) is not parent_type:
+            raise TypeError("current registry requires an exact live current Parent")
+        parent_manifest = parent_reverifier(parent_v2)
+        parent_sha = _sha(
+            parent_manifest.parent_freeze_v2_sha,
+            "parent_freeze_v2_sha",
+        )
+        replay = replay_builder(parent_v2, parent_manifest)
+        if type(replay) is not CurrentTask8ControlReplay:
+            raise TypeError("current registry replay returned the wrong exact type")
+        body = body_builder(parent_sha, replay)
+        return body_verifier(body, parent_sha, replay)
+
+    def build_current_control_registry_v2(
+        parent_v2,
+    ) -> VerifiedCurrentControlRegistryV2:
+        body = _replay(parent_v2)
+        wrapper = object.__new__(wrapper_type)
+        object.__setattr__(wrapper, "_registry_sha", body.registry_sha)
+        identity = id(wrapper)
+        record = _LiveCurrentControlRegistryV2(
+            parent_v2=parent_v2,
+            registry_sha=body.registry_sha,
+        )
+
+        def remove_stale(
+            reference: weakref.ReferenceType[VerifiedCurrentControlRegistryV2],
+            wrapper_id: int = identity,
+        ) -> None:
+            with lock:
+                current = registry.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del registry[wrapper_id]
+
+        reference = weakref.ref(wrapper, remove_stale)
+        with lock:
+            current = registry.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError("live current registry identity collision")
+            registry[identity] = (reference, record)
+        return wrapper
+
+    def require_current_control_registry_v2(
+        value: VerifiedCurrentControlRegistryV2,
+    ) -> CurrentControlRegistryV2:
+        if type(value) is not wrapper_type:
+            raise TypeError("current registry consumer requires its exact opaque type")
+        with lock:
+            current = registry.get(id(value))
+            if current is None or current[0]() is not value:
+                raise ValueError("current control-registry identity is not live")
+            record = current[1]
+        try:
+            slot_sha = object.__getattribute__(value, "_registry_sha")
+        except AttributeError as exc:
+            raise ValueError("current control-registry record is incomplete") from exc
+        body = _replay(record.parent_v2)
+        if slot_sha != record.registry_sha or body.registry_sha != record.registry_sha:
+            raise ValueError("current control-registry replay seal mismatch")
+        return copy.deepcopy(body)
+
+    return build_current_control_registry_v2, require_current_control_registry_v2
+
+
+def _make_current_parent_task8_replayer(
+    *,
+    historical_parent_issuer=issue_v3m0_parent_freeze,
+    historical_parent_reverifier=_reverify_verified_parent_freeze,
+    task8_replayer=_replay_current_task8_control_roots,
+):
+    """Capture the historical numerical witness and current authority selector."""
+
+    def replay_current_parent_task8(parent_v2, parent_manifest):
+        del parent_v2
+        historical_parent = historical_parent_issuer()
+        historical_manifest = historical_parent_reverifier(historical_parent)
+        if historical_manifest != parent_manifest.historical_parent_v1:
+            raise ValueError("current Parent historical numerical witness drifted")
+        applications = {
+            item.control_case_id: item
+            for item in parent_manifest.current_application_authorities
+        }
+        if len(applications) != len(
+            parent_manifest.current_application_authorities
+        ):
+            raise ValueError("current Parent application registry repeats a case")
+        authorities = []
+        for case_id, _ in _TASK8_CASES:
+            application = applications.get(case_id)
+            if application is None or len(application.scenario_authorities) != 1:
+                raise ValueError(
+                    "current Parent does not expose one Task-8 scenario authority"
+                )
+            authority = application.scenario_authorities[0]
+            if authority.control_case_id != case_id:
+                raise ValueError("current Parent Task-8 scenario is cross-case spliced")
+            authorities.append(authority)
+        return task8_replayer(historical_parent, tuple(authorities))
+
+    return replay_current_parent_task8
+
+
+_replay_current_parent_task8 = _make_current_parent_task8_replayer()
+
+# Imported only after every local replay function exists.  This avoids an
+# import cycle while still freezing the production Parent consumer into the
+# closure returned below.
+from .parent_authority import (  # noqa: E402
+    VerifiedParentFreezeV2 as _VerifiedParentFreezeV2,
+    require_current_parent as _require_current_parent,
+)
+
+
+(
+    build_current_control_registry_v2,
+    require_current_control_registry_v2,
+) = _make_current_control_registry_v2_api(
+    parent_type=_VerifiedParentFreezeV2,
+    parent_reverifier=_require_current_parent,
+    replay_builder=_replay_current_parent_task8,
+)
+
+
+def _current_registry_property(
+    self,
+    _consumer=require_current_control_registry_v2,
+) -> CurrentControlRegistryV2:
+    return _consumer(self)
+
+
+VerifiedCurrentControlRegistryV2.registry = property(_current_registry_property)
+del _current_registry_property
 
 
 __all__ = [

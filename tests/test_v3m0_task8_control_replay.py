@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import gc
 import inspect
 import unittest
 from unittest import mock
@@ -243,6 +244,97 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
         forged = object.__new__(VerifiedCurrentControlRegistryV2)
         with self.assertRaises((TypeError, ValueError, AttributeError)):
             require_current_control_registry_v2(forged)
+
+    def test_registry_capability_factory_replays_and_requires_live_identity(self) -> None:
+        from rulespace_v3.task8_control_replay import (
+            VerifiedCurrentControlRegistryV2,
+            _build_current_control_registry_v2_body,
+            _make_current_control_registry_v2_api,
+            _replay_current_task8_control_roots,
+            verify_current_control_registry_v2_body,
+        )
+
+        parent, authorities = self._inputs()
+        replay = _replay_current_task8_control_roots(parent, authorities)
+
+        class FakeCurrentParent:
+            pass
+
+        fake_parent = FakeCurrentParent()
+        manifest = type(
+            "Manifest",
+            (),
+            {"parent_freeze_v2_sha": "a" * 64},
+        )()
+        calls = []
+
+        def replayer(observed_parent, observed_manifest):
+            self.assertIs(observed_parent, fake_parent)
+            self.assertIs(observed_manifest, manifest)
+            calls.append("replay")
+            return replay
+
+        build, require = _make_current_control_registry_v2_api(
+            parent_type=FakeCurrentParent,
+            parent_reverifier=lambda value: manifest
+            if value is fake_parent
+            else self.fail("wrong parent identity"),
+            replay_builder=replayer,
+            body_builder=_build_current_control_registry_v2_body,
+            body_verifier=verify_current_control_registry_v2_body,
+        )
+        capability = build(fake_parent)
+        body = require(capability)
+        self.assertEqual(body.parent_freeze_v2_sha, "a" * 64)
+        self.assertEqual(calls, ["replay", "replay"])
+
+        forged = object.__new__(VerifiedCurrentControlRegistryV2)
+        object.__setattr__(forged, "_registry_sha", body.registry_sha)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            require(forged)
+
+        del capability
+        gc.collect()
+        replacement = object.__new__(VerifiedCurrentControlRegistryV2)
+        object.__setattr__(replacement, "_registry_sha", body.registry_sha)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            require(replacement)
+
+    def test_registry_capability_factory_freezes_replay_dependencies(self) -> None:
+        import rulespace_v3.task8_control_replay as task8
+        from rulespace_v3.task8_control_replay import (
+            _build_current_control_registry_v2_body,
+            _make_current_control_registry_v2_api,
+            _replay_current_task8_control_roots,
+            verify_current_control_registry_v2_body,
+        )
+
+        parent, authorities = self._inputs()
+        replay = _replay_current_task8_control_roots(parent, authorities)
+
+        class FakeCurrentParent:
+            pass
+
+        fake_parent = FakeCurrentParent()
+        manifest = type(
+            "Manifest",
+            (),
+            {"parent_freeze_v2_sha": "b" * 64},
+        )()
+        build, require = _make_current_control_registry_v2_api(
+            parent_type=FakeCurrentParent,
+            parent_reverifier=lambda value: manifest,
+            replay_builder=lambda value, observed: replay,
+            body_builder=_build_current_control_registry_v2_body,
+            body_verifier=verify_current_control_registry_v2_body,
+        )
+        with mock.patch.object(
+            task8,
+            "_build_current_control_registry_v2_body",
+            side_effect=AssertionError("module global redirect reached"),
+        ):
+            capability = build(fake_parent)
+            self.assertEqual(require(capability).parent_freeze_v2_sha, "b" * 64)
 
 
 if __name__ == "__main__":
