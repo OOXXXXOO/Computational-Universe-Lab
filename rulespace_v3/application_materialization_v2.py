@@ -61,6 +61,7 @@ from .factory import (
     verify_basis_manifest,
     verify_frozen_tensor,
 )
+from .frozen_call_graph import freeze_rulespace_call_graph
 from .parent_freeze import issue_v3m0_parent_freeze
 from .parent_candidate_v2 import (
     CandidateV2ScenarioRefreeze,
@@ -1077,18 +1078,6 @@ class VerifiedV3M0ApplicationScenarioMaterializationV2:
     def __init__(self) -> None:
         raise TypeError("application materialization-v2 is issuer-only")
 
-    @property
-    def materialization(self) -> ApplicationScenarioMaterializationV2:
-        return verify_v3m0_application_scenario_materialization_v2(self)
-
-    @property
-    def actual_factory(self) -> VerifiedFactory:
-        return _reverify_live_materialization_v2(self).actual_factory
-
-    @property
-    def matched_ablated_factory(self) -> VerifiedFactory:
-        return _reverify_live_materialization_v2(self).matched_ablated_factory
-
 
 def _make_live_materialization_upstream_resolver(
     *,
@@ -1902,6 +1891,44 @@ def _verify_live_factories(
             raise ValueError("live factory scenario selector binding drifted")
 
 
+def _make_materialization_property_bindings(
+    *,
+    builtin_len=len,
+    runtime_error=RuntimeError,
+):
+    replay_holder = []
+
+    def replay(self):
+        if builtin_len(replay_holder) != 1:
+            raise runtime_error(
+                "materialization property consumer is not bound exactly once"
+            )
+        return replay_holder[0](self)
+
+    def materialization(self):
+        return replay(self).materialization
+
+    def actual_factory(self):
+        return replay(self).actual_factory
+
+    def matched_ablated_factory(self):
+        return replay(self).matched_ablated_factory
+
+    def bind(replayer):
+        if replay_holder:
+            raise runtime_error(
+                "materialization property consumer is already bound"
+            )
+        replay_holder.append(replayer)
+
+    return (
+        property(materialization),
+        property(actual_factory),
+        property(matched_ablated_factory),
+        bind,
+    )
+
+
 def _make_closed_materialization_v2_api():
     registry: WeakKeyDictionary[
         VerifiedV3M0ApplicationScenarioMaterializationV2,
@@ -2015,12 +2042,55 @@ def _make_closed_materialization_v2_api():
 
 
 (
-    materialize_v3m0_application_scenario_v2,
-    verify_v3m0_application_scenario_materialization_v2,
-    _reverify_live_materialization_v2,
-    _require_application_scenario_materialization_v2_for_upstream,
+    _materialization_property,
+    _actual_factory_property,
+    _matched_ablated_factory_property,
+    _bind_materialization_properties,
+) = _make_materialization_property_bindings()
+VerifiedV3M0ApplicationScenarioMaterializationV2.materialization = (
+    _materialization_property
+)
+VerifiedV3M0ApplicationScenarioMaterializationV2.actual_factory = (
+    _actual_factory_property
+)
+VerifiedV3M0ApplicationScenarioMaterializationV2.matched_ablated_factory = (
+    _matched_ablated_factory_property
+)
+del _materialization_property
+del _actual_factory_property
+del _matched_ablated_factory_property
+del _make_materialization_property_bindings
+
+(
+    _raw_materialize_v3m0_application_scenario_v2,
+    _raw_verify_v3m0_application_scenario_materialization_v2,
+    _raw_reverify_live_materialization_v2,
+    _raw_require_application_scenario_materialization_v2_for_upstream,
 ) = _make_closed_materialization_v2_api()
 
+materialize_v3m0_application_scenario_v2 = freeze_rulespace_call_graph(
+    _raw_materialize_v3m0_application_scenario_v2
+)
+verify_v3m0_application_scenario_materialization_v2 = (
+    freeze_rulespace_call_graph(
+        _raw_verify_v3m0_application_scenario_materialization_v2
+    )
+)
+_reverify_live_materialization_v2 = freeze_rulespace_call_graph(
+    _raw_reverify_live_materialization_v2
+)
+_require_application_scenario_materialization_v2_for_upstream = (
+    freeze_rulespace_call_graph(
+        _raw_require_application_scenario_materialization_v2_for_upstream
+    )
+)
+_bind_materialization_properties(_reverify_live_materialization_v2)
+
+del _bind_materialization_properties
+del _raw_materialize_v3m0_application_scenario_v2
+del _raw_verify_v3m0_application_scenario_materialization_v2
+del _raw_reverify_live_materialization_v2
+del _raw_require_application_scenario_materialization_v2_for_upstream
 del _make_live_materialization_upstream_resolver
 
 

@@ -12,6 +12,32 @@ from unittest import mock
 import numpy as np
 
 
+def _reachable_closure_functions(root):
+    pending = [root]
+    observed = set()
+    while pending:
+        function = pending.pop()
+        if not inspect.isfunction(function) or id(function) in observed:
+            continue
+        observed.add(id(function))
+        yield function
+        pending.extend(
+            cell.cell_contents
+            for cell in (function.__closure__ or ())
+            if inspect.isfunction(cell.cell_contents)
+        )
+        pending.extend(
+            value
+            for value in (function.__defaults__ or ())
+            if inspect.isfunction(value)
+        )
+        pending.extend(
+            value
+            for value in (function.__kwdefaults__ or {}).values()
+            if inspect.isfunction(value)
+        )
+
+
 class ApplicationMaterializationV2ContractTests(unittest.TestCase):
     def _c04_private_upstream(self):
         from rulespace_v3.evidence import canonical_sha
@@ -856,6 +882,141 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
                     "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1",
                 )
         rebound.assert_not_called()
+
+    def test_production_authority_freezes_every_transitive_module_dependency(
+        self,
+    ) -> None:
+        import rulespace_v3.application_materialization_v2 as materialization_v2
+
+        dangerous_names = {
+            "VerifiedV3M0ApplicationScenarioMaterializationV2",
+            "_compile_expected_live_materialization_v2",
+            "_reverify_verified_factory",
+            "_verify_construction_outcome",
+            "verify_application_scenario_materialization_v2_body",
+        }
+        production_roots = (
+            materialization_v2.materialize_v3m0_application_scenario_v2,
+            materialization_v2.verify_v3m0_application_scenario_materialization_v2,
+            materialization_v2._reverify_live_materialization_v2,
+            materialization_v2._require_application_scenario_materialization_v2_for_upstream,
+        )
+        leaks = []
+        for root in production_roots:
+            for function in _reachable_closure_functions(root):
+                referenced = dangerous_names.intersection(function.__code__.co_names)
+                if referenced and function.__globals__ is vars(materialization_v2):
+                    leaks.append(
+                        (
+                            root.__name__,
+                            function.__qualname__,
+                            tuple(sorted(referenced)),
+                        )
+                    )
+        self.assertEqual(leaks, [])
+
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_, **__):
+                poisoned_calls.append(label)
+                raise AssertionError(f"rebound {label} was called")
+
+            return poisoned
+
+        original_wrapper = (
+            materialization_v2.VerifiedV3M0ApplicationScenarioMaterializationV2
+        )
+
+        class ReboundWrapper(original_wrapper):
+            pass
+
+        forged = object.__new__(original_wrapper)
+        with (
+            mock.patch.object(
+                materialization_v2,
+                "_compile_expected_live_materialization_v2",
+                poison("compiler"),
+            ),
+            mock.patch.object(
+                materialization_v2,
+                "verify_application_scenario_materialization_v2_body",
+                poison("body verifier"),
+            ),
+            mock.patch.object(
+                materialization_v2,
+                "_reverify_verified_factory",
+                poison("factory verifier"),
+            ),
+            mock.patch.object(
+                materialization_v2,
+                "_verify_construction_outcome",
+                poison("construction verifier"),
+            ),
+            mock.patch.object(
+                materialization_v2,
+                "VerifiedV3M0ApplicationScenarioMaterializationV2",
+                ReboundWrapper,
+            ),
+        ):
+            with self.assertRaises((TypeError, ValueError, RuntimeError)):
+                materialization_v2.materialize_v3m0_application_scenario_v2(
+                    object(),
+                    object(),
+                    "v3m0.hostile.scenario",
+                )
+            with self.assertRaises((TypeError, ValueError, RuntimeError)):
+                materialization_v2.verify_v3m0_application_scenario_materialization_v2(
+                    forged
+                )
+            with self.assertRaises((TypeError, ValueError, RuntimeError)):
+                materialization_v2._require_application_scenario_materialization_v2_for_upstream(
+                    object(),
+                    object(),
+                    forged,
+                )
+        self.assertEqual(poisoned_calls, [])
+
+    def test_materialization_properties_ignore_module_consumer_rebinding(
+        self,
+    ) -> None:
+        import rulespace_v3.application_materialization_v2 as materialization_v2
+
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_):
+                poisoned_calls.append(label)
+                raise AssertionError(f"rebound {label} was called")
+
+            return poisoned
+
+        forged = object.__new__(
+            materialization_v2.VerifiedV3M0ApplicationScenarioMaterializationV2
+        )
+        with (
+            mock.patch.object(
+                materialization_v2,
+                "verify_v3m0_application_scenario_materialization_v2",
+                poison("body consumer"),
+            ),
+            mock.patch.object(
+                materialization_v2,
+                "_reverify_live_materialization_v2",
+                poison("live replay consumer"),
+            ),
+        ):
+            for field in (
+                "materialization",
+                "actual_factory",
+                "matched_ablated_factory",
+            ):
+                with self.subTest(field=field):
+                    with self.assertRaises(
+                        (TypeError, ValueError, AttributeError, RuntimeError)
+                    ):
+                        getattr(forged, field)
+        self.assertEqual(poisoned_calls, [])
 
     def test_exact_body_replays_scenario_selectors_and_factories(self) -> None:
         from rulespace_v3.application_materialization_v2 import (
