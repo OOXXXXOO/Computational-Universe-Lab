@@ -8,12 +8,18 @@ repository-reviewed body.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, fields as dataclass_fields
 from pathlib import PurePosixPath
 from typing import Literal, Optional
 
 from .evidence import canonical_sha
+from .factory import (
+    FrozenComplexTensor,
+    frozen_tensor_payload,
+    verify_frozen_tensor,
+)
 from .parent_candidate_v2 import (
     ParentFreezeCandidateV2Manifest,
     parent_candidate_v2_manifest_payload,
@@ -22,9 +28,11 @@ from .parent_freeze import (
     ApplicationScenarioExecutionSpec,
     ParentFreezeCandidateManifest,
     ParentFreezeManifest,
+    ScenarioBasisSelectorSpec,
     application_scenario_execution_spec_payload,
     parent_freeze_candidate_manifest_payload,
     parent_freeze_manifest_payload,
+    scenario_basis_selector_spec_payload,
 )
 
 
@@ -32,12 +40,8 @@ SIGNED_SOURCE_REF_SCHEMA_VERSION = "v3m0.signed-source-ref.v1"
 CURRENT_SCENARIO_RESPONSE_CONTRACT_SCHEMA_VERSION = (
     "v3m0.current-scenario-response-contract.v2"
 )
-CURRENT_SCENARIO_AUTHORITY_SCHEMA_VERSION = (
-    "v3m0.current-scenario-authority.v2"
-)
-CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION = (
-    "v3m0.current-application-authority.v2"
-)
+CURRENT_SCENARIO_AUTHORITY_SCHEMA_VERSION = "v3m0.current-scenario-authority.v2"
+CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION = "v3m0.current-application-authority.v2"
 PARENT_FREEZE_V2_SCHEMA_VERSION = "v3m0.parent-freeze.v2"
 PARENT_V2_READINESS_AUDIT_SCHEMA_VERSION = "v3m0.parent-v2-readiness-audit.v1"
 
@@ -142,12 +146,22 @@ class CurrentScenarioResponseContractV2:
     contract_state: Literal["CURRENT_REVIEWED_RESPONSE_CONTRACT"]
     scenario_id: str
     selector_sha: str
+    selector_spec: ScenarioBasisSelectorSpec
+    source_trial_vectors: FrozenComplexTensor
+    response_torus_denominators: tuple[int, ...]
+    response_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_steps: tuple[int, ...]
+    reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
     operation_dag_sha: str
     compiled_contract_sha: str
     construction_rule_id: str
     construction_family_id: str
     expected_actual_shell_rank: int
     expected_matched_shell_rank: int
+    actual_step_count: int
+    matched_ablated_step_count: int
     actual_program_sha: str
     matched_ablated_program_sha: str
     preflight_derivation_or_recipe_sha: str
@@ -173,7 +187,6 @@ class CurrentScenarioResponseContractV2:
         ):
             _text(getattr(self, field), field)
         for field in (
-            "selector_sha",
             "operation_dag_sha",
             "compiled_contract_sha",
             "actual_program_sha",
@@ -186,13 +199,108 @@ class CurrentScenarioResponseContractV2:
             "response_contract_sha",
         ):
             _sha(getattr(self, field), field)
+        _sha(self.selector_sha, "selector_sha")
+        _exact_record(
+            self.selector_spec,
+            ScenarioBasisSelectorSpec,
+            "selector_spec",
+        )
+        self.selector_spec.__post_init__()
+        if self.selector_sha != self.selector_spec.selector_sha:
+            raise ValueError("selector SHA differs from its exact selector body")
+        if self.selector_sha != canonical_sha(
+            scenario_basis_selector_spec_payload(self.selector_spec)
+        ):
+            raise ValueError("selector SHA does not match its exact body")
         for field in (
-            "expected_actual_shell_rank",
-            "expected_matched_shell_rank",
+            "source_selector",
+            "readout_selector",
+            "source_injection",
+            "readout_coisometry",
+        ):
+            tensor = getattr(self.selector_spec, field)
+            _exact_record(tensor, FrozenComplexTensor, f"selector_spec.{field}")
+            verify_frozen_tensor(tensor)
+        _exact_record(
+            self.source_trial_vectors,
+            FrozenComplexTensor,
+            "source_trial_vectors",
+        )
+        verify_frozen_tensor(self.source_trial_vectors)
+        if len(self.selector_spec.source_injection.shape) != 2:
+            raise ValueError("source injection must be a matrix")
+        source_columns = self.selector_spec.source_injection.shape[1]
+        if self.source_trial_vectors.shape != (source_columns, source_columns):
+            raise ValueError("source trials do not span the selected source columns")
+        if (
+            type(self.response_torus_denominators) is not tuple
+            or not self.response_torus_denominators
+            or not all(
+                type(item) is int and item > 0
+                for item in self.response_torus_denominators
+            )
+        ):
+            raise TypeError("response_torus_denominators are not positive ints")
+        for field in (
+            "response_reciprocal_indices",
+            "source_readout_bridge_reciprocal_indices",
         ):
             value = getattr(self, field)
-            if type(value) is not int or value <= 0:
-                raise TypeError(f"{field} must be a positive exact integer")
+            if (
+                type(value) is not tuple
+                or not value
+                or not all(
+                    type(item) is tuple
+                    and item
+                    and all(type(index) is int for index in item)
+                    for item in value
+                )
+            ):
+                raise TypeError(f"{field} is not an exact integer grid")
+        if (
+            type(self.source_readout_bridge_steps) is not tuple
+            or not self.source_readout_bridge_steps
+            or not all(
+                type(item) is int and item > 0
+                for item in self.source_readout_bridge_steps
+            )
+        ):
+            raise TypeError("source_readout_bridge_steps are not positive ints")
+        if (
+            type(self.reference_reciprocal_index) is not tuple
+            or not self.reference_reciprocal_index
+            or not all(type(item) is int for item in self.reference_reciprocal_index)
+        ):
+            raise TypeError("reference_reciprocal_index is not an integer tuple")
+        if (
+            type(self.preregistered_phase_bands) is not tuple
+            or not self.preregistered_phase_bands
+            or not all(
+                type(item) is tuple
+                and len(item) == 2
+                and all(type(value) is float and math.isfinite(value) for value in item)
+                and item[0] < item[1]
+                for item in self.preregistered_phase_bands
+            )
+        ):
+            raise TypeError("preregistered_phase_bands are not ordered fp64 pairs")
+        if (
+            type(self.expected_actual_shell_rank) is not int
+            or self.expected_actual_shell_rank <= 0
+        ):
+            raise ValueError("expected_actual_shell_rank must be positive")
+        if (
+            type(self.expected_matched_shell_rank) is not int
+            or self.expected_matched_shell_rank < 0
+        ):
+            raise ValueError("expected_matched_shell_rank must be non-negative")
+        if type(self.actual_step_count) is not int or self.actual_step_count <= 0:
+            raise ValueError("actual_step_count must be positive")
+        if (
+            type(self.matched_ablated_step_count) is not int
+            or self.matched_ablated_step_count < 0
+        ):
+            raise ValueError("matched_ablated_step_count must be non-negative")
         if self.uses_global_fft_projection is not False:
             raise ValueError("current response cannot use global FFT projection")
         if self.uses_per_k_time_step_projector is not False:
@@ -212,12 +320,34 @@ def current_scenario_response_contract_v2_payload(
         "contract_state": contract.contract_state,
         "scenario_id": contract.scenario_id,
         "selector_sha": contract.selector_sha,
+        "selector_spec": {
+            **scenario_basis_selector_spec_payload(contract.selector_spec),
+            "selector_sha": contract.selector_spec.selector_sha,
+        },
+        "source_trial_vectors": {
+            **frozen_tensor_payload(contract.source_trial_vectors),
+            "tensor_sha": contract.source_trial_vectors.tensor_sha,
+        },
+        "response_torus_denominators": list(contract.response_torus_denominators),
+        "response_reciprocal_indices": [
+            list(item) for item in contract.response_reciprocal_indices
+        ],
+        "source_readout_bridge_reciprocal_indices": [
+            list(item) for item in contract.source_readout_bridge_reciprocal_indices
+        ],
+        "source_readout_bridge_steps": list(contract.source_readout_bridge_steps),
+        "reference_reciprocal_index": list(contract.reference_reciprocal_index),
+        "preregistered_phase_bands": [
+            list(item) for item in contract.preregistered_phase_bands
+        ],
         "operation_dag_sha": contract.operation_dag_sha,
         "compiled_contract_sha": contract.compiled_contract_sha,
         "construction_rule_id": contract.construction_rule_id,
         "construction_family_id": contract.construction_family_id,
         "expected_actual_shell_rank": contract.expected_actual_shell_rank,
         "expected_matched_shell_rank": contract.expected_matched_shell_rank,
+        "actual_step_count": contract.actual_step_count,
+        "matched_ablated_step_count": contract.matched_ablated_step_count,
         "actual_program_sha": contract.actual_program_sha,
         "matched_ablated_program_sha": contract.matched_ablated_program_sha,
         "preflight_derivation_or_recipe_sha": (
@@ -228,15 +358,15 @@ def current_scenario_response_contract_v2_payload(
         "response_template_sha": contract.response_template_sha,
         "prediction_profile_sha": contract.prediction_profile_sha,
         "uses_global_fft_projection": contract.uses_global_fft_projection,
-        "uses_per_k_time_step_projector": (
-            contract.uses_per_k_time_step_projector
-        ),
+        "uses_per_k_time_step_projector": (contract.uses_per_k_time_step_projector),
     }
 
 
 ScenarioSourceDisposition = Literal[
     "CANDIDATE_V2_REVIEWED_MODIFIED",
     "CANDIDATE_V1_REVIEWED_UNCHANGED",
+    "PARENT_V1_TASK8_SELECTED_CALIBRATION_LANE",
+    "PARENT_V1_C04_CLOSED_RECIPE",
 ]
 
 
@@ -281,6 +411,8 @@ class CurrentScenarioAuthorityV2:
         if self.source_disposition not in (
             "CANDIDATE_V2_REVIEWED_MODIFIED",
             "CANDIDATE_V1_REVIEWED_UNCHANGED",
+            "PARENT_V1_TASK8_SELECTED_CALIBRATION_LANE",
+            "PARENT_V1_C04_CLOSED_RECIPE",
         ):
             raise ValueError("scenario source disposition is not frozen")
         _sha(
@@ -368,7 +500,10 @@ class CurrentApplicationAuthorityV2:
             self.source_candidate_v1_application_sha,
             "source_candidate_v1_application_sha",
         )
-        if type(self.scenario_authorities) is not tuple or not self.scenario_authorities:
+        if (
+            type(self.scenario_authorities) is not tuple
+            or not self.scenario_authorities
+        ):
             raise TypeError("scenario_authorities must be a non-empty exact tuple")
         if not all(
             type(item) is CurrentScenarioAuthorityV2
@@ -503,9 +638,7 @@ def parent_freeze_v2_manifest_payload(
             "parent_freeze_sha": manifest.historical_parent_v1.parent_freeze_sha,
         },
         "reviewed_candidate_v1": {
-            **parent_freeze_candidate_manifest_payload(
-                manifest.reviewed_candidate_v1
-            ),
+            **parent_freeze_candidate_manifest_payload(manifest.reviewed_candidate_v1),
             "candidate_sha": manifest.reviewed_candidate_v1.candidate_sha,
         },
         "reviewed_candidate_v2": {
@@ -579,9 +712,7 @@ def parent_v2_readiness_audit_payload(
         "expected_block_success_scenario_ids": list(
             audit.expected_block_success_scenario_ids
         ),
-        "promoted_modified_scenario_ids": list(
-            audit.promoted_modified_scenario_ids
-        ),
+        "promoted_modified_scenario_ids": list(audit.promoted_modified_scenario_ids),
         "unresolved_unchanged_scenario_ids": list(
             audit.unresolved_unchanged_scenario_ids
         ),

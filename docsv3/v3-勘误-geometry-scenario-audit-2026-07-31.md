@@ -336,24 +336,36 @@ active frame 不得反向进入预响应 bundle。
 
 ## 4. 当前状态
 
-五条已经完成真实 construction preflight 的修正场景已收口为独立的
+全部十九条 `BLOCK_SUCCESS` 路径已经收口为独立的
 `PROVISIONAL_NOT_ISSUED` Parent candidate-v2（root
-`e14915e713cf35104e04e02acf7c697be2a9c19950d67994673f8a296bd86fa3`）：
-C07 constructive/destructive、C08、C10 与 C12。其 exact body 分别由
-`rulespace_v3/candidate_scenario_dag.py`（SHA-256
-`315561952bb33069e81aab24a014927b0f127a47f4a744766f2cbdb915069c73`）和
+`ce08c8936b6c1288af807e2aa4bfa3d0def313d005ca2bbbe23f987fc3eb1a90`）：
+C05 phase/gain、C06、C07 constructive/destructive、C08–C12、C15 四个 unary、C16
+low/high、C17、C18 与 C19。其 canonical 顺序逐位等于 Parent-v1 的成功场景 registry。
+exact body 分别由 `rulespace_v3/candidate_scenario_dag.py`（SHA-256
+`f6801a1bd656d03cea132822495b65888e393ca7311fcb152ff57a98366e97d3`）和
 `rulespace_v3/parent_candidate_v2.py`（SHA-256
-`2282e3b53840ea31f73e7d4eb63bebecedb20a5c77f2136beebeede1f8ebeef3`）
-生成，逐场景冻结 candidate/execution 双 SHA、局域步 DAG、selector、actual/matched
-shell rank、program/effect digest、construction rule/family 与 C12 incidence/IR
-合同。
+`37d3c3bc76a8a8568cfb07b975ebd49210420c4c996337a292f2d12d152c87a2`）
+生成，逐场景冻结 candidate/execution 双 SHA、三节点局域操作 DAG、selector/trials、
+response/bridge grids、actual/matched step count 与 shell rank、program/effect/support
+digest、construction rule/family，以及 C12 incidence/IR 与 C15–C19 geometry 合同。
 
-第二次独立复审对 live preflight/recipe、compiled DAG 和 candidate body 做了全量对表，
-并验证 candidate/execution SHA 互换、compiled contract、matched rank、effect digest
-和 construction rule 的全重签攻击保持 RED；定向测试为 `22/22 OK`。该结论只认证上述
-五条候选差分的内部闭合，不把 candidate 状态升级为 authority，也不允许正式 Parent-v2
-隐式回退或遗漏其余 `BLOCK_SUCCESS` 场景。正式签发仍须显式枚举并闭合全部成功路径，
-然后在同一原子提交内把本文件改为 `SIGNED` 并生成唯一 current Parent-v2 root。
+第三轮独立复审曾发现 construction evidence 的可变对象缓存可被同进程污染；在修改缓存
+对象并重建、逐层重签后，旧 verifier 会接受错误的 C18 matched rank。该轮因此明确
+`BLOCKED`，没有产生 reviewed root。修复移除了全部可变对象缓存；唯一缓存只保存不可变
+`(scenario_id, recipe_sha, bytes)` 快照，每次访问都重新反序列化为 fresh object 并严格
+重验。Parent 还独立 live replay program、effect、support 与 actual/matched rank，C18
+额外固定为 `support/actual/matched=0/1/2`。
+
+第四轮独立复审对十九条 live recipe、compiled DAG、candidate body、fresh-object
+隔离和 canonical rebuild 做了全量对表。复审者把 C18 matched rank 改为 `1`、嫁接 C19
+effect digest 并逐层重签到新的自洽顶层 SHA，verifier 仍在 canonical DAG replay 处拒绝；
+独立完整性探针耗时 `174.134s`。定向测试为 DAG `13/13 OK`、Parent candidate
+`14/14 OK`，合计 `27/27 OK`；`git diff --check` 通过。该 PASS 只认证上述候选差分和
+fail-closed 数据完整性，不把 candidate 升级为 authority。
+
+正式 Parent-v2 仍须在同一原子提交内把本文件改为 `SIGNED`、注入该 reviewed root 与
+非权威准备提交 P，并生成唯一 current Parent-v2 root；在此之前任何 permit、block 或
+READY 都不得签发。
 
 本文件仍是 DRAFT。现有 ParentFreeze、permit、block、threshold calibration 与 V3-M0
 READY 状态均不变；V3-M1、V3-M2、V3-M3 与 GPU 长跑继续锁定。

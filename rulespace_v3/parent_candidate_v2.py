@@ -19,12 +19,24 @@ from typing import Literal, Optional
 import numpy as np
 
 from .candidate_scenario_dag import (
+    CANDIDATE_DAG_SCENARIO_IDS,
     CandidateScenarioDAG,
     build_candidate_scenario_dag,
     candidate_scenario_dag_payload,
     extract_candidate_scenario_contract,
     verify_candidate_scenario_dag,
     verify_compiled_candidate_scenario_contract,
+)
+from .application_recipes import (
+    APPLICATION_C05_TEMPLATE_SCENARIO_IDS,
+    APPLICATION_RECIPE_SCENARIO_IDS,
+    build_application_recipe,
+    verify_application_recipe,
+)
+from .c05_projector_recipe import (
+    C05_PROJECTOR_RECIPE_STATE,
+    build_c05_projector_orientation_recipe,
+    verify_c05_projector_orientation_recipe,
 )
 from .c12_incidence_preflight import (
     C12_PREFLIGHT_STATE,
@@ -35,9 +47,16 @@ from .c12_incidence_preflight import (
 from .evidence import canonical_sha
 from .factory import (
     FrozenComplexTensor,
-    freeze_complex_tensor,
+    frozen_tensor_array,
     frozen_tensor_payload,
     verify_frozen_tensor,
+)
+from .geometry_application_recipes import (
+    C18_GEOMETRY_SCENARIO_IDS,
+    GEOMETRY_APPLICATION_INTEGRATION_STATE,
+    GEOMETRY_APPLICATION_SCENARIO_IDS,
+    build_geometry_application_recipe,
+    verify_geometry_application_recipe,
 )
 from .interference_mode_preflight import (
     INTERFERENCE_MODE_PREFLIGHT_STATE,
@@ -49,6 +68,7 @@ from .parent_freeze import (
     ParentFreezeCandidateManifest,
     ScenarioBasisSelectorSpec,
     build_v3m0_parent_freeze_candidate,
+    issue_v3m0_parent_freeze,
     scenario_basis_selector_spec_payload,
     verify_parent_freeze_candidate,
 )
@@ -84,6 +104,21 @@ _C12_SOURCE_SHA = (
     "c7ea862e12d5c01be08e7316dfe4e0a674a9a415bd67fea385286de234423ffb"
 )
 _C12_COMMIT_SHA = "b9b221d362a1d9a76ae14f26f9a90644b5be79ce"
+_C05_RECIPE_SOURCE_PATH = "rulespace_v3/c05_projector_recipe.py"
+_C05_RECIPE_SOURCE_SHA = (
+    "6996bc610b12f6631de1c71a5a27f7d4ad4590c316f3f26e31f303df4e41165b"
+)
+_C05_RECIPE_COMMIT_SHA = "e04b99e8365f508162b72151987a223cf7375be8"
+_APPLICATION_RECIPE_SOURCE_PATH = "rulespace_v3/application_recipes.py"
+_APPLICATION_RECIPE_SOURCE_SHA = (
+    "faed17c93dbb432670f7775d57cbbc7dcf3c91e5a569427e8535a95fe81c4d24"
+)
+_APPLICATION_RECIPE_COMMIT_SHA = "319074b82b0c341a68044667b0faf4b0571a12db"
+_GEOMETRY_RECIPE_SOURCE_PATH = "rulespace_v3/geometry_application_recipes.py"
+_GEOMETRY_RECIPE_SOURCE_SHA = (
+    "2f659590a68098ca4ab92162f12bf4ef08308fa0b7f36539bd1e4d5b15439d73"
+)
+_GEOMETRY_RECIPE_COMMIT_SHA = "74269eeccbc62a37eeadf747324a80da873e118d"
 _EXPECTED_PREFLIGHT_ARTIFACT_SHAS = {
     INTERFERENCE_MODE_SCENARIO_IDS[0]: (
         "880434e85ee9cbde10cf968adaad5ea8d868db653535a257c461acf5199cb4bf"
@@ -307,7 +342,7 @@ def _prediction_quantity(
 def _build_candidate_v2_prediction_profile(
     scenario_id: str,
 ) -> CandidateV2PredictionProfile:
-    registered = (*INTERFERENCE_MODE_SCENARIO_IDS, C12_SCENARIO_ID)
+    registered = CANDIDATE_DAG_SCENARIO_IDS
     if scenario_id not in registered:
         raise ValueError("scenario is outside the candidate v2 prediction registry")
     quantities = [
@@ -441,8 +476,11 @@ class CandidateConstructionPreflightBinding:
     binding_schema_version: str
     scenario_id: str
     preflight_kind: Literal[
+        "C05_PROJECTOR_RECIPE",
+        "APPLICATION_LOCAL_RECIPE",
         "INTERFERENCE_MODE_CONSTRUCTION",
         "C12_INCIDENCE_CONSTRUCTION",
+        "GEOMETRY_LOCAL_RECIPE",
     ]
     source_path: str
     source_sha: str
@@ -464,8 +502,11 @@ class CandidateConstructionPreflightBinding:
             raise ValueError("preflight binding schema is not frozen")
         _text(self.scenario_id, "scenario_id")
         if self.preflight_kind not in (
+            "C05_PROJECTOR_RECIPE",
+            "APPLICATION_LOCAL_RECIPE",
             "INTERFERENCE_MODE_CONSTRUCTION",
             "C12_INCIDENCE_CONSTRUCTION",
+            "GEOMETRY_LOCAL_RECIPE",
         ):
             raise ValueError("preflight kind is outside the candidate grammar")
         _text(self.source_path, "source_path")
@@ -529,6 +570,25 @@ def _live_source_sha(source_path: str) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _live_issued_parent() -> object:
+    return issue_v3m0_parent_freeze()
+
+
+def _live_recipe_artifact(scenario_id: str) -> object:
+    if scenario_id in APPLICATION_C05_TEMPLATE_SCENARIO_IDS:
+        kind = "phase" if scenario_id.endswith(".phase.v1") else "gain"
+        recipe = build_c05_projector_orientation_recipe(kind)
+        return verify_c05_projector_orientation_recipe(recipe)
+    parent = _live_issued_parent()
+    if scenario_id in APPLICATION_RECIPE_SCENARIO_IDS:
+        recipe = build_application_recipe(parent, scenario_id)
+        return verify_application_recipe(parent, recipe)
+    if scenario_id in GEOMETRY_APPLICATION_SCENARIO_IDS:
+        recipe = build_geometry_application_recipe(parent, scenario_id)
+        return verify_geometry_application_recipe(parent, recipe)
+    raise ValueError("scenario has no live recipe artifact")
+
+
 def _build_live_preflight_bindings(
     candidate_v1: ParentFreezeCandidateManifest,
 ) -> tuple[CandidateConstructionPreflightBinding, ...]:
@@ -536,6 +596,13 @@ def _build_live_preflight_bindings(
         raise ValueError("interference preflight source SHA drifted")
     if _live_source_sha(_C12_SOURCE_PATH) != _C12_SOURCE_SHA:
         raise ValueError("C12 preflight source SHA drifted")
+    for path, expected_sha in (
+        (_C05_RECIPE_SOURCE_PATH, _C05_RECIPE_SOURCE_SHA),
+        (_APPLICATION_RECIPE_SOURCE_PATH, _APPLICATION_RECIPE_SOURCE_SHA),
+        (_GEOMETRY_RECIPE_SOURCE_PATH, _GEOMETRY_RECIPE_SOURCE_SHA),
+    ):
+        if _live_source_sha(path) != expected_sha:
+            raise ValueError(f"live recipe source SHA drifted: {path}")
 
     bindings: list[CandidateConstructionPreflightBinding] = []
     for scenario_id in INTERFERENCE_MODE_SCENARIO_IDS:
@@ -605,7 +672,75 @@ def _build_live_preflight_bindings(
             )
         )
     )
-    return tuple(bindings)
+    parent = issue_v3m0_parent_freeze()
+    specialized = frozenset((*INTERFERENCE_MODE_SCENARIO_IDS, C12_SCENARIO_ID))
+    for scenario_id in CANDIDATE_DAG_SCENARIO_IDS:
+        if scenario_id in specialized:
+            continue
+        application, candidate_scenario = _find_candidate_v1_scenario(
+            candidate_v1,
+            scenario_id,
+        )
+        if scenario_id in APPLICATION_C05_TEMPLATE_SCENARIO_IDS:
+            kind = "phase" if scenario_id.endswith(".phase.v1") else "gain"
+            recipe = build_c05_projector_orientation_recipe(kind)
+            verify_c05_projector_orientation_recipe(recipe)
+            preflight_kind = "C05_PROJECTOR_RECIPE"
+            source_path = _C05_RECIPE_SOURCE_PATH
+            source_sha = _C05_RECIPE_SOURCE_SHA
+            commit_sha = _C05_RECIPE_COMMIT_SHA
+            state = C05_PROJECTOR_RECIPE_STATE
+        elif scenario_id in APPLICATION_RECIPE_SCENARIO_IDS:
+            recipe = build_application_recipe(parent, scenario_id)
+            verify_application_recipe(parent, recipe)
+            preflight_kind = "APPLICATION_LOCAL_RECIPE"
+            source_path = _APPLICATION_RECIPE_SOURCE_PATH
+            source_sha = _APPLICATION_RECIPE_SOURCE_SHA
+            commit_sha = _APPLICATION_RECIPE_COMMIT_SHA
+            state = "LIVE_PARENT_RECIPE_REPLAY_ONLY_NO_AUTHORITY"
+        elif scenario_id in GEOMETRY_APPLICATION_SCENARIO_IDS:
+            recipe = build_geometry_application_recipe(parent, scenario_id)
+            verify_geometry_application_recipe(parent, recipe)
+            preflight_kind = "GEOMETRY_LOCAL_RECIPE"
+            source_path = _GEOMETRY_RECIPE_SOURCE_PATH
+            source_sha = _GEOMETRY_RECIPE_SOURCE_SHA
+            commit_sha = _GEOMETRY_RECIPE_COMMIT_SHA
+            state = GEOMETRY_APPLICATION_INTEGRATION_STATE
+        else:
+            raise ValueError("success scenario has no live recipe binding")
+        bindings.append(
+            _finish_binding(
+                CandidateConstructionPreflightBinding(
+                    binding_schema_version=(
+                        PARENT_CANDIDATE_V2_BINDING_SCHEMA_VERSION
+                    ),
+                    scenario_id=scenario_id,
+                    preflight_kind=preflight_kind,
+                    source_path=source_path,
+                    source_sha=source_sha,
+                    source_commit_sha=commit_sha,
+                    candidate_v1_sha=candidate_v1.candidate_sha,
+                    candidate_application_sha=application.candidate_application_sha,
+                    candidate_scenario_sha=(
+                        candidate_scenario.candidate_scenario_sha
+                    ),
+                    scenario_execution_spec_sha=(
+                        candidate_scenario.scenario_execution_spec.scenario_sha
+                    ),
+                    based_on_application_spec_sha=(
+                        candidate_scenario.based_on_application_spec_sha
+                    ),
+                    preflight_state=state,
+                    preflight_artifact_sha=recipe.recipe_sha,
+                    derivation_or_recipe_sha=recipe.recipe_sha,
+                    binding_sha="0" * 64,
+                )
+            )
+        )
+    by_scenario = {item.scenario_id: item for item in bindings}
+    if set(by_scenario) != set(CANDIDATE_DAG_SCENARIO_IDS):
+        raise ValueError("live recipe bindings do not cover the success registry")
+    return tuple(by_scenario[scenario_id] for scenario_id in CANDIDATE_DAG_SCENARIO_IDS)
 
 
 @dataclass(frozen=True)
@@ -988,7 +1123,19 @@ def _refrozen_response_template(
 ) -> CandidateV2ResponseTemplate:
     _, scenario = _find_candidate_v1_scenario(candidate_v1, scenario_id)
     base = scenario.response_template
-    source_columns = selector.source_selector.shape[1]
+    if (
+        contract.response_torus_denominators != base.response_torus_denominators
+        or contract.response_reciprocal_indices
+        != base.response_reciprocal_indices
+        or contract.source_readout_bridge_reciprocal_indices
+        != base.source_readout_bridge_reciprocal_indices
+        or contract.source_readout_bridge_steps != base.source_readout_bridge_steps
+        or contract.reference_reciprocal_index != base.reference_reciprocal_index
+        or contract.preregistered_phase_bands != base.preregistered_phase_bands
+        or contract.source_trial_vectors.shape
+        != (selector.source_selector.shape[1], selector.source_selector.shape[1])
+    ):
+        raise ValueError("DAG response grid/trials differ from candidate-v1")
     provisional = CandidateV2ResponseTemplate(
         template_schema_version=(
             PARENT_CANDIDATE_V2_RESPONSE_TEMPLATE_SCHEMA_VERSION
@@ -1009,17 +1156,15 @@ def _refrozen_response_template(
         preflight_derivation_or_recipe_sha=binding.derivation_or_recipe_sha,
         preflight_actual_effect_digest=preflight_actual_effect_digest,
         preflight_matched_effect_digest=preflight_matched_effect_digest,
-        response_torus_denominators=base.response_torus_denominators,
-        response_reciprocal_indices=base.response_reciprocal_indices,
+        response_torus_denominators=contract.response_torus_denominators,
+        response_reciprocal_indices=contract.response_reciprocal_indices,
         source_readout_bridge_reciprocal_indices=(
-            base.source_readout_bridge_reciprocal_indices
+            contract.source_readout_bridge_reciprocal_indices
         ),
-        source_readout_bridge_steps=base.source_readout_bridge_steps,
-        reference_reciprocal_index=base.reference_reciprocal_index,
-        preregistered_phase_bands=base.preregistered_phase_bands,
-        source_trial_vectors=freeze_complex_tensor(
-            np.eye(source_columns, dtype=np.complex128)
-        ),
+        source_readout_bridge_steps=contract.source_readout_bridge_steps,
+        reference_reciprocal_index=contract.reference_reciprocal_index,
+        preregistered_phase_bands=contract.preregistered_phase_bands,
+        source_trial_vectors=contract.source_trial_vectors,
         incidence_family_id=contract.incidence_family_id,
         incidence_normalizer_formula_id=(
             contract.incidence_normalizer_formula_id
@@ -1080,7 +1225,7 @@ def _build_scenario_refreeze(
     binding: CandidateConstructionPreflightBinding,
 ) -> CandidateV2ScenarioRefreeze:
     scenario_id = binding.scenario_id
-    if scenario_id not in (*INTERFERENCE_MODE_SCENARIO_IDS, C12_SCENARIO_ID):
+    if scenario_id not in CANDIDATE_DAG_SCENARIO_IDS:
         raise ValueError("scenario binding is outside the refreeze registry")
     application, candidate_scenario = _find_candidate_v1_scenario(
         candidate_v1,
@@ -1154,7 +1299,7 @@ def _build_scenario_refreeze(
         preflight_matched_effect_digest = (
             artifact.matched_ablated_effect_digest
         )
-    else:
+    elif scenario_id == C12_SCENARIO_ID:
         c12 = build_c12_incidence_preflight(candidate_v1)
         verify_c12_incidence_preflight(candidate_v1, c12)
         recipe = c12.recipe
@@ -1237,6 +1382,111 @@ def _build_scenario_refreeze(
         preflight_matched_effect_digest = (
             recipe.matched_ablated_effect_digest
         )
+    else:
+        parent = issue_v3m0_parent_freeze()
+        selector = candidate_scenario.selector_spec
+        if scenario_id in APPLICATION_C05_TEMPLATE_SCENARIO_IDS:
+            kind = "phase" if scenario_id.endswith(".phase.v1") else "gain"
+            recipe = build_c05_projector_orientation_recipe(kind)
+            verify_c05_projector_orientation_recipe(recipe)
+            construction_rule_id = recipe.recipe_id
+            construction_family_id = recipe.recipe_schema_version
+            expected_actual_rank = recipe.expected_shell_rank
+            expected_matched_rank = recipe.expected_shell_rank
+        elif scenario_id in APPLICATION_RECIPE_SCENARIO_IDS:
+            recipe = build_application_recipe(parent, scenario_id)
+            verify_application_recipe(parent, recipe)
+            construction_rule_id = recipe.recipe_id
+            construction_family_id = recipe.recipe_schema_version
+            expected_actual_rank = recipe.expected_shell_rank
+            expected_matched_rank = recipe.expected_shell_rank
+        elif scenario_id in GEOMETRY_APPLICATION_SCENARIO_IDS:
+            recipe = build_geometry_application_recipe(parent, scenario_id)
+            verify_geometry_application_recipe(parent, recipe)
+            construction_rule_id = recipe.construction_rule_id
+            construction_family_id = recipe.recipe_id
+            expected_actual_rank = recipe.expected_shell_rank
+            expected_matched_rank = 2
+            if scenario_id in C18_GEOMETRY_SCENARIO_IDS and (
+                recipe.primitive_support_radius != 0
+                or expected_actual_rank != 1
+                or expected_matched_rank != 2
+            ):
+                raise ValueError(
+                    "C18 live support/rank contract is not frozen at 0/1/2"
+                )
+        else:
+            raise ValueError("scenario binding has no live construction recipe")
+        if (
+            binding.preflight_artifact_sha != recipe.recipe_sha
+            or binding.derivation_or_recipe_sha != recipe.recipe_sha
+            or contract.construction_recipe_sha != recipe.recipe_sha
+        ):
+            raise ValueError("scenario is spliced from its live recipe")
+        _require_live_step_program_match(
+            contract,
+            recipe.actual_steps,
+            recipe.matched_ablated_steps,
+        )
+        recipe_source = frozen_tensor_array(recipe.source_injection)
+        selector_source = frozen_tensor_array(selector.source_selector)
+        recipe_readout = frozen_tensor_array(recipe.readout)
+        selector_readout = frozen_tensor_array(selector.readout_selector)
+        if recipe_source.shape != selector_source.shape:
+            raise ValueError("live recipe source shape differs from selector")
+        source_projector_residual = float(
+            np.linalg.norm(
+                recipe_source @ recipe_source.conj().T
+                - selector_source @ selector_source.conj().T,
+                ord=2,
+            )
+        )
+        if (
+            source_projector_residual > 2.0e-12
+            or recipe_readout.shape != selector_readout.shape
+            or np.linalg.norm(recipe_readout - selector_readout, ord=2) > 2.0e-12
+            or contract.recipe_source_injection_sha
+            != recipe.source_injection.tensor_sha
+            or contract.recipe_readout_sha != recipe.readout.tensor_sha
+            or contract.actual_effect_digest != recipe.actual_effect_digest
+            or contract.matched_ablated_effect_digest
+            != recipe.matched_ablated_effect_digest
+            or contract.construction_rule_id != construction_rule_id
+            or contract.construction_family_id != construction_family_id
+            or contract.primitive_support_radius
+            != recipe.primitive_support_radius
+            or contract.expected_actual_shell_rank != expected_actual_rank
+            or contract.expected_matched_shell_rank != expected_matched_rank
+        ):
+            raise ValueError(
+                "live recipe program/selector/effect/support/rank contract differs"
+            )
+        if scenario_id in GEOMETRY_APPLICATION_SCENARIO_IDS:
+            if (
+                contract.geometry_operation_dag_sha != recipe.operation_dag_sha
+                or contract.construction_operation_dag_sha
+                != recipe.operation_dag_sha
+                or contract.geometry_semantic_sector_names
+                != recipe.semantic_sector_names
+                or contract.geometry_coverage_control != recipe.coverage_control
+                or contract.geometry_gauge_amplitude != recipe.gauge_amplitude
+                or contract.geometry_observer_collapse_expected
+                != recipe.observer_collapse_expected
+                or contract.geometry_bundle_derivation_id
+                != candidate_scenario.response_template.geometry_bundle_derivation_id
+            ):
+                raise ValueError("geometry recipe refs differ from DAG contract")
+        preflight_actual_effect_digest = recipe.actual_effect_digest
+        preflight_matched_effect_digest = recipe.matched_ablated_effect_digest
+    if (
+        contract.construction_rule_id != construction_rule_id
+        or contract.construction_family_id != construction_family_id
+        or contract.construction_recipe_sha != binding.derivation_or_recipe_sha
+        or contract.actual_effect_digest != preflight_actual_effect_digest
+        or contract.matched_ablated_effect_digest
+        != preflight_matched_effect_digest
+    ):
+        raise ValueError("response construction context differs from live replay")
     response_template = _refrozen_response_template(
         candidate_v1,
         scenario_id,
@@ -1414,13 +1664,13 @@ def verify_parent_freeze_candidate_v2(
     binding_by_scenario = {
         item.scenario_id: item for item in candidate.preflight_bindings
     }
-    expected_scenario_ids = (*INTERFERENCE_MODE_SCENARIO_IDS, C12_SCENARIO_ID)
+    expected_scenario_ids = CANDIDATE_DAG_SCENARIO_IDS
     if tuple(binding_by_scenario) != expected_scenario_ids:
-        raise ValueError("candidate v2 preflight bindings are not the five-case registry")
+        raise ValueError("candidate v2 bindings are not the success-scenario registry")
     if tuple(item.scenario_id for item in candidate.scenario_refreezes) != (
         expected_scenario_ids
     ):
-        raise ValueError("candidate v2 refreezes are not the five-case registry")
+        raise ValueError("candidate v2 refreezes are not the success-scenario registry")
     for refreeze in candidate.scenario_refreezes:
         _exact_record(
             refreeze,
@@ -1482,6 +1732,9 @@ def verify_parent_freeze_candidate_v2(
             or template.selector_sha != selector.selector_sha
             or template.dag_sha != refreeze.operation_dag.dag_sha
             or template.compiled_contract_sha != contract.contract_sha
+            or template.construction_rule_id != contract.construction_rule_id
+            or template.construction_family_id
+            != contract.construction_family_id
             or template.expected_actual_shell_rank
             != contract.expected_actual_shell_rank
             or template.expected_matched_shell_rank
@@ -1491,6 +1744,24 @@ def verify_parent_freeze_candidate_v2(
             != contract.matched_ablated_program_sha
             or template.preflight_derivation_or_recipe_sha
             != binding.derivation_or_recipe_sha
+            or template.preflight_actual_effect_digest
+            != contract.actual_effect_digest
+            or template.preflight_matched_effect_digest
+            != contract.matched_ablated_effect_digest
+            or template.response_torus_denominators
+            != contract.response_torus_denominators
+            or template.response_reciprocal_indices
+            != contract.response_reciprocal_indices
+            or template.source_readout_bridge_reciprocal_indices
+            != contract.source_readout_bridge_reciprocal_indices
+            or template.source_readout_bridge_steps
+            != contract.source_readout_bridge_steps
+            or template.reference_reciprocal_index
+            != contract.reference_reciprocal_index
+            or template.preregistered_phase_bands
+            != contract.preregistered_phase_bands
+            or template.source_trial_vectors.tensor_sha
+            != contract.source_trial_vectors.tensor_sha
             or template.incidence_family_id != contract.incidence_family_id
             or template.incidence_normalizer_formula_id
             != contract.incidence_normalizer_formula_id

@@ -8,9 +8,11 @@ Parent, permit, response block, or scientific status.
 from __future__ import annotations
 
 import math
+import pickle
 import re
 import struct
 from dataclasses import dataclass, fields as dataclass_fields, replace
+from functools import lru_cache
 from typing import Literal, Optional
 
 import numpy as np
@@ -19,6 +21,7 @@ from .evidence import canonical_sha
 from .factory import (
     FrozenComplexTensor,
     freeze_complex_tensor,
+    frozen_tensor_array,
     frozen_tensor_payload,
     verify_frozen_tensor,
 )
@@ -38,6 +41,28 @@ CANDIDATE_INCIDENCE_POINT_SCHEMA_VERSION = (
 CANDIDATE_DAG_CONSTRUCTION_STATE = "PROPOSED_PARENT_DAG_EXTRACT_ONLY"
 
 CANDIDATE_DAG_SCENARIO_IDS = (
+    "v3m0.synthetic-control.c05.v1.scenario.phase.v1",
+    "v3m0.synthetic-control.c05.v1.scenario.gain.v1",
+    "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1",
+    "v3m0.synthetic-control.c07.v1.scenario.constructive.v1",
+    "v3m0.synthetic-control.c07.v1.scenario.destructive.v1",
+    "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1",
+    "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1",
+    "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1",
+    "v3m0.synthetic-control.c11.v1.scenario.signal.v1",
+    "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1",
+    "v3m0.synthetic-control.c15.v1.scenario.full-h.v1",
+    "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1",
+    "v3m0.synthetic-control.c15.v1.scenario.tt.v1",
+    "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1",
+    "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1",
+    "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1",
+    "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1",
+    "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1",
+    "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1",
+)
+
+_REVIEWED_PREFLIGHT_SCENARIO_IDS = (
     "v3m0.synthetic-control.c07.v1.scenario.constructive.v1",
     "v3m0.synthetic-control.c07.v1.scenario.destructive.v1",
     "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1",
@@ -401,7 +426,7 @@ class CompiledCandidateScenarioContract:
     expected_matched_actual_sector_rank: int
     expected_matched_full_source_rank: int
     expected_survival_spectrum: tuple[float, ...]
-    expected_chi_extra: float
+    expected_chi_extra: Optional[float]
     expected_d_proc_state: Literal["defined-v1", "undefined-v1"]
     expected_d_proc_sq: Optional[float]
     proposed_source_selection: FrozenComplexTensor
@@ -410,6 +435,27 @@ class CompiledCandidateScenarioContract:
     matched_ablated_step_signatures: tuple[CandidateShearStepSignature, ...]
     actual_program_sha: str
     matched_ablated_program_sha: str
+    construction_evidence_kind: str
+    construction_rule_id: str
+    construction_family_id: str
+    construction_recipe_sha: str
+    construction_operation_dag_sha: str
+    recipe_source_injection_sha: str
+    recipe_readout_sha: str
+    actual_effect_digest: str
+    matched_ablated_effect_digest: str
+    response_torus_denominators: tuple[int, ...]
+    source_readout_bridge_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_steps: tuple[int, ...]
+    reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
+    source_trial_vectors: FrozenComplexTensor
+    geometry_bundle_derivation_id: Optional[str]
+    geometry_operation_dag_sha: Optional[str]
+    geometry_semantic_sector_names: tuple[str, ...]
+    geometry_coverage_control: Optional[float]
+    geometry_gauge_amplitude: Optional[float]
+    geometry_observer_collapse_expected: Optional[bool]
     incidence_family_id: Optional[str]
     incidence_normalizer_formula_id: Optional[str]
     incidence_application_stage: Optional[
@@ -499,6 +545,98 @@ class CompiledCandidateScenarioContract:
             raise ValueError("matched program is not mechanical conditioned deletion")
         _sha(self.actual_program_sha, "actual_program_sha")
         _sha(self.matched_ablated_program_sha, "matched_ablated_program_sha")
+        for field in (
+            "construction_evidence_kind",
+            "construction_rule_id",
+            "construction_family_id",
+        ):
+            _text(getattr(self, field), field)
+        for field in (
+            "construction_recipe_sha",
+            "construction_operation_dag_sha",
+            "recipe_source_injection_sha",
+            "recipe_readout_sha",
+            "actual_effect_digest",
+            "matched_ablated_effect_digest",
+        ):
+            _sha(getattr(self, field), field)
+        if (
+            type(self.response_torus_denominators) is not tuple
+            or not self.response_torus_denominators
+            or not all(
+                type(value) is int and value > 0
+                for value in self.response_torus_denominators
+            )
+        ):
+            raise TypeError("response torus denominators are not frozen")
+        for field in (
+            "response_reciprocal_indices",
+            "source_readout_bridge_reciprocal_indices",
+        ):
+            indices = getattr(self, field)
+            if type(indices) is not tuple or not all(
+                type(index) is tuple
+                and index
+                and all(type(value) is int for value in index)
+                for index in indices
+            ):
+                raise TypeError(f"{field} is not an exact reciprocal grid")
+        if (
+            type(self.source_readout_bridge_steps) is not tuple
+            or not all(
+                type(value) is int and value > 0
+                for value in self.source_readout_bridge_steps
+            )
+        ):
+            raise TypeError("source/readout bridge steps are not frozen")
+        if (
+            type(self.reference_reciprocal_index) is not tuple
+            or not self.reference_reciprocal_index
+            or not all(type(value) is int for value in self.reference_reciprocal_index)
+        ):
+            raise TypeError("reference reciprocal index is not frozen")
+        if type(self.preregistered_phase_bands) is not tuple or not all(
+            type(band) is tuple
+            and len(band) == 2
+            and all(type(value) is float and math.isfinite(value) for value in band)
+            and band[0] < band[1]
+            for band in self.preregistered_phase_bands
+        ):
+            raise TypeError("preregistered phase bands are not frozen")
+        if type(self.source_trial_vectors) is not FrozenComplexTensor:
+            raise TypeError("source trial vectors have the wrong strict type")
+        if self.geometry_operation_dag_sha is None:
+            if (
+                self.geometry_bundle_derivation_id is not None
+                or self.geometry_semantic_sector_names
+                or self.geometry_coverage_control is not None
+                or self.geometry_gauge_amplitude is not None
+                or self.geometry_observer_collapse_expected is not None
+            ):
+                raise ValueError("non-geometry contract carries geometry evidence")
+        else:
+            _sha(self.geometry_operation_dag_sha, "geometry_operation_dag_sha")
+            _text(
+                self.geometry_bundle_derivation_id,
+                "geometry_bundle_derivation_id",
+            )
+            if (
+                type(self.geometry_semantic_sector_names) is not tuple
+                or not self.geometry_semantic_sector_names
+                or not all(
+                    type(value) is str and bool(value.strip())
+                    for value in self.geometry_semantic_sector_names
+                )
+            ):
+                raise TypeError("geometry semantic sectors are not frozen")
+            for field in ("geometry_coverage_control", "geometry_gauge_amplitude"):
+                value = getattr(self, field)
+                if value is not None and (
+                    type(value) is not float or not math.isfinite(value)
+                ):
+                    raise TypeError(f"{field} must be finite fp64 or None")
+            if type(self.geometry_observer_collapse_expected) is not bool:
+                raise TypeError("geometry observer-collapse flag is not frozen")
         if type(self.incidence_points) is not tuple or not all(
             type(item) is CandidateIncidencePointContract
             for item in self.incidence_points
@@ -530,7 +668,6 @@ class CompiledCandidateScenarioContract:
             or self.incidence_points
             or self.incidence_stencil_offsets
             or self.incidence_stencil_coefficients
-            or self.response_reciprocal_indices
         ):
             raise ValueError("non-incidence contract carries incidence payload")
         if type(self.consumed_parameter_names) is not tuple:
@@ -602,6 +739,42 @@ def compiled_candidate_scenario_contract_payload(
         ],
         "actual_program_sha": contract.actual_program_sha,
         "matched_ablated_program_sha": contract.matched_ablated_program_sha,
+        "construction_evidence_kind": contract.construction_evidence_kind,
+        "construction_rule_id": contract.construction_rule_id,
+        "construction_family_id": contract.construction_family_id,
+        "construction_recipe_sha": contract.construction_recipe_sha,
+        "construction_operation_dag_sha": (
+            contract.construction_operation_dag_sha
+        ),
+        "recipe_source_injection_sha": contract.recipe_source_injection_sha,
+        "recipe_readout_sha": contract.recipe_readout_sha,
+        "actual_effect_digest": contract.actual_effect_digest,
+        "matched_ablated_effect_digest": contract.matched_ablated_effect_digest,
+        "response_torus_denominators": list(
+            contract.response_torus_denominators
+        ),
+        "source_readout_bridge_reciprocal_indices": [
+            list(index)
+            for index in contract.source_readout_bridge_reciprocal_indices
+        ],
+        "source_readout_bridge_steps": list(
+            contract.source_readout_bridge_steps
+        ),
+        "reference_reciprocal_index": list(contract.reference_reciprocal_index),
+        "preregistered_phase_bands": [
+            list(band) for band in contract.preregistered_phase_bands
+        ],
+        "source_trial_vectors": _tensor_record(contract.source_trial_vectors),
+        "geometry_bundle_derivation_id": contract.geometry_bundle_derivation_id,
+        "geometry_operation_dag_sha": contract.geometry_operation_dag_sha,
+        "geometry_semantic_sector_names": list(
+            contract.geometry_semantic_sector_names
+        ),
+        "geometry_coverage_control": contract.geometry_coverage_control,
+        "geometry_gauge_amplitude": contract.geometry_gauge_amplitude,
+        "geometry_observer_collapse_expected": (
+            contract.geometry_observer_collapse_expected
+        ),
         "incidence_family_id": contract.incidence_family_id,
         "incidence_normalizer_formula_id": (
             contract.incidence_normalizer_formula_id
@@ -675,6 +848,475 @@ def _operation(
     return replace(
         provisional,
         operation_sha=canonical_sha(candidate_dag_operation_payload(provisional)),
+    )
+
+
+@dataclass(frozen=True)
+class _LiveConstructionEvidence:
+    scenario_id: str
+    based_on_candidate_selector_sha: str
+    source_selection: np.ndarray
+    readout_selection: np.ndarray
+    actual_sector_source_columns: tuple[int, ...]
+    actual_steps: tuple[object, ...]
+    matched_steps: tuple[object, ...]
+    primitive_support_radius: int
+    expected_actual_shell_rank: int
+    expected_matched_shell_rank: int
+    construction_evidence_kind: str
+    construction_rule_id: str
+    construction_family_id: str
+    construction_recipe_sha: str
+    construction_operation_dag_sha: str
+    recipe_source_injection_sha: str
+    recipe_readout_sha: str
+    actual_effect_digest: str
+    matched_ablated_effect_digest: str
+    response_torus_denominators: tuple[int, ...]
+    response_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_steps: tuple[int, ...]
+    reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
+    geometry_bundle_derivation_id: Optional[str]
+    geometry_operation_dag_sha: Optional[str]
+    geometry_semantic_sector_names: tuple[str, ...]
+    geometry_coverage_control: Optional[float]
+    geometry_gauge_amplitude: Optional[float]
+    geometry_observer_collapse_expected: Optional[bool]
+
+
+def _live_candidate_roots() -> tuple[object, object, dict[str, tuple[object, object]]]:
+    from .parent_freeze import (
+        build_v3m0_parent_freeze_candidate,
+        issue_v3m0_parent_freeze,
+        verify_parent_freeze_candidate,
+    )
+
+    candidate = verify_parent_freeze_candidate(
+        build_v3m0_parent_freeze_candidate()
+    )
+    parent = issue_v3m0_parent_freeze()
+    scenarios = {
+        scenario.scenario_execution_spec.scenario_id: (application, scenario)
+        for application in candidate.application_candidates
+        for scenario in application.scenario_candidates
+    }
+    return candidate, parent, scenarios
+
+
+def _candidate_operation_binding_sha(
+    application: object,
+    scenario: object,
+) -> str:
+    execution = scenario.scenario_execution_spec
+    return canonical_sha(
+        {
+            "dag_schema_version": "v3m0.candidate-v1-operation-dag-binding.v1",
+            "candidate_application_sha": application.candidate_application_sha,
+            "candidate_scenario_sha": scenario.candidate_scenario_sha,
+            "based_on_application_spec_sha": scenario.based_on_application_spec_sha,
+            "scenario_execution_spec_sha": execution.scenario_sha,
+            "operation_output_ids": list(execution.operation_output_ids),
+        }
+    )
+
+
+def _build_live_construction_evidence(
+    scenario_id: str,
+    based_on_candidate_selector_sha: str,
+    *,
+    _roots: Optional[
+        tuple[object, object, dict[str, tuple[object, object]]]
+    ] = None,
+) -> _LiveConstructionEvidence:
+    """Replay one existing construction source without issuing new authority."""
+
+    from .application_recipes import (
+        APPLICATION_C05_TEMPLATE_SCENARIO_IDS,
+        APPLICATION_RECIPE_SCENARIO_IDS,
+        build_application_recipe,
+        build_c05_fejer_recipe_template,
+        verify_application_recipe,
+        verify_c05_fejer_recipe_template,
+    )
+    from .c05_projector_recipe import (
+        build_c05_projector_orientation_recipe,
+        verify_c05_projector_orientation_recipe,
+    )
+    from .c12_incidence_preflight import (
+        C12_SCENARIO_ID,
+        build_c12_incidence_preflight,
+        verify_c12_incidence_preflight,
+    )
+    from .geometry_application_recipes import (
+        C18_GEOMETRY_SCENARIO_IDS,
+        GEOMETRY_APPLICATION_SCENARIO_IDS,
+        build_geometry_application_recipe,
+        verify_geometry_application_recipe,
+    )
+    from .interference_mode_preflight import (
+        INTERFERENCE_MODE_SCENARIO_IDS,
+        build_interference_mode_preflight_artifact,
+        verify_interference_mode_preflight_artifact,
+    )
+
+    candidate, parent, scenarios = (
+        _live_candidate_roots() if _roots is None else _roots
+    )
+    if scenario_id not in CANDIDATE_DAG_SCENARIO_IDS:
+        raise ValueError("scenario is outside the complete success registry")
+    try:
+        application, candidate_scenario = scenarios[scenario_id]
+    except KeyError as exc:
+        raise ValueError("scenario is absent from candidate-v1") from exc
+    if candidate_scenario.selector_spec.selector_sha != based_on_candidate_selector_sha:
+        raise ValueError("candidate DAG selector root differs from candidate-v1")
+
+    template = candidate_scenario.response_template
+    selector = candidate_scenario.selector_spec
+    source_selection = frozen_tensor_array(selector.source_selector)
+    readout_selection = frozen_tensor_array(selector.readout_selector)
+    actual_sector = tuple(range(source_selection.shape[1]))
+    geometry_bundle_id: Optional[str] = None
+    geometry_dag_sha: Optional[str] = None
+    geometry_sectors: tuple[str, ...] = ()
+    geometry_coverage: Optional[float] = None
+    geometry_gauge: Optional[float] = None
+    geometry_observer: Optional[bool] = None
+
+    if scenario_id in INTERFERENCE_MODE_SCENARIO_IDS:
+        artifact = build_interference_mode_preflight_artifact(candidate, scenario_id)
+        verify_interference_mode_preflight_artifact(artifact, candidate)
+        source_selection = frozen_tensor_array(artifact.proposed_source_selection)
+        readout_selection = frozen_tensor_array(artifact.proposed_readout_selection)
+        actual_sector = artifact.actual_sector_source_columns
+        actual_steps = artifact.actual_steps
+        matched_steps = artifact.matched_ablated_steps
+        support = artifact.primitive_support_radius
+        actual_rank = artifact.expected_actual_shell_rank
+        matched_rank = artifact.expected_matched_shell_rank
+        evidence_kind = "INTERFERENCE_MODE_CONSTRUCTION"
+        rule_id = artifact.execution_recipe_id
+        family_id = f"interference-mode-{artifact.scenario_kind}-v1"
+        recipe_sha = artifact.candidate_derivation_sha
+        operation_dag_sha = _candidate_operation_binding_sha(
+            application,
+            candidate_scenario,
+        )
+        recipe_source_sha = artifact.source_injection.tensor_sha
+        recipe_readout_sha = artifact.readout.tensor_sha
+        actual_effect = artifact.actual_effect_digest
+        matched_effect = artifact.matched_ablated_effect_digest
+    elif scenario_id == C12_SCENARIO_ID:
+        preflight = build_c12_incidence_preflight(candidate)
+        verify_c12_incidence_preflight(candidate, preflight)
+        recipe = preflight.recipe
+        selector = recipe.proposed_selector_spec
+        source_selection = frozen_tensor_array(selector.source_selector)
+        readout_selection = frozen_tensor_array(selector.readout_selector)
+        actual_sector = tuple(range(source_selection.shape[1]))
+        actual_steps = recipe.actual_steps
+        matched_steps = recipe.matched_ablated_steps
+        support = recipe.primitive_support_radius
+        actual_rank = recipe.proposed_expected_shell_rank
+        matched_rank = recipe.proposed_expected_shell_rank
+        evidence_kind = "C12_INCIDENCE_CONSTRUCTION"
+        rule_id = recipe.construction_rule_id
+        family_id = recipe.recipe_id
+        recipe_sha = recipe.recipe_sha
+        operation_dag_sha = _candidate_operation_binding_sha(
+            application,
+            candidate_scenario,
+        )
+        recipe_source_sha = selector.source_injection.tensor_sha
+        recipe_readout_sha = selector.readout_coisometry.tensor_sha
+        actual_effect = recipe.actual_effect_digest
+        matched_effect = recipe.matched_ablated_effect_digest
+    elif scenario_id in APPLICATION_C05_TEMPLATE_SCENARIO_IDS:
+        kind = "phase" if scenario_id.endswith(".phase.v1") else "gain"
+        recipe = build_c05_projector_orientation_recipe(kind)
+        verify_c05_projector_orientation_recipe(recipe)
+        fejer_template = build_c05_fejer_recipe_template(parent, scenario_id)
+        verify_c05_fejer_recipe_template(parent, fejer_template)
+        actual_steps = recipe.actual_steps
+        matched_steps = recipe.matched_ablated_steps
+        support = recipe.primitive_support_radius
+        actual_rank = recipe.expected_shell_rank
+        matched_rank = recipe.expected_shell_rank
+        evidence_kind = "C05_PROJECTOR_RECIPE"
+        rule_id = recipe.recipe_id
+        family_id = recipe.recipe_schema_version
+        recipe_sha = recipe.recipe_sha
+        operation_dag_sha = fejer_template.template_sha
+        recipe_source_sha = recipe.source_injection.tensor_sha
+        recipe_readout_sha = recipe.readout.tensor_sha
+        actual_effect = recipe.actual_effect_digest
+        matched_effect = recipe.matched_ablated_effect_digest
+    elif scenario_id in APPLICATION_RECIPE_SCENARIO_IDS:
+        recipe = build_application_recipe(parent, scenario_id)
+        verify_application_recipe(parent, recipe)
+        actual_steps = recipe.actual_steps
+        matched_steps = recipe.matched_ablated_steps
+        support = recipe.primitive_support_radius
+        actual_rank = recipe.expected_shell_rank
+        matched_rank = recipe.expected_shell_rank
+        evidence_kind = "APPLICATION_LOCAL_RECIPE"
+        rule_id = recipe.recipe_id
+        family_id = recipe.recipe_schema_version
+        recipe_sha = recipe.recipe_sha
+        operation_dag_sha = canonical_sha(
+            {
+                "dag_schema_version": "v3m0.application-evaluated-operation-dag.v1",
+                "application_spec_sha": recipe.application_spec_sha,
+                "scenario_sha": recipe.scenario_sha,
+                "operation_evaluation_shas": [
+                    item.evaluation_sha for item in recipe.operation_evaluations
+                ],
+            }
+        )
+        recipe_source_sha = recipe.source_injection.tensor_sha
+        recipe_readout_sha = recipe.readout.tensor_sha
+        actual_effect = recipe.actual_effect_digest
+        matched_effect = recipe.matched_ablated_effect_digest
+    elif scenario_id in GEOMETRY_APPLICATION_SCENARIO_IDS:
+        recipe = build_geometry_application_recipe(parent, scenario_id)
+        verify_geometry_application_recipe(parent, recipe)
+        actual_steps = recipe.actual_steps
+        matched_steps = recipe.matched_ablated_steps
+        support = recipe.primitive_support_radius
+        actual_rank = recipe.expected_shell_rank
+        matched_rank = 2
+        actual_sector = (
+            (0,)
+            if scenario_id in C18_GEOMETRY_SCENARIO_IDS
+            else tuple(range(source_selection.shape[1]))
+        )
+        evidence_kind = "GEOMETRY_LOCAL_RECIPE"
+        rule_id = recipe.construction_rule_id
+        family_id = recipe.recipe_id
+        recipe_sha = recipe.recipe_sha
+        operation_dag_sha = recipe.operation_dag_sha
+        recipe_source_sha = recipe.source_injection.tensor_sha
+        recipe_readout_sha = recipe.readout.tensor_sha
+        actual_effect = recipe.actual_effect_digest
+        matched_effect = recipe.matched_ablated_effect_digest
+        geometry_bundle_id = template.geometry_bundle_derivation_id
+        geometry_dag_sha = recipe.operation_dag_sha
+        geometry_sectors = recipe.semantic_sector_names
+        geometry_coverage = recipe.coverage_control
+        geometry_gauge = recipe.gauge_amplitude
+        geometry_observer = recipe.observer_collapse_expected
+        if scenario_id in C18_GEOMETRY_SCENARIO_IDS and (
+            support != 0 or actual_rank != 1 or matched_rank != 2
+        ):
+            raise ValueError("C18 live support/rank contract is not frozen at 0/1/2")
+    else:
+        raise ValueError("success scenario has no live construction recipe")
+
+    if matched_steps != tuple(
+        step for step in actual_steps if not step.target_conditioned
+    ):
+        raise ValueError("live recipe matched branch is not mechanical deletion")
+    if max(abs(step.offset[0]) for step in actual_steps) > support:
+        raise ValueError("live recipe exceeds its declared support radius")
+    return _LiveConstructionEvidence(
+        scenario_id=scenario_id,
+        based_on_candidate_selector_sha=based_on_candidate_selector_sha,
+        source_selection=np.array(
+            source_selection,
+            dtype=np.complex128,
+            copy=True,
+        ),
+        readout_selection=np.array(
+            readout_selection,
+            dtype=np.complex128,
+            copy=True,
+        ),
+        actual_sector_source_columns=actual_sector,
+        actual_steps=actual_steps,
+        matched_steps=matched_steps,
+        primitive_support_radius=support,
+        expected_actual_shell_rank=actual_rank,
+        expected_matched_shell_rank=matched_rank,
+        construction_evidence_kind=evidence_kind,
+        construction_rule_id=rule_id,
+        construction_family_id=family_id,
+        construction_recipe_sha=recipe_sha,
+        construction_operation_dag_sha=operation_dag_sha,
+        recipe_source_injection_sha=recipe_source_sha,
+        recipe_readout_sha=recipe_readout_sha,
+        actual_effect_digest=actual_effect,
+        matched_ablated_effect_digest=matched_effect,
+        response_torus_denominators=template.response_torus_denominators,
+        response_reciprocal_indices=template.response_reciprocal_indices,
+        source_readout_bridge_reciprocal_indices=(
+            template.source_readout_bridge_reciprocal_indices
+        ),
+        source_readout_bridge_steps=template.source_readout_bridge_steps,
+        reference_reciprocal_index=template.reference_reciprocal_index,
+        preregistered_phase_bands=template.preregistered_phase_bands,
+        geometry_bundle_derivation_id=geometry_bundle_id,
+        geometry_operation_dag_sha=geometry_dag_sha,
+        geometry_semantic_sector_names=geometry_sectors,
+        geometry_coverage_control=geometry_coverage,
+        geometry_gauge_amplitude=geometry_gauge,
+        geometry_observer_collapse_expected=geometry_observer,
+    )
+
+
+def _verify_live_construction_evidence(
+    evidence: _LiveConstructionEvidence,
+    scenario_id: str,
+    based_on_candidate_selector_sha: str,
+) -> _LiveConstructionEvidence:
+    if type(evidence) is not _LiveConstructionEvidence:
+        raise TypeError("live construction evidence has the wrong strict type")
+    if (
+        evidence.scenario_id != scenario_id
+        or evidence.based_on_candidate_selector_sha
+        != based_on_candidate_selector_sha
+    ):
+        raise ValueError("live construction evidence is spliced from another root")
+    for field in (
+        "construction_recipe_sha",
+        "construction_operation_dag_sha",
+        "recipe_source_injection_sha",
+        "recipe_readout_sha",
+        "actual_effect_digest",
+        "matched_ablated_effect_digest",
+    ):
+        _sha(getattr(evidence, field), field)
+    if (
+        type(evidence.source_selection) is not np.ndarray
+        or evidence.source_selection.dtype != np.dtype(np.complex128)
+        or evidence.source_selection.ndim != 2
+        or evidence.source_selection.shape[0] != len(_CHANNEL_ORDER)
+        or type(evidence.readout_selection) is not np.ndarray
+        or evidence.readout_selection.dtype != np.dtype(np.complex128)
+        or evidence.readout_selection.ndim != 2
+        or evidence.readout_selection.shape[1] != len(_CHANNEL_ORDER)
+    ):
+        raise TypeError("live construction selector arrays are not exact complex128 maps")
+    if (
+        type(evidence.actual_steps) is not tuple
+        or not evidence.actual_steps
+        or type(evidence.matched_steps) is not tuple
+    ):
+        raise TypeError("live construction step programs have the wrong strict type")
+    for step in evidence.actual_steps:
+        for field in (
+            "step_id",
+            "source_channel",
+            "destination_channel",
+            "offset",
+            "coefficient",
+            "target_conditioned",
+        ):
+            if not hasattr(step, field):
+                raise TypeError("live construction step is missing a physical field")
+        post_init = getattr(step, "__post_init__", None)
+        if post_init is not None:
+            post_init()
+    if evidence.matched_steps != tuple(
+        step for step in evidence.actual_steps if not step.target_conditioned
+    ):
+        raise ValueError("live evidence matched branch is not mechanical deletion")
+    if (
+        type(evidence.primitive_support_radius) is not int
+        or evidence.primitive_support_radius < 0
+        or max(abs(step.offset[0]) for step in evidence.actual_steps)
+        > evidence.primitive_support_radius
+    ):
+        raise ValueError("live evidence support radius does not cover its program")
+    for field in (
+        "expected_actual_shell_rank",
+        "expected_matched_shell_rank",
+    ):
+        value = getattr(evidence, field)
+        if type(value) is not int or value <= 0:
+            raise TypeError(f"{field} must be a positive exact integer")
+    if scenario_id == (
+        "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1"
+    ) and (
+        evidence.primitive_support_radius != 0
+        or evidence.expected_actual_shell_rank != 1
+        or evidence.expected_matched_shell_rank != 2
+    ):
+        raise ValueError("C18 live support/rank contract is not frozen at 0/1/2")
+    return evidence
+
+
+@lru_cache(maxsize=1)
+def _all_live_construction_evidence_bytes(
+) -> tuple[tuple[str, str, bytes], ...]:
+    """Build the registry once and retain only deeply immutable snapshots."""
+
+    roots = _live_candidate_roots()
+    scenarios = roots[2]
+    snapshots: list[tuple[str, str, bytes]] = []
+    for scenario_id in CANDIDATE_DAG_SCENARIO_IDS:
+        try:
+            _, source = scenarios[scenario_id]
+        except KeyError as exc:
+            raise ValueError("scenario is absent from candidate-v1") from exc
+        selector_sha = source.selector_spec.selector_sha
+        evidence = _verify_live_construction_evidence(
+            _build_live_construction_evidence(
+                scenario_id,
+                selector_sha,
+                _roots=roots,
+            ),
+            scenario_id,
+            selector_sha,
+        )
+        snapshots.append(
+            (
+                scenario_id,
+                selector_sha,
+                pickle.dumps(evidence, protocol=pickle.HIGHEST_PROTOCOL),
+            )
+        )
+    if tuple(item[0] for item in snapshots) != CANDIDATE_DAG_SCENARIO_IDS:
+        raise ValueError("immutable evidence snapshot registry is incomplete")
+    return tuple(snapshots)
+
+
+def _live_construction_evidence_bytes(
+    scenario_id: str,
+    based_on_candidate_selector_sha: str,
+) -> bytes:
+    """Cache only immutable trusted bytes; never a caller-mutable object."""
+
+    matches = tuple(
+        payload
+        for registered_id, selector_sha, payload in (
+            _all_live_construction_evidence_bytes()
+        )
+        if registered_id == scenario_id
+        and selector_sha == based_on_candidate_selector_sha
+    )
+    if len(matches) != 1:
+        raise ValueError("scenario/selector is absent from immutable evidence registry")
+    return matches[0]
+
+
+def _live_construction_evidence(
+    scenario_id: str,
+    based_on_candidate_selector_sha: str,
+) -> _LiveConstructionEvidence:
+    """Rebuild and validate a fresh evidence object from immutable cache bytes."""
+
+    evidence = pickle.loads(
+        _live_construction_evidence_bytes(
+            scenario_id,
+            based_on_candidate_selector_sha,
+        )
+    )
+    return _verify_live_construction_evidence(
+        evidence,
+        scenario_id,
+        based_on_candidate_selector_sha,
     )
 
 
@@ -754,7 +1396,7 @@ def _analytic_contract_parameters(
     expected_matched_actual_sector_rank: int,
     expected_matched_full_source_rank: int,
     survival: tuple[float, ...],
-    chi_extra: float,
+    chi_extra: Optional[float],
     d_proc_state: Literal["defined-v1", "undefined-v1"],
     d_proc_sq: Optional[float],
     rank_disposition: str,
@@ -776,7 +1418,10 @@ def _analytic_contract_parameters(
             expected_matched_full_source_rank,
         ),
         _integer("expected-survival-count", len(survival)),
-        _fp64("expected-chi-extra", chi_extra),
+        _string(
+            "expected-chi-extra-state",
+            "defined-v1" if chi_extra is not None else "not-frozen-v1",
+        ),
         _string("expected-d-proc-state", d_proc_state),
         _string("prediction-semantics", "analytic-preresponse-v1"),
         _string("rank-disposition", rank_disposition),
@@ -785,6 +1430,8 @@ def _analytic_contract_parameters(
         _fp64(f"expected-survival-{index:03d}", value)
         for index, value in enumerate(survival)
     )
+    if chi_extra is not None:
+        parameters.append(_fp64("expected-chi-extra", chi_extra))
     if d_proc_sq is not None:
         parameters.append(_fp64("expected-d-proc-sq", d_proc_sq))
     return tuple(parameters)
@@ -803,6 +1450,257 @@ def _common_transition_parameters(
         _integer("uses-global-fft-projection", 0),
         _integer("uses-per-k-timestep-projector", 0),
     ]
+
+
+def _indexed_tuple_parameters(
+    prefix: str,
+    values: tuple[tuple[int, ...], ...],
+) -> tuple[CandidateDAGParameter, ...]:
+    parameters: list[CandidateDAGParameter] = [
+        _integer(f"{prefix}-count", len(values))
+    ]
+    for index, value in enumerate(values):
+        parameters.append(_integer(f"{prefix}-{index:03d}-dimension", len(value)))
+        parameters.extend(
+            _integer(f"{prefix}-{index:03d}-{axis:03d}", coordinate)
+            for axis, coordinate in enumerate(value)
+        )
+    return tuple(parameters)
+
+
+def _construction_context_parameters(
+    evidence: _LiveConstructionEvidence,
+) -> tuple[CandidateDAGParameter, ...]:
+    parameters: list[CandidateDAGParameter] = [
+        _string("context-construction-evidence-kind", evidence.construction_evidence_kind),
+        _string("context-construction-rule-id", evidence.construction_rule_id),
+        _string("context-construction-family-id", evidence.construction_family_id),
+        _string("context-construction-recipe-sha", evidence.construction_recipe_sha),
+        _string(
+            "context-construction-operation-dag-sha",
+            evidence.construction_operation_dag_sha,
+        ),
+        _string(
+            "context-recipe-source-injection-sha",
+            evidence.recipe_source_injection_sha,
+        ),
+        _string("context-recipe-readout-sha", evidence.recipe_readout_sha),
+        _string("context-actual-effect-digest", evidence.actual_effect_digest),
+        _string(
+            "context-matched-ablated-effect-digest",
+            evidence.matched_ablated_effect_digest,
+        ),
+        _integer(
+            "context-response-torus-denominator-count",
+            len(evidence.response_torus_denominators),
+        ),
+        _integer(
+            "context-source-readout-bridge-step-count",
+            len(evidence.source_readout_bridge_steps),
+        ),
+        _integer(
+            "context-reference-reciprocal-index-dimension",
+            len(evidence.reference_reciprocal_index),
+        ),
+        _integer(
+            "context-preregistered-phase-band-count",
+            len(evidence.preregistered_phase_bands),
+        ),
+        _string(
+            "context-source-trial-vector-rule",
+            "identity-in-proposed-source-column-space-v1",
+        ),
+        _integer(
+            "context-source-trial-vector-count",
+            evidence.source_selection.shape[1],
+        ),
+    ]
+    parameters.extend(
+        _integer(f"context-response-torus-denominator-{index:03d}", value)
+        for index, value in enumerate(evidence.response_torus_denominators)
+    )
+    parameters.extend(
+        _indexed_tuple_parameters(
+            "context-response-reciprocal-index",
+            evidence.response_reciprocal_indices,
+        )
+    )
+    parameters.extend(
+        _indexed_tuple_parameters(
+            "context-source-readout-bridge-reciprocal-index",
+            evidence.source_readout_bridge_reciprocal_indices,
+        )
+    )
+    parameters.extend(
+        _integer(f"context-source-readout-bridge-step-{index:03d}", value)
+        for index, value in enumerate(evidence.source_readout_bridge_steps)
+    )
+    parameters.extend(
+        _integer(f"context-reference-reciprocal-index-{index:03d}", value)
+        for index, value in enumerate(evidence.reference_reciprocal_index)
+    )
+    for index, band in enumerate(evidence.preregistered_phase_bands):
+        parameters.extend(
+            (
+                _fp64(f"context-preregistered-phase-band-{index:03d}-lower", band[0]),
+                _fp64(f"context-preregistered-phase-band-{index:03d}-upper", band[1]),
+            )
+        )
+    has_geometry = evidence.geometry_operation_dag_sha is not None
+    parameters.append(_integer("context-geometry-present", int(has_geometry)))
+    if has_geometry:
+        assert evidence.geometry_bundle_derivation_id is not None
+        assert evidence.geometry_operation_dag_sha is not None
+        assert evidence.geometry_observer_collapse_expected is not None
+        parameters.extend(
+            (
+                _string(
+                    "context-geometry-bundle-derivation-id",
+                    evidence.geometry_bundle_derivation_id,
+                ),
+                _string(
+                    "context-geometry-operation-dag-sha",
+                    evidence.geometry_operation_dag_sha,
+                ),
+                _integer(
+                    "context-geometry-semantic-sector-count",
+                    len(evidence.geometry_semantic_sector_names),
+                ),
+                _integer(
+                    "context-geometry-observer-collapse-expected",
+                    int(evidence.geometry_observer_collapse_expected),
+                ),
+                _integer(
+                    "context-geometry-coverage-control-present",
+                    int(evidence.geometry_coverage_control is not None),
+                ),
+                _integer(
+                    "context-geometry-gauge-amplitude-present",
+                    int(evidence.geometry_gauge_amplitude is not None),
+                ),
+            )
+        )
+        parameters.extend(
+            _string(f"context-geometry-semantic-sector-{index:03d}", value)
+            for index, value in enumerate(evidence.geometry_semantic_sector_names)
+        )
+        if evidence.geometry_coverage_control is not None:
+            parameters.append(
+                _fp64(
+                    "context-geometry-coverage-control",
+                    evidence.geometry_coverage_control,
+                )
+            )
+        if evidence.geometry_gauge_amplitude is not None:
+            parameters.append(
+                _fp64(
+                    "context-geometry-gauge-amplitude",
+                    evidence.geometry_gauge_amplitude,
+                )
+            )
+    return tuple(parameters)
+
+
+def _live_step_parameters(
+    steps: tuple[object, ...],
+) -> tuple[CandidateDAGParameter, ...]:
+    parameters: list[CandidateDAGParameter] = [
+        _integer("live-step-count", len(steps))
+    ]
+    for index, step in enumerate(steps):
+        prefix = f"live-step-{index:03d}"
+        parameters.extend(
+            (
+                _string(f"{prefix}-id", step.step_id),
+                _string(f"{prefix}-source-channel", step.source_channel),
+                _string(f"{prefix}-destination-channel", step.destination_channel),
+                _integer(f"{prefix}-offset", step.offset[0]),
+                _fp64(f"{prefix}-coefficient", step.coefficient),
+                _integer(
+                    f"{prefix}-target-conditioned",
+                    int(step.target_conditioned),
+                ),
+            )
+        )
+    return tuple(parameters)
+
+
+def _generic_live_recipe_operations(
+    evidence: _LiveConstructionEvidence,
+) -> tuple[CandidateDAGOperation, ...]:
+    scenario_id = evidence.scenario_id
+    transition_id = f"{scenario_id}.00-local-transition"
+    selector_id = f"{scenario_id}.01-closed-form-selector"
+    contract_id = f"{scenario_id}.02-analytic-contract"
+    transition_parameters = _common_transition_parameters(
+        "closed-live-recipe-shear-program-v1",
+        support_radius=evidence.primitive_support_radius,
+    )
+    transition_parameters.extend(_live_step_parameters(evidence.actual_steps))
+    transition = _operation(
+        transition_id,
+        "local-transition-recipe-v1",
+        (),
+        tuple(transition_parameters),
+    )
+    selector = _operation(
+        selector_id,
+        "closed-form-selector-v1",
+        (),
+        _selector_parameters(
+            evidence.based_on_candidate_selector_sha,
+            source=evidence.source_selection,
+            readout=evidence.readout_selection,
+            actual_sector_columns=evidence.actual_sector_source_columns,
+            source_domain="candidate-v1-exact-selector-v1",
+            selector_disposition="requires-parent-selector-refreeze-v1",
+            selector_derivation_id="candidate-v1-selector-closed-replay-v1",
+        ),
+    )
+    source_count = evidence.source_selection.shape[1]
+    sector_count = len(evidence.actual_sector_source_columns)
+    contract = _operation(
+        contract_id,
+        "analytic-causal-contract-v1",
+        (transition_id, selector_id),
+        (
+            *_analytic_contract_parameters(
+                contract_family="live-recipe-construction-contract-v1",
+                candidate_expected_actual_rank=evidence.expected_actual_shell_rank,
+                expected_actual_rank=evidence.expected_actual_shell_rank,
+                expected_matched_rank=evidence.expected_matched_shell_rank,
+                expected_matched_actual_sector_rank=min(
+                    evidence.expected_matched_shell_rank,
+                    sector_count,
+                ),
+                expected_matched_full_source_rank=min(
+                    evidence.expected_matched_shell_rank,
+                    source_count,
+                ),
+                survival=(),
+                chi_extra=None,
+                d_proc_state="undefined-v1",
+                d_proc_sq=None,
+                rank_disposition="live-recipe-rank-closure-v1",
+            ),
+            *_construction_context_parameters(evidence),
+        ),
+    )
+    return transition, selector, contract
+
+
+def _attach_construction_context(
+    operations: tuple[CandidateDAGOperation, ...],
+    evidence: _LiveConstructionEvidence,
+) -> tuple[CandidateDAGOperation, ...]:
+    contract = operations[-1]
+    enriched = _operation(
+        contract.operation_id,
+        contract.operation_kind,
+        contract.input_operation_ids,
+        (*contract.parameters, *_construction_context_parameters(evidence)),
+    )
+    return (*operations[:-1], enriched)
 
 
 def _interference_operations(
@@ -1105,8 +2003,13 @@ def _scenario_operations(
     scenario_id: str,
     based_on_candidate_selector_sha: str,
 ) -> tuple[CandidateDAGOperation, ...]:
-    if scenario_id == CANDIDATE_DAG_SCENARIO_IDS[0]:
-        return _interference_operations(
+    evidence = _live_construction_evidence(
+        scenario_id,
+        based_on_candidate_selector_sha,
+    )
+    operations: Optional[tuple[CandidateDAGOperation, ...]] = None
+    if scenario_id == _REVIEWED_PREFLIGHT_SCENARIO_IDS[0]:
+        operations = _interference_operations(
             scenario_id,
             based_on_candidate_selector_sha,
             family="c07-constructive-complementary-rotation-v1",
@@ -1126,8 +2029,8 @@ def _scenario_operations(
             d_proc_sq=0.0,
             rank_disposition="candidate-rank-unchanged-v1",
         )
-    if scenario_id == CANDIDATE_DAG_SCENARIO_IDS[1]:
-        return _interference_operations(
+    elif scenario_id == _REVIEWED_PREFLIGHT_SCENARIO_IDS[1]:
+        operations = _interference_operations(
             scenario_id,
             based_on_candidate_selector_sha,
             family="c07-destructive-swap-conjugation-v1",
@@ -1151,8 +2054,8 @@ def _scenario_operations(
             d_proc_sq=1.0,
             rank_disposition="candidate-rank-unchanged-v1",
         )
-    if scenario_id == CANDIDATE_DAG_SCENARIO_IDS[2]:
-        return _interference_operations(
+    elif scenario_id == _REVIEWED_PREFLIGHT_SCENARIO_IDS[2]:
+        operations = _interference_operations(
             scenario_id,
             based_on_candidate_selector_sha,
             family="c08-conditioned-mode1-deletion-v1",
@@ -1176,8 +2079,8 @@ def _scenario_operations(
             d_proc_sq=0.5,
             rank_disposition="requires-parent-rank-refreeze-1-to-2-v1",
         )
-    if scenario_id == CANDIDATE_DAG_SCENARIO_IDS[3]:
-        return _interference_operations(
+    elif scenario_id == _REVIEWED_PREFLIGHT_SCENARIO_IDS[3]:
+        operations = _interference_operations(
             scenario_id,
             based_on_candidate_selector_sha,
             family="c10-extra-mode-swap-conjugation-v1",
@@ -1201,12 +2104,14 @@ def _scenario_operations(
             d_proc_sq=None,
             rank_disposition="candidate-rank-unchanged-v1",
         )
-    if scenario_id == CANDIDATE_DAG_SCENARIO_IDS[4]:
-        return _c12_operations(
+    elif scenario_id == _REVIEWED_PREFLIGHT_SCENARIO_IDS[4]:
+        operations = _c12_operations(
             scenario_id,
             based_on_candidate_selector_sha,
         )
-    raise ValueError("candidate scenario DAG builder is not installed")
+    if operations is not None:
+        return _attach_construction_context(operations, evidence)
+    return _generic_live_recipe_operations(evidence)
 
 
 def _build_candidate_scenario_dag(
@@ -1250,7 +2155,7 @@ def build_candidate_scenario_dag(
 def build_all_candidate_scenario_dags(
     selector_bindings: tuple[tuple[str, str], ...],
 ) -> tuple[CandidateScenarioDAG, ...]:
-    """Build the exact five-scenario registry in canonical order."""
+    """Build the exact nineteen-success-scenario registry in canonical order."""
 
     if (
         type(selector_bindings) is not tuple
@@ -1936,6 +2841,29 @@ def _compile_transition(
             *blind,
             *conditioned,
         )
+    elif family == "closed-live-recipe-shear-program-v1":
+        count = reader.integer("live-step-count")
+        if count <= 0:
+            raise ValueError("live recipe transition has no shear steps")
+        signatures: list[CandidateShearStepSignature] = []
+        for index in range(count):
+            prefix = f"live-step-{index:03d}"
+            conditioned = reader.integer(f"{prefix}-target-conditioned")
+            if conditioned not in (0, 1):
+                raise ValueError("live recipe conditioned flag is not Boolean")
+            signatures.append(
+                _signature(
+                    reader.text(f"{prefix}-id"),
+                    reader.text(f"{prefix}-source-channel"),
+                    reader.text(f"{prefix}-destination-channel"),
+                    reader.fp64(f"{prefix}-coefficient"),
+                    offset=reader.integer(f"{prefix}-offset"),
+                    target_conditioned=bool(conditioned),
+                )
+            )
+        actual = tuple(signatures)
+        if max(abs(step.offset[0]) for step in actual) > support:
+            raise ValueError("live recipe transition exceeds declared support")
     else:
         raise ValueError("candidate transition family is not registered")
     if global_fft or per_k:
@@ -1952,7 +2880,7 @@ def _compile_analytic_core(
     int,
     int,
     tuple[float, ...],
-    float,
+    Optional[float],
     Literal["defined-v1", "undefined-v1"],
     Optional[float],
 ]:
@@ -1974,7 +2902,13 @@ def _compile_analytic_core(
         reader.fp64(f"expected-survival-{index:03d}")
         for index in range(survival_count)
     )
-    chi_extra = reader.fp64("expected-chi-extra")
+    chi_state = reader.text("expected-chi-extra-state")
+    if chi_state == "defined-v1":
+        chi_extra: Optional[float] = reader.fp64("expected-chi-extra")
+    elif chi_state == "not-frozen-v1":
+        chi_extra = None
+    else:
+        raise ValueError("candidate chi-extra state is not frozen")
     state = reader.text("expected-d-proc-state")
     if state == "defined-v1":
         d_proc: Optional[float] = reader.fp64("expected-d-proc-sq")
@@ -1993,7 +2927,9 @@ def _compile_analytic_core(
         raise ValueError("candidate analytic ranks must be nonnegative integers")
     if any(not math.isfinite(value) or value < 0.0 for value in survival):
         raise ValueError("candidate survival spectrum is not nonnegative")
-    if not math.isfinite(chi_extra) or chi_extra < 0.0:
+    if chi_extra is not None and (
+        not math.isfinite(chi_extra) or chi_extra < 0.0
+    ):
         raise ValueError("candidate chi-extra is not nonnegative")
     return (
         expected_actual_rank,
@@ -2060,6 +2996,189 @@ def _incidence_point(
     )
 
 
+def _read_indexed_tuples(
+    reader: _Reader,
+    prefix: str,
+) -> tuple[tuple[int, ...], ...]:
+    count = reader.integer(f"{prefix}-count")
+    if count < 0:
+        raise ValueError(f"{prefix} count is negative")
+    result: list[tuple[int, ...]] = []
+    for index in range(count):
+        dimension = reader.integer(f"{prefix}-{index:03d}-dimension")
+        if dimension <= 0:
+            raise ValueError(f"{prefix} dimension is not positive")
+        result.append(
+            tuple(
+                reader.integer(f"{prefix}-{index:03d}-{axis:03d}")
+                for axis in range(dimension)
+            )
+        )
+    return tuple(result)
+
+
+@dataclass(frozen=True)
+class _CompiledConstructionContext:
+    construction_evidence_kind: str
+    construction_rule_id: str
+    construction_family_id: str
+    construction_recipe_sha: str
+    construction_operation_dag_sha: str
+    recipe_source_injection_sha: str
+    recipe_readout_sha: str
+    actual_effect_digest: str
+    matched_ablated_effect_digest: str
+    response_torus_denominators: tuple[int, ...]
+    response_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_steps: tuple[int, ...]
+    reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
+    source_trial_count: int
+    geometry_bundle_derivation_id: Optional[str]
+    geometry_operation_dag_sha: Optional[str]
+    geometry_semantic_sector_names: tuple[str, ...]
+    geometry_coverage_control: Optional[float]
+    geometry_gauge_amplitude: Optional[float]
+    geometry_observer_collapse_expected: Optional[bool]
+
+
+def _compile_construction_context(
+    reader: _Reader,
+) -> _CompiledConstructionContext:
+    evidence_kind = reader.text("context-construction-evidence-kind")
+    rule_id = reader.text("context-construction-rule-id")
+    family_id = reader.text("context-construction-family-id")
+    recipe_sha = reader.text("context-construction-recipe-sha")
+    operation_dag_sha = reader.text("context-construction-operation-dag-sha")
+    recipe_source_sha = reader.text("context-recipe-source-injection-sha")
+    recipe_readout_sha = reader.text("context-recipe-readout-sha")
+    actual_effect = reader.text("context-actual-effect-digest")
+    matched_effect = reader.text("context-matched-ablated-effect-digest")
+    for value, field in (
+        (recipe_sha, "construction recipe"),
+        (operation_dag_sha, "construction operation DAG"),
+        (recipe_source_sha, "recipe source injection"),
+        (recipe_readout_sha, "recipe readout"),
+        (actual_effect, "actual effect"),
+        (matched_effect, "matched effect"),
+    ):
+        _sha(value, field)
+    denominator_count = reader.integer("context-response-torus-denominator-count")
+    denominators = tuple(
+        reader.integer(f"context-response-torus-denominator-{index:03d}")
+        for index in range(denominator_count)
+    )
+    response_indices = _read_indexed_tuples(
+        reader,
+        "context-response-reciprocal-index",
+    )
+    bridge_indices = _read_indexed_tuples(
+        reader,
+        "context-source-readout-bridge-reciprocal-index",
+    )
+    bridge_step_count = reader.integer("context-source-readout-bridge-step-count")
+    bridge_steps = tuple(
+        reader.integer(f"context-source-readout-bridge-step-{index:03d}")
+        for index in range(bridge_step_count)
+    )
+    reference_dimension = reader.integer(
+        "context-reference-reciprocal-index-dimension"
+    )
+    reference_index = tuple(
+        reader.integer(f"context-reference-reciprocal-index-{index:03d}")
+        for index in range(reference_dimension)
+    )
+    band_count = reader.integer("context-preregistered-phase-band-count")
+    bands = tuple(
+        (
+            reader.fp64(f"context-preregistered-phase-band-{index:03d}-lower"),
+            reader.fp64(f"context-preregistered-phase-band-{index:03d}-upper"),
+        )
+        for index in range(band_count)
+    )
+    if (
+        reader.text("context-source-trial-vector-rule")
+        != "identity-in-proposed-source-column-space-v1"
+    ):
+        raise ValueError("candidate source trial rule is not frozen")
+    source_trial_count = reader.integer("context-source-trial-vector-count")
+    if (
+        not denominators
+        or any(value <= 0 for value in denominators)
+        or not response_indices
+        or not bridge_indices
+        or any(value <= 0 for value in bridge_steps)
+        or not reference_index
+        or not bands
+        or any(lower >= upper for lower, upper in bands)
+        or source_trial_count <= 0
+    ):
+        raise ValueError("candidate response context is incomplete")
+
+    geometry_present = reader.integer("context-geometry-present")
+    if geometry_present not in (0, 1):
+        raise ValueError("geometry presence wire is not Boolean")
+    geometry_bundle: Optional[str] = None
+    geometry_dag: Optional[str] = None
+    geometry_sectors: tuple[str, ...] = ()
+    coverage: Optional[float] = None
+    gauge: Optional[float] = None
+    observer: Optional[bool] = None
+    if geometry_present:
+        geometry_bundle = reader.text("context-geometry-bundle-derivation-id")
+        geometry_dag = reader.text("context-geometry-operation-dag-sha")
+        _sha(geometry_dag, "geometry operation DAG")
+        sector_count = reader.integer("context-geometry-semantic-sector-count")
+        geometry_sectors = tuple(
+            reader.text(f"context-geometry-semantic-sector-{index:03d}")
+            for index in range(sector_count)
+        )
+        observer_wire = reader.integer(
+            "context-geometry-observer-collapse-expected"
+        )
+        coverage_present = reader.integer(
+            "context-geometry-coverage-control-present"
+        )
+        gauge_present = reader.integer("context-geometry-gauge-amplitude-present")
+        if (
+            not geometry_sectors
+            or observer_wire not in (0, 1)
+            or coverage_present not in (0, 1)
+            or gauge_present not in (0, 1)
+        ):
+            raise ValueError("geometry construction context is incomplete")
+        observer = bool(observer_wire)
+        if coverage_present:
+            coverage = reader.fp64("context-geometry-coverage-control")
+        if gauge_present:
+            gauge = reader.fp64("context-geometry-gauge-amplitude")
+    return _CompiledConstructionContext(
+        construction_evidence_kind=evidence_kind,
+        construction_rule_id=rule_id,
+        construction_family_id=family_id,
+        construction_recipe_sha=recipe_sha,
+        construction_operation_dag_sha=operation_dag_sha,
+        recipe_source_injection_sha=recipe_source_sha,
+        recipe_readout_sha=recipe_readout_sha,
+        actual_effect_digest=actual_effect,
+        matched_ablated_effect_digest=matched_effect,
+        response_torus_denominators=denominators,
+        response_reciprocal_indices=response_indices,
+        source_readout_bridge_reciprocal_indices=bridge_indices,
+        source_readout_bridge_steps=bridge_steps,
+        reference_reciprocal_index=reference_index,
+        preregistered_phase_bands=bands,
+        source_trial_count=source_trial_count,
+        geometry_bundle_derivation_id=geometry_bundle,
+        geometry_operation_dag_sha=geometry_dag,
+        geometry_semantic_sector_names=geometry_sectors,
+        geometry_coverage_control=coverage,
+        geometry_gauge_amplitude=gauge,
+        geometry_observer_collapse_expected=observer,
+    )
+
+
 def _compile_contract(
     dag: CandidateScenarioDAG,
 ) -> CompiledCandidateScenarioContract:
@@ -2089,6 +3208,9 @@ def _compile_contract(
         d_proc_state,
         d_proc,
     ) = _compile_analytic_core(contract_reader)
+    context = _compile_construction_context(contract_reader)
+    if context.source_trial_count != source.shape[1]:
+        raise ValueError("source trial dimension differs from proposed selector")
 
     incidence_family: Optional[str] = None
     incidence_normalizer: Optional[str] = None
@@ -2098,7 +3220,7 @@ def _compile_contract(
     ir_limit_order: Optional[int] = None
     ir_limit_formula: Optional[str] = None
     response_denominator: Optional[int] = None
-    response_indices: tuple[tuple[int, ...], ...] = ()
+    incidence_response_indices: tuple[tuple[int, ...], ...] = ()
     absolute_signal_ref: Optional[str] = None
     raw_bridge_ref: Optional[str] = None
     raw_noise_ref: Optional[str] = None
@@ -2170,9 +3292,14 @@ def _compile_contract(
             _incidence_point(contract_reader, index, response_denominator)
             for index in range(response_count)
         )
-        response_indices = tuple(
+        incidence_response_indices = tuple(
             point.reciprocal_index for point in incidence_points
         )
+        if (
+            context.response_torus_denominators != (response_denominator,)
+            or context.response_reciprocal_indices != incidence_response_indices
+        ):
+            raise ValueError("incidence response grid differs from scenario context")
     contract_names = contract_reader.finish()
 
     provisional = CompiledCandidateScenarioContract(
@@ -2204,6 +3331,41 @@ def _compile_contract(
             "matched_ablated",
             matched_steps,
         ),
+        construction_evidence_kind=context.construction_evidence_kind,
+        construction_rule_id=context.construction_rule_id,
+        construction_family_id=context.construction_family_id,
+        construction_recipe_sha=context.construction_recipe_sha,
+        construction_operation_dag_sha=(
+            context.construction_operation_dag_sha
+        ),
+        recipe_source_injection_sha=context.recipe_source_injection_sha,
+        recipe_readout_sha=context.recipe_readout_sha,
+        actual_effect_digest=context.actual_effect_digest,
+        matched_ablated_effect_digest=(
+            context.matched_ablated_effect_digest
+        ),
+        response_torus_denominators=context.response_torus_denominators,
+        source_readout_bridge_reciprocal_indices=(
+            context.source_readout_bridge_reciprocal_indices
+        ),
+        source_readout_bridge_steps=context.source_readout_bridge_steps,
+        reference_reciprocal_index=context.reference_reciprocal_index,
+        preregistered_phase_bands=context.preregistered_phase_bands,
+        source_trial_vectors=freeze_complex_tensor(
+            np.eye(context.source_trial_count, dtype=np.complex128)
+        ),
+        geometry_bundle_derivation_id=(
+            context.geometry_bundle_derivation_id
+        ),
+        geometry_operation_dag_sha=context.geometry_operation_dag_sha,
+        geometry_semantic_sector_names=(
+            context.geometry_semantic_sector_names
+        ),
+        geometry_coverage_control=context.geometry_coverage_control,
+        geometry_gauge_amplitude=context.geometry_gauge_amplitude,
+        geometry_observer_collapse_expected=(
+            context.geometry_observer_collapse_expected
+        ),
         incidence_family_id=incidence_family,
         incidence_normalizer_formula_id=incidence_normalizer,
         incidence_application_stage=incidence_stage,
@@ -2212,7 +3374,7 @@ def _compile_contract(
         ir_limit_order=ir_limit_order,
         ir_limit_formula_id=ir_limit_formula,
         response_torus_denominator=response_denominator,
-        response_reciprocal_indices=response_indices,
+        response_reciprocal_indices=context.response_reciprocal_indices,
         absolute_signal_threshold_authority_ref=absolute_signal_ref,
         raw_bridge_noise_evidence_ref=raw_bridge_ref,
         raw_noise_absolute_threshold_authority_ref=raw_noise_ref,
@@ -2270,6 +3432,7 @@ def verify_compiled_candidate_scenario_contract(
     for tensor in (
         contract.proposed_source_selection,
         contract.proposed_readout_selection,
+        contract.source_trial_vectors,
     ):
         _exact_record(tensor, FrozenComplexTensor, "compiled candidate tensor")
         verify_frozen_tensor(tensor)
