@@ -1699,7 +1699,6 @@ def build_application_recipe_trace_and_operators(
     zero = (0,) * interface.spatial_ndim
     primitive_specs: list[PrimitiveSpec] = []
     operators: list[PrimitiveOperatorWire] = []
-    previous: Optional[str] = None
     for index, step in enumerate(verified.actual_steps):
         mechanism_id = f"{verified.scenario_id}.shear.{index:03d}"
         production_id = (
@@ -1710,7 +1709,7 @@ def build_application_recipe_trace_and_operators(
             PrimitiveSpec(
                 mechanism_id=mechanism_id,
                 production_id=production_id,
-                depends_on=() if previous is None else (previous,),
+                depends_on=(),
                 support_offsets=tuple(sorted({zero, step.offset})),
                 state_channels=tuple(
                     sorted((step.source_channel, step.destination_channel))
@@ -1744,7 +1743,6 @@ def build_application_recipe_trace_and_operators(
                 coefficient_wire=(step.coefficient, 0.0),
             )
         )
-        previous = mechanism_id
     trace = build_construction_trace(
         target_spec_id=target_id,
         provenance_nodes=tuple(provenance),

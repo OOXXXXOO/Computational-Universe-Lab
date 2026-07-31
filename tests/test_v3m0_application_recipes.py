@@ -7,10 +7,14 @@ import unittest
 
 import numpy as np
 
+from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.factory import (
     PrimitiveInterface,
     PrimitiveOperatorWire,
+    apply_factory_step,
+    build_basis_manifest,
+    build_factory_from_trace,
     frozen_tensor_array,
 )
 from rulespace_v3.parent_freeze import (
@@ -36,6 +40,8 @@ from rulespace_v3.application_recipes import (
     verify_application_recipe,
 )
 from rulespace_v3.response import compute_fejer_filtered_response
+from rulespace_v3.trace import MechanismKind
+from tests.test_v3m0_window_thresholds import _window_controls
 
 
 C05_TEMPLATE_SCENARIOS = (
@@ -133,6 +139,60 @@ def _apply_steps_on_plane_wave(
     return state[:, 0]
 
 
+def _build_executable_recipe_pair(
+    parent,
+    recipe: ApplicationRecipeArtifact,
+    target,
+    *,
+    length: int,
+):
+    interface = PrimitiveInterface(
+        interface_id=f"interface.test.{recipe.control_case_id}.{length}.v1",
+        state_schema_id=recipe.state_schema_id,
+        spatial_ndim=recipe.spatial_ndim,
+        channel_order=recipe.channel_order,
+        dtype="complex128",
+        backend="numpy",
+    )
+    trace, operators = build_application_recipe_trace_and_operators(
+        parent,
+        recipe,
+        target_spec_id=target.target_spec_id,
+        interface=interface,
+    )
+    identity = np.eye(len(recipe.channel_order), dtype=np.complex128)
+    source = build_basis_manifest(
+        role="source",
+        state_schema_id=interface.state_schema_id,
+        channel_order=interface.channel_order,
+        vectors=identity,
+    )
+    readout = build_basis_manifest(
+        role="readout",
+        state_schema_id=interface.state_schema_id,
+        channel_order=interface.channel_order,
+        vectors=identity,
+    )
+    actual = build_factory_from_trace(
+        trace,
+        target,
+        factory_id=f"factory.test.{recipe.control_case_id}.{length}.v1",
+        interface=interface,
+        state_shape=(len(recipe.channel_order), length),
+        dt=0.25,
+        target_blind_parameters=(("application-recipe-test", 1.0),),
+        layer_slot_ids=tuple(item.layer_slot_id for item in operators),
+        operator_payload=operators,
+        source_manifest_id=source.manifest_id,
+        readout_basis=readout,
+        boundary_manifest_id="periodic-v1",
+    )
+    outcome = matched_ablation(actual)
+    if not outcome.status.defined or outcome.pair is None:
+        raise AssertionError(f"matched ablation failed: {outcome.status.reason}")
+    return trace, outcome.pair
+
+
 def _exact_shell_stack(
     recipe: ApplicationRecipeArtifact,
     branch: str,
@@ -223,6 +283,7 @@ class ApplicationRecipeRegistryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.parent = issue_v3m0_parent_freeze()
+        cls.target = _window_controls()[0].target
         cls.templates = {
             scenario_id: build_c05_fejer_recipe_template(
                 cls.parent,
@@ -335,6 +396,98 @@ class ApplicationRecipeRegistryTests(unittest.TestCase):
                     tuple(item.offset for item in operators),
                     tuple(item.offset for item in recipe.actual_steps),
                 )
+
+    def test_trace_taint_and_matched_ablation_preserve_blind_right_factors(
+        self,
+    ) -> None:
+        vector = np.asarray(
+            (1.0 + 0.25j, -0.5 + 0.1j, 0.2 - 0.7j, 0.9 + 0.3j),
+            dtype=np.complex128,
+        )
+        for scenario_id, recipe in self.recipes.items():
+            for length, modes in ((8, (1, 2)), (12, (1, 3))):
+                with self.subTest(
+                    scenario_id=scenario_id,
+                    length=length,
+                ):
+                    trace, pair = _build_executable_recipe_pair(
+                        self.parent,
+                        recipe,
+                        self.target,
+                        length=length,
+                    )
+                    conditioned_count = sum(
+                        step.target_conditioned for step in recipe.actual_steps
+                    )
+                    self.assertEqual(
+                        len(pair.manifest.replacements),
+                        conditioned_count,
+                    )
+                    self.assertTrue(
+                        all(item.depends_on == () for item in trace.primitives)
+                    )
+                    self.assertEqual(
+                        tuple(item.kind for item in trace.primitives),
+                        tuple(
+                            (
+                                MechanismKind.TARGET_CONDITIONED
+                                if step.target_conditioned
+                                else MechanismKind.TARGET_BLIND
+                            )
+                            for step in recipe.actual_steps
+                        ),
+                    )
+                    first_conditioned = next(
+                        index
+                        for index, step in enumerate(recipe.actual_steps)
+                        if step.target_conditioned
+                    )
+                    blind_right_factors = tuple(
+                        item.kind
+                        for item, step in zip(
+                            trace.primitives[first_conditioned + 1 :],
+                            recipe.actual_steps[first_conditioned + 1 :],
+                        )
+                        if not step.target_conditioned
+                    )
+                    self.assertTrue(blind_right_factors)
+                    self.assertTrue(
+                        all(
+                            kind is MechanismKind.TARGET_BLIND
+                            for kind in blind_right_factors
+                        )
+                    )
+                    for mode in modes:
+                        momentum = 2.0 * math.pi * mode / length
+                        sites = np.arange(length, dtype=np.float64)
+                        state = (
+                            vector[:, None]
+                            * np.exp(1.0j * momentum * sites)[None, :]
+                        ).astype(np.complex128)
+                        actual = apply_factory_step(pair.actual, state)[:, 0]
+                        ablated = apply_factory_step(pair.ablated, state)[:, 0]
+                        np.testing.assert_allclose(
+                            actual,
+                            application_recipe_symbol(
+                                recipe,
+                                momentum,
+                                "actual",
+                            )
+                            @ vector,
+                            rtol=0.0,
+                            atol=2.0e-12,
+                        )
+                        np.testing.assert_allclose(
+                            ablated,
+                            application_recipe_symbol(
+                                recipe,
+                                momentum,
+                                "matched_ablated",
+                            )
+                            @ vector,
+                            rtol=0.0,
+                            atol=2.0e-12,
+                        )
 
     def test_operation_dags_have_the_frozen_mechanical_effects(self) -> None:
         values = {
