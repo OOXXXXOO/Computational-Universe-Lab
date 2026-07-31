@@ -415,6 +415,7 @@ def _transition_seal(transition: MeasuredTransition) -> str:
 
 def _make_transition_authority() -> tuple[
     Callable[..., VerifiedTransition],
+    Callable[..., VerifiedTransition],
     Callable[[VerifiedTransition], _TransitionAuthority],
 ]:
     live: dict[
@@ -426,16 +427,11 @@ def _make_transition_authority() -> tuple[
     ] = {}
     lock = threading.RLock()
 
-    def issue(
+    def register_measured(
         transition: MeasuredTransition,
         factory: VerifiedFactory,
         prestructure: VerifiedPrestructureAuthority,
     ) -> VerifiedTransition:
-        expected = _remeasure_transition(factory, prestructure)
-        if transition.transition_sha != expected.transition_sha:
-            raise ValueError(
-                "transition does not match real-space impulse remeasurement"
-            )
         seal = _transition_seal(transition)
         authority = _TransitionAuthority(
             transition=transition,
@@ -459,6 +455,18 @@ def _make_transition_authority() -> tuple[
         with lock:
             live[identity] = (reference, authority)
         return wrapper
+
+    def issue(
+        transition: MeasuredTransition,
+        factory: VerifiedFactory,
+        prestructure: VerifiedPrestructureAuthority,
+    ) -> VerifiedTransition:
+        expected = _remeasure_transition(factory, prestructure)
+        if transition.transition_sha != expected.transition_sha:
+            raise ValueError(
+                "transition does not match real-space impulse remeasurement"
+            )
+        return register_measured(transition, factory, prestructure)
 
     def reverify(wrapper: VerifiedTransition) -> _TransitionAuthority:
         if type(wrapper) is not VerifiedTransition:
@@ -503,11 +511,12 @@ def _make_transition_authority() -> tuple[
             raise ValueError("VerifiedTransition immutable seal mismatch")
         return authority
 
-    return issue, reverify
+    return issue, register_measured, reverify
 
 
 (
     _issue_verified_transition,
+    _register_measured_transition,
     _reverify_verified_transition,
 ) = _make_transition_authority()
 
@@ -519,7 +528,7 @@ def measure_transition(
     """Measure the one-step square transition from canonical impulses."""
 
     transition = _remeasure_transition(factory, authority)
-    return _issue_verified_transition(transition, factory, authority)
+    return _register_measured_transition(transition, factory, authority)
 
 
 def verify_measured_transition(
@@ -551,7 +560,7 @@ def verify_measured_transition(
         raise ValueError(
             "raw transition does not match executor remeasurement"
         )
-    return _issue_verified_transition(transition, factory, authority)
+    return _register_measured_transition(transition, factory, authority)
 
 
 def transition_kernel_array(

@@ -1383,10 +1383,52 @@ def _primitive_sequence_support(
     primitives: Sequence[Primitive],
     ndim: int,
 ) -> tuple[tuple[int, ...], ...]:
-    support: tuple[tuple[int, ...], ...] = ((0,) * ndim,)
+    """Return a channel-aware structural support enclosure.
+
+    A global Minkowski sum treats independent row shears as if every stencil
+    composed with every later stencil.  That can grow with primitive count
+    even when the executed matrix Laurent polynomial has fixed radius.  Track
+    source-channel lineage instead; this remains conservative (it does not
+    cancel coefficients) while respecting which rows actually feed a shear.
+    """
+
+    zero = (0,) * ndim
+    channels = tuple(
+        dict.fromkeys(
+            channel
+            for primitive in primitives
+            for channel in (
+                primitive.source_channel,
+                primitive.destination_channel,
+            )
+        )
+    )
+    lineage: dict[str, set[tuple[str, tuple[int, ...]]]] = {
+        channel: {(channel, zero)} for channel in channels
+    }
     for primitive in primitives:
-        support = _minkowski(support, primitive.support_offsets)
-    return support
+        if primitive.operation_id == _NEUTRAL_OPERATION:
+            continue
+        source = lineage[primitive.source_channel]
+        destination = lineage[primitive.destination_channel]
+        shifted = {
+            (
+                origin_channel,
+                tuple(
+                    coordinate + delta
+                    for coordinate, delta in zip(offset, primitive.offset)
+                ),
+            )
+            for origin_channel, offset in source
+        }
+        destination.update(shifted)
+        if sum(len(entries) for entries in lineage.values()) > (
+            FACTORY_SUPPORT_MAX_CARDINALITY
+        ):
+            raise ValueError("support cardinality limit exceeded")
+    return tuple(
+        sorted({offset for entries in lineage.values() for _, offset in entries})
+    )
 
 
 def _assert_no_wrap(

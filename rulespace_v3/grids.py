@@ -6,6 +6,7 @@ import itertools
 import math
 import re
 from dataclasses import dataclass, replace
+from enum import Enum
 from types import FunctionType
 from typing import Literal
 
@@ -275,6 +276,8 @@ def _preflight_general_evidence_value(
     _ord=ord,
     _id=id,
     _hasattr=hasattr,
+    _isinstance=isinstance,
+    _enum_type=Enum,
     _vars=vars,
     _isfinite=math.isfinite,
     _stop_iteration=StopIteration,
@@ -335,6 +338,12 @@ def _preflight_general_evidence_value(
         item_type = _type(item)
         if item is None:
             charge(4)
+        elif _isinstance(item, _enum_type):
+            if _len(stack) >= max_depth:
+                raise _value_error(
+                    f"{field} nesting exceeds resource cap"
+                )
+            stack.append((_iter((item.value,)), None))
         elif item_type is _bool_type:
             charge(5)
         elif item_type is _str_type:

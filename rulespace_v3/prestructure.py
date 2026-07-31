@@ -35,10 +35,12 @@ from .factory import (
     frozen_tensor_payload,
 )
 from .parent_freeze import (
+    ApplicationScenarioExecutionSpec,
     ParentFreezeManifest,
     V3M0SyntheticControlApplicationSpec,
     VerifiedParentFreeze,
     _reverify_verified_parent_freeze,
+    application_scenario_execution_spec_payload,
     parent_freeze_manifest_payload,
     synthetic_control_application_spec_payload,
     verify_synthetic_control_application_spec,
@@ -227,7 +229,9 @@ class PrestructureAuthority:
     synthetic_registry_entry_sha: Optional[str]
     synthetic_preregistration: Optional[SyntheticStructurePreregistration]
     synthetic_application_spec: Optional[V3M0SyntheticControlApplicationSpec]
+    synthetic_application_scenario_spec: Optional[ApplicationScenarioExecutionSpec]
     synthetic_application_permit_sha: Optional[str]
+    synthetic_scenario_construction_sha: Optional[str]
     adapter_preregistration: Optional[object]
     authority_sha: str
 
@@ -272,6 +276,8 @@ class PrestructureAuthority:
             if (
                 self.synthetic_application_permit_sha is not None
                 or self.synthetic_application_spec is not None
+                or self.synthetic_application_scenario_spec is not None
+                or self.synthetic_scenario_construction_sha is not None
                 or self.adapter_preregistration is not None
             ):
                 raise ValueError("synthetic registry authority is branch-mixed")
@@ -288,6 +294,17 @@ class PrestructureAuthority:
             _sha(
                 self.synthetic_application_permit_sha,
                 "synthetic_application_permit_sha",
+            )
+            if (
+                type(self.synthetic_application_scenario_spec)
+                is not ApplicationScenarioExecutionSpec
+            ):
+                raise TypeError("synthetic application scenario body is absent")
+            if self.synthetic_scenario_construction_sha is None:
+                raise ValueError("synthetic scenario construction SHA is absent")
+            _sha(
+                self.synthetic_scenario_construction_sha,
+                "synthetic_scenario_construction_sha",
             )
             if (
                 self.synthetic_registry is not None
@@ -418,8 +435,23 @@ def prestructure_authority_payload(
                 ),
             }
         ),
+        "synthetic_application_scenario_spec": (
+            None
+            if authority.synthetic_application_scenario_spec is None
+            else {
+                **application_scenario_execution_spec_payload(
+                    authority.synthetic_application_scenario_spec
+                ),
+                "scenario_sha": (
+                    authority.synthetic_application_scenario_spec.scenario_sha
+                ),
+            }
+        ),
         "synthetic_application_permit_sha": (
             authority.synthetic_application_permit_sha
+        ),
+        "synthetic_scenario_construction_sha": (
+            authority.synthetic_scenario_construction_sha
         ),
         "adapter_preregistration": None,
     }
@@ -558,7 +590,9 @@ def _expected_authority(
         synthetic_registry_entry_sha=entry.entry_sha,
         synthetic_preregistration=prereg,
         synthetic_application_spec=None,
+        synthetic_application_scenario_spec=None,
         synthetic_application_permit_sha=None,
+        synthetic_scenario_construction_sha=None,
         adapter_preregistration=None,
         authority_sha="0" * 64,
     )
@@ -574,7 +608,9 @@ def _expected_authority(
 def _expected_application_authority(
     parent: VerifiedParentFreeze,
     application_spec: V3M0SyntheticControlApplicationSpec,
+    scenario_spec: ApplicationScenarioExecutionSpec,
     application_permit_sha: str,
+    scenario_construction_sha: str,
     construction: AblationConstructionOutcome,
     factory_role: Literal["actual", "matched_ablated"],
 ) -> tuple[PrestructureAuthority, VerifiedFactory]:
@@ -593,9 +629,26 @@ def _expected_application_authority(
     )
     if len(matches) != 1 or matches[0] != application:
         raise ValueError("application spec is not the unique parent-frozen body")
+    if type(scenario_spec) is not ApplicationScenarioExecutionSpec:
+        raise TypeError(
+            "scenario_spec must be an exact ApplicationScenarioExecutionSpec"
+        )
+    scenario_matches = tuple(
+        item
+        for item in application.scenario_execution_specs
+        if item.scenario_id == scenario_spec.scenario_id
+    )
+    if len(scenario_matches) != 1 or scenario_matches[0] != scenario_spec:
+        raise ValueError("scenario spec is not the unique parent-frozen body")
+    if scenario_spec.execution_lane != "BLOCK_SUCCESS":
+        raise ValueError("role authority requires a BLOCK_SUCCESS scenario")
     permit_sha = _sha(
         application_permit_sha,
         "synthetic_application_permit_sha",
+    )
+    construction_sha = _sha(
+        scenario_construction_sha,
+        "synthetic_scenario_construction_sha",
     )
     if factory_role not in ("actual", "matched_ablated"):
         raise ValueError("factory_role is not frozen")
@@ -635,7 +688,9 @@ def _expected_application_authority(
         synthetic_registry_entry_sha=None,
         synthetic_preregistration=None,
         synthetic_application_spec=application,
+        synthetic_application_scenario_spec=scenario_spec,
         synthetic_application_permit_sha=permit_sha,
+        synthetic_scenario_construction_sha=construction_sha,
         adapter_preregistration=None,
         authority_sha="0" * 64,
     )
@@ -711,7 +766,11 @@ class _VerifiedPrestructureView:
     factory: VerifiedFactory
     control_id: Optional[Literal["full", "zero", "direct_sum"]]
     application_spec: Optional[V3M0SyntheticControlApplicationSpec]
+    application_scenario_spec: Optional[ApplicationScenarioExecutionSpec]
     application_permit_sha: Optional[str]
+    scenario_construction_sha: Optional[str]
+    application_permit: Optional[object]
+    application_construction: Optional[object]
 
 
 @dataclass(frozen=True)
@@ -723,7 +782,11 @@ class _PrestructureAuthorityRecord:
     factory: VerifiedFactory
     control_id: Optional[Literal["full", "zero", "direct_sum"]]
     application_spec: Optional[V3M0SyntheticControlApplicationSpec]
+    application_scenario_spec: Optional[ApplicationScenarioExecutionSpec]
     application_permit_sha: Optional[str]
+    scenario_construction_sha: Optional[str]
+    application_permit: Optional[object]
+    application_construction: Optional[object]
     seal: str
 
 
@@ -777,7 +840,11 @@ def _make_prestructure_authority() -> tuple[
         registry: Optional[VerifiedControlRegistry],
         control_id: Optional[Literal["full", "zero", "direct_sum"]],
         application_spec: Optional[V3M0SyntheticControlApplicationSpec],
+        application_scenario_spec: Optional[ApplicationScenarioExecutionSpec],
         application_permit_sha: Optional[str],
+        scenario_construction_sha: Optional[str],
+        application_permit: Optional[object],
+        application_construction: Optional[object],
     ) -> VerifiedPrestructureAuthority:
         seal = _authority_seal(authority, factory)
         record = _PrestructureAuthorityRecord(
@@ -788,7 +855,11 @@ def _make_prestructure_authority() -> tuple[
             factory=factory,
             control_id=control_id,
             application_spec=application_spec,
+            application_scenario_spec=application_scenario_spec,
             application_permit_sha=application_permit_sha,
+            scenario_construction_sha=scenario_construction_sha,
+            application_permit=application_permit,
+            application_construction=application_construction,
             seal=seal,
         )
         wrapper = VerifiedPrestructureAuthority(
@@ -839,32 +910,64 @@ def _make_prestructure_authority() -> tuple[
             registry=registry,
             control_id=control_id,
             application_spec=None,
+            application_scenario_spec=None,
             application_permit_sha=None,
+            scenario_construction_sha=None,
+            application_permit=None,
+            application_construction=None,
         )
 
     def issue_application(
-        parent: VerifiedParentFreeze,
-        application_spec: V3M0SyntheticControlApplicationSpec,
-        application_permit_sha: str,
-        construction: AblationConstructionOutcome,
+        application_permit: object,
+        application_construction: object,
         role: Literal["actual", "matched_ablated"],
     ) -> VerifiedPrestructureAuthority:
+        # This import is intentionally deferred: prestructure is upstream of
+        # Task 12 at module-import time, while the application-only boundary
+        # must consume Task 12's two live opaque capabilities at runtime.
+        from .calibration_authority import (
+            VerifiedCalibrationApplicationPermit,
+            VerifiedV3M0ScenarioConstruction,
+            _reverify_verified_calibration_application_permit,
+            _reverify_verified_scenario_construction,
+        )
+
+        if type(application_permit) is not VerifiedCalibrationApplicationPermit:
+            raise TypeError("application authority requires a live calibration permit")
+        if type(application_construction) is not VerifiedV3M0ScenarioConstruction:
+            raise TypeError(
+                "application authority requires a live scenario construction"
+            )
+        permit_view = _reverify_verified_calibration_application_permit(
+            application_permit
+        )
+        construction_view = _reverify_verified_scenario_construction(
+            application_construction
+        )
+        if construction_view.permit is not application_permit:
+            raise ValueError("application construction is not bound to the live permit")
         expected, factory = _expected_application_authority(
-            parent,
-            application_spec,
-            application_permit_sha,
-            construction,
+            permit_view.parent,
+            permit_view.permit.application_spec,
+            construction_view.construction.scenario_spec,
+            permit_view.permit.permit_sha,
+            construction_view.construction.construction_sha,
+            construction_view.outcome,
             role,
         )
         return register(
             expected,
-            parent,
-            construction,
+            permit_view.parent,
+            construction_view.outcome,
             factory,
             registry=None,
             control_id=None,
-            application_spec=application_spec,
-            application_permit_sha=application_permit_sha,
+            application_spec=permit_view.permit.application_spec,
+            application_scenario_spec=(construction_view.construction.scenario_spec),
+            application_permit_sha=permit_view.permit.permit_sha,
+            scenario_construction_sha=(construction_view.construction.construction_sha),
+            application_permit=application_permit,
+            application_construction=application_construction,
         )
 
     def reverify(
@@ -913,15 +1016,49 @@ def _make_prestructure_authority() -> tuple[
                 record.authority.factory_role,
             )
         elif record.authority.authority_kind == SYNTHETIC_APPLICATION_AUTHORITY_KIND:
-            if record.application_spec is None or record.application_permit_sha is None:
+            if (
+                record.application_spec is None
+                or record.application_scenario_spec is None
+                or record.application_permit_sha is None
+                or record.scenario_construction_sha is None
+                or record.application_permit is None
+                or record.application_construction is None
+            ):
                 raise ValueError(
                     "application prestructure authority record is incomplete"
                 )
+            from .calibration_authority import (
+                _reverify_verified_calibration_application_permit,
+                _reverify_verified_scenario_construction,
+            )
+
+            permit_view = _reverify_verified_calibration_application_permit(
+                record.application_permit
+            )
+            construction_view = _reverify_verified_scenario_construction(
+                record.application_construction
+            )
+            if (
+                construction_view.permit is not record.application_permit
+                or permit_view.parent is not record.parent
+                or permit_view.permit.application_spec != record.application_spec
+                or construction_view.construction.scenario_spec
+                != record.application_scenario_spec
+                or permit_view.permit.permit_sha != record.application_permit_sha
+                or construction_view.construction.construction_sha
+                != record.scenario_construction_sha
+                or construction_view.outcome is not record.construction
+            ):
+                raise ValueError(
+                    "application permit/construction live binding mismatch"
+                )
             expected, factory = _expected_application_authority(
-                record.parent,
-                record.application_spec,
-                record.application_permit_sha,
-                record.construction,
+                permit_view.parent,
+                permit_view.permit.application_spec,
+                construction_view.construction.scenario_spec,
+                permit_view.permit.permit_sha,
+                construction_view.construction.construction_sha,
+                construction_view.outcome,
                 record.authority.factory_role,
             )
         else:
@@ -944,7 +1081,11 @@ def _make_prestructure_authority() -> tuple[
             factory=record.factory,
             control_id=record.control_id,
             application_spec=record.application_spec,
+            application_scenario_spec=record.application_scenario_spec,
             application_permit_sha=record.application_permit_sha,
+            scenario_construction_sha=record.scenario_construction_sha,
+            application_permit=record.application_permit,
+            application_construction=record.application_construction,
         )
 
     return issue_registry, issue_application, reverify
@@ -976,19 +1117,15 @@ def issue_synthetic_prestructure_authority(
 
 
 def _issue_synthetic_application_prestructure_authority(
-    parent: VerifiedParentFreeze,
-    application_spec: V3M0SyntheticControlApplicationSpec,
-    application_permit_sha: str,
-    construction: AblationConstructionOutcome,
+    application_permit: object,
+    application_construction: object,
     factory_role: Literal["actual", "matched_ablated"],
 ) -> VerifiedPrestructureAuthority:
-    """Internal Task-12-only application authority issuer."""
+    """Issue only from Task 12's live permit and closed construction."""
 
     return _issue_verified_application_prestructure_authority(
-        parent,
-        application_spec,
-        application_permit_sha,
-        construction,
+        application_permit,
+        application_construction,
         factory_role,
     )
 

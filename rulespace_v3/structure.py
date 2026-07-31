@@ -16,12 +16,14 @@ from .factory import (
     FrozenComplexTensor,
     VerifiedFactory,
     _reverify_verified_factory,
+    freeze_complex_tensor,
     frozen_tensor_array,
     frozen_tensor_payload,
 )
 from .prestructure import (
     FOURIER_ADJOINT_CONVENTION_ID,
     REALITY_CONVENTION_ID,
+    SYNTHETIC_APPLICATION_AUTHORITY_KIND,
     SYNTHETIC_EVIDENCE_LANE,
     VerifiedPrestructureAuthority,
     _reverify_verified_prestructure_authority,
@@ -88,9 +90,7 @@ class StructureManifest:
         "minus-k-transpose-v1",
     ]
     structure_form: FrozenComplexTensor
-    reality_convention_id: Optional[
-        Literal["real-kernel-positive-zero-v1"]
-    ]
+    reality_convention_id: Optional[Literal["real-kernel-positive-zero-v1"]]
     prestructure_authority_sha: str
     structure_manifest_sha: str
 
@@ -123,9 +123,7 @@ class StructureManifest:
         ):
             raise ValueError("Fourier adjoint convention is not closed")
         if type(self.structure_form) is not FrozenComplexTensor:
-            raise TypeError(
-                "structure_form must be an exact FrozenComplexTensor"
-            )
+            raise TypeError("structure_form must be an exact FrozenComplexTensor")
         if self.reality_convention_id not in (
             None,
             "real-kernel-positive-zero-v1",
@@ -147,9 +145,7 @@ class RealityCertificate:
     factory_coefficient_count: int
     transition_entry_count: int
     imaginary_bit_pattern_id: Literal["all-positive-zero-f64-v1"]
-    implied_fourier_identity_id: Literal[
-        "m-minus-k-equals-conj-m-k-v1"
-    ]
+    implied_fourier_identity_id: Literal["m-minus-k-equals-conj-m-k-v1"]
     reality_certificate_sha: str
 
     def __post_init__(self) -> None:
@@ -190,14 +186,10 @@ def structure_manifest_payload(
         "canonical_channel_pairs": [
             list(item) for item in manifest.canonical_channel_pairs
         ],
-        "fourier_adjoint_convention_id": (
-            manifest.fourier_adjoint_convention_id
-        ),
+        "fourier_adjoint_convention_id": (manifest.fourier_adjoint_convention_id),
         "structure_form": _tensor_record(manifest.structure_form),
         "reality_convention_id": manifest.reality_convention_id,
-        "prestructure_authority_sha": (
-            manifest.prestructure_authority_sha
-        ),
+        "prestructure_authority_sha": (manifest.prestructure_authority_sha),
     }
 
 
@@ -211,16 +203,10 @@ def reality_certificate_payload(
         "factory_sha": certificate.factory_sha,
         "transition_sha": certificate.transition_sha,
         "structure_manifest_sha": certificate.structure_manifest_sha,
-        "factory_coefficient_count": (
-            certificate.factory_coefficient_count
-        ),
+        "factory_coefficient_count": (certificate.factory_coefficient_count),
         "transition_entry_count": certificate.transition_entry_count,
-        "imaginary_bit_pattern_id": (
-            certificate.imaginary_bit_pattern_id
-        ),
-        "implied_fourier_identity_id": (
-            certificate.implied_fourier_identity_id
-        ),
+        "imaginary_bit_pattern_id": (certificate.imaginary_bit_pattern_id),
+        "implied_fourier_identity_id": (certificate.implied_fourier_identity_id),
     }
 
 
@@ -231,22 +217,15 @@ def _validate_synthetic_structure(
         raise ValueError("synthetic authority cannot change evidence lane")
     if manifest.structure_kind != "symplectic":
         raise ValueError("synthetic classical structure must be symplectic")
-    if (
-        manifest.fourier_adjoint_convention_id
-        != FOURIER_ADJOINT_CONVENTION_ID
-    ):
+    if manifest.fourier_adjoint_convention_id != FOURIER_ADJOINT_CONVENTION_ID:
         raise ValueError("synthetic Fourier adjoint convention mismatch")
     if manifest.reality_convention_id != REALITY_CONVENTION_ID:
         raise ValueError("synthetic reality convention mismatch")
     flattened = tuple(
-        channel
-        for pair in manifest.canonical_channel_pairs
-        for channel in pair
+        channel for pair in manifest.canonical_channel_pairs for channel in pair
     )
     if flattened != manifest.channel_order:
-        raise ValueError(
-            "canonical pairs must cover channel_order exactly once"
-        )
+        raise ValueError("canonical pairs must cover channel_order exactly once")
     omega = frozen_tensor_array(manifest.structure_form)
     state_count = len(manifest.channel_order)
     if omega.shape != (state_count, state_count):
@@ -270,36 +249,73 @@ def _expected_structure(
     if factory is not authority_view.factory:
         raise ValueError("structure factory is not authority-bound")
     prereg = authority_view.authority.synthetic_preregistration
-    if prereg is None:
-        raise ValueError(
-            "this structure slice requires synthetic preregistration"
+    if prereg is not None:
+        evidence_lane = prereg.evidence_lane
+        target_spec_sha = prereg.target_spec_sha
+        state_schema_id = prereg.state_schema_id
+        channel_order = prereg.channel_order
+        canonical_channel_pairs = prereg.canonical_channel_pairs
+        fourier_adjoint_convention_id = prereg.fourier_adjoint_convention_id
+        structure_form = prereg.structure_form
+        reality_convention_id = prereg.reality_convention_id
+        if factory_view.factory.factory_sha != prereg.factory_sha:
+            raise ValueError("factory does not match synthetic preregistration")
+    elif (
+        authority_view.authority.authority_kind == SYNTHETIC_APPLICATION_AUTHORITY_KIND
+    ):
+        application = authority_view.authority.synthetic_application_spec
+        permit_sha = authority_view.authority.synthetic_application_permit_sha
+        if application is None or permit_sha is None:
+            raise ValueError("synthetic application authority body is incomplete")
+        payload = factory_view.factory
+        channels = payload.channel_order
+        if len(channels) % 2 or len(set(channels)) != len(channels):
+            raise ValueError("application carrier channels are not canonical pairs")
+        if (
+            channels != application.basis_protocol.source_basis.channel_order
+            or payload.state_schema_id
+            != application.basis_protocol.source_basis.state_schema_id
+        ):
+            raise ValueError("application carrier interface differs from closed spec")
+        pairs = tuple(
+            (channels[index], channels[index + 1])
+            for index in range(0, len(channels), 2)
         )
-    if factory_view.factory.factory_sha != prereg.factory_sha:
-        raise ValueError("factory does not match synthetic preregistration")
+        omega = np.zeros(
+            (len(channels), len(channels)),
+            dtype=np.complex128,
+        )
+        for index in range(0, len(channels), 2):
+            omega[index, index + 1] = 1.0 + 0.0j
+            omega[index + 1, index] = -1.0 + 0.0j
+        evidence_lane = SYNTHETIC_EVIDENCE_LANE
+        target_spec_sha = payload.target_spec_sha
+        state_schema_id = payload.state_schema_id
+        channel_order = channels
+        canonical_channel_pairs = pairs
+        fourier_adjoint_convention_id = FOURIER_ADJOINT_CONVENTION_ID
+        structure_form = freeze_complex_tensor(omega)
+        reality_convention_id = REALITY_CONVENTION_ID
+    else:
+        raise ValueError("this structure slice requires synthetic preregistration")
     provisional = StructureManifest(
         structure_schema_version=STRUCTURE_SCHEMA_VERSION,
-        evidence_lane=prereg.evidence_lane,
+        evidence_lane=evidence_lane,
         structure_kind="symplectic",
-        target_spec_sha=prereg.target_spec_sha,
-        state_schema_id=prereg.state_schema_id,
-        channel_order=prereg.channel_order,
-        canonical_channel_pairs=prereg.canonical_channel_pairs,
-        fourier_adjoint_convention_id=(
-            prereg.fourier_adjoint_convention_id
-        ),
-        structure_form=prereg.structure_form,
-        reality_convention_id=prereg.reality_convention_id,
-        prestructure_authority_sha=(
-            authority_view.authority.authority_sha
-        ),
+        target_spec_sha=target_spec_sha,
+        state_schema_id=state_schema_id,
+        channel_order=channel_order,
+        canonical_channel_pairs=canonical_channel_pairs,
+        fourier_adjoint_convention_id=fourier_adjoint_convention_id,
+        structure_form=structure_form,
+        reality_convention_id=reality_convention_id,
+        prestructure_authority_sha=(authority_view.authority.authority_sha),
         structure_manifest_sha="0" * 64,
     )
     _validate_synthetic_structure(provisional)
     return replace(
         provisional,
-        structure_manifest_sha=canonical_sha(
-            structure_manifest_payload(provisional)
-        ),
+        structure_manifest_sha=canonical_sha(structure_manifest_payload(provisional)),
     )
 
 
@@ -356,27 +372,20 @@ def _expected_reality(
     if verified_structure.reality_convention_id != REALITY_CONVENTION_ID:
         raise ValueError("classical reality convention is absent")
     coefficients = tuple(
-        primitive.coefficient_wire
-        for primitive in factory_view.factory.primitives
+        primitive.coefficient_wire for primitive in factory_view.factory.primitives
     )
     if not all(_is_positive_zero(wire[1]) for wire in coefficients):
-        raise ValueError(
-            "factory coefficient imaginary bits are not all +0.0"
-        )
+        raise ValueError("factory coefficient imaginary bits are not all +0.0")
     raw_transition = transition_view.transition
     imaginary = tuple(wire[1] for wire in raw_transition.kernel.values_wire)
     if not all(_is_positive_zero(value) for value in imaginary):
-        raise ValueError(
-            "transition kernel imaginary bits are not all +0.0"
-        )
+        raise ValueError("transition kernel imaginary bits are not all +0.0")
     entry_count = math.prod(raw_transition.kernel.shape)
     provisional = RealityCertificate(
         reality_schema_version=REALITY_SCHEMA_VERSION,
         factory_sha=factory_view.factory.factory_sha,
         transition_sha=raw_transition.transition_sha,
-        structure_manifest_sha=(
-            verified_structure.structure_manifest_sha
-        ),
+        structure_manifest_sha=(verified_structure.structure_manifest_sha),
         factory_coefficient_count=len(coefficients),
         transition_entry_count=entry_count,
         imaginary_bit_pattern_id=POSITIVE_ZERO_PATTERN_ID,
@@ -385,9 +394,7 @@ def _expected_reality(
     )
     return replace(
         provisional,
-        reality_certificate_sha=canonical_sha(
-            reality_certificate_payload(provisional)
-        ),
+        reality_certificate_sha=canonical_sha(reality_certificate_payload(provisional)),
     )
 
 
@@ -414,14 +421,9 @@ def verify_reality_certificate(
     if certificate.reality_certificate_sha != canonical_sha(
         reality_certificate_payload(certificate)
     ):
-        raise ValueError(
-            "reality_certificate_sha does not match complete body"
-        )
+        raise ValueError("reality_certificate_sha does not match complete body")
     expected = _expected_reality(factory, transition, structure)
-    if (
-        certificate.reality_certificate_sha
-        != expected.reality_certificate_sha
-    ):
+    if certificate.reality_certificate_sha != expected.reality_certificate_sha:
         raise ValueError("reality certificate does not match exact replay")
     return certificate
 

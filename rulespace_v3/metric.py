@@ -19,6 +19,7 @@ from .factory import (
     frozen_tensor_payload,
 )
 from .prestructure import (
+    SYNTHETIC_APPLICATION_AUTHORITY_KIND,
     VerifiedPrestructureAuthority,
     _reverify_verified_prestructure_authority,
 )
@@ -31,9 +32,9 @@ from .structure import (
 METRIC_ORIGIN_SCHEMA_VERSION = "v3m0.metric-origin-manifest.v1"
 STABILITY_METRIC_SCHEMA_VERSION = "v3m0.stability-metric-witness.v1"
 METRIC_SUPPORT_SCHEMA_VERSION = "v3m0.metric-support.v1"
-METRIC_NORMALIZATION_ID: Literal[
+METRIC_NORMALIZATION_ID: Literal["trace-at-zero-equals-state-dim-v1"] = (
     "trace-at-zero-equals-state-dim-v1"
-] = "trace-at-zero-equals-state-dim-v1"
+)
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 
 
@@ -151,9 +152,7 @@ class StabilityMetricWitness:
         ):
             raise ValueError("metric_kind is not closed")
         if type(self.metric_kernel) is not FrozenComplexTensor:
-            raise TypeError(
-                "metric_kernel must be an exact FrozenComplexTensor"
-            )
+            raise TypeError("metric_kernel must be an exact FrozenComplexTensor")
         if (
             type(self.metric_support_offsets) is not tuple
             or not self.metric_support_offsets
@@ -198,15 +197,11 @@ def metric_origin_payload(
         "origin_schema_version": origin.origin_schema_version,
         "origin_kind": origin.origin_kind,
         "parent_freeze_sha": origin.parent_freeze_sha,
-        "prestructure_authority_sha": (
-            origin.prestructure_authority_sha
-        ),
+        "prestructure_authority_sha": (origin.prestructure_authority_sha),
         "factory_sha": origin.factory_sha,
         "structure_manifest_sha": origin.structure_manifest_sha,
         "evidence_lane": origin.evidence_lane,
-        "derivation_or_preregistration_sha": (
-            origin.derivation_or_preregistration_sha
-        ),
+        "derivation_or_preregistration_sha": (origin.derivation_or_preregistration_sha),
         "metric_kernel_sha": origin.metric_kernel_sha,
         "metric_support_sha": origin.metric_support_sha,
     }
@@ -255,29 +250,33 @@ def _expected_metric(
         authority,
     )
     prereg = authority_view.authority.synthetic_preregistration
-    if prereg is None or verified_structure.evidence_lane != "synthetic-classical":
+    if verified_structure.evidence_lane != "synthetic-classical":
+        raise ValueError("this metric slice requires synthetic-classical authority")
+    if prereg is not None:
+        derivation_sha = prereg.preregistration_sha
+    elif (
+        authority_view.authority.authority_kind == SYNTHETIC_APPLICATION_AUTHORITY_KIND
+    ):
+        application = authority_view.authority.synthetic_application_spec
+        permit_sha = authority_view.authority.synthetic_application_permit_sha
+        if application is None or permit_sha is None:
+            raise ValueError("synthetic application authority body is incomplete")
+        derivation_sha = application.application_spec_sha
+    else:
         raise ValueError("this metric slice requires synthetic-classical authority")
     state_count = len(factory_view.factory.channel_order)
-    kernel = freeze_complex_tensor(
-        np.eye(state_count, dtype=np.complex128)[None, :, :]
-    )
+    kernel = freeze_complex_tensor(np.eye(state_count, dtype=np.complex128)[None, :, :])
     zero_support = ((0,) * factory_view.factory.spatial_ndim,)
     support_sha = canonical_sha(metric_support_payload(zero_support))
     provisional_origin = MetricOriginManifest(
         origin_schema_version=METRIC_ORIGIN_SCHEMA_VERSION,
         origin_kind="synthetic-identity-v1",
-        parent_freeze_sha=(
-            authority_view.authority.parent_freeze.parent_freeze_sha
-        ),
-        prestructure_authority_sha=(
-            authority_view.authority.authority_sha
-        ),
+        parent_freeze_sha=(authority_view.authority.parent_freeze.parent_freeze_sha),
+        prestructure_authority_sha=(authority_view.authority.authority_sha),
         factory_sha=factory_view.factory.factory_sha,
-        structure_manifest_sha=(
-            verified_structure.structure_manifest_sha
-        ),
+        structure_manifest_sha=(verified_structure.structure_manifest_sha),
         evidence_lane=verified_structure.evidence_lane,
-        derivation_or_preregistration_sha=prereg.preregistration_sha,
+        derivation_or_preregistration_sha=derivation_sha,
         metric_kernel_sha=kernel.tensor_sha,
         metric_support_sha=support_sha,
         origin_sha="0" * 64,
@@ -301,9 +300,7 @@ def _expected_metric(
     )
     result = replace(
         provisional,
-        witness_sha=canonical_sha(
-            stability_metric_witness_payload(provisional)
-        ),
+        witness_sha=canonical_sha(stability_metric_witness_payload(provisional)),
     )
     values = frozen_tensor_array(result.metric_kernel)
     if values.shape != (1, state_count, state_count):
@@ -343,9 +340,7 @@ def verify_stability_metric_witness(
         metric_origin_payload(witness.metric_origin)
     ):
         raise ValueError("metric origin SHA does not match complete body")
-    if witness.witness_sha != canonical_sha(
-        stability_metric_witness_payload(witness)
-    ):
+    if witness.witness_sha != canonical_sha(stability_metric_witness_payload(witness)):
         raise ValueError("witness_sha does not match complete body")
     expected = _expected_metric(factory, authority, structure)
     if witness.witness_sha != expected.witness_sha:
