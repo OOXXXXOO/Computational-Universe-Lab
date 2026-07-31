@@ -913,6 +913,31 @@ def _make_application_authority_graph(issuance_token):
             raise ValueError("Task-12-v2 permit immutable seal mismatch")
         return clone(authority.permit)
 
+    def require_permit_for_parent(permit_v2, formal_parent_v2):
+        """Replay a permit and prove that its owner is this Parent identity."""
+
+        permit_body = require_permit(permit_v2)
+        parent_manifest = parent_reverifier(formal_parent_v2)
+        with permit_lock:
+            current = permit_live.get(id_fn(permit_v2))
+            if current is None or current[0]() is not permit_v2:
+                raise ValueError(
+                    "Task-12-v2 permit identity is not live for Parent binding"
+                )
+            authority = current[1]
+        if authority.parent is not formal_parent_v2:
+            raise ValueError(
+                "Task-12-v2 permit belongs to a different Parent identity"
+            )
+        if (
+            permit_body.parent_freeze_v2_sha
+            != parent_manifest.parent_freeze_v2_sha
+        ):
+            raise ValueError(
+                "Task-12-v2 permit body is spliced to another Parent-v2"
+            )
+        return permit_body
+
     def calibration_property(wrapper):
         return require_calibration(wrapper)
 
@@ -927,6 +952,9 @@ def _make_application_authority_graph(issuance_token):
     require_calibration.__name__ = "require_window_threshold_calibration_v2"
     issue_permit.__name__ = "_issue_calibration_application_permit_v2"
     require_permit.__name__ = "require_calibration_application_permit_v2"
+    require_permit_for_parent.__name__ = (
+        "_require_calibration_application_permit_v2_for_parent"
+    )
     return (
         current_application_for_instance,
         expected_permit,
@@ -934,6 +962,7 @@ def _make_application_authority_graph(issuance_token):
         require_calibration,
         issue_permit,
         require_permit,
+        require_permit_for_parent,
         calibration_property,
         permit_property,
     )
@@ -946,6 +975,7 @@ def _make_application_authority_graph(issuance_token):
     require_window_threshold_calibration_v2,
     _closed_permit_issuer,
     require_calibration_application_permit_v2,
+    _require_calibration_application_permit_v2_for_parent,
     _calibration_property,
     _permit_property,
 ) = _make_application_authority_graph(_ISSUANCE_TOKEN)

@@ -1129,6 +1129,40 @@ class CalibrationApplicationPermitV2CanonicalParentTests(unittest.TestCase):
 
 
 class CalibrationApplicationPermitV2CapabilityTests(unittest.TestCase):
+    def test_private_parent_bridge_has_exact_surface_and_rejects_nonlive_values(
+        self,
+    ) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            CalibrationApplicationPermitV2,
+            VerifiedCalibrationApplicationPermitV2,
+            _require_calibration_application_permit_v2_for_parent,
+        )
+
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    _require_calibration_application_permit_v2_for_parent
+                ).parameters
+            ),
+            ("permit_v2", "formal_parent_v2"),
+        )
+
+        class HostilePermit(VerifiedCalibrationApplicationPermitV2):
+            pass
+
+        for permit in (
+            object(),
+            object.__new__(CalibrationApplicationPermitV2),
+            object.__new__(VerifiedCalibrationApplicationPermitV2),
+            object.__new__(HostilePermit),
+        ):
+            with self.subTest(permit_type=type(permit).__name__):
+                with self.assertRaises((TypeError, ValueError)):
+                    _require_calibration_application_permit_v2_for_parent(
+                        permit,
+                        object(),
+                    )
+
     def test_wrapper_is_internal_exact_live_and_immutable(self) -> None:
         from rulespace_v3.application_authority_v2 import (
             CalibrationApplicationPermitV2,

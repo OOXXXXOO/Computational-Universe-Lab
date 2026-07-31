@@ -30,6 +30,11 @@ from .ablation import (
     matched_ablation,
     verify_ablation_pair,
 )
+from .application_authority_v2 import (
+    CalibrationApplicationPermitV2,
+    VerifiedCalibrationApplicationPermitV2,
+    _require_calibration_application_permit_v2_for_parent,
+)
 from .calibration_authority import (
     _verify_c04_canonical_angle_recipe,
     build_c04_canonical_angle_recipe,
@@ -61,10 +66,12 @@ from .parent_candidate_v2 import (
     CandidateV2ScenarioRefreeze,
     candidate_v2_scenario_refreeze_payload,
 )
+from .parent_authority import VerifiedParentFreezeV2, require_current_parent
 from .parent_v2_contracts import (
     CurrentApplicationAuthorityV2,
     CurrentScenarioAuthorityV2,
     CurrentScenarioResponseContractV2,
+    ParentFreezeV2Manifest,
     current_application_authority_v2_payload,
     current_scenario_authority_v2_payload,
     current_scenario_response_contract_v2_payload,
@@ -93,8 +100,8 @@ UPSTREAM_V2_WIRING_POINTS = (
     "rulespace_v3.parent_authority.VerifiedParentFreezeV2",
     "rulespace_v3.parent_authority.require_current_parent",
     "rulespace_v3.application_authority_v2.VerifiedCalibrationApplicationPermitV2",
-    "rulespace_v3.application_authority_v2.require_calibration_application_permit_v2",
-    "closed permit-v2 to expected-Parent-v2 identity bridge",
+    "rulespace_v3.application_authority_v2."
+    "_require_calibration_application_permit_v2_for_parent",
 )
 
 _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -1083,35 +1090,45 @@ class VerifiedV3M0ApplicationScenarioMaterializationV2:
         return _reverify_live_materialization_v2(self).matched_ablated_factory
 
 
-def _require_exact_live_upstream(
-    formal_parent_v2: object,
-    permit_v2: object,
-) -> tuple[object, object]:
-    parent_type = type(formal_parent_v2)
-    if (
-        parent_type.__module__ != "rulespace_v3.parent_authority"
-        or parent_type.__name__ != "VerifiedParentFreezeV2"
-    ):
-        raise TypeError("formal_parent_v2 must be an exact live Parent-v2")
-    from .parent_authority import VerifiedParentFreezeV2, require_current_parent
+def _make_live_materialization_upstream_resolver(
+    *,
+    parent_capability_type: type,
+    permit_capability_type: type,
+    parent_reverifier,
+    permit_parent_reverifier,
+):
+    """Capture the two upstream registries before public API assembly."""
 
-    if type(formal_parent_v2) is not VerifiedParentFreezeV2:
-        raise TypeError("formal_parent_v2 must be an exact live Parent-v2")
-    try:
-        from .application_authority_v2 import (
-            VerifiedCalibrationApplicationPermitV2,
-            require_calibration_application_permit_v2,
-        )
-    except (ImportError, AttributeError) as exc:
-        raise ApplicationMaterializationV2UpstreamUnavailable(
-            "exact permit-v2 authority is not implemented; required wiring: "
-            + ", ".join(UPSTREAM_V2_WIRING_POINTS)
-        ) from exc
-    if type(permit_v2) is not VerifiedCalibrationApplicationPermitV2:
-        raise TypeError("permit_v2 must be an exact live permit-v2")
-    parent_manifest = require_current_parent(formal_parent_v2)
-    permit_body = require_calibration_application_permit_v2(permit_v2)
-    return parent_manifest, permit_body
+    if not callable(parent_reverifier) or not callable(permit_parent_reverifier):
+        raise TypeError("live materialization upstream reverifiers must be callable")
+    type_fn = type
+
+    def resolve(
+        formal_parent_v2: object,
+        permit_v2: object,
+    ) -> tuple[ParentFreezeV2Manifest, CalibrationApplicationPermitV2]:
+        if type_fn(formal_parent_v2) is not parent_capability_type:
+            raise TypeError("formal_parent_v2 must be an exact live Parent-v2")
+        if type_fn(permit_v2) is not permit_capability_type:
+            raise TypeError("permit_v2 must be an exact live permit-v2")
+        parent_manifest = parent_reverifier(formal_parent_v2)
+        permit_body = permit_parent_reverifier(permit_v2, formal_parent_v2)
+        if permit_body.parent_freeze_v2_sha != parent_manifest.parent_freeze_v2_sha:
+            raise ValueError("permit-v2 is spliced to another Parent-v2 body")
+        return parent_manifest, permit_body
+
+    resolve.__name__ = "_require_exact_live_upstream"
+    return resolve
+
+
+_require_exact_live_upstream = _make_live_materialization_upstream_resolver(
+    parent_capability_type=VerifiedParentFreezeV2,
+    permit_capability_type=VerifiedCalibrationApplicationPermitV2,
+    parent_reverifier=require_current_parent,
+    permit_parent_reverifier=(
+        _require_calibration_application_permit_v2_for_parent
+    ),
+)
 
 
 def _exact_one(values: object, predicate, field: str):
@@ -1841,18 +1858,9 @@ def _make_expected_live_materialization_v2(upstream_resolver):
     return replay
 
 
-def _expected_live_materialization_v2(
-    formal_parent_v2: object,
-    permit_v2: object,
-    scenario_id: str,
-) -> _LiveMaterializationReplayV2:
-    _text(scenario_id, "scenario_id")
-    _require_exact_live_upstream(formal_parent_v2, permit_v2)
-    raise ApplicationMaterializationV2UpstreamUnavailable(
-        "permit-v2 consumer lacks a closed expected-Parent identity bridge; "
-        "authority-neutral exact compilation is implemented but public issuance "
-        "remains fail-closed"
-    )
+_expected_live_materialization_v2 = _make_expected_live_materialization_v2(
+    _require_exact_live_upstream
+)
 
 
 def _verify_live_factories(
@@ -1902,6 +1910,8 @@ def _make_closed_materialization_v2_api():
     authority_seal = object()
     expected_replayer = _expected_live_materialization_v2
     live_factory_verifier = _verify_live_factories
+    upstream_resolver = _require_exact_live_upstream
+    exact_type = type
 
     def materialize_v3m0_application_scenario_v2(
         formal_parent_v2: object,
@@ -1964,10 +1974,43 @@ def _make_closed_materialization_v2_api():
     ) -> ApplicationScenarioMaterializationV2:
         return reverify(value).materialization
 
+    def require_materialization_for_upstream(
+        formal_parent_v2,
+        permit_v2,
+        materialization_v2,
+    ):
+        replay = reverify(materialization_v2)
+        upstream_resolver(formal_parent_v2, permit_v2)
+        if exact_type(materialization_v2) is not (
+            VerifiedV3M0ApplicationScenarioMaterializationV2
+        ):
+            raise TypeError(
+                "materialization_v2 must be an exact live materialization-v2"
+            )
+        try:
+            binding = registry[materialization_v2]
+        except KeyError as exc:
+            raise ValueError(
+                "materialization-v2 capability identity is not live"
+            ) from exc
+        if (
+            binding.formal_parent_v2 is not formal_parent_v2
+            or binding.permit_v2 is not permit_v2
+        ):
+            raise ValueError(
+                "materialization-v2 belongs to different Parent/permit identities"
+            )
+        return replay
+
+    require_materialization_for_upstream.__name__ = (
+        "_require_application_scenario_materialization_v2_for_upstream"
+    )
+
     return (
         materialize_v3m0_application_scenario_v2,
         verify_v3m0_application_scenario_materialization_v2,
         reverify,
+        require_materialization_for_upstream,
     )
 
 
@@ -1975,7 +2018,10 @@ def _make_closed_materialization_v2_api():
     materialize_v3m0_application_scenario_v2,
     verify_v3m0_application_scenario_materialization_v2,
     _reverify_live_materialization_v2,
+    _require_application_scenario_materialization_v2_for_upstream,
 ) = _make_closed_materialization_v2_api()
+
+del _make_live_materialization_upstream_resolver
 
 
 __all__ = [

@@ -623,6 +623,35 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
                 object.__new__(VerifiedCalibrationApplicationPermitV2),
             )
 
+    def test_private_upstream_relationship_bridge_is_exact_and_live_only(
+        self,
+    ) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            VerifiedCalibrationApplicationPermitV2,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            VerifiedV3M0ApplicationScenarioMaterializationV2,
+            _require_application_scenario_materialization_v2_for_upstream,
+        )
+        from rulespace_v3.parent_authority import VerifiedParentFreezeV2
+
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    _require_application_scenario_materialization_v2_for_upstream
+                ).parameters
+            ),
+            ("formal_parent_v2", "permit_v2", "materialization_v2"),
+        )
+        with self.assertRaises((TypeError, ValueError)):
+            _require_application_scenario_materialization_v2_for_upstream(
+                object.__new__(VerifiedParentFreezeV2),
+                object.__new__(VerifiedCalibrationApplicationPermitV2),
+                object.__new__(
+                    VerifiedV3M0ApplicationScenarioMaterializationV2
+                ),
+            )
+
     def test_private_replayer_compiles_c04_to_the_live_matched_pair(self) -> None:
         import rulespace_v3.application_materialization_v2 as materialization_v2
         from rulespace_v3.factory import _reverify_verified_factory
