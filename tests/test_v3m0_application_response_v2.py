@@ -713,22 +713,69 @@ class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
 
 
 class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
-    def test_public_endpoint_graph_has_no_raw_only_registrar(
+    def _non_endpoint_authority_cases(self):
+        import rulespace_v3.application_response as response_v2
+
+        return (
+            (
+                "shell",
+                response_v2._make_application_endpoint_shell_authority_v2,
+                response_v2.VerifiedApplicationEndpointShellV2,
+                self._shell(),
+                (object(),),
+                "_VerifiedApplicationEndpointShellV2__issued_raw",
+                "_VerifiedApplicationEndpointShellV2__live_upstream",
+                "require_application_endpoint_shell_v2",
+                "shell",
+                "_replay_application_endpoint_shell_v2",
+                "_issue_verified_application_endpoint_shell_v2",
+            ),
+            (
+                "branch",
+                response_v2._make_application_branch_response_authority_v2,
+                response_v2.VerifiedApplicationBranchSourceReadoutResponseV2,
+                self._branch_response("actual"),
+                (object(),),
+                ("_VerifiedApplicationBranchSourceReadoutResponseV2__issued_raw"),
+                ("_VerifiedApplicationBranchSourceReadoutResponseV2__live_upstream"),
+                "require_application_branch_source_readout_response_v2",
+                "response",
+                "_replay_application_branch_source_readout_response_v2",
+                "_issue_verified_application_branch_response_v2",
+            ),
+            (
+                "pair",
+                response_v2._make_application_paired_response_authority_v2,
+                response_v2.VerifiedApplicationPairedResponseOutcomeV2,
+                self._pair(),
+                (object(),),
+                "_VerifiedApplicationPairedResponseOutcomeV2__issued_raw",
+                "_VerifiedApplicationPairedResponseOutcomeV2__live_upstream",
+                "require_application_paired_response_outcome_v2",
+                "outcome",
+                "_replay_application_paired_response_outcome_v2",
+                "_issue_verified_application_paired_response_v2",
+            ),
+        )
+
+    def test_all_public_capability_graphs_have_no_raw_only_registrar(
         self,
     ) -> None:
-        """递归可达图中任何 wrapper 构造路径都必须吃满11项 upstream。"""
+        """四类 wrapper 构造路径只接收完整 upstream，不接收 raw。"""
         import dis
         import functools
 
-        from rulespace_v3.application_response import (
-            VerifiedApplicationEndpointReferenceV2,
-            issue_v3m0_application_endpoint_reference_v2,
-            require_application_endpoint_reference_v2,
-        )
+        import rulespace_v3.application_response as response_v2
 
         upstream_names = tuple(
-            inspect.signature(issue_v3m0_application_endpoint_reference_v2).parameters
+            inspect.signature(
+                response_v2.issue_v3m0_application_endpoint_reference_v2
+            ).parameters
         )
+        allowed_constructor_parameters = {
+            upstream_names,
+            ("live_upstream",),
+        }
         violations = []
         constructors = []
         seen = set()
@@ -762,7 +809,7 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
                 violations.append(f"{path}: raw-accepting callable")
             if "__new__" in value.__code__.co_names:
                 constructors.append(path)
-                if parameter_names != upstream_names:
+                if parameter_names not in allowed_constructor_parameters:
                     violations.append(
                         f"{path}: wrapper constructor lacks full upstream"
                     )
@@ -780,47 +827,64 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
                 if inspect.isfunction(dependency):
                     walk(dependency, f"{path}.global[{name}]")
 
-        walk(
-            issue_v3m0_application_endpoint_reference_v2,
-            "endpoint issuer",
+        authority_boundaries = (
+            (
+                "reference",
+                response_v2.issue_v3m0_application_endpoint_reference_v2,
+                response_v2.require_application_endpoint_reference_v2,
+                response_v2.VerifiedApplicationEndpointReferenceV2.reference.fget,
+            ),
+            (
+                "shell",
+                response_v2._issue_verified_application_endpoint_shell_v2,
+                response_v2.require_application_endpoint_shell_v2,
+                response_v2.VerifiedApplicationEndpointShellV2.shell.fget,
+            ),
+            (
+                "branch",
+                response_v2._issue_verified_application_branch_response_v2,
+                response_v2.require_application_branch_source_readout_response_v2,
+                (
+                    response_v2.VerifiedApplicationBranchSourceReadoutResponseV2.response.fget
+                ),
+            ),
+            (
+                "pair",
+                response_v2._issue_verified_application_paired_response_v2,
+                response_v2.require_application_paired_response_outcome_v2,
+                response_v2.VerifiedApplicationPairedResponseOutcomeV2.outcome.fget,
+            ),
         )
-        walk(
-            require_application_endpoint_reference_v2,
-            "endpoint require",
-        )
-        walk(
-            VerifiedApplicationEndpointReferenceV2.reference.fget,
-            "endpoint property",
-        )
+        for label, issuer, require, property_fget in authority_boundaries:
+            walk(issuer, f"{label} issuer")
+            walk(require, f"{label} require")
+            walk(property_fget, f"{label} property")
         forbidden_globals = {
             "_replay_application_endpoint_reference_v2",
-            "_require_endpoint_reference_value",
+            "_replay_application_endpoint_shell_v2",
+            "_replay_application_branch_source_readout_response_v2",
+            "_replay_application_paired_response_outcome_v2",
             "require_application_endpoint_reference_v2",
+            "require_application_endpoint_shell_v2",
+            "require_application_branch_source_readout_response_v2",
+            "require_application_paired_response_outcome_v2",
         }
-        for boundary in (
-            issue_v3m0_application_endpoint_reference_v2,
-            require_application_endpoint_reference_v2,
-            VerifiedApplicationEndpointReferenceV2.reference.fget,
-        ):
-            hostile_loads = {
-                instruction.argval
-                for instruction in dis.get_instructions(boundary)
-                if instruction.opname == "LOAD_GLOBAL"
-                and instruction.argval in forbidden_globals
-            }
-            self.assertEqual(hostile_loads, set())
+        for _, issuer, require, property_fget in authority_boundaries:
+            for boundary in (issuer, require, property_fget):
+                hostile_loads = {
+                    instruction.argval
+                    for instruction in dis.get_instructions(boundary)
+                    if instruction.opname == "LOAD_GLOBAL"
+                    and instruction.argval in forbidden_globals
+                }
+                self.assertEqual(hostile_loads, set())
         self.assertIn(
             "replay_call",
-            issue_v3m0_application_endpoint_reference_v2.__code__.co_freevars,
+            response_v2.issue_v3m0_application_endpoint_reference_v2.__code__.co_freevars,
         )
-        self.assertIn(
-            "replay_call",
-            require_application_endpoint_reference_v2.__code__.co_freevars,
-        )
-        self.assertIn(
-            "require",
-            VerifiedApplicationEndpointReferenceV2.reference.fget.__code__.co_freevars,
-        )
+        for _, _, require, property_fget in authority_boundaries:
+            self.assertIn("replay_call", require.__code__.co_freevars)
+            self.assertIn("require", property_fget.__code__.co_freevars)
         self.assertTrue(constructors)
         self.assertEqual(violations, [])
 
@@ -884,6 +948,9 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         self,
     ) -> None:
         """object.__new__ 即使拷贝 raw+upstream 两槽也不是 live identity。"""
+        import gc
+        import weakref
+
         from rulespace_v3.application_response import (
             VerifiedApplicationEndpointReferenceV2,
             _make_application_endpoint_reference_authority_v2,
@@ -911,6 +978,18 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identity is not live"):
             require(forged)
 
+        require_cells = dict(
+            zip(require.__code__.co_freevars, require.__closure__ or ())
+        )
+        live = require_cells["live"].cell_contents
+        identity = id(issued)
+        reference = weakref.ref(issued)
+        self.assertIn(identity, live)
+        del issued
+        gc.collect()
+        self.assertIsNone(reference())
+        self.assertNotIn(identity, live)
+
     def test_property_ignores_module_global_require_redirect(self) -> None:
         """property fget 必须捕获冻结 require，不读模块全局名字。"""
         from unittest.mock import patch
@@ -932,6 +1011,116 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
             lambda ignored: drifted,
         ):
             self.assertEqual(property_fget(capability), raw)
+
+    def test_non_endpoint_properties_ignore_global_require_redirects(
+        self,
+    ) -> None:
+        """shell/branch/pair property 也必须捕获各自的 live require。"""
+        from unittest.mock import patch
+
+        import rulespace_v3.application_response as response_v2
+
+        for (
+            label,
+            factory,
+            _,
+            raw,
+            inputs,
+            _,
+            _,
+            require_name,
+            _,
+            _,
+            _,
+        ) in self._non_endpoint_authority_cases():
+            with self.subTest(kind=label):
+                issue, _, property_fget = factory(lambda *live: raw)
+                capability = issue(*inputs)
+                with patch.object(
+                    response_v2,
+                    require_name,
+                    lambda ignored: None,
+                ):
+                    self.assertEqual(property_fget(capability), raw)
+
+    def test_non_endpoint_two_slot_copies_and_expired_identities_are_rejected(
+        self,
+    ) -> None:
+        """shell/branch/pair 也必须依赖 live identity，不能只靠两槽。"""
+        import gc
+        import weakref
+
+        for (
+            label,
+            factory,
+            wrapper_type,
+            raw,
+            inputs,
+            raw_slot,
+            upstream_slot,
+            _,
+            _,
+            _,
+            _,
+        ) in self._non_endpoint_authority_cases():
+            with self.subTest(kind=label):
+                issue, require, _ = factory(lambda *live: raw)
+                capability = issue(*inputs)
+                forged = object.__new__(wrapper_type)
+                for slot in (raw_slot, upstream_slot):
+                    object.__setattr__(
+                        forged,
+                        slot,
+                        object.__getattribute__(capability, slot),
+                    )
+                with self.assertRaisesRegex(ValueError, "identity is not live"):
+                    require(forged)
+
+                require_cells = dict(
+                    zip(require.__code__.co_freevars, require.__closure__ or ())
+                )
+                live = require_cells["live"].cell_contents
+                identity = id(capability)
+                reference = weakref.ref(capability)
+                self.assertIn(identity, live)
+                del capability
+                gc.collect()
+                self.assertIsNone(reference())
+                self.assertNotIn(identity, live)
+
+    def test_non_endpoint_issuers_ignore_module_replay_redirects(self) -> None:
+        """三类内部 issuer 也不得在运行时解析模块 replay 名字。"""
+        from unittest.mock import patch
+
+        import rulespace_v3.application_response as response_v2
+
+        for (
+            label,
+            _,
+            _,
+            raw,
+            inputs,
+            _,
+            _,
+            _,
+            _,
+            replay_name,
+            issuer_name,
+        ) in self._non_endpoint_authority_cases():
+            with self.subTest(kind=label):
+                issuer = getattr(response_v2, issuer_name)
+                with patch.object(
+                    response_v2,
+                    replay_name,
+                    lambda *ignored: raw,
+                ):
+                    with self.assertRaises(
+                        (
+                            TypeError,
+                            response_v2.ApplicationResponseV2UpstreamUnavailable,
+                        )
+                    ):
+                        issuer(*inputs)
 
     def test_exact_wrapper_data_integrity_resists_registry_and_global_redirects(
         self,

@@ -1037,7 +1037,7 @@ class VerifiedApplicationEndpointReferenceV2:
 class VerifiedApplicationEndpointShellV2:
     """Immutable actual-only endpoint-shell value capability."""
 
-    __slots__ = ("__issued_raw", "__live_upstream")
+    __slots__ = ("__issued_raw", "__live_upstream", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("application endpoint-shell v2 is issuer-only")
@@ -1046,15 +1046,11 @@ class VerifiedApplicationEndpointShellV2:
         del name, value
         raise AttributeError("application endpoint-shell v2 is immutable")
 
-    @property
-    def shell(self) -> ApplicationEndpointShellV2:
-        return require_application_endpoint_shell_v2(self)
-
 
 class VerifiedApplicationBranchSourceReadoutResponseV2:
     """Immutable branch response, issued only inside an atomic pair."""
 
-    __slots__ = ("__issued_raw", "__live_upstream")
+    __slots__ = ("__issued_raw", "__live_upstream", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("application branch response v2 is issuer-only")
@@ -1063,15 +1059,11 @@ class VerifiedApplicationBranchSourceReadoutResponseV2:
         del name, value
         raise AttributeError("application branch response v2 is immutable")
 
-    @property
-    def response(self) -> ApplicationBranchSourceReadoutResponseV2:
-        return require_application_branch_source_readout_response_v2(self)
-
 
 class VerifiedApplicationPairedResponseOutcomeV2:
     """Immutable atomic actual/matched response value capability."""
 
-    __slots__ = ("__issued_raw", "__live_upstream")
+    __slots__ = ("__issued_raw", "__live_upstream", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("application paired response v2 is issuer-only")
@@ -1079,10 +1071,6 @@ class VerifiedApplicationPairedResponseOutcomeV2:
     def __setattr__(self, name: str, value: object) -> None:
         del name, value
         raise AttributeError("application paired response v2 is immutable")
-
-    @property
-    def outcome(self) -> ApplicationPairedResponseOutcomeV2:
-        return require_application_paired_response_outcome_v2(self)
 
 
 def _load_exact_application_response_v2_upstream() -> tuple[object, ...]:
@@ -1517,26 +1505,186 @@ def _make_application_endpoint_reference_authority_v2(
     return issue, require, reference_property
 
 
-def _read_value_capability(
-    value: object,
-    wrapper_type: type,
+@dataclass(frozen=True)
+class _ApplicationResponseLiveIdentityV2:
+    issued_raw: object
+    live_upstream: tuple[object, ...]
+
+
+def _make_application_response_identity_core_v2(
+    replay_call,
+    verify_call,
+    *,
+    wrapper_type,
     raw_slot: str,
     upstream_slot: str,
-    upstream_arity: int | None,
+    upstream_arity: int,
     field: str,
+    identity_type=_ApplicationResponseLiveIdentityV2,
+    clone=copy.deepcopy,
+    weak_reference=weakref.ref,
+    lock_builder=threading.RLock,
+    type_fn=type,
+    id_fn=id,
+    object_type=object,
+    type_error=TypeError,
+    value_error=ValueError,
+    attribute_error=AttributeError,
 ):
-    if type(value) is not wrapper_type:
-        raise TypeError(f"{field} requires an exact value capability")
-    try:
-        expected_raw = object.__getattribute__(value, raw_slot)
-        replay_inputs = object.__getattribute__(value, upstream_slot)
-    except AttributeError as exc:
-        raise ValueError(f"{field} capability body is incomplete") from exc
-    if type(replay_inputs) is not tuple or not replay_inputs:
-        raise ValueError(f"{field} live upstream is incomplete")
-    if upstream_arity is not None and len(replay_inputs) != upstream_arity:
-        raise ValueError(f"{field} live upstream arity drifted")
-    return replay_inputs, expected_raw
+    """Build one raw-free live identity authority around a frozen replay."""
+
+    live: dict[
+        int, tuple[weakref.ReferenceType, _ApplicationResponseLiveIdentityV2]
+    ] = {}
+    lock = lock_builder()
+
+    def issue_from_upstream(live_upstream):
+        if type_fn(live_upstream) is not tuple or len(live_upstream) != upstream_arity:
+            raise type_error(f"{field} issuer requires complete live upstream")
+        replayed = verify_call(replay_call(*live_upstream))
+        authority_raw = clone(replayed)
+        exposed_raw = clone(replayed)
+        wrapper = object_type.__new__(wrapper_type)
+        object_type.__setattr__(wrapper, raw_slot, exposed_raw)
+        object_type.__setattr__(wrapper, upstream_slot, live_upstream)
+        identity = id_fn(wrapper)
+        authority = identity_type(
+            issued_raw=authority_raw,
+            live_upstream=live_upstream,
+        )
+
+        def remove(reference, wrapper_id=identity):
+            with lock:
+                current = live.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del live[wrapper_id]
+
+        reference = weak_reference(wrapper, remove)
+        with lock:
+            current = live.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError(f"{field} identity collision")
+            live[identity] = (reference, authority)
+        return wrapper
+
+    def require(wrapper):
+        if type_fn(wrapper) is not wrapper_type:
+            raise type_error(f"{field} requires an exact live capability")
+        with lock:
+            current = live.get(id_fn(wrapper))
+            if current is None or current[0]() is not wrapper:
+                raise value_error(f"{field} identity is not live")
+            authority = current[1]
+        try:
+            exposed_raw = object_type.__getattribute__(wrapper, raw_slot)
+            exposed_upstream = object_type.__getattribute__(wrapper, upstream_slot)
+        except attribute_error as exc:
+            raise value_error(f"{field} authority record is incomplete") from exc
+        if (
+            type_fn(exposed_upstream) is not tuple
+            or len(exposed_upstream) != upstream_arity
+            or any(
+                observed is not frozen
+                for observed, frozen in zip(
+                    exposed_upstream,
+                    authority.live_upstream,
+                )
+            )
+        ):
+            raise value_error(f"{field} live upstream drifted")
+        exposed = verify_call(exposed_raw)
+        snapshot = verify_call(authority.issued_raw)
+        replayed = verify_call(replay_call(*authority.live_upstream))
+        if exposed != snapshot or replayed != snapshot:
+            raise value_error(f"{field} immutable snapshot drifted")
+        return clone(replayed)
+
+    def value_property(wrapper):
+        return require(wrapper)
+
+    return issue_from_upstream, require, value_property
+
+
+def _make_application_endpoint_shell_authority_v2(
+    replay_call,
+    verify_call=verify_application_endpoint_shell_v2_body,
+):
+    issue_from_upstream, require, shell_property = (
+        _make_application_response_identity_core_v2(
+            replay_call,
+            verify_call,
+            wrapper_type=VerifiedApplicationEndpointShellV2,
+            raw_slot="_VerifiedApplicationEndpointShellV2__issued_raw",
+            upstream_slot="_VerifiedApplicationEndpointShellV2__live_upstream",
+            upstream_arity=1,
+            field="application endpoint shell v2",
+        )
+    )
+
+    def issue(reference):
+        return issue_from_upstream((reference,))
+
+    issue.__name__ = "_issue_verified_application_endpoint_shell_v2"
+    issue.__qualname__ = "_issue_verified_application_endpoint_shell_v2"
+    require.__name__ = "require_application_endpoint_shell_v2"
+    require.__qualname__ = "require_application_endpoint_shell_v2"
+    return issue, require, shell_property
+
+
+def _make_application_branch_response_authority_v2(
+    replay_call,
+    verify_call=verify_application_branch_source_readout_response_v2_body,
+):
+    issue_from_upstream, require, response_property = (
+        _make_application_response_identity_core_v2(
+            replay_call,
+            verify_call,
+            wrapper_type=VerifiedApplicationBranchSourceReadoutResponseV2,
+            raw_slot=("_VerifiedApplicationBranchSourceReadoutResponseV2__issued_raw"),
+            upstream_slot=(
+                "_VerifiedApplicationBranchSourceReadoutResponseV2__live_upstream"
+            ),
+            upstream_arity=1,
+            field="application branch response v2",
+        )
+    )
+
+    def issue(response_upstream):
+        return issue_from_upstream((response_upstream,))
+
+    issue.__name__ = "_issue_verified_application_branch_response_v2"
+    issue.__qualname__ = "_issue_verified_application_branch_response_v2"
+    require.__name__ = "require_application_branch_source_readout_response_v2"
+    require.__qualname__ = "require_application_branch_source_readout_response_v2"
+    return issue, require, response_property
+
+
+def _make_application_paired_response_authority_v2(
+    replay_call,
+    verify_call=verify_application_paired_response_outcome_v2_body,
+):
+    issue_from_upstream, require, outcome_property = (
+        _make_application_response_identity_core_v2(
+            replay_call,
+            verify_call,
+            wrapper_type=VerifiedApplicationPairedResponseOutcomeV2,
+            raw_slot="_VerifiedApplicationPairedResponseOutcomeV2__issued_raw",
+            upstream_slot=(
+                "_VerifiedApplicationPairedResponseOutcomeV2__live_upstream"
+            ),
+            upstream_arity=1,
+            field="application paired response v2",
+        )
+    )
+
+    def issue(shell):
+        return issue_from_upstream((shell,))
+
+    issue.__name__ = "_issue_verified_application_paired_response_v2"
+    issue.__qualname__ = "_issue_verified_application_paired_response_v2"
+    require.__name__ = "require_application_paired_response_outcome_v2"
+    require.__qualname__ = "require_application_paired_response_outcome_v2"
+    return issue, require, outcome_property
 
 
 def _replay_application_endpoint_shell_v2(reference):
@@ -1558,72 +1706,6 @@ def _replay_application_paired_response_outcome_v2(shell):
     raise ApplicationResponseV2UpstreamUnavailable(
         "atomic actual/matched response numerical replay is not connected"
     )
-
-
-def require_application_endpoint_shell_v2(
-    value: VerifiedApplicationEndpointShellV2,
-) -> ApplicationEndpointShellV2:
-    replay_inputs, expected_raw = _read_value_capability(
-        value,
-        VerifiedApplicationEndpointShellV2,
-        "_VerifiedApplicationEndpointShellV2__issued_raw",
-        "_VerifiedApplicationEndpointShellV2__live_upstream",
-        1,
-        "application endpoint shell v2",
-    )
-    replayed = verify_application_endpoint_shell_v2_body(
-        _replay_application_endpoint_shell_v2(*replay_inputs)
-    )
-    expected = verify_application_endpoint_shell_v2_body(expected_raw)
-    if replayed != expected:
-        raise ValueError(
-            "application endpoint shell v2 replay differs from issued body"
-        )
-    return replayed
-
-
-def require_application_branch_source_readout_response_v2(
-    value: VerifiedApplicationBranchSourceReadoutResponseV2,
-) -> ApplicationBranchSourceReadoutResponseV2:
-    replay_inputs, expected_raw = _read_value_capability(
-        value,
-        VerifiedApplicationBranchSourceReadoutResponseV2,
-        "_VerifiedApplicationBranchSourceReadoutResponseV2__issued_raw",
-        "_VerifiedApplicationBranchSourceReadoutResponseV2__live_upstream",
-        None,
-        "application branch response v2",
-    )
-    replayed = verify_application_branch_source_readout_response_v2_body(
-        _replay_application_branch_source_readout_response_v2(*replay_inputs)
-    )
-    expected = verify_application_branch_source_readout_response_v2_body(expected_raw)
-    if replayed != expected:
-        raise ValueError(
-            "application branch response v2 replay differs from issued body"
-        )
-    return replayed
-
-
-def require_application_paired_response_outcome_v2(
-    value: VerifiedApplicationPairedResponseOutcomeV2,
-) -> ApplicationPairedResponseOutcomeV2:
-    replay_inputs, expected_raw = _read_value_capability(
-        value,
-        VerifiedApplicationPairedResponseOutcomeV2,
-        "_VerifiedApplicationPairedResponseOutcomeV2__issued_raw",
-        "_VerifiedApplicationPairedResponseOutcomeV2__live_upstream",
-        1,
-        "application paired response v2",
-    )
-    replayed = verify_application_paired_response_outcome_v2_body(
-        _replay_application_paired_response_outcome_v2(*replay_inputs)
-    )
-    expected = verify_application_paired_response_outcome_v2_body(expected_raw)
-    if replayed != expected:
-        raise ValueError(
-            "application paired response v2 replay differs from issued body"
-        )
-    return replayed
 
 
 def _make_locked_application_response_tail_v2(
@@ -1678,6 +1760,74 @@ setattr(
     "reference",
     property(_closed_application_endpoint_reference_property_v2),
 )
+
+_closed_application_endpoint_shell_replay_v2 = _freeze_application_response_call_graph(
+    _replay_application_endpoint_shell_v2
+)
+_closed_application_endpoint_shell_verify_v2 = _freeze_application_response_call_graph(
+    verify_application_endpoint_shell_v2_body
+)
+(
+    _issue_verified_application_endpoint_shell_v2,
+    _reverify_verified_application_endpoint_shell_v2,
+    _closed_application_endpoint_shell_property_v2,
+) = _make_application_endpoint_shell_authority_v2(
+    _closed_application_endpoint_shell_replay_v2,
+    _closed_application_endpoint_shell_verify_v2,
+)
+require_application_endpoint_shell_v2 = _reverify_verified_application_endpoint_shell_v2
+setattr(
+    VerifiedApplicationEndpointShellV2,
+    "shell",
+    property(_closed_application_endpoint_shell_property_v2),
+)
+
+_closed_application_branch_response_replay_v2 = _freeze_application_response_call_graph(
+    _replay_application_branch_source_readout_response_v2
+)
+_closed_application_branch_response_verify_v2 = _freeze_application_response_call_graph(
+    verify_application_branch_source_readout_response_v2_body
+)
+(
+    _issue_verified_application_branch_response_v2,
+    _reverify_verified_application_branch_response_v2,
+    _closed_application_branch_response_property_v2,
+) = _make_application_branch_response_authority_v2(
+    _closed_application_branch_response_replay_v2,
+    _closed_application_branch_response_verify_v2,
+)
+require_application_branch_source_readout_response_v2 = (
+    _reverify_verified_application_branch_response_v2
+)
+setattr(
+    VerifiedApplicationBranchSourceReadoutResponseV2,
+    "response",
+    property(_closed_application_branch_response_property_v2),
+)
+
+_closed_application_paired_response_replay_v2 = _freeze_application_response_call_graph(
+    _replay_application_paired_response_outcome_v2
+)
+_closed_application_paired_response_verify_v2 = _freeze_application_response_call_graph(
+    verify_application_paired_response_outcome_v2_body
+)
+(
+    _issue_verified_application_paired_response_v2,
+    _reverify_verified_application_paired_response_v2,
+    _closed_application_paired_response_property_v2,
+) = _make_application_paired_response_authority_v2(
+    _closed_application_paired_response_replay_v2,
+    _closed_application_paired_response_verify_v2,
+)
+require_application_paired_response_outcome_v2 = (
+    _reverify_verified_application_paired_response_v2
+)
+setattr(
+    VerifiedApplicationPairedResponseOutcomeV2,
+    "outcome",
+    property(_closed_application_paired_response_property_v2),
+)
+
 (
     issue_v3m0_application_endpoint_shell_v2,
     issue_v3m0_application_paired_response_v2,
