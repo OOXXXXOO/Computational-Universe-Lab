@@ -1110,6 +1110,11 @@ def _make_certificate_authority(
     ) -> VerifiedDynamicsCertificate:
         if token is not _VALIDATED_TOKEN:
             raise TypeError("certificate issuance requires validation")
+        _validate_certificate(
+            certificate,
+            factory,
+            authority,
+        )
         seal = _certificate_seal(certificate)
         record = _VerifiedCertificateRecord(
             certificate=_snapshot_exact_wire(certificate),
@@ -1136,6 +1141,16 @@ def _make_certificate_authority(
         reference = weakref.ref(wrapper, remove)
         with lock:
             live[identity] = (reference, record)
+        record_successful_replay(
+            namespace="rulespace_v3.certificate.VerifiedDynamicsCertificate",
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificate,
+            token=_ISSUANCE_TOKEN,
+            exposed_bodies=(certificate,),
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+        )
         return wrapper
 
     def reverify(
@@ -1379,6 +1394,24 @@ def _make_outcome_authority(
         reference = weakref.ref(wrapper, remove)
         with lock:
             live[identity] = (reference, record)
+        exposed_bodies = (
+            (outcome,)
+            if certificate is None
+            else (outcome, certificate)
+        )
+        record_successful_replay(
+            namespace=(
+                "rulespace_v3.certificate."
+                "VerifiedDynamicsCertificationOutcome"
+            ),
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificationOutcome,
+            token=_ISSUANCE_TOKEN,
+            exposed_bodies=exposed_bodies,
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+        )
         return wrapper
 
     def reverify(
@@ -1983,11 +2016,6 @@ def certify_transition_dynamics(
             dynamics_certificate_payload(provisional)
         ),
     )
-    _validate_certificate(
-        certificate,
-        factory,
-        prestructure_authority,
-    )
     verified_certificate = _issue_verified_dynamics_certificate(
         _VALIDATED_TOKEN,
         certificate,
@@ -2028,11 +2056,6 @@ def verify_dynamics_certificate(
 ) -> VerifiedDynamicsCertificate:
     """Hydrate only after complete recursive validation and executor replay."""
 
-    _validate_certificate(
-        certificate,
-        factory,
-        prestructure_authority,
-    )
     return _issue_verified_dynamics_certificate(
         _VALIDATED_TOKEN,
         certificate,

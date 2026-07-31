@@ -96,10 +96,13 @@ class ExactWireSnapshotTests(unittest.TestCase):
 class CertificateScopedReplayTests(unittest.TestCase):
     def _issue(self) -> tuple[object, _CertificateBody]:
         body = _CertificateBody(_Leaf(1))
-        with mock.patch.object(
-            certificate_module,
-            "_certificate_seal",
-            return_value=_SEAL,
+        with (
+            mock.patch.object(certificate_module, "_validate_certificate"),
+            mock.patch.object(
+                certificate_module,
+                "_certificate_seal",
+                return_value=_SEAL,
+            ),
         ):
             wrapper = certificate_module._issue_verified_dynamics_certificate(
                 certificate_module._VALIDATED_TOKEN,
@@ -108,6 +111,41 @@ class CertificateScopedReplayTests(unittest.TestCase):
                 object(),
             )
         return wrapper, body
+
+    def test_validated_issuance_records_proof_for_immediate_reverify(self):
+        body = _CertificateBody(_Leaf(1))
+        with (
+            mock.patch.object(
+                certificate_module,
+                "_validate_certificate",
+            ) as full_validate,
+            mock.patch.object(
+                certificate_module,
+                "_certificate_seal",
+                return_value=_SEAL,
+            ),
+            _scoped_replay_context(),
+        ):
+            wrapper = certificate_module._issue_verified_dynamics_certificate(
+                certificate_module._VALIDATED_TOKEN,
+                body,
+                object(),
+                object(),
+            )
+            certificate_module._reverify_verified_dynamics_certificate_core(
+                wrapper
+            )
+            statistics = _replay_scope_statistics()
+
+        full_validate.assert_called_once()
+        self.assertEqual(
+            statistics.full_records,
+            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+        )
+        self.assertEqual(
+            statistics.hits,
+            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+        )
 
     def test_same_scope_runs_full_certificate_validation_once(self):
         wrapper, _body = self._issue()

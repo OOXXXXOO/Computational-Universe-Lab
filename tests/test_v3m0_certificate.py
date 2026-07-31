@@ -229,11 +229,14 @@ class DynamicsCertificateTests(unittest.TestCase):
     def test_success_hydrate_dispatches_through_generic_spectral_builder(self):
         assert self.result.certificate is not None
         certificate = self.result.certificate.certificate
-        with mock.patch.object(
-            spectral_module,
-            "build_spectral_margin_coverage",
-            wraps=spectral_module.build_spectral_margin_coverage,
-        ) as dispatch:
+        with (
+            certificate_module._scoped_replay_context(),
+            mock.patch.object(
+                spectral_module,
+                "build_spectral_margin_coverage",
+                wraps=spectral_module.build_spectral_margin_coverage,
+            ) as dispatch,
+        ):
             hydrated = certificate_module._verify_dynamics_certificate_core(
                 certificate,
                 self.factory,
@@ -653,9 +656,12 @@ class DynamicsCertificateTests(unittest.TestCase):
         metric.assert_not_called()
 
     def test_ordinary_evidence_insufficiency_is_unresolved_not_unstable(self):
-        with mock.patch(
-            "rulespace_v3.certificate.build_spectral_margin_coverage",
-            side_effect=ValueError("candidate inverse unresolved"),
+        with (
+            certificate_module._scoped_replay_context(),
+            mock.patch(
+                "rulespace_v3.certificate.build_spectral_margin_coverage",
+                side_effect=ValueError("candidate inverse unresolved"),
+            ),
         ):
             outcome = self._certify(core=True).outcome
         self.assertEqual(
