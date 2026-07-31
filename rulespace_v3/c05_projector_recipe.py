@@ -41,6 +41,7 @@ from .trace import (
 
 C05_PROJECTOR_RECIPE_SCHEMA_VERSION = "v3m0.c05-projector-orientation-recipe.v1"
 C05_PROJECTOR_RECIPE_STATE = "PENDING_PARENT_REFREEZE"
+C05_PROJECTOR_STATE_SCHEMA_ID = "state.v3m0.synthetic-control.v1"
 C05_PROJECTOR_PUBLIC_BASIS_CONTRACT_ID = "permit-public-identity-basis-v1"
 C05_PROJECTOR_SOURCE_DERIVATION_ID = "identity-column-combination-v1"
 C05_PROJECTOR_READOUT_DERIVATION_ID = "identity-normalized-row-combination-v1"
@@ -339,25 +340,23 @@ def _compile_recipe(
     actual_steps = (*carrier, *conditioned)
     if scenario_kind == "phase":
         source_values = np.asarray(
-            ((0.0,), (0.0,), (0.0,), (1.0,)),
+            ((0.0,), (1.0 + 1.0j,), (1.0j,), (0.0,)),
             dtype=np.complex128,
-        )
-        scale = math.sqrt(2.0)
+        ) / math.sqrt(3.0)
         readout_values = np.asarray(
-            ((-1.0 / scale, 0.0, -1.0 / scale, 0.0),),
+            ((3.0, 1.0 + 1.0j, -2.0, 2.0j),),
             dtype=np.complex128,
-        )
+        ) / math.sqrt(19.0)
         expected = -1.0
     else:
         source_values = np.asarray(
-            ((0.0,), (1.0,), (0.0,), (0.0,)),
+            ((0.0,), (1.0,), (-1.0 + 1.0j,), (0.0,)),
             dtype=np.complex128,
-        )
-        scale = math.sqrt(5.0)
+        ) / math.sqrt(3.0)
         readout_values = np.asarray(
-            ((-2.0 / scale, 0.0, -1.0 / scale, 0.0),),
+            ((-3.0 + 5.0j, -1.0 + 1.0j, -1.0, -1.0),),
             dtype=np.complex128,
-        )
+        ) / math.sqrt(38.0)
         expected = 2.0
     canonical = np.asarray(
         (
@@ -373,7 +372,7 @@ def _compile_recipe(
         construction_state=C05_PROJECTOR_RECIPE_STATE,
         scenario_kind=scenario_kind,
         recipe_id=f"c05-exact-projector-orientation-{scenario_kind}-v1",
-        state_schema_id="state.v3m0.c05-projector-orientation.v1",
+        state_schema_id=C05_PROJECTOR_STATE_SCHEMA_ID,
         channel_order=_CHANNEL_ORDER,
         spatial_ndim=1,
         public_basis_contract_id=C05_PROJECTOR_PUBLIC_BASIS_CONTRACT_ID,
@@ -651,6 +650,7 @@ __all__ = [
     "C05_PROJECTOR_RECIPE_SCHEMA_VERSION",
     "C05_PROJECTOR_RECIPE_STATE",
     "C05_PROJECTOR_SOURCE_DERIVATION_ID",
+    "C05_PROJECTOR_STATE_SCHEMA_ID",
     "C05ProjectorOrientationRecipe",
     "build_c05_projector_orientation_recipe",
     "build_c05_projector_recipe_trace_and_operators",

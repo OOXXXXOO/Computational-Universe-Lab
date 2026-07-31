@@ -19,12 +19,17 @@ from rulespace_v3.c05_projector_recipe import (
 from rulespace_v3.factory import (
     PrimitiveInterface,
     apply_factory_step,
+    basis_manifest_array,
     build_basis_manifest,
     build_factory_from_trace,
     factory_support_offsets,
     frozen_tensor_array,
 )
-from rulespace_v3.response import compute_fejer_filtered_response
+from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
+from rulespace_v3.response import (
+    _extract_projector_candidates,
+    compute_fejer_filtered_response,
+)
 from rulespace_v3.trace import MechanismKind
 
 
@@ -52,7 +57,8 @@ def _build_factory_pair(recipe, target, *, length: int):
         role="readout",
         state_schema_id=interface.state_schema_id,
         channel_order=interface.channel_order,
-        vectors=frozen_tensor_array(recipe.readout),
+        # BasisManifest stores raw rows w; runtime execution uses P=conj(w).
+        vectors=frozen_tensor_array(recipe.readout).conj(),
     )
     actual = build_factory_from_trace(
         trace,
@@ -153,6 +159,29 @@ class C05ProjectorOrientationRecipeTests(unittest.TestCase):
                 hostile = dataclasses.replace(recipe, recipe_sha="0" * 64)
                 with self.assertRaisesRegex(ValueError, "SHA"):
                     verify_c05_projector_orientation_recipe(hostile)
+
+    def test_recipe_interface_matches_the_parent_common_basis_schema(self) -> None:
+        parent = issue_v3m0_parent_freeze().manifest
+        application = next(
+            item
+            for item in parent.synthetic_control_application_specs
+            if item.control_case_id == "C05_PHASE_AND_SCALAR_GAIN"
+        )
+        source = application.basis_protocol.source_basis
+        readout = application.basis_protocol.readout_basis
+        self.assertEqual(source.state_schema_id, readout.state_schema_id)
+        for recipe in self.recipes.values():
+            self.assertEqual(recipe.state_schema_id, source.state_schema_id)
+            self.assertEqual(recipe.channel_order, source.channel_order)
+            self.assertEqual(recipe.channel_order, readout.channel_order)
+            np.testing.assert_array_equal(
+                basis_manifest_array(source),
+                np.eye(4, dtype=np.complex128),
+            )
+            np.testing.assert_array_equal(
+                basis_manifest_array(readout),
+                np.eye(4, dtype=np.complex128),
+            )
 
     def test_verifier_rejects_unknown_fields_at_every_record_layer(self) -> None:
         attacks = (
@@ -334,6 +363,36 @@ class C05ProjectorOrientationRecipeTests(unittest.TestCase):
                         ),
                         1.0e-12,
                     )
+
+    def test_actual_endpoint_candidate_has_positive_participation_margin(
+        self,
+    ) -> None:
+        metric = np.eye(4, dtype=np.complex128)
+        expected_participation = {
+            "phase": 27.0 / 76.0,
+            "gain": 23.0 / 76.0,
+        }
+        for kind, recipe in self.recipes.items():
+            candidate, = _extract_projector_candidates(
+                c05_projector_orientation_recipe_symbol(
+                    recipe,
+                    math.pi / 4.0,
+                    "actual",
+                ),
+                metric,
+                (recipe.reference_phase_band,),
+                256,
+                frozen_tensor_array(recipe.source_injection),
+                frozen_tensor_array(recipe.readout),
+            )
+            with self.subTest(kind=kind):
+                self.assertEqual(candidate.rank, recipe.expected_shell_rank)
+                self.assertAlmostEqual(
+                    candidate.participation,
+                    expected_participation[kind],
+                    places=14,
+                )
+                self.assertGreater(candidate.participation - 0.25, 0.05)
 
 
 if __name__ == "__main__":
