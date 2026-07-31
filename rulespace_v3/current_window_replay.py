@@ -7,13 +7,18 @@ No function in this module promotes the raw body to an opaque capability.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, fields as dataclass_fields, replace
 import re
+import threading
+import weakref
 
 from .evidence import canonical_sha
 from .task8_control_replay import (
     CurrentControlRegistryV2,
     CurrentTask8ControlReplay,
+    VerifiedCurrentControlRegistryV2,
+    _replay_current_control_registry_v2,
     current_control_registry_v2_payload,
     verify_current_control_registry_v2_body,
 )
@@ -169,6 +174,10 @@ class CurrentWindowCalibrationProtocolV2:
 
 def current_window_calibration_protocol_v2_payload(
     protocol: CurrentWindowCalibrationProtocolV2,
+    *,
+    _registry_payload=current_control_registry_v2_payload,
+    _legacy_payload=window_calibration_protocol_payload,
+    _binding_payload=current_window_control_binding_v2_payload,
 ) -> dict[str, object]:
     _exact_record(
         protocol,
@@ -179,13 +188,13 @@ def current_window_calibration_protocol_v2_payload(
         "protocol_schema_version": protocol.protocol_schema_version,
         "parent_freeze_v2_sha": protocol.parent_freeze_v2_sha,
         "current_control_registry": {
-            **current_control_registry_v2_payload(
+            **_registry_payload(
                 protocol.current_control_registry
             ),
             "registry_sha": protocol.current_control_registry.registry_sha,
         },
         "legacy_window_protocol": {
-            **window_calibration_protocol_payload(
+            **_legacy_payload(
                 protocol.legacy_window_protocol
             ),
             "protocol_sha": protocol.legacy_window_protocol.protocol_sha,
@@ -193,7 +202,7 @@ def current_window_calibration_protocol_v2_payload(
         "t_candidates": list(protocol.t_candidates),
         "control_bindings": [
             {
-                **current_window_control_binding_v2_payload(item),
+                **_binding_payload(item),
                 "binding_sha": item.binding_sha,
             }
             for item in protocol.control_bindings
@@ -204,18 +213,24 @@ def current_window_calibration_protocol_v2_payload(
 def _build_current_window_calibration_protocol_v2_body(
     current_registry: CurrentControlRegistryV2,
     replay: CurrentTask8ControlReplay,
+    *,
+    _registry_verifier=verify_current_control_registry_v2_body,
+    _entry_builder=build_control_window_protocol_entries,
+    _protocol_builder=build_window_calibration_protocol,
+    _binding_payload=current_window_control_binding_v2_payload,
+    _protocol_payload=current_window_calibration_protocol_v2_payload,
 ) -> CurrentWindowCalibrationProtocolV2:
     """Build the exact inert current window envelope from a fresh replay."""
 
-    verified_registry = verify_current_control_registry_v2_body(
+    verified_registry = _registry_verifier(
         current_registry,
         current_registry.parent_freeze_v2_sha,
         replay,
     )
-    legacy_entries = build_control_window_protocol_entries(
+    legacy_entries = _entry_builder(
         replay.legacy_registry
     )
-    legacy_capability = build_window_calibration_protocol(
+    legacy_capability = _protocol_builder(
         replay.legacy_registry,
         legacy_entries,
     )
@@ -249,7 +264,7 @@ def _build_current_window_calibration_protocol_v2_body(
             replace(
                 provisional,
                 binding_sha=canonical_sha(
-                    current_window_control_binding_v2_payload(provisional)
+                    _binding_payload(provisional)
                 ),
             )
         )
@@ -267,7 +282,7 @@ def _build_current_window_calibration_protocol_v2_body(
     return replace(
         provisional_protocol,
         protocol_sha=canonical_sha(
-            current_window_calibration_protocol_v2_payload(
+            _protocol_payload(
                 provisional_protocol
             )
         ),
@@ -278,6 +293,12 @@ def verify_current_window_calibration_protocol_v2_body(
     protocol: CurrentWindowCalibrationProtocolV2,
     current_registry: CurrentControlRegistryV2,
     replay: CurrentTask8ControlReplay,
+    *,
+    _registry_verifier=verify_current_control_registry_v2_body,
+    _legacy_verifier=verify_window_calibration_protocol,
+    _binding_payload=current_window_control_binding_v2_payload,
+    _protocol_payload=current_window_calibration_protocol_v2_payload,
+    _builder=_build_current_window_calibration_protocol_v2_body,
 ) -> CurrentWindowCalibrationProtocolV2:
     """Validate the raw envelope against both current and numerical roots."""
 
@@ -287,12 +308,12 @@ def verify_current_window_calibration_protocol_v2_body(
         "current window protocol",
     )
     protocol.__post_init__()
-    verify_current_control_registry_v2_body(
+    _registry_verifier(
         protocol.current_control_registry,
         protocol.parent_freeze_v2_sha,
         replay,
     )
-    verified_legacy = verify_window_calibration_protocol(
+    verified_legacy = _legacy_verifier(
         protocol.legacy_window_protocol,
         replay.legacy_registry,
     ).protocol
@@ -306,14 +327,14 @@ def verify_current_window_calibration_protocol_v2_body(
         )
         binding.__post_init__()
         if binding.binding_sha != canonical_sha(
-            current_window_control_binding_v2_payload(binding)
+            _binding_payload(binding)
         ):
             raise ValueError("current window control-binding SHA drifted")
     if protocol.protocol_sha != canonical_sha(
-        current_window_calibration_protocol_v2_payload(protocol)
+        _protocol_payload(protocol)
     ):
         raise ValueError("current window protocol SHA drifted")
-    expected = _build_current_window_calibration_protocol_v2_body(
+    expected = _builder(
         current_registry,
         replay,
     )
@@ -322,11 +343,151 @@ def verify_current_window_calibration_protocol_v2_body(
     return protocol
 
 
+class VerifiedCurrentWindowCalibrationProtocolV2:
+    """Opaque live current-window protocol capability."""
+
+    __slots__ = ("_protocol_sha", "__weakref__")
+
+    def __init__(self) -> None:
+        raise TypeError("current window protocol v2 is issuer-only")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("current window protocol v2 is immutable")
+
+
+@dataclass(frozen=True)
+class _LiveCurrentWindowCalibrationProtocolV2:
+    registry_capability: object
+    protocol_sha: str
+
+
+def _make_current_window_calibration_protocol_v2_api(
+    *,
+    registry_type: type,
+    registry_replayer,
+    body_builder=_build_current_window_calibration_protocol_v2_body,
+    body_verifier=verify_current_window_calibration_protocol_v2_body,
+    wrapper_type=VerifiedCurrentWindowCalibrationProtocolV2,
+):
+    """Freeze issuance and consumption over one live current registry."""
+
+    registry: dict[
+        int,
+        tuple[
+            weakref.ReferenceType[VerifiedCurrentWindowCalibrationProtocolV2],
+            _LiveCurrentWindowCalibrationProtocolV2,
+        ],
+    ] = {}
+    lock = threading.RLock()
+
+    def _replay(registry_capability):
+        if type(registry_capability) is not registry_type:
+            raise TypeError(
+                "current window protocol requires an exact live current registry"
+            )
+        current_registry, task8_replay = registry_replayer(registry_capability)
+        if type(current_registry) is not CurrentControlRegistryV2:
+            raise TypeError("current window registry replay returned the wrong type")
+        if type(task8_replay) is not CurrentTask8ControlReplay:
+            raise TypeError("current window Task-8 replay returned the wrong type")
+        protocol = body_builder(current_registry, task8_replay)
+        return body_verifier(protocol, current_registry, task8_replay)
+
+    def _live_record(value):
+        if type(value) is not wrapper_type:
+            raise TypeError(
+                "current window consumer requires its exact opaque type"
+            )
+        with lock:
+            current = registry.get(id(value))
+            if current is None or current[0]() is not value:
+                raise ValueError("current window protocol identity is not live")
+            record = current[1]
+        try:
+            slot_sha = object.__getattribute__(value, "_protocol_sha")
+        except AttributeError as exc:
+            raise ValueError("current window protocol record is incomplete") from exc
+        if slot_sha != record.protocol_sha:
+            raise ValueError("current window protocol replay seal mismatch")
+        return record
+
+    def build_current_window_calibration_protocol_v2(
+        registry_capability,
+    ) -> VerifiedCurrentWindowCalibrationProtocolV2:
+        protocol = _replay(registry_capability)
+        wrapper = object.__new__(wrapper_type)
+        object.__setattr__(wrapper, "_protocol_sha", protocol.protocol_sha)
+        identity = id(wrapper)
+        record = _LiveCurrentWindowCalibrationProtocolV2(
+            registry_capability=registry_capability,
+            protocol_sha=protocol.protocol_sha,
+        )
+
+        def remove_stale(
+            reference: weakref.ReferenceType[
+                VerifiedCurrentWindowCalibrationProtocolV2
+            ],
+            wrapper_id: int = identity,
+        ) -> None:
+            with lock:
+                current = registry.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del registry[wrapper_id]
+
+        reference = weakref.ref(wrapper, remove_stale)
+        with lock:
+            current = registry.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError("live current window protocol identity collision")
+            registry[identity] = (reference, record)
+        return wrapper
+
+    def require_current_window_calibration_protocol_v2(
+        value: VerifiedCurrentWindowCalibrationProtocolV2,
+    ) -> CurrentWindowCalibrationProtocolV2:
+        record = _live_record(value)
+        protocol = _replay(record.registry_capability)
+        if protocol.protocol_sha != record.protocol_sha:
+            raise ValueError("current window protocol replay seal mismatch")
+        return copy.deepcopy(protocol)
+
+    return (
+        build_current_window_calibration_protocol_v2,
+        require_current_window_calibration_protocol_v2,
+    )
+
+
+(
+    build_current_window_calibration_protocol_v2,
+    require_current_window_calibration_protocol_v2,
+) = _make_current_window_calibration_protocol_v2_api(
+    registry_type=VerifiedCurrentControlRegistryV2,
+    registry_replayer=_replay_current_control_registry_v2,
+)
+
+
+def _current_window_protocol_property(
+    self,
+    _consumer=require_current_window_calibration_protocol_v2,
+) -> CurrentWindowCalibrationProtocolV2:
+    return _consumer(self)
+
+
+VerifiedCurrentWindowCalibrationProtocolV2.protocol = property(
+    _current_window_protocol_property
+)
+del _current_window_protocol_property
+
+
 __all__ = [
     "CURRENT_WINDOW_CALIBRATION_PROTOCOL_V2_SCHEMA_VERSION",
     "CURRENT_WINDOW_CONTROL_BINDING_V2_SCHEMA_VERSION",
     "CurrentWindowCalibrationProtocolV2",
     "CurrentWindowControlBindingV2",
+    "VerifiedCurrentWindowCalibrationProtocolV2",
+    "build_current_window_calibration_protocol_v2",
     "current_window_calibration_protocol_v2_payload",
     "current_window_control_binding_v2_payload",
+    "require_current_window_calibration_protocol_v2",
 ]

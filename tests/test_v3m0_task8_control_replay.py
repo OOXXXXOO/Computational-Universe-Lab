@@ -274,7 +274,7 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
             calls.append("replay")
             return replay
 
-        build, require = _make_current_control_registry_v2_api(
+        build, require, replay_capability = _make_current_control_registry_v2_api(
             parent_type=FakeCurrentParent,
             parent_reverifier=lambda value: manifest
             if value is fake_parent
@@ -286,7 +286,10 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
         capability = build(fake_parent)
         body = require(capability)
         self.assertEqual(body.parent_freeze_v2_sha, "a" * 64)
-        self.assertEqual(calls, ["replay", "replay"])
+        replayed_body, replayed_graph = replay_capability(capability)
+        self.assertEqual(replayed_body, body)
+        self.assertIs(replayed_graph, replay)
+        self.assertEqual(calls, ["replay", "replay", "replay"])
 
         forged = object.__new__(VerifiedCurrentControlRegistryV2)
         object.__setattr__(forged, "_registry_sha", body.registry_sha)
@@ -321,7 +324,7 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
             (),
             {"parent_freeze_v2_sha": "b" * 64},
         )()
-        build, require = _make_current_control_registry_v2_api(
+        build, require, _ = _make_current_control_registry_v2_api(
             parent_type=FakeCurrentParent,
             parent_reverifier=lambda value: manifest,
             replay_builder=lambda value, observed: replay,

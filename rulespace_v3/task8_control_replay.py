@@ -772,12 +772,28 @@ def _make_current_control_registry_v2_api(
         if type(replay) is not CurrentTask8ControlReplay:
             raise TypeError("current registry replay returned the wrong exact type")
         body = body_builder(parent_sha, replay)
-        return body_verifier(body, parent_sha, replay)
+        return body_verifier(body, parent_sha, replay), replay
+
+    def _live_record(value):
+        if type(value) is not wrapper_type:
+            raise TypeError("current registry consumer requires its exact opaque type")
+        with lock:
+            current = registry.get(id(value))
+            if current is None or current[0]() is not value:
+                raise ValueError("current control-registry identity is not live")
+            record = current[1]
+        try:
+            slot_sha = object.__getattribute__(value, "_registry_sha")
+        except AttributeError as exc:
+            raise ValueError("current control-registry record is incomplete") from exc
+        if slot_sha != record.registry_sha:
+            raise ValueError("current control-registry replay seal mismatch")
+        return record
 
     def build_current_control_registry_v2(
         parent_v2,
     ) -> VerifiedCurrentControlRegistryV2:
-        body = _replay(parent_v2)
+        body, _ = _replay(parent_v2)
         wrapper = object.__new__(wrapper_type)
         object.__setattr__(wrapper, "_registry_sha", body.registry_sha)
         identity = id(wrapper)
@@ -806,23 +822,28 @@ def _make_current_control_registry_v2_api(
     def require_current_control_registry_v2(
         value: VerifiedCurrentControlRegistryV2,
     ) -> CurrentControlRegistryV2:
-        if type(value) is not wrapper_type:
-            raise TypeError("current registry consumer requires its exact opaque type")
-        with lock:
-            current = registry.get(id(value))
-            if current is None or current[0]() is not value:
-                raise ValueError("current control-registry identity is not live")
-            record = current[1]
-        try:
-            slot_sha = object.__getattribute__(value, "_registry_sha")
-        except AttributeError as exc:
-            raise ValueError("current control-registry record is incomplete") from exc
-        body = _replay(record.parent_v2)
-        if slot_sha != record.registry_sha or body.registry_sha != record.registry_sha:
+        record = _live_record(value)
+        body, _ = _replay(record.parent_v2)
+        if body.registry_sha != record.registry_sha:
             raise ValueError("current control-registry replay seal mismatch")
         return copy.deepcopy(body)
 
-    return build_current_control_registry_v2, require_current_control_registry_v2
+    def replay_current_control_registry_v2(
+        value: VerifiedCurrentControlRegistryV2,
+    ) -> tuple[CurrentControlRegistryV2, CurrentTask8ControlReplay]:
+        """Private downstream bridge; return a fresh replay, never stored raw."""
+
+        record = _live_record(value)
+        body, replay = _replay(record.parent_v2)
+        if body.registry_sha != record.registry_sha:
+            raise ValueError("current control-registry replay seal mismatch")
+        return copy.deepcopy(body), replay
+
+    return (
+        build_current_control_registry_v2,
+        require_current_control_registry_v2,
+        replay_current_control_registry_v2,
+    )
 
 
 def _make_current_parent_task8_replayer(
@@ -877,6 +898,7 @@ from .parent_authority import (  # noqa: E402
 (
     build_current_control_registry_v2,
     require_current_control_registry_v2,
+    _replay_current_control_registry_v2,
 ) = _make_current_control_registry_v2_api(
     parent_type=_VerifiedParentFreezeV2,
     parent_reverifier=_require_current_parent,

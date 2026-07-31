@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import fields as dataclass_fields
+import gc
 import unittest
+from unittest import mock
 
 
 class CurrentWindowReplayV2Tests(unittest.TestCase):
@@ -122,6 +124,85 @@ class CurrentWindowReplayV2Tests(unittest.TestCase):
                         self.registry,
                         self.replay,
                     )
+
+    def test_live_window_factory_replays_registry_and_requires_live_identity(
+        self,
+    ) -> None:
+        from rulespace_v3.current_window_replay import (
+            VerifiedCurrentWindowCalibrationProtocolV2,
+            _build_current_window_calibration_protocol_v2_body,
+            _make_current_window_calibration_protocol_v2_api,
+            verify_current_window_calibration_protocol_v2_body,
+        )
+
+        class FakeRegistryCapability:
+            pass
+
+        registry_capability = FakeRegistryCapability()
+        calls = []
+
+        def replay_registry(value):
+            self.assertIs(value, registry_capability)
+            calls.append("replay")
+            return self.registry, self.replay
+
+        build, require = _make_current_window_calibration_protocol_v2_api(
+            registry_type=FakeRegistryCapability,
+            registry_replayer=replay_registry,
+            body_builder=_build_current_window_calibration_protocol_v2_body,
+            body_verifier=verify_current_window_calibration_protocol_v2_body,
+        )
+        capability = build(registry_capability)
+        protocol = require(capability)
+        self.assertEqual(protocol.parent_freeze_v2_sha, self.parent_v2_sha)
+        self.assertEqual(calls, ["replay", "replay"])
+
+        forged = object.__new__(VerifiedCurrentWindowCalibrationProtocolV2)
+        object.__setattr__(forged, "_protocol_sha", protocol.protocol_sha)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            require(forged)
+        del capability
+        gc.collect()
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            require(forged)
+
+    def test_live_window_factory_freezes_body_builder_and_public_gate(self) -> None:
+        import rulespace_v3.current_window_replay as current_window
+        from rulespace_v3.current_window_replay import (
+            VerifiedCurrentWindowCalibrationProtocolV2,
+            _build_current_window_calibration_protocol_v2_body,
+            _make_current_window_calibration_protocol_v2_api,
+            build_current_window_calibration_protocol_v2,
+            require_current_window_calibration_protocol_v2,
+            verify_current_window_calibration_protocol_v2_body,
+        )
+
+        class FakeRegistryCapability:
+            pass
+
+        registry_capability = FakeRegistryCapability()
+        build, require = _make_current_window_calibration_protocol_v2_api(
+            registry_type=FakeRegistryCapability,
+            registry_replayer=lambda value: (self.registry, self.replay),
+            body_builder=_build_current_window_calibration_protocol_v2_body,
+            body_verifier=verify_current_window_calibration_protocol_v2_body,
+        )
+        with mock.patch.object(
+            current_window,
+            "_build_current_window_calibration_protocol_v2_body",
+            side_effect=AssertionError("module global redirect reached"),
+        ):
+            capability = build(registry_capability)
+            self.assertEqual(
+                require(capability).parent_freeze_v2_sha,
+                self.parent_v2_sha,
+            )
+
+        with self.assertRaises(TypeError):
+            build_current_window_calibration_protocol_v2(object())
+        forged = object.__new__(VerifiedCurrentWindowCalibrationProtocolV2)
+        with self.assertRaises((TypeError, ValueError, AttributeError)):
+            require_current_window_calibration_protocol_v2(forged)
 
 
 if __name__ == "__main__":
