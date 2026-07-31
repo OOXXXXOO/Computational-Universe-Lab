@@ -42,6 +42,7 @@ from .factory import (
     primitive_payload,
     primitive_sha,
 )
+from .frozen_call_graph import freeze_rulespace_call_graph
 from .grids import (
     build_application_bridge_grid_manifest,
     build_response_grid_manifest,
@@ -114,15 +115,26 @@ class CurrentControlRegistryEntryV2:
     expected_matched_shell_rank: int
     entry_sha: str
 
-    def __post_init__(self) -> None:
+    def __post_init__(
+        self,
+        _schema=CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION,
+        _sha_validator=_sha,
+        _text_validator=_text,
+        _record_validator=_exact_record,
+        _legacy_type=ControlRegistryEntry,
+        _getattr=getattr,
+        _type=type,
+        _int_type=int,
+        _value_error=ValueError,
+    ) -> None:
         if (
             self.entry_schema_version
-            != CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION
+            != _schema
         ):
-            raise ValueError("current control registry-entry schema drifted")
-        _sha(self.parent_freeze_v2_sha, "parent_freeze_v2_sha")
+            raise _value_error("current control registry-entry schema drifted")
+        _sha_validator(self.parent_freeze_v2_sha, "parent_freeze_v2_sha")
         for field in ("control_case_id", "control_id", "scenario_id"):
-            _text(getattr(self, field), field)
+            _text_validator(_getattr(self, field), field)
         for field in (
             "scenario_authority_sha",
             "response_contract_sha",
@@ -134,10 +146,10 @@ class CurrentControlRegistryEntryV2:
             "matched_ablated_effect_digest",
             "entry_sha",
         ):
-            _sha(getattr(self, field), field)
-        _exact_record(
+            _sha_validator(_getattr(self, field), field)
+        _record_validator(
             self.legacy_registry_entry,
-            ControlRegistryEntry,
+            _legacy_type,
             "legacy_registry_entry",
         )
         self.legacy_registry_entry.__post_init__()
@@ -147,9 +159,11 @@ class CurrentControlRegistryEntryV2:
             "expected_actual_shell_rank",
             "expected_matched_shell_rank",
         ):
-            value = getattr(self, field)
-            if type(value) is not int or value < 0:
-                raise ValueError(f"{field} must be a non-negative exact integer")
+            value = _getattr(self, field)
+            if _type(value) is not _int_type or value < 0:
+                raise _value_error(
+                    f"{field} must be a non-negative exact integer"
+                )
 
 
 def current_control_registry_entry_v2_payload(
@@ -190,35 +204,55 @@ class CurrentControlRegistryV2:
     entries: tuple[CurrentControlRegistryEntryV2, ...]
     registry_sha: str
 
-    def __post_init__(self) -> None:
-        if self.registry_schema_version != CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION:
-            raise ValueError("current control registry schema drifted")
+    def __post_init__(
+        self,
+        _schema=CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION,
+        _sha_validator=_sha,
+        _cases=_TASK8_CASES,
+        _entry_type=CurrentControlRegistryEntryV2,
+        _getattr=getattr,
+        _type=type,
+        _tuple_type=tuple,
+        _len=len,
+        _all=all,
+        _any=any,
+        _type_error=TypeError,
+        _value_error=ValueError,
+    ) -> None:
+        if self.registry_schema_version != _schema:
+            raise _value_error("current control registry schema drifted")
         for field in (
             "parent_freeze_v2_sha",
             "historical_parent_v1_sha",
             "legacy_registry_sha",
             "registry_sha",
         ):
-            _sha(getattr(self, field), field)
+            _sha_validator(_getattr(self, field), field)
         if (
-            type(self.entries) is not tuple
-            or len(self.entries) != len(_TASK8_CASES)
-            or not all(type(item) is CurrentControlRegistryEntryV2 for item in self.entries)
+            _type(self.entries) is not _tuple_type
+            or _len(self.entries) != _len(_cases)
+            or not _all(_type(item) is _entry_type for item in self.entries)
         ):
-            raise TypeError("current registry entries must be the exact three-entry tuple")
-        if tuple(item.control_case_id for item in self.entries) != tuple(
-            item[0] for item in _TASK8_CASES
+            raise _type_error(
+                "current registry entries must be the exact three-entry tuple"
+            )
+        if _tuple_type(item.control_case_id for item in self.entries) != _tuple_type(
+            item[0] for item in _cases
         ):
-            raise ValueError("current registry entries are not in canonical C01-C03 order")
-        if tuple(item.control_id for item in self.entries) != tuple(
-            item[1] for item in _TASK8_CASES
+            raise _value_error(
+                "current registry entries are not in canonical C01-C03 order"
+            )
+        if _tuple_type(item.control_id for item in self.entries) != _tuple_type(
+            item[1] for item in _cases
         ):
-            raise ValueError("current registry control IDs are not canonical")
-        if any(
+            raise _value_error("current registry control IDs are not canonical")
+        if _any(
             item.parent_freeze_v2_sha != self.parent_freeze_v2_sha
             for item in self.entries
         ):
-            raise ValueError("current registry entry is spliced to another Parent-v2")
+            raise _value_error(
+                "current registry entry is spliced to another Parent-v2"
+            )
 
 
 def current_control_registry_v2_payload(
@@ -896,9 +930,9 @@ from .parent_authority import (  # noqa: E402
 
 
 (
-    build_current_control_registry_v2,
-    require_current_control_registry_v2,
-    _replay_current_control_registry_v2,
+    _raw_build_current_control_registry_v2,
+    _raw_require_current_control_registry_v2,
+    _raw_replay_current_control_registry_v2,
 ) = _make_current_control_registry_v2_api(
     parent_type=_VerifiedParentFreezeV2,
     parent_reverifier=_require_current_parent,
@@ -906,15 +940,46 @@ from .parent_authority import (  # noqa: E402
 )
 
 
-def _current_registry_property(
-    self,
-    _consumer=require_current_control_registry_v2,
-) -> CurrentControlRegistryV2:
-    return _consumer(self)
+def _make_current_registry_property_binding():
+    consumer_holder = []
+
+    def current_registry_property(self):
+        if len(consumer_holder) != 1:
+            raise RuntimeError("current registry property is not bound exactly once")
+        return consumer_holder[0](self)
+
+    def bind(consumer):
+        if consumer_holder:
+            raise RuntimeError("current registry property is already bound")
+        consumer_holder.append(consumer)
+
+    return property(current_registry_property), bind
 
 
-VerifiedCurrentControlRegistryV2.registry = property(_current_registry_property)
+(
+    _current_registry_property,
+    _bind_current_registry_property,
+) = _make_current_registry_property_binding()
+VerifiedCurrentControlRegistryV2.registry = _current_registry_property
 del _current_registry_property
+del _make_current_registry_property_binding
+
+build_current_control_registry_v2 = freeze_rulespace_call_graph(
+    _raw_build_current_control_registry_v2
+)
+require_current_control_registry_v2 = freeze_rulespace_call_graph(
+    _raw_require_current_control_registry_v2
+)
+_replay_current_control_registry_v2 = freeze_rulespace_call_graph(
+    _raw_replay_current_control_registry_v2
+)
+del (
+    _raw_build_current_control_registry_v2,
+    _raw_require_current_control_registry_v2,
+    _raw_replay_current_control_registry_v2,
+)
+_bind_current_registry_property(require_current_control_registry_v2)
+del _bind_current_registry_property
 
 
 __all__ = [

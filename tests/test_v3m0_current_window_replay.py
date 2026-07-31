@@ -204,6 +204,44 @@ class CurrentWindowReplayV2Tests(unittest.TestCase):
         with self.assertRaises((TypeError, ValueError, AttributeError)):
             require_current_window_calibration_protocol_v2(forged)
 
+    def test_shared_call_graph_freezer_closes_window_builder_globals(self) -> None:
+        import rulespace_v3.current_window_replay as current_window
+        from rulespace_v3.current_window_replay import (
+            _build_current_window_calibration_protocol_v2_body,
+        )
+        from rulespace_v3.frozen_call_graph import freeze_rulespace_call_graph
+
+        frozen_builder = freeze_rulespace_call_graph(
+            _build_current_window_calibration_protocol_v2_body
+        )
+        with mock.patch.object(
+            current_window,
+            "canonical_sha",
+            side_effect=AssertionError("module canonical hash redirect reached"),
+        ):
+            protocol = frozen_builder(self.registry, self.replay)
+        self.assertEqual(protocol.parent_freeze_v2_sha, self.parent_v2_sha)
+
+    def test_shared_call_graph_freezer_rejects_window_class_behavior_drift(
+        self,
+    ) -> None:
+        from rulespace_v3.current_window_replay import (
+            CurrentWindowControlBindingV2,
+            _build_current_window_calibration_protocol_v2_body,
+        )
+        from rulespace_v3.frozen_call_graph import freeze_rulespace_call_graph
+
+        frozen_builder = freeze_rulespace_call_graph(
+            _build_current_window_calibration_protocol_v2_body
+        )
+        with mock.patch.object(
+            CurrentWindowControlBindingV2,
+            "__post_init__",
+            return_value=None,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "class dependency drifted"):
+                frozen_builder(self.registry, self.replay)
+
 
 if __name__ == "__main__":
     unittest.main()

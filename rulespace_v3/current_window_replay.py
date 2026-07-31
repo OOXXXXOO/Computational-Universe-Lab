@@ -14,6 +14,7 @@ import threading
 import weakref
 
 from .evidence import canonical_sha
+from .frozen_call_graph import freeze_rulespace_call_graph
 from .task8_control_replay import (
     CurrentControlRegistryV2,
     CurrentTask8ControlReplay,
@@ -79,14 +80,21 @@ class CurrentWindowControlBindingV2:
     legacy_window_entry_sha: str
     binding_sha: str
 
-    def __post_init__(self) -> None:
+    def __post_init__(
+        self,
+        _schema=CURRENT_WINDOW_CONTROL_BINDING_V2_SCHEMA_VERSION,
+        _text_validator=_text,
+        _sha_validator=_sha,
+        _getattr=getattr,
+        _value_error=ValueError,
+    ) -> None:
         if (
             self.binding_schema_version
-            != CURRENT_WINDOW_CONTROL_BINDING_V2_SCHEMA_VERSION
+            != _schema
         ):
-            raise ValueError("current window control-binding schema drifted")
+            raise _value_error("current window control-binding schema drifted")
         for field in ("control_case_id", "control_id"):
-            _text(getattr(self, field), field)
+            _text_validator(_getattr(self, field), field)
         for field in (
             "parent_freeze_v2_sha",
             "current_registry_entry_sha",
@@ -95,7 +103,7 @@ class CurrentWindowControlBindingV2:
             "legacy_window_entry_sha",
             "binding_sha",
         ):
-            _sha(getattr(self, field), field)
+            _sha_validator(_getattr(self, field), field)
 
 
 def current_window_control_binding_v2_payload(
@@ -124,52 +132,80 @@ class CurrentWindowCalibrationProtocolV2:
     control_bindings: tuple[CurrentWindowControlBindingV2, ...]
     protocol_sha: str
 
-    def __post_init__(self) -> None:
+    def __post_init__(
+        self,
+        _schema=CURRENT_WINDOW_CALIBRATION_PROTOCOL_V2_SCHEMA_VERSION,
+        _sha_validator=_sha,
+        _record_validator=_exact_record,
+        _registry_type=CurrentControlRegistryV2,
+        _legacy_type=WindowCalibrationProtocol,
+        _binding_type=CurrentWindowControlBindingV2,
+        _candidates=T_CANDIDATES,
+        _cases=_TASK8_CASES,
+        _type=type,
+        _tuple_type=tuple,
+        _len=len,
+        _all=all,
+        _any=any,
+        _type_error=TypeError,
+        _value_error=ValueError,
+    ) -> None:
         if (
             self.protocol_schema_version
-            != CURRENT_WINDOW_CALIBRATION_PROTOCOL_V2_SCHEMA_VERSION
+            != _schema
         ):
-            raise ValueError("current window protocol schema drifted")
-        _sha(self.parent_freeze_v2_sha, "parent_freeze_v2_sha")
-        _exact_record(
+            raise _value_error("current window protocol schema drifted")
+        _sha_validator(self.parent_freeze_v2_sha, "parent_freeze_v2_sha")
+        _record_validator(
             self.current_control_registry,
-            CurrentControlRegistryV2,
+            _registry_type,
             "current_control_registry",
         )
-        _exact_record(
+        _record_validator(
             self.legacy_window_protocol,
-            WindowCalibrationProtocol,
+            _legacy_type,
             "legacy_window_protocol",
         )
-        if type(self.t_candidates) is not tuple or self.t_candidates != T_CANDIDATES:
-            raise ValueError("current window candidate table is not frozen")
         if (
-            type(self.control_bindings) is not tuple
-            or len(self.control_bindings) != len(_TASK8_CASES)
-            or not all(
-                type(item) is CurrentWindowControlBindingV2
+            _type(self.t_candidates) is not _tuple_type
+            or self.t_candidates != _candidates
+        ):
+            raise _value_error("current window candidate table is not frozen")
+        if (
+            _type(self.control_bindings) is not _tuple_type
+            or _len(self.control_bindings) != _len(_cases)
+            or not _all(
+                _type(item) is _binding_type
                 for item in self.control_bindings
             )
         ):
-            raise TypeError("current window bindings must be the exact three tuple")
-        if tuple(item.control_case_id for item in self.control_bindings) != tuple(
-            item[0] for item in _TASK8_CASES
+            raise _type_error(
+                "current window bindings must be the exact three tuple"
+            )
+        if _tuple_type(
+            item.control_case_id for item in self.control_bindings
+        ) != _tuple_type(
+            item[0] for item in _cases
         ):
-            raise ValueError("current window bindings are not in C01-C03 order")
-        if tuple(item.control_id for item in self.control_bindings) != tuple(
-            item[1] for item in _TASK8_CASES
+            raise _value_error(
+                "current window bindings are not in C01-C03 order"
+            )
+        if _tuple_type(item.control_id for item in self.control_bindings) != (
+            _tuple_type(item[1] for item in _cases)
         ):
-            raise ValueError("current window binding control IDs drifted")
+            raise _value_error("current window binding control IDs drifted")
         if (
             self.current_control_registry.parent_freeze_v2_sha
             != self.parent_freeze_v2_sha
-            or any(
+            or _any(
                 item.parent_freeze_v2_sha != self.parent_freeze_v2_sha
                 for item in self.control_bindings
             )
         ):
-            raise ValueError("current window protocol is spliced across Parent-v2")
-        _sha(self.protocol_sha, "protocol_sha")
+            raise _value_error(
+                "current window protocol is spliced across Parent-v2"
+            )
+        _sha_validator(self.protocol_sha, "protocol_sha")
 
 
 def current_window_calibration_protocol_v2_payload(
@@ -459,25 +495,50 @@ def _make_current_window_calibration_protocol_v2_api(
 
 
 (
-    build_current_window_calibration_protocol_v2,
-    require_current_window_calibration_protocol_v2,
+    _raw_build_current_window_calibration_protocol_v2,
+    _raw_require_current_window_calibration_protocol_v2,
 ) = _make_current_window_calibration_protocol_v2_api(
     registry_type=VerifiedCurrentControlRegistryV2,
     registry_replayer=_replay_current_control_registry_v2,
 )
 
 
-def _current_window_protocol_property(
-    self,
-    _consumer=require_current_window_calibration_protocol_v2,
-) -> CurrentWindowCalibrationProtocolV2:
-    return _consumer(self)
+def _make_current_window_property_binding():
+    consumer_holder = []
+
+    def current_window_property(self):
+        if len(consumer_holder) != 1:
+            raise RuntimeError("current window property is not bound exactly once")
+        return consumer_holder[0](self)
+
+    def bind(consumer):
+        if consumer_holder:
+            raise RuntimeError("current window property is already bound")
+        consumer_holder.append(consumer)
+
+    return property(current_window_property), bind
 
 
-VerifiedCurrentWindowCalibrationProtocolV2.protocol = property(
-    _current_window_protocol_property
+(
+    _current_window_property,
+    _bind_current_window_property,
+) = _make_current_window_property_binding()
+VerifiedCurrentWindowCalibrationProtocolV2.protocol = _current_window_property
+del _current_window_property
+del _make_current_window_property_binding
+
+build_current_window_calibration_protocol_v2 = freeze_rulespace_call_graph(
+    _raw_build_current_window_calibration_protocol_v2
 )
-del _current_window_protocol_property
+require_current_window_calibration_protocol_v2 = freeze_rulespace_call_graph(
+    _raw_require_current_window_calibration_protocol_v2
+)
+del (
+    _raw_build_current_window_calibration_protocol_v2,
+    _raw_require_current_window_calibration_protocol_v2,
+)
+_bind_current_window_property(require_current_window_calibration_protocol_v2)
+del _bind_current_window_property
 
 
 __all__ = [

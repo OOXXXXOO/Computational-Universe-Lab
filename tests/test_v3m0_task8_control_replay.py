@@ -339,6 +339,71 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
             capability = build(fake_parent)
             self.assertEqual(require(capability).parent_freeze_v2_sha, "b" * 64)
 
+    def test_shared_call_graph_freezer_closes_builder_module_globals(self) -> None:
+        import rulespace_v3.task8_control_replay as task8
+        from rulespace_v3.frozen_call_graph import freeze_rulespace_call_graph
+        from rulespace_v3.task8_control_replay import (
+            _build_current_control_registry_v2_body,
+            _replay_current_task8_control_roots,
+        )
+
+        parent, authorities = self._inputs()
+        replay = _replay_current_task8_control_roots(parent, authorities)
+        frozen_builder = freeze_rulespace_call_graph(
+            _build_current_control_registry_v2_body
+        )
+        with mock.patch.object(
+            task8,
+            "_sha",
+            side_effect=AssertionError("module SHA validator redirect reached"),
+        ):
+            body = frozen_builder("c" * 64, replay)
+        self.assertEqual(body.parent_freeze_v2_sha, "c" * 64)
+
+    def test_shared_call_graph_freezer_rejects_class_behavior_drift(self) -> None:
+        from rulespace_v3.frozen_call_graph import freeze_rulespace_call_graph
+        from rulespace_v3.task8_control_replay import (
+            CurrentControlRegistryEntryV2,
+            _build_current_control_registry_v2_body,
+            _replay_current_task8_control_roots,
+        )
+
+        parent, authorities = self._inputs()
+        replay = _replay_current_task8_control_roots(parent, authorities)
+        frozen_builder = freeze_rulespace_call_graph(
+            _build_current_control_registry_v2_body
+        )
+        self.assertFalse(hasattr(frozen_builder, "__wrapped__"))
+        with mock.patch.object(
+            CurrentControlRegistryEntryV2,
+            "__post_init__",
+            return_value=None,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "class dependency drifted"):
+                frozen_builder("d" * 64, replay)
+        with mock.patch.object(
+            CurrentControlRegistryEntryV2,
+            "unexpected_runtime_hook",
+            object(),
+            create=True,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "class dependency drifted"):
+                frozen_builder("d" * 64, replay)
+
+        closure_type = CurrentControlRegistryEntryV2
+
+        def closure_root():
+            return closure_type
+
+        frozen_closure_root = freeze_rulespace_call_graph(closure_root)
+        with mock.patch.object(
+            CurrentControlRegistryEntryV2,
+            "__post_init__",
+            return_value=None,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "class dependency drifted"):
+                frozen_closure_root()
+
 
 if __name__ == "__main__":
     unittest.main()
