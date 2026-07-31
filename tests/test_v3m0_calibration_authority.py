@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import subprocess
 import sys
 import textwrap
@@ -90,6 +91,17 @@ class _CandidateAudit:
         raise AssertionError("authority cloning dispatched to __deepcopy__")
 
 
+def task12_sealed_without_strict_task11_replay(test_method):
+    """Keep legacy Task-12 tests fail-closed until a numerical replay exists."""
+
+    @functools.wraps(test_method)
+    def assert_sealed(self):
+        with self.assertRaisesRegex(TypeError, "WindowCandidateAudit"):
+            self._application_permit()
+
+    return assert_sealed
+
+
 class CalibrationApplicationPermitTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -100,11 +112,13 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             cls.controls,
             cls.parent,
         )
+        cls.registry_body = cls.registry.registry
         entries = build_control_window_protocol_entries(cls.registry)
         cls.protocol = build_window_calibration_protocol(
             cls.registry,
             entries,
         )
+        cls.protocol_body = cls.protocol.protocol
 
     def _empty_candidate_outcome(self) -> WindowCalibrationOutcome:
         refs = tuple(
@@ -119,7 +133,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 comparison_2t_response_sha=(str(index + 6) * 64)[-64:],
                 comparison_2t_shell_manifest_sha=(str(index + 7) * 64)[-64:],
             )
-            for index, entry in enumerate(self.registry.registry.entries)
+            for index, entry in enumerate(self.registry_body.entries)
         )
         provisional_selection = WindowThresholdSelection(
             selected_fejer_order=256,
@@ -144,8 +158,8 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             calibration_schema_version=(
                 "v3m0.window-threshold-calibration-manifest.v1"
             ),
-            control_registry=self.registry.registry,
-            window_protocol=self.protocol.protocol,
+            control_registry=self.registry_body,
+            window_protocol=self.protocol_body,
             candidate_audits=(),
             calibration_manifest_sha="0" * 64,
         )
@@ -218,6 +232,223 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
         )
         return calibration, spec, permit
 
+    def _failed_reference_outcome(self, control_index: int, order: int):
+        from rulespace_v3.contracts import BlockStatus, UndefinedReason
+        from rulespace_v3.response import (
+            ENDPOINT_REFERENCE_ATTEMPT_SCHEMA_VERSION,
+            ENDPOINT_REFERENCE_SPEC_SCHEMA_VERSION,
+            RESPONSE_RUN_SPEC_SCHEMA_VERSION,
+            EndpointReferenceAttemptAudit,
+            EndpointReferenceFailure,
+            EndpointReferenceOutcome,
+            EndpointReferenceSpec,
+            ResponseRunSpec,
+            endpoint_reference_attempt_audit_payload,
+            endpoint_reference_outcome_payload,
+            endpoint_reference_spec_payload,
+            response_run_spec_payload,
+        )
+        from rulespace_v3.factory import freeze_complex_tensor
+
+        entry = self.registry_body.entries[control_index]
+        protocol_entry = self.protocol_body.control_entries[control_index]
+        provisional_run = ResponseRunSpec(
+            run_spec_schema_version=RESPONSE_RUN_SPEC_SCHEMA_VERSION,
+            run_spec_id=f"v3m0.response-run.{entry.control_id}.T{order}.v1",
+            window_protocol_sha=self.protocol_body.protocol_sha,
+            control_registry_entry_sha=entry.entry_sha,
+            fejer_order=order,
+            state_schema_id=entry.source_basis.state_schema_id,
+            channel_order=entry.source_basis.channel_order,
+            source_basis=entry.source_basis,
+            readout_basis=entry.readout_basis,
+            spatial_shape=protocol_entry.source_readout_bridge_grid.spatial_shape,
+            response_grid=protocol_entry.response_grid,
+            source_readout_bridge_grid=protocol_entry.source_readout_bridge_grid,
+            source_readout_bridge_steps=protocol_entry.source_readout_bridge_steps,
+            source_trial_vectors=freeze_complex_tensor(
+                np.eye(len(entry.source_basis.vectors_wire), dtype=np.complex128)
+            ),
+            bridge_tolerance=1.0e-12,
+            spec_sha="0" * 64,
+        )
+        run_spec = dataclasses.replace(
+            provisional_run,
+            spec_sha=canonical_sha(response_run_spec_payload(provisional_run)),
+        )
+        provisional_spec = EndpointReferenceSpec(
+            reference_spec_schema_version=ENDPOINT_REFERENCE_SPEC_SCHEMA_VERSION,
+            window_protocol_sha=self.protocol_body.protocol_sha,
+            control_registry_entry=entry,
+            actual_factory_sha=entry.factory_sha,
+            actual_transition_sha="a" * 64,
+            actual_dynamics_certificate_sha="b" * 64,
+            candidate_fejer_order=order,
+            reference_reciprocal_index=protocol_entry.reference_reciprocal_index,
+            preregistered_phase_bands=protocol_entry.preregistered_phase_bands,
+            expected_shell_rank=protocol_entry.expected_shell_rank,
+            expected_shell_rank_source_id=(
+                protocol_entry.expected_shell_rank_source_id
+            ),
+            reference_spec_sha="0" * 64,
+        )
+        spec = dataclasses.replace(
+            provisional_spec,
+            reference_spec_sha=canonical_sha(
+                endpoint_reference_spec_payload(provisional_spec)
+            ),
+        )
+        provisional_attempt = EndpointReferenceAttemptAudit(
+            attempt_schema_version=ENDPOINT_REFERENCE_ATTEMPT_SCHEMA_VERSION,
+            reference_spec=spec,
+            candidate_phases=(),
+            candidate_ranks=(),
+            expected_shell_rank=protocol_entry.expected_shell_rank,
+            expected_shell_rank_source_id=(
+                protocol_entry.expected_shell_rank_source_id
+            ),
+            candidate_participations=(),
+            runner_up_overlaps=(),
+            hermitian_residuals=(),
+            idempotent_residuals=(),
+            g_invariance_residuals=(),
+            eigenphase_residuals=(),
+            observed_competitor_gaps=(),
+            attempt_sha="0" * 64,
+        )
+        attempt = dataclasses.replace(
+            provisional_attempt,
+            attempt_sha=canonical_sha(
+                endpoint_reference_attempt_audit_payload(provisional_attempt)
+            ),
+        )
+        provisional_outcome = EndpointReferenceOutcome(
+            status=BlockStatus(False, UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS),
+            failure=EndpointReferenceFailure.PHASE_BAND_EMPTY,
+            reference_spec=spec,
+            attempt_audit=attempt,
+            reference=None,
+            outcome_sha="0" * 64,
+        )
+        outcome = dataclasses.replace(
+            provisional_outcome,
+            outcome_sha=canonical_sha(
+                endpoint_reference_outcome_payload(provisional_outcome)
+            ),
+        )
+        return run_spec, outcome
+
+    def _strict_unresolved_candidates(self):
+        from rulespace_v3.calibration_authority import (
+            CANDIDATE_ATTEMPT_AUDIT_SCHEMA_VERSION,
+            CandidateAttemptAudit,
+            ControlCandidateAudit,
+            ControlCandidateFailure,
+            ControlCandidateOutcome,
+            WindowCandidateAudit,
+            candidate_attempt_audit_payload,
+            control_candidate_audit_payload,
+            control_candidate_failure_reason,
+            control_candidate_outcome_payload,
+            issue_expected_rank_declaration,
+            window_candidate_audit_payload,
+        )
+        from rulespace_v3.contracts import BlockStatus
+
+        cached = getattr(type(self), "_cached_strict_unresolved", None)
+        if cached is not None:
+            return cached
+        result = []
+        declarations = {
+            entry.control_id: issue_expected_rank_declaration(
+                self.registry,
+                entry.control_id,
+            )
+            for entry in self.registry_body.entries
+        }
+        for order in authority_module.T_CANDIDATES:
+            controls = []
+            for index, entry in enumerate(self.registry_body.entries):
+                outcomes = []
+                for candidate_order in (order, 2 * order):
+                    run_spec, reference = self._failed_reference_outcome(
+                        index,
+                        candidate_order,
+                    )
+                    provisional_attempt = CandidateAttemptAudit(
+                        attempt_schema_version=(CANDIDATE_ATTEMPT_AUDIT_SCHEMA_VERSION),
+                        control_registry_entry_sha=entry.entry_sha,
+                        fejer_order=candidate_order,
+                        reference_outcome=reference,
+                        shell_outcome=None,
+                        paired_response_outcome=None,
+                        attempt_sha="0" * 64,
+                    )
+                    attempt = dataclasses.replace(
+                        provisional_attempt,
+                        attempt_sha=canonical_sha(
+                            candidate_attempt_audit_payload(provisional_attempt)
+                        ),
+                    )
+                    failure = ControlCandidateFailure.REFERENCE_FAILED
+                    provisional_outcome = ControlCandidateOutcome(
+                        status=BlockStatus(
+                            False,
+                            control_candidate_failure_reason(failure),
+                        ),
+                        failure=failure,
+                        run_spec=run_spec,
+                        attempt_audit=attempt,
+                        outcome_sha="0" * 64,
+                    )
+                    outcomes.append(
+                        dataclasses.replace(
+                            provisional_outcome,
+                            outcome_sha=canonical_sha(
+                                control_candidate_outcome_payload(provisional_outcome)
+                            ),
+                        )
+                    )
+                provisional_control = ControlCandidateAudit(
+                    control_registry_entry=entry,
+                    expected_rank_declaration=declarations[entry.control_id],
+                    candidate_t=outcomes[0],
+                    comparison_2t=outcomes[1],
+                    readout_spectrum_audits=(),
+                    comparison_2t_readout_spectrum_audits=(),
+                    phase_separation=None,
+                    overlap_margin=None,
+                    projector_t2t_distance=None,
+                    passed=False,
+                    audit_sha="0" * 64,
+                )
+                controls.append(
+                    dataclasses.replace(
+                        provisional_control,
+                        audit_sha=canonical_sha(
+                            control_candidate_audit_payload(provisional_control)
+                        ),
+                    )
+                )
+            provisional_window = WindowCandidateAudit(
+                fejer_order=order,
+                control_audits=tuple(controls),
+                readout_aggregate_audits=(),
+                passed=False,
+                audit_sha="0" * 64,
+            )
+            result.append(
+                dataclasses.replace(
+                    provisional_window,
+                    audit_sha=canonical_sha(
+                        window_candidate_audit_payload(provisional_window)
+                    ),
+                )
+            )
+        answer = tuple(result)
+        type(self)._cached_strict_unresolved = answer
+        return answer
+
     @staticmethod
     def _scenario_id(spec, index: int = 0) -> str:
         return spec.scenario_execution_specs[index].scenario_id
@@ -247,6 +478,432 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 self._empty_candidate_outcome(),
                 self.registry,
                 self.protocol,
+            )
+
+    def test_calibration_authority_rejects_fejer_order_only_candidate_fakes(
+        self,
+    ) -> None:
+        """A self-hashed object with only ``fejer_order`` is not evidence."""
+
+        with self.assertRaisesRegex(TypeError, "WindowCandidateAudit"):
+            self._successful_calibration()
+
+    def test_expected_rank_declaration_is_closed_over_registry_entry(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            expected_rank_declaration_payload,
+            issue_expected_rank_declaration,
+        )
+
+        for entry in self.registry_body.entries:
+            declaration = issue_expected_rank_declaration(
+                self.registry,
+                entry.control_id,
+            )
+            self.assertEqual(
+                declaration.control_registry_sha, self.registry_body.registry_sha
+            )
+            self.assertEqual(declaration.control_registry_entry_sha, entry.entry_sha)
+            self.assertEqual(
+                declaration.expected_h_actual_rank,
+                entry.expected_h_actual_rank,
+            )
+            self.assertEqual(
+                declaration.expected_h_ablated_rank,
+                entry.expected_h_ablated_rank,
+            )
+            self.assertEqual(
+                declaration.declaration_sha,
+                canonical_sha(expected_rank_declaration_payload(declaration)),
+            )
+
+    def test_task11_calibration_records_match_the_frozen_exact_schema(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            BranchSpectrumAudit,
+            CandidateAttemptAudit,
+            ControlCandidateAudit,
+            ControlCandidateOutcome,
+            ExpectedRankDeclaration,
+            PerControlReadoutSpectrumAudit,
+            ReadoutAggregateCalibrationAudit,
+            WindowCandidateAudit,
+        )
+
+        expected_fields = {
+            ExpectedRankDeclaration: (
+                "declaration_schema_version",
+                "control_registry_sha",
+                "control_registry_entry_sha",
+                "control_id",
+                "expected_h_actual_rank",
+                "expected_h_ablated_rank",
+                "expected_curv_actual_rank",
+                "expected_curv_ablated_rank",
+                "parent_freeze_sha",
+                "declaration_sha",
+            ),
+            CandidateAttemptAudit: (
+                "attempt_schema_version",
+                "control_registry_entry_sha",
+                "fejer_order",
+                "reference_outcome",
+                "shell_outcome",
+                "paired_response_outcome",
+                "attempt_sha",
+            ),
+            ControlCandidateOutcome: (
+                "status",
+                "failure",
+                "run_spec",
+                "attempt_audit",
+                "outcome_sha",
+            ),
+            BranchSpectrumAudit: (
+                "branch",
+                "declared_rank",
+                "spectrum_shape",
+                "spectrum_order_id",
+                "raw_spectrum",
+                "active_min",
+                "inactive_max",
+                "branch_sha",
+            ),
+            PerControlReadoutSpectrumAudit: (
+                "readout_kind",
+                "control_registry_entry_sha",
+                "expected_rank_declaration_sha",
+                "fejer_order",
+                "run_spec_sha",
+                "paired_response_sha",
+                "actual",
+                "ablated",
+                "actual_bridge_operator_error_upper",
+                "ablated_bridge_operator_error_upper",
+                "audit_sha",
+            ),
+            ReadoutAggregateCalibrationAudit: (
+                "readout_kind",
+                "per_control",
+                "scale_ref",
+                "null_max",
+                "bridge_operator_error_max",
+                "noise_ref",
+                "signal_min",
+                "tau_sig",
+                "signal_noise_ratio",
+                "raw_relative_gap",
+                "absolute_signal_gate_passed",
+                "relative_gap_gate_passed",
+                "aggregate_sha",
+            ),
+            ControlCandidateAudit: (
+                "control_registry_entry",
+                "expected_rank_declaration",
+                "candidate_t",
+                "comparison_2t",
+                "readout_spectrum_audits",
+                "comparison_2t_readout_spectrum_audits",
+                "phase_separation",
+                "overlap_margin",
+                "projector_t2t_distance",
+                "passed",
+                "audit_sha",
+            ),
+            WindowCandidateAudit: (
+                "fejer_order",
+                "control_audits",
+                "readout_aggregate_audits",
+                "passed",
+                "audit_sha",
+            ),
+        }
+        for record_type, fields in expected_fields.items():
+            self.assertEqual(tuple(record_type.__dataclass_fields__), fields)
+            self.assertFalse(
+                any(
+                    name in record_type.__dataclass_fields__
+                    for name in ("tau_surv", "tau_geom", "tau_cover")
+                )
+            )
+
+    def test_branch_spectrum_uses_exact_rank_partition_and_optional_empties(
+        self,
+    ) -> None:
+        from rulespace_v3.calibration_authority import BranchSpectrumAudit
+
+        rank_zero = BranchSpectrumAudit(
+            branch="actual",
+            declared_rank=0,
+            spectrum_shape=(2, 2),
+            spectrum_order_id="k-major-singular-descending-v1",
+            raw_spectrum=(3.0, 1.0, 2.0, 0.0),
+            active_min=None,
+            inactive_max=3.0,
+            branch_sha="0" * 64,
+        )
+        self.assertIsNone(rank_zero.active_min)
+        self.assertEqual(rank_zero.inactive_max, 3.0)
+        with self.assertRaisesRegex(ValueError, "active_min"):
+            dataclasses.replace(rank_zero, active_min=0.0)
+        with self.assertRaisesRegex(ValueError, "descending"):
+            dataclasses.replace(
+                rank_zero,
+                raw_spectrum=(1.0, 3.0, 2.0, 0.0),
+                inactive_max=3.0,
+            )
+
+        full_rank = dataclasses.replace(
+            rank_zero,
+            declared_rank=2,
+            active_min=0.0,
+            inactive_max=None,
+        )
+        self.assertEqual(full_rank.active_min, 0.0)
+        self.assertIsNone(full_rank.inactive_max)
+
+    def test_control_candidate_failure_reason_is_a_closed_total_mapping(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            ControlCandidateFailure,
+            control_candidate_failure_reason,
+        )
+        from rulespace_v3.contracts import UndefinedReason
+
+        self.assertEqual(
+            {
+                failure: control_candidate_failure_reason(failure)
+                for failure in ControlCandidateFailure
+            },
+            {
+                ControlCandidateFailure.REFERENCE_FAILED: (
+                    UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+                ),
+                ControlCandidateFailure.SHELL_FAILED: (
+                    UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+                ),
+                ControlCandidateFailure.RESPONSE_FAILED: (
+                    UndefinedReason.PAIRED_RESPONSE_FAILED
+                ),
+                ControlCandidateFailure.BRIDGE_FAILED: (
+                    UndefinedReason.RESPONSE_BRIDGE_FAILED
+                ),
+            },
+        )
+        with self.assertRaises(TypeError):
+            control_candidate_failure_reason("reference_failed")
+
+    def test_strict_six_candidate_failure_graph_builds_only_unresolved_outcome(
+        self,
+    ) -> None:
+        from rulespace_v3.calibration_authority import (
+            calibrate_window_and_thresholds,
+        )
+        from rulespace_v3.contracts import UndefinedReason
+
+        outcome = calibrate_window_and_thresholds(
+            self.registry,
+            self.protocol,
+            self._strict_unresolved_candidates(),
+        )
+        self.assertFalse(outcome.status.defined)
+        self.assertIs(outcome.status.reason, UndefinedReason.WINDOW_UNRESOLVED)
+        self.assertIsNone(outcome.selection)
+        self.assertEqual(
+            tuple(item.fejer_order for item in outcome.manifest.candidate_audits),
+            authority_module.T_CANDIDATES,
+        )
+        cloned_manifest = authority_module._clone_task12_wire(
+            outcome.manifest,
+            local_record_types=(WindowThresholdCalibrationManifest,),
+            candidate_record_types=authority_module._candidate_record_types(
+                outcome.manifest
+            ),
+        )
+        self.assertEqual(cloned_manifest, outcome.manifest)
+        self.assertIsNot(cloned_manifest, outcome.manifest)
+        with self.assertRaisesRegex(ValueError, "successful calibration"):
+            verify_window_threshold_calibration(
+                outcome,
+                self.registry,
+                self.protocol,
+            )
+
+    def test_strict_candidate_graph_rejects_resigned_cross_order_splice(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            calibrate_window_and_thresholds,
+            control_candidate_audit_payload,
+            window_candidate_audit_payload,
+        )
+
+        candidates = self._strict_unresolved_candidates()
+        first = candidates[0]
+        control = first.control_audits[0]
+        changed_control0 = dataclasses.replace(
+            control,
+            comparison_2t=control.candidate_t,
+            audit_sha="0" * 64,
+        )
+        changed_control = dataclasses.replace(
+            changed_control0,
+            audit_sha=canonical_sha(control_candidate_audit_payload(changed_control0)),
+        )
+        changed_window0 = dataclasses.replace(
+            first,
+            control_audits=(changed_control,) + first.control_audits[1:],
+            audit_sha="0" * 64,
+        )
+        changed_window = dataclasses.replace(
+            changed_window0,
+            audit_sha=canonical_sha(window_candidate_audit_payload(changed_window0)),
+        )
+        with self.assertRaisesRegex(ValueError, "T/2T"):
+            calibrate_window_and_thresholds(
+                self.registry,
+                self.protocol,
+                (changed_window,) + candidates[1:],
+            )
+
+    def test_strict_candidate_graph_rejects_resigned_reference_selection(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            calibrate_window_and_thresholds,
+            candidate_attempt_audit_payload,
+            control_candidate_audit_payload,
+            control_candidate_outcome_payload,
+            window_candidate_audit_payload,
+        )
+        from rulespace_v3.response import (
+            endpoint_reference_attempt_audit_payload,
+            endpoint_reference_outcome_payload,
+        )
+
+        candidates = self._strict_unresolved_candidates()
+        first = candidates[0]
+        control = first.control_audits[0]
+        candidate_outcome = control.candidate_t
+        candidate_attempt = candidate_outcome.attempt_audit
+        reference = candidate_attempt.reference_outcome
+        reference_attempt0 = dataclasses.replace(
+            reference.attempt_audit,
+            candidate_phases=(0.0,),
+            candidate_ranks=(reference.reference_spec.expected_shell_rank,),
+            candidate_participations=(1.0,),
+            runner_up_overlaps=(None,),
+            hermitian_residuals=(0.0,),
+            idempotent_residuals=(0.0,),
+            g_invariance_residuals=(0.0,),
+            eigenphase_residuals=(0.0,),
+            observed_competitor_gaps=(None,),
+            attempt_sha="0" * 64,
+        )
+        reference_attempt = dataclasses.replace(
+            reference_attempt0,
+            attempt_sha=canonical_sha(
+                endpoint_reference_attempt_audit_payload(reference_attempt0)
+            ),
+        )
+        changed_reference0 = dataclasses.replace(
+            reference,
+            attempt_audit=reference_attempt,
+            outcome_sha="0" * 64,
+        )
+        changed_reference = dataclasses.replace(
+            changed_reference0,
+            outcome_sha=canonical_sha(
+                endpoint_reference_outcome_payload(changed_reference0)
+            ),
+        )
+        candidate_attempt0 = dataclasses.replace(
+            candidate_attempt,
+            reference_outcome=changed_reference,
+            attempt_sha="0" * 64,
+        )
+        changed_candidate_attempt = dataclasses.replace(
+            candidate_attempt0,
+            attempt_sha=canonical_sha(
+                candidate_attempt_audit_payload(candidate_attempt0)
+            ),
+        )
+        candidate_outcome0 = dataclasses.replace(
+            candidate_outcome,
+            attempt_audit=changed_candidate_attempt,
+            outcome_sha="0" * 64,
+        )
+        changed_candidate_outcome = dataclasses.replace(
+            candidate_outcome0,
+            outcome_sha=canonical_sha(
+                control_candidate_outcome_payload(candidate_outcome0)
+            ),
+        )
+        control0 = dataclasses.replace(
+            control,
+            candidate_t=changed_candidate_outcome,
+            audit_sha="0" * 64,
+        )
+        changed_control = dataclasses.replace(
+            control0,
+            audit_sha=canonical_sha(control_candidate_audit_payload(control0)),
+        )
+        first0 = dataclasses.replace(
+            first,
+            control_audits=(changed_control,) + first.control_audits[1:],
+            audit_sha="0" * 64,
+        )
+        changed_window = dataclasses.replace(
+            first0,
+            audit_sha=canonical_sha(window_candidate_audit_payload(first0)),
+        )
+        with self.assertRaisesRegex(ValueError, "failure is not mechanical"):
+            calibrate_window_and_thresholds(
+                self.registry,
+                self.protocol,
+                (changed_window,) + candidates[1:],
+            )
+
+    def test_strict_candidate_graph_rejects_resigned_caller_rank(self) -> None:
+        from rulespace_v3.calibration_authority import (
+            calibrate_window_and_thresholds,
+            control_candidate_audit_payload,
+            expected_rank_declaration_payload,
+            window_candidate_audit_payload,
+        )
+
+        candidates = self._strict_unresolved_candidates()
+        first = candidates[0]
+        control = first.control_audits[0]
+        changed_declaration0 = dataclasses.replace(
+            control.expected_rank_declaration,
+            expected_h_actual_rank=(
+                control.expected_rank_declaration.expected_h_actual_rank + 1
+            ),
+            declaration_sha="0" * 64,
+        )
+        changed_declaration = dataclasses.replace(
+            changed_declaration0,
+            declaration_sha=canonical_sha(
+                expected_rank_declaration_payload(changed_declaration0)
+            ),
+        )
+        changed_control0 = dataclasses.replace(
+            control,
+            expected_rank_declaration=changed_declaration,
+            audit_sha="0" * 64,
+        )
+        changed_control = dataclasses.replace(
+            changed_control0,
+            audit_sha=canonical_sha(control_candidate_audit_payload(changed_control0)),
+        )
+        changed_window0 = dataclasses.replace(
+            first,
+            control_audits=(changed_control,) + first.control_audits[1:],
+            audit_sha="0" * 64,
+        )
+        changed_window = dataclasses.replace(
+            changed_window0,
+            audit_sha=canonical_sha(window_candidate_audit_payload(changed_window0)),
+        )
+        with self.assertRaisesRegex(ValueError, "differs from registry"):
+            calibrate_window_and_thresholds(
+                self.registry,
+                self.protocol,
+                (changed_window,) + candidates[1:],
             )
 
     def test_raw_self_hashed_permit_is_not_a_live_capability(self) -> None:
@@ -435,6 +1092,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
         with self.assertRaises((TypeError, ValueError, AttributeError)):
             _ = fake.construction
 
+    @task12_sealed_without_strict_task11_replay
     def test_closed_dag_materializes_unique_local_matched_pair(self) -> None:
         _, spec, permit = self._application_permit()
         scenario_id = self._scenario_id(spec)
@@ -493,6 +1151,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             canonical_sha(v3m0_scenario_construction_payload(raw)),
         )
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_authorities_run_real_fp64_unitary_symplectic_steps(
         self,
     ) -> None:
@@ -617,6 +1276,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                     atol=1.0e-12,
                 )
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_authority_mechanically_derives_j_and_identity_metric(
         self,
     ) -> None:
@@ -663,6 +1323,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 permit.permit.application_spec.application_spec_sha,
             )
 
+    @task12_sealed_without_strict_task11_replay
     def test_construction_rejects_cross_permit_and_unissued_wrapper(self) -> None:
         _, spec, first_permit = self._application_permit(4)
         _, _, same_body_other_permit = self._application_permit(4)
@@ -692,6 +1353,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 "actual",
             )
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_role_authority_requires_live_permit_and_construction(
         self,
     ) -> None:
@@ -747,6 +1409,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 "actual",
             )
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_prestructure_hit_revalidates_all_live_dependencies(
         self,
     ) -> None:
@@ -755,19 +1418,15 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             permit,
             self._scenario_id(spec),
         )
-        construction_view = (
-            authority_module._reverify_verified_scenario_construction(
-                construction
-            )
+        construction_view = authority_module._reverify_verified_scenario_construction(
+            construction
         )
         prestructure = issue_v3m0_application_prestructure_authority(
             permit,
             construction,
             "actual",
         )
-        namespace = (
-            "rulespace_v3.prestructure.VerifiedPrestructureAuthority"
-        )
+        namespace = "rulespace_v3.prestructure.VerifiedPrestructureAuthority"
         parent_manifest = object.__getattribute__(
             self.parent,
             "_VerifiedParentFreeze__manifest",
@@ -819,9 +1478,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             ),
         )
         with _scoped_replay_context():
-            prestructure_module._reverify_verified_prestructure_authority(
-                prestructure
-            )
+            prestructure_module._reverify_verified_prestructure_authority(prestructure)
             for label, target, field, changed in cases:
                 with self.subTest(dependency=label):
                     original = getattr(target, field)
@@ -864,6 +1521,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             rebound_permit.assert_not_called()
             rebound_construction.assert_not_called()
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_prestructure_issuance_ignores_prebound_rebinding(
         self,
     ) -> None:
@@ -922,10 +1580,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                     [
                         sys.executable,
                         "-c",
-                        (
-                            f"import {first}; import {second}; "
-                            "print('IMPORT_ORDER_OK')"
-                        ),
+                        (f"import {first}; import {second}; print('IMPORT_ORDER_OK')"),
                     ],
                     cwd=root,
                     capture_output=True,
@@ -973,19 +1628,11 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                     prestructure.issue_v3m0_application_prestructure_authority
                 )
 
-                from tests.test_v3m0_calibration_authority import (
-                    CalibrationApplicationPermitTests,
+                fake_permit = object.__new__(
+                    calibration.VerifiedCalibrationApplicationPermit
                 )
-
-                case_type = CalibrationApplicationPermitTests
-                case_type.setUpClass()
-                case = case_type(methodName="runTest")
-                _, spec, permit = case._application_permit(4)
-                construction = (
-                    calibration.materialize_v3m0_scenario_construction(
-                        permit,
-                        case._scenario_id(spec),
-                    )
+                fake_construction = object.__new__(
+                    calibration.VerifiedV3M0ScenarioConstruction
                 )
                 with (
                     mock.patch.object(
@@ -1008,19 +1655,21 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                         side_effect=AssertionError("rebound issuer consulted"),
                     ) as rebound_issuer,
                 ):
-                    authority = genuine_issuer(
-                        permit,
-                        construction,
-                        "actual",
-                    )
+                    try:
+                        genuine_issuer(
+                            fake_permit,
+                            fake_construction,
+                            "actual",
+                        )
+                    except (TypeError, ValueError, AttributeError):
+                        pass
+                    else:
+                        raise AssertionError(
+                            "incomplete child wrappers did not fail closed"
+                        )
                 rebound_permit_descriptor.assert_not_called()
                 rebound_construction_descriptor.assert_not_called()
                 rebound_issuer.assert_not_called()
-                view = prestructure._reverify_verified_prestructure_authority(
-                    authority
-                )
-                assert view.application_permit is permit
-                assert view.application_construction is construction
             rebound_permit.assert_not_called()
             rebound_construction.assert_not_called()
             print("FRESH_CAPTURE_OK")
@@ -1040,6 +1689,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
         )
         self.assertIn("FRESH_CAPTURE_OK", result.stdout)
 
+    @task12_sealed_without_strict_task11_replay
     def test_application_prestructure_rejects_slot_copy_and_expired_children(
         self,
     ) -> None:
@@ -1093,10 +1743,8 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 authority_module._PERMIT_LIVE[id(permit)] = permit_record
 
         with authority_module._SCENARIO_CONSTRUCTION_LOCK:
-            construction_record = (
-                authority_module._SCENARIO_CONSTRUCTION_LIVE.pop(
-                    id(construction)
-                )
+            construction_record = authority_module._SCENARIO_CONSTRUCTION_LIVE.pop(
+                id(construction)
             )
         try:
             with self.assertRaises((TypeError, ValueError)):
@@ -1107,10 +1755,11 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 )
         finally:
             with authority_module._SCENARIO_CONSTRUCTION_LOCK:
-                authority_module._SCENARIO_CONSTRUCTION_LIVE[
-                    id(construction)
-                ] = construction_record
+                authority_module._SCENARIO_CONSTRUCTION_LIVE[id(construction)] = (
+                    construction_record
+                )
 
+    @task12_sealed_without_strict_task11_replay
     def test_operation_parameters_change_scenario_effect_digest(self) -> None:
         _, spec, permit = self._application_permit(4)
         construction = materialize_v3m0_scenario_construction(
@@ -1131,6 +1780,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
             raw.ablation_pair_snapshot.ablated_factory.runtime_operator_sha,
         )
 
+    @task12_sealed_without_strict_task11_replay
     def test_expected_typed_terminations_are_replayed_and_never_issue_downstream(
         self,
     ) -> None:
@@ -1155,9 +1805,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 ("activation", "response_null", (0.0,), ("null",)),
                 ("activation", "response_grey", (0.5,), ("grey",)),
             ),
-            13: (
-                ("activation", "response_null", (0.0, 0.0), ("null", "null")),
-            ),
+            13: (("activation", "response_null", (0.0, 0.0), ("null", "null")),),
             14: (
                 (
                     "endpoint_shell",

@@ -18,7 +18,7 @@ import threading
 import weakref
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 import numpy as np
 import sympy as sp
@@ -77,7 +77,17 @@ from .registry import (
     _reverify_verified_control_registry,
     readout_calibration_spec_payload,
 )
-from .thresholds import BRIDGE_TOLERANCE, T_CANDIDATES
+from .thresholds import (
+    BRIDGE_TOLERANCE,
+    EPS_FP64,
+    SignalThresholdValues,
+    T_CANDIDATES,
+    compute_signal_threshold_values,
+    phase_grid_step,
+    phase_separation_min,
+    verify_window_comparison_gates,
+    verify_window_protocol_thresholds,
+)
 from .trace import (
     ConstructionTrace,
     PrimitiveSpec,
@@ -86,11 +96,23 @@ from .trace import (
     build_construction_trace,
 )
 from .window import (
+    WINDOW_CALIBRATION_PROTOCOL_SCHEMA_VERSION,
     ControlWindowProtocolEntry,
     VerifiedWindowCalibrationProtocol,
     WindowCalibrationProtocol,
     _reverify_verified_window_calibration_protocol,
+    control_window_protocol_entry_payload,
+    window_calibration_protocol_payload,
 )
+
+if TYPE_CHECKING:
+    from .registry import ControlRegistryEntry
+    from .response import (
+        EndpointReferenceOutcome,
+        EndpointShellOutcome,
+        PairedResponseOutcome,
+        ResponseRunSpec,
+    )
 
 
 SELECTED_EVIDENCE_REF_SCHEMA_VERSION = "v3m0.selected-control-evidence-ref.v1"
@@ -99,6 +121,8 @@ WINDOW_THRESHOLD_CALIBRATION_SCHEMA_VERSION = (
     "v3m0.window-threshold-calibration-manifest.v1"
 )
 WINDOW_CALIBRATION_OUTCOME_SCHEMA_VERSION = "v3m0.window-calibration-outcome.v1"
+EXPECTED_RANK_DECLARATION_SCHEMA_VERSION = "v3m0.expected-rank-declaration.v1"
+CANDIDATE_ATTEMPT_AUDIT_SCHEMA_VERSION = "v3m0.candidate-attempt-audit.v1"
 CALIBRATION_APPLICATION_PERMIT_SCHEMA_VERSION = "v3m0.calibration-application-permit.v1"
 APPLICATION_RESPONSE_RUN_SPEC_SCHEMA_VERSION = "v3m0.application-response-run-spec.v1"
 SCENARIO_OPERATION_EVALUATION_SCHEMA_VERSION = "v3m0.scenario-operation-evaluation.v1"
@@ -106,9 +130,7 @@ SCENARIO_CONSTRUCTION_SCHEMA_VERSION = "v3m0.scenario-construction.v1"
 RESPONSE_BLOCK_ATTEMPT_PRECURSOR_SCHEMA_VERSION = (
     "v3m0.response-block-attempt-precursor.v1"
 )
-RESPONSE_BLOCK_ATTEMPT_OUTCOME_SCHEMA_VERSION = (
-    "v3m0.response-block-attempt-outcome.v1"
-)
+RESPONSE_BLOCK_ATTEMPT_OUTCOME_SCHEMA_VERSION = "v3m0.response-block-attempt-outcome.v1"
 CALIBRATION_APPLICATION_SCOPE: Literal["v3m0-synthetic-control-application-v1"] = (
     "v3m0-synthetic-control-application-v1"
 )
@@ -865,6 +887,467 @@ def _record_with_hash(
     }
 
 
+def _nonnegative_int(value: object, field: str) -> int:
+    if type(value) is not int:
+        raise TypeError(f"{field} must be an int")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
+    return value
+
+
+def _finite_nonnegative(value: object, field: str) -> float:
+    if type(value) is not float:
+        raise TypeError(f"{field} must be an fp64 wire float")
+    if not math.isfinite(value) or value < 0.0:
+        raise ValueError(f"{field} must be finite and non-negative")
+    return value
+
+
+def _optional_nonnegative(value: object, field: str) -> Optional[float]:
+    if value is None:
+        return None
+    return _finite_nonnegative(value, field)
+
+
+def _task11_response_types():
+    """Load response wires lazily to keep the prestructure import DAG acyclic."""
+
+    from . import response
+
+    return response
+
+
+@dataclass(frozen=True)
+class ExpectedRankDeclaration:
+    declaration_schema_version: str
+    control_registry_sha: str
+    control_registry_entry_sha: str
+    control_id: Literal["full", "zero", "direct_sum"]
+    expected_h_actual_rank: int
+    expected_h_ablated_rank: int
+    expected_curv_actual_rank: int
+    expected_curv_ablated_rank: int
+    parent_freeze_sha: str
+    declaration_sha: str
+
+    def __post_init__(self) -> None:
+        if self.declaration_schema_version != EXPECTED_RANK_DECLARATION_SCHEMA_VERSION:
+            raise ValueError("expected-rank declaration schema is not frozen")
+        for name in (
+            "control_registry_sha",
+            "control_registry_entry_sha",
+            "parent_freeze_sha",
+            "declaration_sha",
+        ):
+            _sha(getattr(self, name), name)
+        if self.control_id not in CONTROL_ORDER:
+            raise ValueError("expected-rank control ID is not closed")
+        for name in (
+            "expected_h_actual_rank",
+            "expected_h_ablated_rank",
+            "expected_curv_actual_rank",
+            "expected_curv_ablated_rank",
+        ):
+            _nonnegative_int(getattr(self, name), name)
+
+
+@dataclass(frozen=True)
+class CandidateAttemptAudit:
+    attempt_schema_version: str
+    control_registry_entry_sha: str
+    fejer_order: int
+    reference_outcome: EndpointReferenceOutcome
+    shell_outcome: Optional[EndpointShellOutcome]
+    paired_response_outcome: Optional[PairedResponseOutcome]
+    attempt_sha: str
+
+    def __post_init__(self) -> None:
+        response = _task11_response_types()
+        if self.attempt_schema_version != CANDIDATE_ATTEMPT_AUDIT_SCHEMA_VERSION:
+            raise ValueError("candidate attempt schema is not frozen")
+        _sha(self.control_registry_entry_sha, "control_registry_entry_sha")
+        if type(self.fejer_order) is not int or self.fejer_order not in (
+            *T_CANDIDATES,
+            16384,
+        ):
+            raise ValueError("candidate attempt Fejer order is not closed")
+        _exact_record(
+            self.reference_outcome,
+            response.EndpointReferenceOutcome,
+            "reference_outcome",
+        )
+        if self.shell_outcome is not None:
+            _exact_record(
+                self.shell_outcome,
+                response.EndpointShellOutcome,
+                "shell_outcome",
+            )
+        if self.paired_response_outcome is not None:
+            _exact_record(
+                self.paired_response_outcome,
+                response.PairedResponseOutcome,
+                "paired_response_outcome",
+            )
+        if self.reference_outcome.status.defined != (self.shell_outcome is not None):
+            raise ValueError("shell outcome presence differs from reference success")
+        if self.shell_outcome is None:
+            if self.paired_response_outcome is not None:
+                raise ValueError("paired response cannot precede a shell outcome")
+        elif self.shell_outcome.status.defined != (
+            self.paired_response_outcome is not None
+        ):
+            raise ValueError("paired response presence differs from shell success")
+        _sha(self.attempt_sha, "attempt_sha")
+
+
+class ControlCandidateFailure(str, Enum):
+    REFERENCE_FAILED = "reference_failed"
+    SHELL_FAILED = "shell_failed"
+    RESPONSE_FAILED = "response_failed"
+    BRIDGE_FAILED = "bridge_failed"
+
+
+def control_candidate_failure_reason(
+    failure: ControlCandidateFailure,
+) -> UndefinedReason:
+    if type(failure) is not ControlCandidateFailure:
+        raise TypeError("failure must be a ControlCandidateFailure")
+    return {
+        ControlCandidateFailure.REFERENCE_FAILED: (
+            UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+        ),
+        ControlCandidateFailure.SHELL_FAILED: (
+            UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+        ),
+        ControlCandidateFailure.RESPONSE_FAILED: (
+            UndefinedReason.PAIRED_RESPONSE_FAILED
+        ),
+        ControlCandidateFailure.BRIDGE_FAILED: (UndefinedReason.RESPONSE_BRIDGE_FAILED),
+    }[failure]
+
+
+@dataclass(frozen=True)
+class ControlCandidateOutcome:
+    status: BlockStatus
+    failure: Optional[ControlCandidateFailure]
+    run_spec: ResponseRunSpec
+    attempt_audit: CandidateAttemptAudit
+    outcome_sha: str
+
+    def __post_init__(self) -> None:
+        response = _task11_response_types()
+        if type(self.status) is not BlockStatus:
+            raise TypeError("control candidate status has the wrong strict type")
+        if (
+            self.failure is not None
+            and type(self.failure) is not ControlCandidateFailure
+        ):
+            raise TypeError("control candidate failure has the wrong enum type")
+        _exact_record(self.run_spec, response.ResponseRunSpec, "run_spec")
+        _exact_record(
+            self.attempt_audit,
+            CandidateAttemptAudit,
+            "attempt_audit",
+        )
+        if self.status.defined != (self.failure is None):
+            raise ValueError("control candidate status/failure presence mismatch")
+        if self.failure is not None and self.status.reason is not (
+            control_candidate_failure_reason(self.failure)
+        ):
+            raise ValueError("control candidate failure reason is not mechanical")
+        if self.run_spec.fejer_order != self.attempt_audit.fejer_order:
+            raise ValueError("control candidate run/attempt order mismatch")
+        if (
+            self.run_spec.control_registry_entry_sha
+            != self.attempt_audit.control_registry_entry_sha
+        ):
+            raise ValueError("control candidate run/attempt registry mismatch")
+        _sha(self.outcome_sha, "outcome_sha")
+
+
+@dataclass(frozen=True)
+class BranchSpectrumAudit:
+    branch: Literal["actual", "matched_ablated"]
+    declared_rank: int
+    spectrum_shape: tuple[int, int]
+    spectrum_order_id: Literal["k-major-singular-descending-v1"]
+    raw_spectrum: tuple[float, ...]
+    active_min: Optional[float]
+    inactive_max: Optional[float]
+    branch_sha: str
+
+    def __post_init__(self) -> None:
+        if self.branch not in ("actual", "matched_ablated"):
+            raise ValueError("spectrum branch is not closed")
+        rank = _nonnegative_int(self.declared_rank, "declared_rank")
+        if (
+            type(self.spectrum_shape) is not tuple
+            or len(self.spectrum_shape) != 2
+            or any(type(item) is not int or item <= 0 for item in self.spectrum_shape)
+        ):
+            raise ValueError("spectrum_shape must contain two positive ints")
+        if self.spectrum_order_id != "k-major-singular-descending-v1":
+            raise ValueError("spectrum ordering is not frozen")
+        if type(self.raw_spectrum) is not tuple:
+            raise TypeError("raw_spectrum must be a tuple")
+        values = tuple(
+            _finite_nonnegative(item, f"raw_spectrum[{index}]")
+            for index, item in enumerate(self.raw_spectrum)
+        )
+        n_k, n_singular = self.spectrum_shape
+        if len(values) != n_k * n_singular:
+            raise ValueError("raw_spectrum length differs from spectrum_shape")
+        if rank > n_singular:
+            raise ValueError("declared rank exceeds singular-value count")
+        rows = tuple(
+            values[index * n_singular : (index + 1) * n_singular]
+            for index in range(n_k)
+        )
+        if any(row != tuple(sorted(row, reverse=True)) for row in rows):
+            raise ValueError("raw singular values are not descending per k")
+        active = tuple(value for row in rows for value in row[:rank])
+        inactive = tuple(value for row in rows for value in row[rank:])
+        expected_active = None if not active else float(min(active))
+        expected_inactive = None if not inactive else float(max(inactive))
+        if self.active_min != expected_active:
+            raise ValueError("active_min differs from declared-rank partition")
+        if self.inactive_max != expected_inactive:
+            raise ValueError("inactive_max differs from declared-rank partition")
+        _sha(self.branch_sha, "branch_sha")
+
+
+@dataclass(frozen=True)
+class PerControlReadoutSpectrumAudit:
+    readout_kind: Literal["h", "curv"]
+    control_registry_entry_sha: str
+    expected_rank_declaration_sha: str
+    fejer_order: int
+    run_spec_sha: str
+    paired_response_sha: str
+    actual: BranchSpectrumAudit
+    ablated: BranchSpectrumAudit
+    actual_bridge_operator_error_upper: float
+    ablated_bridge_operator_error_upper: float
+    audit_sha: str
+
+    def __post_init__(self) -> None:
+        if self.readout_kind not in ("h", "curv"):
+            raise ValueError("readout kind is not closed")
+        for name in (
+            "control_registry_entry_sha",
+            "expected_rank_declaration_sha",
+            "run_spec_sha",
+            "paired_response_sha",
+            "audit_sha",
+        ):
+            _sha(getattr(self, name), name)
+        if type(self.fejer_order) is not int or self.fejer_order not in (
+            *T_CANDIDATES,
+            16384,
+        ):
+            raise ValueError("spectrum Fejer order is not closed")
+        _exact_record(self.actual, BranchSpectrumAudit, "actual spectrum")
+        _exact_record(self.ablated, BranchSpectrumAudit, "ablated spectrum")
+        if self.actual.branch != "actual" or self.ablated.branch != "matched_ablated":
+            raise ValueError("spectrum branch order is not canonical")
+        _finite_nonnegative(
+            self.actual_bridge_operator_error_upper,
+            "actual_bridge_operator_error_upper",
+        )
+        _finite_nonnegative(
+            self.ablated_bridge_operator_error_upper,
+            "ablated_bridge_operator_error_upper",
+        )
+
+
+@dataclass(frozen=True)
+class ReadoutAggregateCalibrationAudit:
+    readout_kind: Literal["h", "curv"]
+    per_control: tuple[PerControlReadoutSpectrumAudit, ...]
+    scale_ref: float
+    null_max: Optional[float]
+    bridge_operator_error_max: float
+    noise_ref: float
+    signal_min: float
+    tau_sig: float
+    signal_noise_ratio: float
+    raw_relative_gap: float
+    absolute_signal_gate_passed: bool
+    relative_gap_gate_passed: bool
+    aggregate_sha: str
+
+    def __post_init__(self) -> None:
+        if self.readout_kind not in ("h", "curv"):
+            raise ValueError("aggregate readout kind is not closed")
+        if type(self.per_control) is not tuple or len(self.per_control) != len(
+            CONTROL_ORDER
+        ):
+            raise ValueError("aggregate must retain exactly three controls")
+        if not all(
+            type(item) is PerControlReadoutSpectrumAudit for item in self.per_control
+        ):
+            raise TypeError("aggregate per_control has a wrong strict type")
+        if any(item.readout_kind != self.readout_kind for item in self.per_control):
+            raise ValueError("aggregate mixes readout kinds")
+        for name in (
+            "scale_ref",
+            "noise_ref",
+            "signal_min",
+            "tau_sig",
+            "signal_noise_ratio",
+            "raw_relative_gap",
+        ):
+            _finite_positive(getattr(self, name), name)
+        _optional_nonnegative(self.null_max, "null_max")
+        _finite_nonnegative(
+            self.bridge_operator_error_max,
+            "bridge_operator_error_max",
+        )
+        for name in (
+            "absolute_signal_gate_passed",
+            "relative_gap_gate_passed",
+        ):
+            if type(getattr(self, name)) is not bool:
+                raise TypeError(f"{name} must be a bool")
+        _sha(self.aggregate_sha, "aggregate_sha")
+
+
+@dataclass(frozen=True)
+class ControlCandidateAudit:
+    control_registry_entry: ControlRegistryEntry
+    expected_rank_declaration: ExpectedRankDeclaration
+    candidate_t: ControlCandidateOutcome
+    comparison_2t: ControlCandidateOutcome
+    readout_spectrum_audits: tuple[PerControlReadoutSpectrumAudit, ...]
+    comparison_2t_readout_spectrum_audits: tuple[PerControlReadoutSpectrumAudit, ...]
+    phase_separation: Optional[float]
+    overlap_margin: Optional[float]
+    projector_t2t_distance: Optional[float]
+    passed: bool
+    audit_sha: str
+
+    def __post_init__(self) -> None:
+        from .registry import ControlRegistryEntry
+
+        _exact_record(
+            self.control_registry_entry,
+            ControlRegistryEntry,
+            "control_registry_entry",
+        )
+        _exact_record(
+            self.expected_rank_declaration,
+            ExpectedRankDeclaration,
+            "expected_rank_declaration",
+        )
+        _exact_record(self.candidate_t, ControlCandidateOutcome, "candidate_t")
+        _exact_record(self.comparison_2t, ControlCandidateOutcome, "comparison_2t")
+        for name in (
+            "readout_spectrum_audits",
+            "comparison_2t_readout_spectrum_audits",
+        ):
+            value = getattr(self, name)
+            if type(value) is not tuple or not all(
+                type(item) is PerControlReadoutSpectrumAudit for item in value
+            ):
+                raise TypeError(f"{name} must contain exact spectrum audits")
+        for name in (
+            "phase_separation",
+            "overlap_margin",
+            "projector_t2t_distance",
+        ):
+            _optional_nonnegative(getattr(self, name), name)
+        if type(self.passed) is not bool:
+            raise TypeError("control candidate passed must be a bool")
+        _sha(self.audit_sha, "audit_sha")
+
+
+@dataclass(frozen=True)
+class WindowCandidateAudit:
+    fejer_order: int
+    control_audits: tuple[ControlCandidateAudit, ...]
+    readout_aggregate_audits: tuple[ReadoutAggregateCalibrationAudit, ...]
+    passed: bool
+    audit_sha: str
+
+    def __post_init__(self) -> None:
+        if type(self.fejer_order) is not int or self.fejer_order not in T_CANDIDATES:
+            raise ValueError("window candidate order is not frozen")
+        if type(self.control_audits) is not tuple or len(self.control_audits) != len(
+            CONTROL_ORDER
+        ):
+            raise ValueError("window candidate must retain exactly three controls")
+        if not all(type(item) is ControlCandidateAudit for item in self.control_audits):
+            raise TypeError("window candidate control audit has a wrong strict type")
+        if type(self.readout_aggregate_audits) is not tuple or not all(
+            type(item) is ReadoutAggregateCalibrationAudit
+            for item in self.readout_aggregate_audits
+        ):
+            raise TypeError("window candidate aggregate audit has a wrong type")
+        if type(self.passed) is not bool:
+            raise TypeError("window candidate passed must be a bool")
+        _sha(self.audit_sha, "audit_sha")
+
+
+def expected_rank_declaration_payload(
+    declaration: ExpectedRankDeclaration,
+) -> dict[str, object]:
+    _exact_record(declaration, ExpectedRankDeclaration, "expected rank declaration")
+    return _payload_without_hash(declaration, "declaration_sha")
+
+
+def candidate_attempt_audit_payload(
+    audit: CandidateAttemptAudit,
+) -> dict[str, object]:
+    _exact_record(audit, CandidateAttemptAudit, "candidate attempt audit")
+    return _payload_without_hash(audit, "attempt_sha")
+
+
+def control_candidate_outcome_payload(
+    outcome: ControlCandidateOutcome,
+) -> dict[str, object]:
+    _exact_record(outcome, ControlCandidateOutcome, "control candidate outcome")
+    return _payload_without_hash(outcome, "outcome_sha")
+
+
+def branch_spectrum_audit_payload(audit: BranchSpectrumAudit) -> dict[str, object]:
+    _exact_record(audit, BranchSpectrumAudit, "branch spectrum audit")
+    return _payload_without_hash(audit, "branch_sha")
+
+
+def per_control_readout_spectrum_audit_payload(
+    audit: PerControlReadoutSpectrumAudit,
+) -> dict[str, object]:
+    _exact_record(
+        audit,
+        PerControlReadoutSpectrumAudit,
+        "per-control readout spectrum audit",
+    )
+    return _payload_without_hash(audit, "audit_sha")
+
+
+def readout_aggregate_calibration_audit_payload(
+    audit: ReadoutAggregateCalibrationAudit,
+) -> dict[str, object]:
+    _exact_record(
+        audit,
+        ReadoutAggregateCalibrationAudit,
+        "readout aggregate calibration audit",
+    )
+    return _payload_without_hash(audit, "aggregate_sha")
+
+
+def control_candidate_audit_payload(
+    audit: ControlCandidateAudit,
+) -> dict[str, object]:
+    _exact_record(audit, ControlCandidateAudit, "control candidate audit")
+    return _payload_without_hash(audit, "audit_sha")
+
+
+def window_candidate_audit_payload(audit: WindowCandidateAudit) -> dict[str, object]:
+    _exact_record(audit, WindowCandidateAudit, "window candidate audit")
+    return _payload_without_hash(audit, "audit_sha")
+
+
 _UPSTREAM_TASK12_WIRE_TYPES = (
     *_PARENT_WIRE_TYPES,
     *_REGISTRY_WIRE_TYPES,
@@ -896,16 +1379,26 @@ def _clone_task12_wire(
     """Clone one authority wire without invoking user copy/deepcopy hooks."""
 
     ordered: list[type] = []
+    candidate_atoms: list[type] = []
+    for candidate_type in candidate_record_types:
+        if hasattr(candidate_type, "__dataclass_fields__"):
+            continue
+        if issubclass(candidate_type, Enum) and candidate_type not in candidate_atoms:
+            candidate_atoms.append(candidate_type)
     for record_type in (
         *_upstream_types,
         *local_record_types,
-        *candidate_record_types,
+        *(
+            item
+            for item in candidate_record_types
+            if hasattr(item, "__dataclass_fields__")
+        ),
     ):
         if record_type not in ordered:
             ordered.append(record_type)
     clone = _builder(
         tuple(ordered),
-        atomic_types=(UndefinedReason,),
+        atomic_types=(UndefinedReason, *candidate_atoms),
     )
     return clone(value)
 
@@ -944,7 +1437,10 @@ class WindowThresholdSelection:
     selection_sha: str
 
     def __post_init__(self) -> None:
-        if self.selected_fejer_order not in T_CANDIDATES:
+        if (
+            type(self.selected_fejer_order) is not int
+            or self.selected_fejer_order not in T_CANDIDATES
+        ):
             raise ValueError("selected Fejer order is not a candidate")
         for name in (
             "h_scale_ref",
@@ -977,17 +1473,27 @@ class WindowThresholdCalibrationManifest:
     calibration_schema_version: str
     control_registry: ClosedControlRegistry
     window_protocol: WindowCalibrationProtocol
-    candidate_audits: tuple[object, ...]
+    candidate_audits: tuple[WindowCandidateAudit, ...]
     calibration_manifest_sha: str
 
     def __post_init__(self) -> None:
-        _text(self.calibration_schema_version, "calibration_schema_version")
+        if (
+            self.calibration_schema_version
+            != WINDOW_THRESHOLD_CALIBRATION_SCHEMA_VERSION
+        ):
+            raise ValueError("calibration manifest schema is not frozen")
         if type(self.control_registry) is not ClosedControlRegistry:
             raise TypeError("control_registry has the wrong strict type")
         if type(self.window_protocol) is not WindowCalibrationProtocol:
             raise TypeError("window_protocol has the wrong strict type")
         if type(self.candidate_audits) is not tuple:
             raise TypeError("candidate_audits must be a tuple")
+        if not all(
+            type(item) is WindowCandidateAudit for item in self.candidate_audits
+        ):
+            raise TypeError(
+                "candidate_audits must contain exact WindowCandidateAudit records"
+            )
         _sha(self.calibration_manifest_sha, "calibration_manifest_sha")
 
 
@@ -1124,6 +1630,1102 @@ _CALIBRATION_LIVE: dict[
 _CALIBRATION_LOCK = threading.RLock()
 
 
+def _validate_response_run_spec_body(
+    spec: ResponseRunSpec,
+    protocol_body: WindowCalibrationProtocol,
+    registry_body: ClosedControlRegistry,
+):
+    """Replay a run spec against already-reverified protocol/registry bodies.
+
+    Calling the public response verifier once per T/control would recursively
+    reverify the same live Parent 36 times.  The enclosing calibration verifier
+    has already reverified those two capabilities, so this performs the same
+    closed-body checks without weakening the authority boundary.
+    """
+
+    response = _task11_response_types()
+    response._preflight_run_spec(spec)
+    spec.__post_init__()
+    if spec.run_spec_schema_version != response.RESPONSE_RUN_SPEC_SCHEMA_VERSION:
+        raise ValueError("unexpected response run spec schema")
+    if spec.window_protocol_sha != protocol_body.protocol_sha:
+        raise ValueError("run spec window protocol binding mismatch")
+    protocol_matches = tuple(
+        item
+        for item in protocol_body.control_entries
+        if item.control_registry_entry_sha == spec.control_registry_entry_sha
+    )
+    registry_matches = tuple(
+        item
+        for item in registry_body.entries
+        if item.entry_sha == spec.control_registry_entry_sha
+    )
+    if len(protocol_matches) != 1 or len(registry_matches) != 1:
+        raise ValueError("run spec registry entry binding is not unique")
+    protocol_entry = protocol_matches[0]
+    registry_entry = registry_matches[0]
+    response.verify_basis_manifest(spec.source_basis)
+    response.verify_basis_manifest(spec.readout_basis)
+    if (
+        spec.source_basis != registry_entry.source_basis
+        or spec.readout_basis != registry_entry.readout_basis
+        or spec.state_schema_id != registry_entry.source_basis.state_schema_id
+        or spec.channel_order != registry_entry.source_basis.channel_order
+        or registry_entry.readout_basis.state_schema_id != spec.state_schema_id
+        or registry_entry.readout_basis.channel_order != spec.channel_order
+    ):
+        raise ValueError("run spec source/readout basis binding mismatch")
+    if (
+        spec.spatial_shape != protocol_entry.source_readout_bridge_grid.spatial_shape
+        or spec.response_grid != protocol_entry.response_grid
+        or spec.source_readout_bridge_grid != protocol_entry.source_readout_bridge_grid
+        or spec.source_readout_bridge_steps
+        != protocol_entry.source_readout_bridge_steps
+        or spec.source_readout_bridge_grid.torus_denominators != spec.spatial_shape
+        or spec.source_readout_bridge_grid.spatial_shape != spec.spatial_shape
+    ):
+        raise ValueError("run spec grid/bridge binding mismatch")
+    source_count = len(spec.source_basis.vectors_wire)
+    trials = frozen_tensor_array(spec.source_trial_vectors)
+    if trials.shape != (source_count, source_count) or not np.array_equal(
+        trials,
+        np.eye(source_count, dtype=np.complex128),
+    ):
+        raise ValueError("source trials are not the frozen complete identity frame")
+    response.preflight_source_bridge_work(
+        n_k=len(spec.source_readout_bridge_grid.reciprocal_indices),
+        n_trial=source_count,
+        steps=spec.source_readout_bridge_steps,
+    )
+    expected_id = (
+        f"v3m0.response-run.{registry_entry.control_id}.T{spec.fejer_order}.v1"
+    )
+    if spec.run_spec_id != expected_id:
+        raise ValueError("run spec ID is not the canonical derivation")
+    if spec.bridge_tolerance != BRIDGE_TOLERANCE:
+        raise ValueError("run spec bridge tolerance is not frozen")
+    if spec.spec_sha != canonical_sha(response.response_run_spec_payload(spec)):
+        raise ValueError("control candidate run spec self-hash mismatch")
+    return protocol_entry, registry_entry
+
+
+def _validate_raw_window_protocol_body(
+    protocol_body: WindowCalibrationProtocol,
+    registry_body: ClosedControlRegistry,
+) -> None:
+    _exact_record(
+        protocol_body,
+        WindowCalibrationProtocol,
+        "window calibration protocol",
+    )
+    protocol_body.__post_init__()
+    if (
+        protocol_body.protocol_schema_version
+        != WINDOW_CALIBRATION_PROTOCOL_SCHEMA_VERSION
+        or protocol_body.control_registry_sha != registry_body.registry_sha
+        or protocol_body.parent_freeze_sha != registry_body.parent_freeze_sha
+        or protocol_body.protocol_sha
+        != canonical_sha(window_calibration_protocol_payload(protocol_body))
+    ):
+        raise ValueError("window protocol differs from the live registry")
+    if (
+        tuple(item.control_id for item in protocol_body.control_entries)
+        != CONTROL_ORDER
+    ):
+        raise ValueError("window protocol controls are not canonical")
+    for protocol_entry, registry_entry in zip(
+        protocol_body.control_entries,
+        registry_body.entries,
+    ):
+        if (
+            protocol_entry.control_registry_entry_sha != registry_entry.entry_sha
+            or protocol_entry.entry_sha
+            != canonical_sha(control_window_protocol_entry_payload(protocol_entry))
+        ):
+            raise ValueError("window protocol entry differs from the live registry")
+    verify_window_protocol_thresholds(
+        t_candidates=protocol_body.t_candidates,
+        phase_grid_protocol_id=protocol_body.phase_grid_protocol_id,
+        phase_separation_protocol_id=protocol_body.phase_separation_protocol_id,
+        participation_min_required=protocol_body.participation_min_required,
+        overlap_margin_required=protocol_body.overlap_margin_required,
+        loop_residual_max=protocol_body.loop_residual_max,
+        projector_residual_max=protocol_body.projector_residual_max,
+    )
+
+
+def _validate_shell_attempt_and_manifest_summaries(
+    shell_outcome,
+    protocol_body: WindowCalibrationProtocol,
+) -> None:
+    """Reject re-signed shell summaries that differ from their point records."""
+
+    shell_spec = shell_outcome.attempt_audit.shell_spec
+    direction = shell_spec.response_grid.direction_manifest
+    expected_keys = tuple(
+        (path_id, position, reciprocal_index)
+        for path_id, path in zip(direction.path_ids, direction.ordered_paths)
+        for position, reciprocal_index in enumerate(path)
+    )
+    attempt_keys = tuple(
+        (
+            item.momentum_path_id,
+            item.momentum_path_position,
+            item.reciprocal_index,
+        )
+        for item in shell_outcome.attempt_audit.point_attempts
+    )
+    if attempt_keys != expected_keys[: len(attempt_keys)]:
+        raise ValueError("endpoint shell attempt points are missing or reordered")
+    shell = shell_outcome.shell
+    if shell is None:
+        return
+    if attempt_keys != expected_keys:
+        raise ValueError("successful endpoint shell attempt does not cover the grid")
+    point_keys = tuple(
+        (
+            item.momentum_path_id,
+            item.momentum_path_position,
+            item.reciprocal_index,
+        )
+        for item in shell.point_audits
+    )
+    if point_keys != expected_keys:
+        raise ValueError("successful endpoint shell does not cover the canonical grid")
+    if (
+        shell.shell_spec != shell_spec
+        or shell.shell_phases != tuple(item.shell_phase for item in shell.point_audits)
+        or shell.ambiguous
+    ):
+        raise ValueError("endpoint shell body differs from its attempt/point records")
+    if any(
+        item.rank != shell_spec.endpoint_reference_projector.rank
+        for item in shell.point_audits
+    ):
+        raise ValueError("endpoint shell point rank differs from the reference")
+    gaps = tuple(
+        item.nearest_competitor_gap
+        for item in shell.point_audits
+        if item.nearest_competitor_gap is not None
+    )
+    runners = tuple(
+        item.runner_up_overlap
+        for item in shell.point_audits
+        if item.runner_up_overlap is not None
+    )
+    predecessors = tuple(
+        item.predecessor_overlap
+        for item in shell.point_audits
+        if item.predecessor_overlap is not None
+    )
+    margins = tuple(
+        (
+            item.reference_overlap
+            if item.predecessor_overlap is None
+            else item.predecessor_overlap
+        )
+        - item.runner_up_overlap
+        for item in shell.point_audits
+        if item.runner_up_overlap is not None
+    )
+    loops = tuple(
+        item.loop_residual
+        for item in shell.point_audits
+        if item.loop_residual is not None
+    )
+    expected = (
+        max(item.hermitian_residual for item in shell.point_audits),
+        max(item.idempotent_residual for item in shell.point_audits),
+        max(item.g_invariance_residual for item in shell.point_audits),
+        max(item.eigenphase_residual for item in shell.point_audits),
+        min(item.participation for item in shell.point_audits),
+        None if not gaps else min(gaps),
+        min(item.reference_overlap for item in shell.point_audits),
+        None if not runners else max(runners),
+        None if not predecessors else min(predecessors),
+        None if not margins else min(margins),
+        None if not loops else max(loops),
+    )
+    observed = (
+        shell.hermitian_residual_max,
+        shell.idempotent_residual_max,
+        shell.g_invariance_residual_max,
+        shell.eigenphase_residual_max,
+        shell.participation_min,
+        shell.nearest_competitor_gap_min,
+        shell.reference_overlap_min,
+        shell.runner_up_overlap_max,
+        shell.predecessor_overlap_min,
+        shell.overlap_margin_min,
+        shell.loop_residual_max,
+    )
+    if observed != expected:
+        raise ValueError("endpoint shell summaries differ from point evidence")
+    if shell_outcome.attempt_audit.loop_residual_max_observed != (
+        None if not loops else max(loops)
+    ):
+        raise ValueError("endpoint shell attempt loop summary mismatch")
+    if (
+        max(
+            shell.hermitian_residual_max,
+            shell.idempotent_residual_max,
+            shell.g_invariance_residual_max,
+            shell.eigenphase_residual_max,
+        )
+        > protocol_body.projector_residual_max
+        or shell.participation_min < protocol_body.participation_min_required
+        or (
+            shell.nearest_competitor_gap_min is not None
+            and shell.nearest_competitor_gap_min
+            < phase_separation_min(shell_spec.candidate_fejer_order)
+        )
+        or (
+            shell.overlap_margin_min is not None
+            and shell.overlap_margin_min < protocol_body.overlap_margin_required
+        )
+        or (
+            shell.loop_residual_max is not None
+            and shell.loop_residual_max > protocol_body.loop_residual_max
+        )
+    ):
+        raise ValueError("successful endpoint shell violates a frozen hard gate")
+
+
+def _validate_reference_attempt_and_selection(
+    reference,
+    protocol_body: WindowCalibrationProtocol,
+) -> None:
+    """Replay the reference candidate table and its first-error selection."""
+
+    response = _task11_response_types()
+    spec = reference.reference_spec
+    attempt = reference.attempt_audit
+    if (
+        spec.reference_spec_schema_version
+        != response.ENDPOINT_REFERENCE_SPEC_SCHEMA_VERSION
+        or attempt.attempt_schema_version
+        != response.ENDPOINT_REFERENCE_ATTEMPT_SCHEMA_VERSION
+        or attempt.expected_shell_rank != spec.expected_shell_rank
+        or attempt.expected_shell_rank_source_id != spec.expected_shell_rank_source_id
+    ):
+        raise ValueError("endpoint reference attempt differs from its frozen spec")
+
+    phases = attempt.candidate_phases
+    participations = attempt.candidate_participations
+
+    def phase_distance(first: float, second: float) -> float:
+        return abs(math.atan2(math.sin(first - second), math.cos(first - second)))
+
+    expected_runner_ups = tuple(
+        (
+            None
+            if len(participations) == 1
+            else max(
+                value
+                for other_index, value in enumerate(participations)
+                if other_index != index
+            )
+        )
+        for index in range(len(participations))
+    )
+    expected_competitor_gaps = tuple(
+        (
+            None
+            if len(phases) == 1
+            else min(
+                phase_distance(phase, other)
+                for other_index, other in enumerate(phases)
+                if other_index != index
+            )
+        )
+        for index, phase in enumerate(phases)
+    )
+    if (
+        attempt.runner_up_overlaps != expected_runner_ups
+        or attempt.observed_competitor_gaps != expected_competitor_gaps
+    ):
+        raise ValueError("endpoint reference competitor summaries are not mechanical")
+
+    selected_index: Optional[int] = None
+    expected_failure = None
+    if not phases:
+        expected_failure = response.EndpointReferenceFailure.PHASE_BAND_EMPTY
+    elif any(
+        phase_distance(first, second) < phase_grid_step(spec.candidate_fejer_order)
+        for index, first in enumerate(phases)
+        for second in phases[index + 1 :]
+    ):
+        expected_failure = response.EndpointReferenceFailure.PHASE_BAND_NONUNIQUE
+    else:
+        selected_index = min(
+            range(len(phases)),
+            key=lambda index: (-participations[index], phases[index]),
+        )
+        if attempt.candidate_ranks[selected_index] != spec.expected_shell_rank:
+            expected_failure = response.EndpointReferenceFailure.RANK_MISMATCH
+        elif participations[selected_index] < protocol_body.participation_min_required:
+            expected_failure = response.EndpointReferenceFailure.PARTICIPATION_FAILED
+        elif (
+            expected_runner_ups[selected_index] is not None
+            and participations[selected_index] - expected_runner_ups[selected_index]
+            < protocol_body.overlap_margin_required
+        ):
+            expected_failure = response.EndpointReferenceFailure.RUNNER_UP_MARGIN_FAILED
+        elif (
+            max(
+                attempt.hermitian_residuals[selected_index],
+                attempt.idempotent_residuals[selected_index],
+                attempt.g_invariance_residuals[selected_index],
+                attempt.eigenphase_residuals[selected_index],
+            )
+            > protocol_body.projector_residual_max
+        ):
+            expected_failure = response.EndpointReferenceFailure.PROJECTOR_INVALID
+
+    if reference.failure is not expected_failure:
+        raise ValueError("endpoint reference failure is not mechanical")
+    if expected_failure is None:
+        selected = reference.reference
+        if selected is None or selected_index is None:
+            raise ValueError("successful endpoint reference lost its selection")
+        if (
+            selected.reference_schema_version
+            != response.ENDPOINT_REFERENCE_SCHEMA_VERSION
+            or selected.reference_phase != phases[selected_index]
+            or selected.rank != attempt.candidate_ranks[selected_index]
+        ):
+            raise ValueError("endpoint reference selection differs from candidates")
+
+
+def _validate_response_attempt_graph(
+    audit: CandidateAttemptAudit,
+    run_spec: ResponseRunSpec,
+    protocol_body: WindowCalibrationProtocol,
+    registry_entry: ControlRegistryEntry,
+    protocol_entry: ControlWindowProtocolEntry,
+) -> None:
+    """Validate the exact typed first-error graph without hydrating authorities."""
+
+    response = _task11_response_types()
+    audit.__post_init__()
+    reference = audit.reference_outcome
+    response._preflight_reference_outcome_body(reference)
+    if reference.reference_spec.reference_spec_sha != canonical_sha(
+        response.endpoint_reference_spec_payload(reference.reference_spec)
+    ):
+        raise ValueError("endpoint reference spec self-hash mismatch")
+    if reference.attempt_audit.attempt_sha != canonical_sha(
+        response.endpoint_reference_attempt_audit_payload(reference.attempt_audit)
+    ):
+        raise ValueError("endpoint reference attempt self-hash mismatch")
+    if reference.reference is not None and (
+        reference.reference.reference_sha
+        != canonical_sha(
+            response.endpoint_reference_projector_payload(reference.reference)
+        )
+    ):
+        raise ValueError("endpoint reference projector self-hash mismatch")
+    if reference.outcome_sha != canonical_sha(
+        response.endpoint_reference_outcome_payload(reference)
+    ):
+        raise ValueError("endpoint reference outcome self-hash mismatch")
+    if reference.attempt_audit.reference_spec != reference.reference_spec:
+        raise ValueError("endpoint reference attempt/spec body mismatch")
+    if reference.reference_spec.control_registry_entry.entry_sha != (
+        audit.control_registry_entry_sha
+    ):
+        raise ValueError("endpoint reference is bound to another registry entry")
+    if reference.reference_spec.candidate_fejer_order != audit.fejer_order:
+        raise ValueError("endpoint reference order differs from candidate attempt")
+    if not reference.status.defined and (
+        reference.status.reason is not UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+    ):
+        raise ValueError("endpoint reference has the wrong undefined reason")
+    reference_spec = reference.reference_spec
+    _validate_reference_attempt_and_selection(reference, protocol_body)
+    if (
+        reference_spec.window_protocol_sha != protocol_body.protocol_sha
+        or reference_spec.control_registry_entry != registry_entry
+        or reference_spec.actual_factory_sha != registry_entry.factory_sha
+        or reference_spec.reference_reciprocal_index
+        != protocol_entry.reference_reciprocal_index
+        or reference_spec.preregistered_phase_bands
+        != protocol_entry.preregistered_phase_bands
+        or reference_spec.expected_shell_rank != protocol_entry.expected_shell_rank
+        or reference_spec.expected_shell_rank_source_id
+        != protocol_entry.expected_shell_rank_source_id
+    ):
+        raise ValueError("endpoint reference differs from the closed protocol entry")
+    if reference.reference is not None and (
+        reference.reference.control_registry_entry_sha != registry_entry.entry_sha
+        or reference.reference.actual_transition_sha
+        != reference_spec.actual_transition_sha
+        or reference.reference.actual_dynamics_certificate_sha
+        != reference_spec.actual_dynamics_certificate_sha
+        or reference.reference.reference_reciprocal_index
+        != reference_spec.reference_reciprocal_index
+        or reference.reference.rank != reference_spec.expected_shell_rank
+    ):
+        raise ValueError("endpoint reference projector binding mismatch")
+    if reference.reference is not None:
+        frozen_tensor_array(reference.reference.projector)
+
+    shell = audit.shell_outcome
+    if shell is None:
+        if audit.attempt_sha != canonical_sha(candidate_attempt_audit_payload(audit)):
+            raise ValueError("candidate attempt self-hash mismatch")
+        return
+    response._preflight_shell_outcome_body(shell)
+    _validate_shell_attempt_and_manifest_summaries(shell, protocol_body)
+    if shell.reference_outcome != reference:
+        raise ValueError("endpoint shell lost its reference outcome")
+    shell_spec = shell.attempt_audit.shell_spec
+    if shell_spec.shell_spec_sha != canonical_sha(
+        response.endpoint_shell_spec_payload(shell_spec)
+    ):
+        raise ValueError("endpoint shell spec self-hash mismatch")
+    if shell.attempt_audit.attempt_sha != canonical_sha(
+        response.endpoint_shell_attempt_audit_payload(shell.attempt_audit)
+    ):
+        raise ValueError("endpoint shell attempt self-hash mismatch")
+    if shell.shell is not None and shell.shell.shell_manifest_sha != canonical_sha(
+        response.endpoint_shell_manifest_payload(shell.shell)
+    ):
+        raise ValueError("endpoint shell manifest self-hash mismatch")
+    if shell.shell is not None:
+        frozen_tensor_array(shell.shell.shell_projectors)
+        if (
+            shell.shell.actual_factory_sha != reference_spec.actual_factory_sha
+            or shell.shell.actual_transition_sha != reference_spec.actual_transition_sha
+            or shell.shell.actual_dynamics_certificate_sha
+            != reference_spec.actual_dynamics_certificate_sha
+        ):
+            raise ValueError("endpoint shell actual evidence binding mismatch")
+    if shell.outcome_sha != canonical_sha(
+        response.endpoint_shell_outcome_payload(shell)
+    ):
+        raise ValueError("endpoint shell outcome self-hash mismatch")
+    if not shell.status.defined and (
+        shell.status.reason is not UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS
+    ):
+        raise ValueError("endpoint shell has the wrong undefined reason")
+    if (
+        shell_spec.window_protocol_sha != protocol_body.protocol_sha
+        or shell_spec.control_registry_entry != registry_entry
+        or shell_spec.response_grid != protocol_entry.response_grid
+        or shell_spec.preregistered_phase_bands
+        != protocol_entry.preregistered_phase_bands
+        or shell_spec.candidate_fejer_order != run_spec.fejer_order
+        or shell_spec.endpoint_reference_projector != reference.reference
+    ):
+        raise ValueError("endpoint shell differs from reference/protocol binding")
+
+    paired = audit.paired_response_outcome
+    if paired is not None:
+        response._preflight_paired_outcome_body(paired)
+        response._verify_paired_declared_hashes(paired)
+        if paired.attempt_audit.shell_outcome != shell:
+            raise ValueError("paired response lost its endpoint shell outcome")
+        if (
+            paired.attempt_audit.window_protocol != protocol_body
+            or paired.attempt_audit.run_spec != run_spec
+        ):
+            raise ValueError("paired response differs from protocol/run spec binding")
+        paired_attempt = paired.attempt_audit
+        for transition in (
+            paired_attempt.actual_transition,
+            paired_attempt.ablated_transition,
+        ):
+            if transition.transition_sha != canonical_sha(
+                response.measured_transition_payload(transition)
+            ):
+                raise ValueError("paired transition self-hash mismatch")
+        if (
+            paired_attempt.actual_transition.factory_sha
+            != paired_attempt.actual_factory_sha
+            or paired_attempt.actual_transition.factory_role != "actual"
+            or paired_attempt.ablated_transition.factory_sha
+            != paired_attempt.ablated_factory_sha
+            or paired_attempt.ablated_transition.factory_role != "matched_ablated"
+        ):
+            raise ValueError("paired transition/factory branch binding mismatch")
+        for certificate, transition in (
+            (
+                paired_attempt.actual_dynamics_certificate,
+                paired_attempt.actual_transition,
+            ),
+            (
+                paired_attempt.ablated_dynamics_certificate,
+                paired_attempt.ablated_transition,
+            ),
+        ):
+            if (
+                certificate.transition != transition
+                or certificate.certificate_sha
+                != canonical_sha(response.dynamics_certificate_payload(certificate))
+            ):
+                raise ValueError("paired dynamics certificate self-hash mismatch")
+        if (
+            paired_attempt.actual_factory_sha != reference_spec.actual_factory_sha
+            or paired_attempt.actual_transition.transition_sha
+            != reference_spec.actual_transition_sha
+            or paired_attempt.actual_dynamics_certificate.certificate_sha
+            != reference_spec.actual_dynamics_certificate_sha
+            or shell.shell is None
+            or shell.shell.dt != paired_attempt.actual_transition.dt
+        ):
+            raise ValueError("paired actual branch differs from endpoint reference")
+        for branch_attempt in (
+            paired_attempt.actual_branch_attempt,
+            paired_attempt.ablated_branch_attempt,
+        ):
+            if branch_attempt is None:
+                continue
+            if branch_attempt.response_values is not None:
+                frozen_tensor_array(branch_attempt.response_values)
+            if branch_attempt.bridge_audit is not None:
+                response.verify_source_readout_bridge_audit_body(
+                    branch_attempt.bridge_audit,
+                    run_spec,
+                    registry_entry,
+                )
+        if paired.paired_response is not None and (
+            paired.paired_response.run_spec != run_spec
+            or paired.paired_response.shell_manifest != shell.shell
+        ):
+            raise ValueError("paired response payload lost its run/shell binding")
+        if paired.paired_response is not None:
+            payload = paired.paired_response
+            if (
+                payload.qualification_sha != paired_attempt.qualification_sha
+                or payload.actual_dynamics_certificate
+                != paired_attempt.actual_dynamics_certificate
+                or payload.ablated_dynamics_certificate
+                != paired_attempt.ablated_dynamics_certificate
+            ):
+                raise ValueError("paired payload differs from attempt evidence")
+            for branch_response in (payload.actual, payload.ablated):
+                frozen_tensor_array(branch_response.values)
+                response.verify_source_readout_bridge_audit_body(
+                    branch_response.bridge_audit,
+                    run_spec,
+                    registry_entry,
+                )
+    if audit.attempt_sha != canonical_sha(candidate_attempt_audit_payload(audit)):
+        raise ValueError("candidate attempt self-hash mismatch")
+
+
+def _expected_control_candidate_failure(
+    audit: CandidateAttemptAudit,
+) -> Optional[ControlCandidateFailure]:
+    response = _task11_response_types()
+    if not audit.reference_outcome.status.defined:
+        return ControlCandidateFailure.REFERENCE_FAILED
+    if audit.shell_outcome is None:
+        raise ValueError("successful reference lost its shell outcome")
+    if not audit.shell_outcome.status.defined:
+        return ControlCandidateFailure.SHELL_FAILED
+    paired = audit.paired_response_outcome
+    if paired is None:
+        raise ValueError("successful shell lost its paired response outcome")
+    if paired.status.defined:
+        return None
+    if paired.failure in (
+        response.PairedResponseFailure.ACTUAL_BRIDGE_FAILED,
+        response.PairedResponseFailure.ABLATED_BRIDGE_FAILED,
+    ):
+        return ControlCandidateFailure.BRIDGE_FAILED
+    return ControlCandidateFailure.RESPONSE_FAILED
+
+
+def _validate_control_candidate_outcome(
+    outcome: ControlCandidateOutcome,
+    protocol_body: WindowCalibrationProtocol,
+    registry_body: ClosedControlRegistry,
+) -> None:
+    outcome.__post_init__()
+    protocol_entry, registry_entry = _validate_response_run_spec_body(
+        outcome.run_spec,
+        protocol_body,
+        registry_body,
+    )
+    _validate_response_attempt_graph(
+        outcome.attempt_audit,
+        outcome.run_spec,
+        protocol_body,
+        registry_entry,
+        protocol_entry,
+    )
+    expected_failure = _expected_control_candidate_failure(outcome.attempt_audit)
+    if outcome.failure is not expected_failure:
+        raise ValueError("control candidate failure differs from first error")
+    if outcome.outcome_sha != canonical_sha(control_candidate_outcome_payload(outcome)):
+        raise ValueError("control candidate outcome self-hash mismatch")
+
+
+def _validate_expected_rank_declaration(
+    declaration: ExpectedRankDeclaration,
+    registry_body: ClosedControlRegistry,
+    entry,
+) -> None:
+    declaration.__post_init__()
+    if (
+        declaration.control_registry_sha != registry_body.registry_sha
+        or declaration.control_registry_entry_sha != entry.entry_sha
+        or declaration.control_id != entry.control_id
+        or declaration.parent_freeze_sha != registry_body.parent_freeze_sha
+        or declaration.expected_h_actual_rank != entry.expected_h_actual_rank
+        or declaration.expected_h_ablated_rank != entry.expected_h_ablated_rank
+        or declaration.expected_curv_actual_rank != entry.expected_curv_actual_rank
+        or declaration.expected_curv_ablated_rank != entry.expected_curv_ablated_rank
+    ):
+        raise ValueError("expected-rank declaration differs from registry")
+    if declaration.declaration_sha != canonical_sha(
+        expected_rank_declaration_payload(declaration)
+    ):
+        raise ValueError("expected-rank declaration self-hash mismatch")
+
+
+def _validate_branch_spectrum(audit: BranchSpectrumAudit) -> None:
+    audit.__post_init__()
+    if audit.branch_sha != canonical_sha(branch_spectrum_audit_payload(audit)):
+        raise ValueError("branch spectrum self-hash mismatch")
+
+
+def _expected_spectrum_values(
+    values: FrozenComplexTensor,
+    readout_kind: Literal["h", "curv"],
+    readout_spec: ControlReadoutCalibrationSpec,
+) -> tuple[tuple[int, int], tuple[float, ...]]:
+    response_values = frozen_tensor_array(values)
+    if response_values.ndim != 3:
+        raise ValueError("source/readout response values must be rank three")
+    source_whitener = frozen_tensor_array(readout_spec.source_metric_whitener)
+    if readout_kind == "h":
+        readout_chain = frozen_tensor_array(readout_spec.h_metric_whitener)
+    else:
+        readout_chain = frozen_tensor_array(
+            readout_spec.curvature_metric_whitener
+        ) @ frozen_tensor_array(readout_spec.curvature_incidence_operator)
+    transformed = tuple(
+        readout_chain @ response_values[index] @ source_whitener
+        for index in range(response_values.shape[0])
+    )
+    rows = tuple(
+        tuple(float(item) for item in np.linalg.svd(matrix, compute_uv=False))
+        for matrix in transformed
+    )
+    n_singular = min(response_values.shape[1], response_values.shape[2])
+    return (
+        (response_values.shape[0], n_singular),
+        tuple(item for row in rows for item in row),
+    )
+
+
+def _validate_per_control_spectrum(
+    audit: PerControlReadoutSpectrumAudit,
+    declaration: ExpectedRankDeclaration,
+    entry,
+    outcome: ControlCandidateOutcome,
+) -> None:
+    audit.__post_init__()
+    _validate_branch_spectrum(audit.actual)
+    _validate_branch_spectrum(audit.ablated)
+    paired_outcome = outcome.attempt_audit.paired_response_outcome
+    if paired_outcome is None or paired_outcome.paired_response is None:
+        raise ValueError("spectrum audit requires a successful paired response")
+    paired = paired_outcome.paired_response
+    expected_ranks = (
+        (
+            declaration.expected_h_actual_rank,
+            declaration.expected_h_ablated_rank,
+        )
+        if audit.readout_kind == "h"
+        else (
+            declaration.expected_curv_actual_rank,
+            declaration.expected_curv_ablated_rank,
+        )
+    )
+    if (
+        audit.control_registry_entry_sha != entry.entry_sha
+        or audit.expected_rank_declaration_sha != declaration.declaration_sha
+        or audit.fejer_order != outcome.run_spec.fejer_order
+        or audit.run_spec_sha != outcome.run_spec.spec_sha
+        or audit.paired_response_sha != paired.pair_sha
+        or audit.actual.declared_rank != expected_ranks[0]
+        or audit.ablated.declared_rank != expected_ranks[1]
+    ):
+        raise ValueError("per-control spectrum binding differs from closed inputs")
+    for branch_audit, branch_response in (
+        (audit.actual, paired.actual),
+        (audit.ablated, paired.ablated),
+    ):
+        shape, raw = _expected_spectrum_values(
+            branch_response.values,
+            audit.readout_kind,
+            entry.readout_calibration_spec,
+        )
+        if branch_audit.spectrum_shape != shape or branch_audit.raw_spectrum != raw:
+            raise ValueError("raw spectrum differs from paired response replay")
+    expected_bridge = (
+        (
+            paired.actual.bridge_audit.h_operator_error_max,
+            paired.ablated.bridge_audit.h_operator_error_max,
+        )
+        if audit.readout_kind == "h"
+        else (
+            paired.actual.bridge_audit.curv_operator_error_max,
+            paired.ablated.bridge_audit.curv_operator_error_max,
+        )
+    )
+    if (
+        audit.actual_bridge_operator_error_upper != expected_bridge[0]
+        or audit.ablated_bridge_operator_error_upper != expected_bridge[1]
+    ):
+        raise ValueError("spectrum bridge error differs from paired response")
+    if audit.audit_sha != canonical_sha(
+        per_control_readout_spectrum_audit_payload(audit)
+    ):
+        raise ValueError("per-control spectrum self-hash mismatch")
+
+
+def _aggregate_values(
+    audits: tuple[PerControlReadoutSpectrumAudit, ...],
+) -> tuple[float, Optional[float], float, SignalThresholdValues]:
+    active_values = tuple(
+        value
+        for audit in audits
+        for branch in (audit.actual, audit.ablated)
+        for row_start in range(
+            0,
+            len(branch.raw_spectrum),
+            branch.spectrum_shape[1],
+        )
+        for value in branch.raw_spectrum[row_start : row_start + branch.declared_rank]
+    )
+    inactive = tuple(
+        value
+        for audit in audits
+        for value in (audit.actual.inactive_max, audit.ablated.inactive_max)
+        if value is not None
+    )
+    if not active_values:
+        raise ValueError("aggregate lacks a declared active singular value")
+    scale = max(active_values)
+    signal = min(active_values)
+    null = None if not inactive else max(inactive)
+    bridge = max(
+        value
+        for audit in audits
+        for value in (
+            audit.actual_bridge_operator_error_upper,
+            audit.ablated_bridge_operator_error_upper,
+        )
+    )
+    raw_denominator = max(0.0 if null is None else null, EPS_FP64 * scale)
+    thresholds = compute_signal_threshold_values(
+        scale_ref=float(scale),
+        null_max=None if null is None else float(null),
+        bridge_operator_error_max=float(bridge),
+        signal_min=float(signal),
+        raw_relative_gap=float(signal / raw_denominator),
+    )
+    return (
+        float(scale),
+        None if null is None else float(null),
+        float(bridge),
+        thresholds,
+    )
+
+
+def _validate_aggregate(
+    aggregate: ReadoutAggregateCalibrationAudit,
+    expected_per_control: tuple[PerControlReadoutSpectrumAudit, ...],
+) -> None:
+    aggregate.__post_init__()
+    if aggregate.per_control != expected_per_control:
+        raise ValueError("aggregate does not recursively retain control audits")
+    scale, null, bridge, thresholds = _aggregate_values(expected_per_control)
+    expected = (
+        scale,
+        null,
+        bridge,
+        thresholds.noise_ref,
+        thresholds.signal_min,
+        thresholds.tau_sig,
+        thresholds.signal_noise_ratio,
+        thresholds.raw_relative_gap,
+        thresholds.absolute_signal_gate_passed,
+        thresholds.relative_gap_gate_passed,
+    )
+    observed = (
+        aggregate.scale_ref,
+        aggregate.null_max,
+        aggregate.bridge_operator_error_max,
+        aggregate.noise_ref,
+        aggregate.signal_min,
+        aggregate.tau_sig,
+        aggregate.signal_noise_ratio,
+        aggregate.raw_relative_gap,
+        aggregate.absolute_signal_gate_passed,
+        aggregate.relative_gap_gate_passed,
+    )
+    if observed != expected:
+        raise ValueError("aggregate threshold values differ from raw spectra")
+    if aggregate.aggregate_sha != canonical_sha(
+        readout_aggregate_calibration_audit_payload(aggregate)
+    ):
+        raise ValueError("aggregate calibration self-hash mismatch")
+
+
+def _shell_comparison_values(
+    candidate: ControlCandidateOutcome,
+    comparison: ControlCandidateOutcome,
+) -> tuple[float, float, float]:
+    first_outcome = candidate.attempt_audit.shell_outcome
+    second_outcome = comparison.attempt_audit.shell_outcome
+    if (
+        first_outcome is None
+        or first_outcome.shell is None
+        or second_outcome is None
+        or second_outcome.shell is None
+    ):
+        raise ValueError("window comparison requires two successful shells")
+    first = first_outcome.shell
+    second = second_outcome.shell
+    phase_separation = (
+        math.pi
+        if first.nearest_competitor_gap_min is None
+        else first.nearest_competitor_gap_min
+    )
+    overlap_margin = (
+        1.0 if first.overlap_margin_min is None else first.overlap_margin_min
+    )
+    first_projectors = frozen_tensor_array(first.shell_projectors)
+    second_projectors = frozen_tensor_array(second.shell_projectors)
+    if first_projectors.shape != second_projectors.shape:
+        raise ValueError("T/2T shell projector shapes differ")
+    distance = float(
+        max(
+            np.linalg.norm(first_item - second_item, 2)
+            for first_item, second_item in zip(
+                first_projectors,
+                second_projectors,
+            )
+        )
+    )
+    return float(phase_separation), float(overlap_margin), distance
+
+
+def _validate_control_candidate_audit(
+    audit: ControlCandidateAudit,
+    registry_body: ClosedControlRegistry,
+    entry,
+    protocol_body: WindowCalibrationProtocol,
+    order: int,
+) -> None:
+    audit.__post_init__()
+    if audit.control_registry_entry != entry:
+        raise ValueError("control candidate embeds another registry entry")
+    _validate_expected_rank_declaration(
+        audit.expected_rank_declaration,
+        registry_body,
+        entry,
+    )
+    _validate_control_candidate_outcome(
+        audit.candidate_t,
+        protocol_body,
+        registry_body,
+    )
+    _validate_control_candidate_outcome(
+        audit.comparison_2t,
+        protocol_body,
+        registry_body,
+    )
+    if (
+        audit.candidate_t.run_spec.fejer_order != order
+        or audit.comparison_2t.run_spec.fejer_order != 2 * order
+    ):
+        raise ValueError("control candidate T/2T orders are not exact")
+    both_success = (
+        audit.candidate_t.status.defined and audit.comparison_2t.status.defined
+    )
+    spectra = audit.readout_spectrum_audits
+    spectra_2t = audit.comparison_2t_readout_spectrum_audits
+    if not both_success:
+        if spectra or spectra_2t:
+            raise ValueError("failed control candidate cannot carry spectra")
+        if any(
+            value is not None
+            for value in (
+                audit.phase_separation,
+                audit.overlap_margin,
+                audit.projector_t2t_distance,
+            )
+        ):
+            raise ValueError("failed control candidate cannot carry comparisons")
+        expected_passed = False
+    else:
+        if tuple(item.readout_kind for item in spectra) != ("h", "curv") or tuple(
+            item.readout_kind for item in spectra_2t
+        ) != ("h", "curv"):
+            raise ValueError("successful control requires h/curv T and 2T spectra")
+        for item in spectra:
+            _validate_per_control_spectrum(
+                item,
+                audit.expected_rank_declaration,
+                entry,
+                audit.candidate_t,
+            )
+        for item in spectra_2t:
+            _validate_per_control_spectrum(
+                item,
+                audit.expected_rank_declaration,
+                entry,
+                audit.comparison_2t,
+            )
+        comparisons = _shell_comparison_values(
+            audit.candidate_t,
+            audit.comparison_2t,
+        )
+        if (
+            audit.phase_separation,
+            audit.overlap_margin,
+            audit.projector_t2t_distance,
+        ) != comparisons:
+            raise ValueError("control comparison values differ from shell replay")
+        bridge_signal_passed = all(
+            branch.active_min is None or branch.active_min > bridge
+            for item in (*spectra, *spectra_2t)
+            for branch, bridge in (
+                (item.actual, item.actual_bridge_operator_error_upper),
+                (item.ablated, item.ablated_bridge_operator_error_upper),
+            )
+        )
+        expected_passed = bridge_signal_passed and verify_window_comparison_gates(
+            order=order,
+            phase_separation=comparisons[0],
+            overlap_margin=comparisons[1],
+            projector_t2t_distance=comparisons[2],
+        )
+    if audit.passed != expected_passed:
+        raise ValueError("control candidate pass flag is not mechanical")
+    if audit.audit_sha != canonical_sha(control_candidate_audit_payload(audit)):
+        raise ValueError("control candidate audit self-hash mismatch")
+
+
+def _validate_window_candidate_audit(
+    audit: WindowCandidateAudit,
+    registry_body: ClosedControlRegistry,
+    protocol_body: WindowCalibrationProtocol,
+) -> None:
+    audit.__post_init__()
+    if (
+        tuple(item.control_registry_entry.control_id for item in audit.control_audits)
+        != CONTROL_ORDER
+    ):
+        raise ValueError("window control audits are not in registry order")
+    for item, entry in zip(audit.control_audits, registry_body.entries):
+        _validate_control_candidate_audit(
+            item,
+            registry_body,
+            entry,
+            protocol_body,
+            audit.fejer_order,
+        )
+    reached_spectra = all(
+        item.candidate_t.status.defined and item.comparison_2t.status.defined
+        for item in audit.control_audits
+    )
+    if reached_spectra:
+        if tuple(item.readout_kind for item in audit.readout_aggregate_audits) != (
+            "h",
+            "curv",
+        ):
+            raise ValueError("reached window candidate requires h/curv aggregates")
+        for aggregate in audit.readout_aggregate_audits:
+            expected_per_control = tuple(
+                next(
+                    spectrum
+                    for spectrum in control.readout_spectrum_audits
+                    if spectrum.readout_kind == aggregate.readout_kind
+                )
+                for control in audit.control_audits
+            )
+            _validate_aggregate(aggregate, expected_per_control)
+    elif audit.readout_aggregate_audits:
+        raise ValueError("failed window candidate cannot carry aggregate audits")
+    aggregate_passed = reached_spectra and all(
+        item.absolute_signal_gate_passed and item.relative_gap_gate_passed
+        for item in audit.readout_aggregate_audits
+    )
+    expected_passed = aggregate_passed and all(
+        item.passed for item in audit.control_audits
+    )
+    if audit.passed != expected_passed:
+        raise ValueError("window candidate pass flag is not mechanical")
+    if audit.audit_sha != canonical_sha(window_candidate_audit_payload(audit)):
+        raise ValueError("window candidate audit self-hash mismatch")
+
+
+def _selected_evidence_ref(
+    audit: ControlCandidateAudit,
+) -> SelectedControlEvidenceRef:
+    candidate_pair = audit.candidate_t.attempt_audit.paired_response_outcome
+    comparison_pair = audit.comparison_2t.attempt_audit.paired_response_outcome
+    candidate_shell = audit.candidate_t.attempt_audit.shell_outcome
+    comparison_shell = audit.comparison_2t.attempt_audit.shell_outcome
+    if (
+        candidate_pair is None
+        or candidate_pair.paired_response is None
+        or comparison_pair is None
+        or comparison_pair.paired_response is None
+        or candidate_shell is None
+        or candidate_shell.shell is None
+        or comparison_shell is None
+        or comparison_shell.shell is None
+    ):
+        raise ValueError("selected control evidence is incomplete")
+    return SelectedControlEvidenceRef(
+        control_id=audit.control_registry_entry.control_id,
+        control_registry_entry_sha=audit.control_registry_entry.entry_sha,
+        expected_rank_declaration_sha=(audit.expected_rank_declaration.declaration_sha),
+        run_spec_sha=audit.candidate_t.run_spec.spec_sha,
+        paired_response_sha=candidate_pair.paired_response.pair_sha,
+        shell_manifest_sha=candidate_shell.shell.shell_manifest_sha,
+        comparison_2t_run_spec_sha=audit.comparison_2t.run_spec.spec_sha,
+        comparison_2t_response_sha=(comparison_pair.paired_response.pair_sha),
+        comparison_2t_shell_manifest_sha=(comparison_shell.shell.shell_manifest_sha),
+    )
+
+
+def _expected_selection(
+    candidate: WindowCandidateAudit,
+) -> WindowThresholdSelection:
+    aggregate = {item.readout_kind: item for item in candidate.readout_aggregate_audits}
+    if tuple(aggregate) != ("h", "curv"):
+        raise ValueError("selected candidate lacks canonical aggregates")
+    provisional = WindowThresholdSelection(
+        selected_fejer_order=candidate.fejer_order,
+        h_scale_ref=aggregate["h"].scale_ref,
+        h_noise_ref=aggregate["h"].noise_ref,
+        h_signal_min=aggregate["h"].signal_min,
+        h_tau_sig=aggregate["h"].tau_sig,
+        curv_scale_ref=aggregate["curv"].scale_ref,
+        curv_noise_ref=aggregate["curv"].noise_ref,
+        curv_signal_min=aggregate["curv"].signal_min,
+        curv_tau_sig=aggregate["curv"].tau_sig,
+        selected_evidence_refs=tuple(
+            _selected_evidence_ref(item) for item in candidate.control_audits
+        ),
+        selection_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        selection_sha=canonical_sha(window_threshold_selection_payload(provisional)),
+    )
+
+
 def _validate_window_calibration(
     outcome: WindowCalibrationOutcome,
     registry: VerifiedControlRegistry,
@@ -1144,37 +2746,60 @@ def _validate_window_calibration(
         WindowThresholdCalibrationManifest,
         "calibration manifest",
     )
+    manifest.__post_init__()
     if manifest.control_registry != registry_view.registry:
         raise ValueError("calibration registry body mismatch")
     if manifest.window_protocol != protocol_view.protocol:
         raise ValueError("calibration window protocol body mismatch")
     if protocol_view.registry is not registry:
         raise ValueError("calibration protocol is not bound to registry")
+    _validate_raw_window_protocol_body(
+        protocol_view.protocol,
+        registry_view.registry,
+    )
     if len(manifest.candidate_audits) != len(T_CANDIDATES):
         raise ValueError("calibration manifest must retain all six candidate audits")
-    observed_orders: list[int] = []
-    for index, candidate in enumerate(manifest.candidate_audits):
-        fields = getattr(type(candidate), "__dataclass_fields__", None)
-        if fields is None or "fejer_order" not in fields:
-            raise TypeError(f"candidate_audits[{index}] lacks an exact fejer_order")
-        _exact_record(
-            candidate,
-            type(candidate),
-            f"candidate_audits[{index}]",
+    if not all(
+        type(candidate) is WindowCandidateAudit
+        for candidate in manifest.candidate_audits
+    ):
+        raise TypeError(
+            "calibration candidate_audits must contain exact "
+            "WindowCandidateAudit records"
         )
-        order = getattr(candidate, "fejer_order")
-        if type(order) is not int:
-            raise TypeError(f"candidate_audits[{index}].fejer_order must be an int")
-        observed_orders.append(order)
-    if tuple(observed_orders) != T_CANDIDATES:
+    if tuple(candidate.fejer_order for candidate in manifest.candidate_audits) != (
+        T_CANDIDATES
+    ):
         raise ValueError(
             "calibration candidate audits are not the frozen six-order table"
+        )
+    for candidate in manifest.candidate_audits:
+        _validate_window_candidate_audit(
+            candidate,
+            registry_view.registry,
+            protocol_view.protocol,
         )
     if manifest.calibration_manifest_sha != canonical_sha(
         window_threshold_calibration_manifest_payload(manifest)
     ):
         raise ValueError("calibration_manifest_sha does not match complete body")
     selection = outcome.selection
+    first_passing = next(
+        (item for item in manifest.candidate_audits if item.passed),
+        None,
+    )
+    if first_passing is None:
+        if selection is not None or outcome.status != BlockStatus(
+            False,
+            UndefinedReason.WINDOW_UNRESOLVED,
+        ):
+            raise ValueError("unresolved window outcome has a forged selection")
+    else:
+        if selection is None or not outcome.status.defined:
+            raise ValueError("first passing candidate lacks a selection")
+        expected_selection = _expected_selection(first_passing)
+        if selection != expected_selection:
+            raise ValueError("selection differs from the first passing candidate")
     if selection is not None:
         _exact_record(
             selection,
@@ -1204,27 +2829,212 @@ def _validate_window_calibration(
 def _candidate_record_types(
     manifest: WindowThresholdCalibrationManifest,
 ) -> tuple[type, ...]:
+    """Collect the already-validated recursive candidate wire type graph."""
+
     result: list[type] = []
-    for candidate in manifest.candidate_audits:
-        candidate_type = type(candidate)
-        if candidate_type not in result:
-            result.append(candidate_type)
+    active: set[int] = set()
+    stack: list[object] = list(manifest.candidate_audits)
+    while stack:
+        value = stack.pop()
+        value_type = type(value)
+        if isinstance(value, Enum):
+            if value_type not in result:
+                result.append(value_type)
+            continue
+        fields = getattr(value_type, "__dataclass_fields__", None)
+        if fields is not None:
+            identity = id(value)
+            if identity in active:
+                continue
+            active.add(identity)
+            if value_type not in result:
+                result.append(value_type)
+            stack.extend(getattr(value, name) for name in fields)
+            continue
+        if value_type in (tuple, list):
+            stack.extend(value)
+        elif value_type is dict:
+            stack.extend(value)
+            stack.extend(value.values())
     return tuple(result)
 
 
 def _clone_window_calibration_outcome(
     outcome: WindowCalibrationOutcome,
 ) -> WindowCalibrationOutcome:
-    return _clone_task12_wire(
-        outcome,
-        local_record_types=(
-            SelectedControlEvidenceRef,
-            WindowThresholdSelection,
-            WindowThresholdCalibrationManifest,
-            WindowCalibrationOutcome,
+    # The response authority clone is structural, exact-field checked, and
+    # deliberately bypasses user ``deepcopy`` dispatch.  Validation above has
+    # already restricted every Task-11 node to the closed type graph.
+    return _task11_response_types()._authority_structural_clone(outcome)
+
+
+def issue_expected_rank_declaration(
+    registry: VerifiedControlRegistry,
+    control_id: Literal["full", "zero", "direct_sum"],
+) -> ExpectedRankDeclaration:
+    """Issue ranks only from the live closed registry; no rank is accepted."""
+
+    registry_view = _reverify_verified_control_registry(registry)
+    if control_id not in CONTROL_ORDER:
+        raise ValueError("control ID is outside the closed registry")
+    entry = registry_view.registry.entries[CONTROL_ORDER.index(control_id)]
+    provisional = ExpectedRankDeclaration(
+        declaration_schema_version=EXPECTED_RANK_DECLARATION_SCHEMA_VERSION,
+        control_registry_sha=registry_view.registry.registry_sha,
+        control_registry_entry_sha=entry.entry_sha,
+        control_id=control_id,
+        expected_h_actual_rank=entry.expected_h_actual_rank,
+        expected_h_ablated_rank=entry.expected_h_ablated_rank,
+        expected_curv_actual_rank=entry.expected_curv_actual_rank,
+        expected_curv_ablated_rank=entry.expected_curv_ablated_rank,
+        parent_freeze_sha=registry_view.registry.parent_freeze_sha,
+        declaration_sha="0" * 64,
+    )
+    result = replace(
+        provisional,
+        declaration_sha=canonical_sha(expected_rank_declaration_payload(provisional)),
+    )
+    _validate_expected_rank_declaration(result, registry_view.registry, entry)
+    return result
+
+
+def compute_window_readout_calibration_audits(
+    registry: VerifiedControlRegistry,
+    control_audits: tuple[ControlCandidateAudit, ...],
+) -> tuple[ReadoutAggregateCalibrationAudit, ...]:
+    """Derive both common signal lines from three exact control spectra."""
+
+    registry_view = _reverify_verified_control_registry(registry)
+    if type(control_audits) is not tuple or len(control_audits) != len(CONTROL_ORDER):
+        raise ValueError("aggregate builder requires exactly three controls")
+    if not all(type(item) is ControlCandidateAudit for item in control_audits):
+        raise TypeError("aggregate builder requires exact control candidate audits")
+    if (
+        tuple(item.control_registry_entry.control_id for item in control_audits)
+        != CONTROL_ORDER
+    ):
+        raise ValueError("aggregate builder controls are not canonical")
+    first_pair = control_audits[0].candidate_t.attempt_audit.paired_response_outcome
+    if first_pair is None:
+        raise ValueError("aggregate builder requires successful paired responses")
+    protocol_body = first_pair.attempt_audit.window_protocol
+    _validate_raw_window_protocol_body(protocol_body, registry_view.registry)
+    order = control_audits[0].candidate_t.run_spec.fejer_order
+    if order not in T_CANDIDATES:
+        raise ValueError("aggregate source is not a frozen candidate order")
+    for item, entry in zip(control_audits, registry_view.registry.entries):
+        if item.control_registry_entry != entry:
+            raise ValueError("aggregate control differs from registry")
+        _validate_control_candidate_audit(
+            item,
+            registry_view.registry,
+            entry,
+            protocol_body,
+            order,
+        )
+        if not item.candidate_t.status.defined or not item.comparison_2t.status.defined:
+            raise ValueError("aggregate builder requires successful T/2T outcomes")
+        if tuple(audit.readout_kind for audit in item.readout_spectrum_audits) != (
+            "h",
+            "curv",
+        ):
+            raise ValueError("aggregate source lacks h/curv spectra")
+    result: list[ReadoutAggregateCalibrationAudit] = []
+    for kind in ("h", "curv"):
+        per_control = tuple(
+            next(
+                audit
+                for audit in control.readout_spectrum_audits
+                if audit.readout_kind == kind
+            )
+            for control in control_audits
+        )
+        scale, null, bridge, thresholds = _aggregate_values(per_control)
+        provisional = ReadoutAggregateCalibrationAudit(
+            readout_kind=kind,
+            per_control=per_control,
+            scale_ref=scale,
+            null_max=null,
+            bridge_operator_error_max=bridge,
+            noise_ref=thresholds.noise_ref,
+            signal_min=thresholds.signal_min,
+            tau_sig=thresholds.tau_sig,
+            signal_noise_ratio=thresholds.signal_noise_ratio,
+            raw_relative_gap=thresholds.raw_relative_gap,
+            absolute_signal_gate_passed=(thresholds.absolute_signal_gate_passed),
+            relative_gap_gate_passed=thresholds.relative_gap_gate_passed,
+            aggregate_sha="0" * 64,
+        )
+        aggregate = replace(
+            provisional,
+            aggregate_sha=canonical_sha(
+                readout_aggregate_calibration_audit_payload(provisional)
+            ),
+        )
+        _validate_aggregate(aggregate, per_control)
+        result.append(aggregate)
+    return tuple(result)
+
+
+def calibrate_window_and_thresholds(
+    registry: VerifiedControlRegistry,
+    protocol: VerifiedWindowCalibrationProtocol,
+    candidate_audits: tuple[WindowCandidateAudit, ...],
+) -> WindowCalibrationOutcome:
+    """Build the six-candidate outcome and select the first common PASS."""
+
+    registry_view = _reverify_verified_control_registry(registry)
+    protocol_view = _reverify_verified_window_calibration_protocol(protocol)
+    if protocol_view.registry is not registry:
+        raise ValueError("window protocol is not bound to this registry")
+    if (
+        type(candidate_audits) is not tuple
+        or tuple(
+            item.fejer_order if type(item) is WindowCandidateAudit else None
+            for item in candidate_audits
+        )
+        != T_CANDIDATES
+    ):
+        raise ValueError("calibrator requires the frozen six-candidate table")
+    for candidate in candidate_audits:
+        _validate_window_candidate_audit(
+            candidate,
+            registry_view.registry,
+            protocol_view.protocol,
+        )
+    provisional_manifest = WindowThresholdCalibrationManifest(
+        calibration_schema_version=WINDOW_THRESHOLD_CALIBRATION_SCHEMA_VERSION,
+        control_registry=registry_view.registry,
+        window_protocol=protocol_view.protocol,
+        candidate_audits=candidate_audits,
+        calibration_manifest_sha="0" * 64,
+    )
+    manifest = replace(
+        provisional_manifest,
+        calibration_manifest_sha=canonical_sha(
+            window_threshold_calibration_manifest_payload(provisional_manifest)
         ),
-        candidate_record_types=_candidate_record_types(outcome.manifest),
-    )  # type: ignore[return-value]
+    )
+    first_passing = next((item for item in candidate_audits if item.passed), None)
+    selection = None if first_passing is None else _expected_selection(first_passing)
+    provisional_outcome = WindowCalibrationOutcome(
+        status=(
+            BlockStatus(False, UndefinedReason.WINDOW_UNRESOLVED)
+            if selection is None
+            else BlockStatus(True, None)
+        ),
+        manifest=manifest,
+        selection=selection,
+        outcome_sha="0" * 64,
+    )
+    outcome = replace(
+        provisional_outcome,
+        outcome_sha=canonical_sha(
+            window_calibration_outcome_payload(provisional_outcome)
+        ),
+    )
+    _validate_window_calibration(outcome, registry, protocol)
+    return outcome
 
 
 def verify_window_threshold_calibration(
@@ -3081,7 +4891,9 @@ class ResponseBlockAttemptPrecursorEvidence:
             self.scenario_spec.execution_lane != "EXPECTED_TYPED_TERMINATION"
             or self.scenario_spec not in self.application_spec.scenario_execution_specs
         ):
-            raise ValueError("response attempt scenario is not parent-frozen typed lane")
+            raise ValueError(
+                "response attempt scenario is not parent-frozen typed lane"
+            )
         if (
             type(self.operation_evaluations) is not tuple
             or not self.operation_evaluations
@@ -3101,7 +4913,9 @@ class ResponseBlockAttemptPrecursorEvidence:
             self.terminal_stage != self.scenario_spec.expected_terminal_stage
             or self.status.reason is not self.scenario_spec.expected_undefined_reason
         ):
-            raise ValueError("response attempt precursor differs from scenario prophecy")
+            raise ValueError(
+                "response attempt precursor differs from scenario prophecy"
+            )
         _validate_attempt_measurements(
             self.raw_singular_values,
             self.activation_labels,
@@ -3140,10 +4954,7 @@ class ResponseBlockAttemptOutcome:
     outcome_sha: str
 
     def __post_init__(self) -> None:
-        if (
-            self.attempt_schema_version
-            != RESPONSE_BLOCK_ATTEMPT_OUTCOME_SCHEMA_VERSION
-        ):
+        if self.attempt_schema_version != RESPONSE_BLOCK_ATTEMPT_OUTCOME_SCHEMA_VERSION:
             raise ValueError("response block attempt schema is not frozen")
         if type(self.application_spec) is not V3M0SyntheticControlApplicationSpec:
             raise TypeError("response attempt application has the wrong strict type")
@@ -3157,7 +4968,9 @@ class ResponseBlockAttemptOutcome:
             self.scenario_spec.execution_lane != "EXPECTED_TYPED_TERMINATION"
             or self.scenario_spec not in self.application_spec.scenario_execution_specs
         ):
-            raise ValueError("response attempt scenario is not parent-frozen typed lane")
+            raise ValueError(
+                "response attempt scenario is not parent-frozen typed lane"
+            )
         if self.terminal_stage not in _ATTEMPT_STAGE_PREFIXES:
             raise ValueError("response attempt terminal stage is outside the registry")
         if type(self.status) is not BlockStatus or self.status.defined:
@@ -3277,7 +5090,9 @@ def _evaluate_typed_termination_operation(
         try:
             effect = effect_by_fault[(fault_mode, series_code)]
         except KeyError as exc:
-            raise ValueError("typed deterministic fault is outside the registry") from exc
+            raise ValueError(
+                "typed deterministic fault is outside the registry"
+            ) from exc
         return f"deterministic-series:{fault_mode}:{series_code}", effect
     raise ValueError("typed termination operation kind has no closed evaluator")
 
@@ -3365,8 +5180,7 @@ def _typed_attempt_measurements(
         except KeyError as exc:
             raise ValueError("typed fault pair is outside the frozen registry") from exc
         if (
-            application.control_case_id
-            != "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL"
+            application.control_case_id != "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL"
             or scenario.expected_terminal_stage != expected_stage
             or scenario.expected_undefined_reason is not expected_reason
             or scenario.execution_recipe_id != expected_recipe
@@ -3393,13 +5207,7 @@ def _typed_attempt_measurements(
     if not 0.0 < null_upper < signal_lower:
         raise ValueError("activation thresholds are not ordered")
     labels: tuple[Literal["null", "grey", "signal"], ...] = tuple(
-        (
-            "null"
-            if value < null_upper
-            else "signal"
-            if value > signal_lower
-            else "grey"
-        )
+        ("null" if value < null_upper else "signal" if value > signal_lower else "grey")
         for value in singular_values
     )
     if scenario.expected_undefined_reason is UndefinedReason.RESPONSE_NULL:
@@ -3460,9 +5268,7 @@ def _expected_response_block_attempt(
     precursor = replace(
         precursor_provisional,
         precursor_sha=canonical_sha(
-            response_block_attempt_precursor_evidence_payload(
-                precursor_provisional
-            )
+            response_block_attempt_precursor_evidence_payload(precursor_provisional)
         ),
     )
     outcome_provisional = ResponseBlockAttemptOutcome(
@@ -3784,6 +5590,7 @@ __all__ = [
     "APPLICATION_EXPECTED_RANK_SOURCE_ID",
     "APPLICATION_READOUT_DERIVATION_ID",
     "APPLICATION_RESPONSE_RUN_SPEC_SCHEMA_VERSION",
+    "CANDIDATE_ATTEMPT_AUDIT_SCHEMA_VERSION",
     "CALIBRATION_APPLICATION_PERMIT_SCHEMA_VERSION",
     "CALIBRATION_APPLICATION_SCOPE",
     "C04_CANONICAL_ANGLE_RECIPE_ID",
@@ -3791,13 +5598,23 @@ __all__ = [
     "C04_LOCAL_SHEAR_STEP_SCHEMA_VERSION",
     "C04CanonicalAngleRecipe",
     "C04LocalShearStep",
+    "BranchSpectrumAudit",
     "CalibrationApplicationPermit",
+    "CandidateAttemptAudit",
+    "ControlCandidateAudit",
+    "ControlCandidateFailure",
+    "ControlCandidateOutcome",
+    "EXPECTED_RANK_DECLARATION_SCHEMA_VERSION",
+    "ExpectedRankDeclaration",
+    "PerControlReadoutSpectrumAudit",
     "RESPONSE_BLOCK_ATTEMPT_OUTCOME_SCHEMA_VERSION",
     "RESPONSE_BLOCK_ATTEMPT_PRECURSOR_SCHEMA_VERSION",
     "ResponseBlockAttemptOutcome",
     "ResponseBlockAttemptPrecursorEvidence",
+    "ReadoutAggregateCalibrationAudit",
     "SCENARIO_CONSTRUCTION_SCHEMA_VERSION",
     "SCENARIO_OPERATION_EVALUATION_SCHEMA_VERSION",
+    "SELECTED_EVIDENCE_REF_SCHEMA_VERSION",
     "SelectedControlEvidenceRef",
     "V3M0ApplicationResponseRunSpec",
     "V3M0ScenarioConstruction",
@@ -3808,6 +5625,10 @@ __all__ = [
     "VerifiedV3M0ScenarioConstruction",
     "VerifiedWindowThresholdCalibration",
     "WindowCalibrationOutcome",
+    "WindowCandidateAudit",
+    "WINDOW_CALIBRATION_OUTCOME_SCHEMA_VERSION",
+    "WINDOW_THRESHOLD_CALIBRATION_SCHEMA_VERSION",
+    "WINDOW_THRESHOLD_SELECTION_SCHEMA_VERSION",
     "WindowThresholdCalibrationManifest",
     "WindowThresholdSelection",
     "build_v3m0_application_response_run_spec",
@@ -3817,12 +5638,23 @@ __all__ = [
     "c04_local_shear_step_payload",
     "c04_reciprocal_swap_symbol",
     "calibration_application_permit_payload",
+    "calibrate_window_and_thresholds",
+    "candidate_attempt_audit_payload",
+    "branch_spectrum_audit_payload",
+    "compute_window_readout_calibration_audits",
+    "control_candidate_audit_payload",
+    "control_candidate_failure_reason",
+    "control_candidate_outcome_payload",
+    "expected_rank_declaration_payload",
     "issue_v3m0_calibration_application_permit",
+    "issue_expected_rank_declaration",
     "issue_v3m0_response_block_attempt",
     "materialize_v3m0_scenario_construction",
     "response_block_attempt_outcome_payload",
     "response_block_attempt_precursor_evidence_payload",
     "reverify_verified_response_block_attempt_outcome",
+    "per_control_readout_spectrum_audit_payload",
+    "readout_aggregate_calibration_audit_payload",
     "v3m0_application_response_run_spec_payload",
     "v3m0_scenario_construction_payload",
     "v3m0_scenario_operation_evaluation_payload",
@@ -3832,6 +5664,7 @@ __all__ = [
     "verify_v3m0_scenario_construction",
     "verify_window_threshold_calibration",
     "window_calibration_outcome_payload",
+    "window_candidate_audit_payload",
     "window_threshold_calibration_manifest_payload",
     "window_threshold_selection_payload",
 ]
