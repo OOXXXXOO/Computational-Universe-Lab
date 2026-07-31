@@ -1,10 +1,11 @@
-"""Exact-zero spectral coverage and downstream stability audits for V3-M0.
+"""Full-torus spectral coverage and downstream stability audits for V3-M0.
 
-This module implements the closed synthetic constant-kernel lane only.  It
-still emits the complete singleton spectral body required by Task 10:
-Root64-derived torus fill, one origin point, fourteen strict big-endian fp64
-hard columns, and full protocol/grid bindings.  Laurent evidence is consumed
-only by the normalized-residual issuer, never by spectral coverage.
+The support-derived dispatcher preserves the exact-zero origin singleton and
+uses the complete Cartesian denominator-64 grid for every nonzero Laurent
+support.  Both lanes emit strict big-endian fp64 hard columns backed by scalar
+Gauss--Jordan/Cholesky witnesses and the embedded Root64 containment table.
+LAPACK values are optional diagnostics only.  Laurent residual evidence is
+consumed by the normalized-residual issuer, never by spectral coverage.
 """
 
 from __future__ import annotations
@@ -752,7 +753,7 @@ def _preflight_root64_protocol(
     protocol.__post_init__()
 
 
-def _preflight_exact_zero_coverage_record(
+def _preflight_coverage_record(
     coverage: SpectralMarginCoverage,
     transition: VerifiedTransition,
 ) -> None:
@@ -781,6 +782,8 @@ def _preflight_exact_zero_coverage_record(
         ("qualification_grid", coverage.qualification_grid),
         ("spectral_diagnostic_grid", coverage.spectral_diagnostic_grid),
     )
+    expected_profile: Optional[str] = None
+    expected_point_count: Optional[int] = None
     for field, grid in grids:
         _require_exact_record_fields(
             grid,
@@ -789,8 +792,15 @@ def _preflight_exact_zero_coverage_record(
         )
         if grid.grid_schema_version != DYNAMICS_GRID_SCHEMA_VERSION:
             raise ValueError(f"{field} has an unexpected schema")
-        if grid.qualification_profile != "exact-offset-zero-v1":
-            raise ValueError(f"{field} is outside the exact-zero coverage lane")
+        if grid.qualification_profile not in (
+            "exact-offset-zero-v1",
+            "cartesian-full-64-v1",
+        ):
+            raise ValueError(f"{field} qualification profile is not closed")
+        if expected_profile is None:
+            expected_profile = grid.qualification_profile
+        elif grid.qualification_profile != expected_profile:
+            raise ValueError("qualification and diagnostic profiles differ")
         if type(grid.spatial_ndim) is not int:
             raise TypeError(f"{field}.spatial_ndim must be an int")
         if grid.spatial_ndim != expected_ndim:
@@ -802,12 +812,23 @@ def _preflight_exact_zero_coverage_record(
             raise ValueError(f"{field} denominator cardinality mismatch")
         if (
             type(grid.reciprocal_indices) is not tuple
-            or len(grid.reciprocal_indices) != 1
         ):
-            raise ValueError(f"{field} must contain the origin singleton")
-        origin = grid.reciprocal_indices[0]
-        if type(origin) is not tuple or len(origin) != expected_ndim:
-            raise ValueError(f"{field} origin dimension mismatch")
+            raise TypeError(f"{field}.reciprocal_indices must be a tuple")
+        if grid.qualification_profile == "exact-offset-zero-v1":
+            points = 1
+        else:
+            points = ROOT_DENOMINATOR**expected_ndim
+            if points > SPECTRAL_MAX_GRID_POINTS:
+                raise ValueError("full-64 spectral grid exceeds point cap")
+        if len(grid.reciprocal_indices) != points:
+            raise ValueError(f"{field} point count does not match profile")
+        if expected_point_count is None:
+            expected_point_count = points
+        elif points != expected_point_count:
+            raise ValueError("qualification and diagnostic point counts differ")
+        for index in grid.reciprocal_indices:
+            if type(index) is not tuple or len(index) != expected_ndim:
+                raise ValueError(f"{field} reciprocal index dimension mismatch")
 
     sidecar = coverage.point_enclosures
     _require_exact_record_fields(
@@ -817,8 +838,11 @@ def _preflight_exact_zero_coverage_record(
     )
     if sidecar.sidecar_schema_version != SPECTRAL_SIDECAR_SCHEMA_VERSION:
         raise ValueError("unexpected spectral sidecar schema")
-    if type(sidecar.point_count) is not int or sidecar.point_count != 1:
-        raise ValueError("exact-zero sidecar point_count must equal one")
+    if (
+        type(sidecar.point_count) is not int
+        or sidecar.point_count != expected_point_count
+    ):
+        raise ValueError("spectral sidecar point_count differs from grid")
     if sidecar.point_count != len(coverage.qualification_grid.reciprocal_indices):
         raise ValueError("sidecar point count does not match grid")
     if sidecar.raw_diagnostic_status == "available-lapack-v1":
@@ -830,7 +854,7 @@ def _preflight_exact_zero_coverage_record(
     else:
         raise ValueError("sidecar raw diagnostic status is not closed")
     _preflight_spectral_resources(
-        point_count=1,
+        point_count=sidecar.point_count,
         n_state=len(raw_transition.channel_order),
         encoded_column_count=len(encoded_names),
     )
@@ -1027,24 +1051,41 @@ def _scalar_gauss_jordan_inverse(values: np.ndarray) -> np.ndarray:
     matrix = np.asarray(values, dtype=np.complex128)
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("Gauss-Jordan input must be square")
-    if not _all_positive_zero_imaginary(matrix):
-        raise ValueError("this scalar candidate lane requires a real matrix")
     n_state = matrix.shape[0]
     left = [
-        [float(matrix[row, column].real) for column in range(n_state)]
+        [complex(matrix[row, column]) for column in range(n_state)]
         for row in range(n_state)
     ]
     right = [
-        [1.0 if row == column else +0.0 for column in range(n_state)]
+        [
+            complex(1.0 if row == column else +0.0, +0.0)
+            for column in range(n_state)
+        ]
         for row in range(n_state)
     ]
     for column in range(n_state):
+        def pivot_magnitude_squared(row: int) -> float:
+            value = left[row][column]
+            return _spectral_hard_add(
+                _spectral_hard_mul(
+                    value.real,
+                    value.real,
+                    "gauss-jordan.pivot.real-square",
+                ),
+                _spectral_hard_mul(
+                    value.imag,
+                    value.imag,
+                    "gauss-jordan.pivot.imag-square",
+                ),
+                "gauss-jordan.pivot.magnitude-square",
+            )
+
         pivot_row = max(
             range(column, n_state),
-            key=lambda row: (abs(left[row][column]), -row),
+            key=lambda row: (pivot_magnitude_squared(row), -row),
         )
         pivot = left[pivot_row][column]
-        if pivot == 0.0:
+        if pivot.real == 0.0 and pivot.imag == 0.0:
             raise ValueError("transition candidate is singular")
         if pivot_row != column:
             left[column], left[pivot_row] = left[pivot_row], left[column]
@@ -1054,52 +1095,82 @@ def _scalar_gauss_jordan_inverse(values: np.ndarray) -> np.ndarray:
             )
         pivot = left[column][column]
         for index in range(n_state):
-            left[column][index] = left[column][index] / pivot
-            right[column][index] = right[column][index] / pivot
+            left[column][index] = _spectral_ordered_complex_divide(
+                left[column][index],
+                pivot,
+            )
+            right[column][index] = _spectral_ordered_complex_divide(
+                right[column][index],
+                pivot,
+            )
         for row in range(n_state):
             if row == column:
                 continue
             factor = left[row][column]
             for index in range(n_state):
-                left[row][index] = left[row][index] - factor * left[column][index]
-                right[row][index] = right[row][index] - factor * right[column][index]
-    result = np.zeros((n_state, n_state), dtype=np.complex128)
-    for row in range(n_state):
-        for column in range(n_state):
-            result[row, column] = complex(right[row][column], +0.0)
-    return result
+                left[row][index] = _spectral_ordered_complex_subtract(
+                    left[row][index],
+                    _spectral_ordered_complex_multiply(
+                        factor,
+                        left[column][index],
+                    ),
+                )
+                right[row][index] = _spectral_ordered_complex_subtract(
+                    right[row][index],
+                    _spectral_ordered_complex_multiply(
+                        factor,
+                        right[column][index],
+                    ),
+                )
+    return np.asarray(right, dtype=np.complex128)
 
 
 def _scalar_hermitian_cholesky(values: np.ndarray) -> np.ndarray:
-    """Fixed-order scalar Cholesky for the closed exact identity lane."""
+    """Fixed-order scalar Hermitian Cholesky without LAPACK."""
 
     matrix = np.asarray(values, dtype=np.complex128)
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("Cholesky input must be square")
     n_state = matrix.shape[0]
-    _require_identity_metric(matrix, n_state)
+    for row in range(n_state):
+        if matrix[row, row].imag != 0.0:
+            raise ValueError("Hermitian Cholesky diagonal is not real")
+        for column in range(row):
+            if matrix[row, column] != matrix[column, row].conjugate():
+                raise ValueError("metric candidate is not exactly Hermitian")
     result = np.zeros((n_state, n_state), dtype=np.complex128)
     for row in range(n_state):
         for column in range(row + 1):
-            accumulated = +0.0
+            accumulated = complex(+0.0, +0.0)
             for inner in range(column):
-                accumulated = accumulated + float(result[row, inner].real) * float(
-                    result[column, inner].real
+                accumulated = _spectral_ordered_complex_add(
+                    accumulated,
+                    _spectral_ordered_complex_multiply(
+                        complex(result[row, inner]),
+                        complex(result[column, inner]).conjugate(),
+                    ),
                 )
-            remainder = float(matrix[row, column].real) - accumulated
+            remainder = _spectral_ordered_complex_subtract(
+                complex(matrix[row, column]),
+                accumulated,
+            )
             if row == column:
-                # The closed synthetic lane has an exact unit pivot, so no
-                # libm square root or platform-dependent Cholesky is needed.
-                if remainder != 1.0:
-                    raise ValueError("identity Cholesky pivot is not exact one")
-                result[row, column] = complex(1.0, +0.0)
+                if remainder.imag != 0.0 or remainder.real <= 0.0:
+                    raise ValueError("Hermitian Cholesky pivot is not positive real")
+                diagonal = require_hard_scalar(
+                    math.sqrt(remainder.real),
+                    "Hermitian Cholesky diagonal",
+                )
+                if diagonal <= 0.0:
+                    raise ValueError("Hermitian Cholesky diagonal is not positive")
+                result[row, column] = complex(diagonal, +0.0)
             else:
-                denominator = float(result[column, column].real)
-                if denominator == 0.0:
+                denominator = complex(result[column, column])
+                if denominator.real == 0.0 and denominator.imag == 0.0:
                     raise ValueError("Cholesky diagonal is singular")
-                result[row, column] = complex(
-                    remainder / denominator,
-                    +0.0,
+                result[row, column] = _spectral_ordered_complex_divide(
+                    remainder,
+                    denominator,
                 )
     return result
 
@@ -1110,26 +1181,30 @@ def _scalar_lower_triangular_inverse(values: np.ndarray) -> np.ndarray:
     matrix = np.asarray(values, dtype=np.complex128)
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("triangular inverse input must be square")
-    if not _all_positive_zero_imaginary(matrix):
-        raise ValueError("this triangular candidate lane requires real input")
     n_state = matrix.shape[0]
+    if np.any(matrix[np.triu_indices(n_state, 1)] != 0.0):
+        raise ValueError("triangular inverse input is not lower triangular")
     result = np.zeros((n_state, n_state), dtype=np.complex128)
     for column in range(n_state):
         for row in range(n_state):
             if row < column:
                 continue
-            accumulated = +0.0
+            accumulated = complex(+0.0, +0.0)
             for inner in range(row):
-                accumulated = accumulated + float(matrix[row, inner].real) * float(
-                    result[inner, column].real
+                accumulated = _spectral_ordered_complex_add(
+                    accumulated,
+                    _spectral_ordered_complex_multiply(
+                        complex(matrix[row, inner]),
+                        complex(result[inner, column]),
+                    ),
                 )
-            target = 1.0 if row == column else +0.0
-            diagonal = float(matrix[row, row].real)
-            if diagonal == 0.0:
+            target = complex(1.0 if row == column else +0.0, +0.0)
+            diagonal = complex(matrix[row, row])
+            if diagonal.real == 0.0 and diagonal.imag == 0.0:
                 raise ValueError("triangular inverse diagonal is singular")
-            result[row, column] = complex(
-                (target - accumulated) / diagonal,
-                +0.0,
+            result[row, column] = _spectral_ordered_complex_divide(
+                _spectral_ordered_complex_subtract(target, accumulated),
+                diagonal,
             )
     return result
 
@@ -1204,6 +1279,59 @@ def _spectral_ordered_complex_add(
             left.imag,
             right.imag,
             "dot.imaginary.add",
+        ),
+    )
+
+
+def _spectral_ordered_complex_subtract(
+    left: complex,
+    right: complex,
+) -> complex:
+    return complex(
+        _spectral_hard_sub(left.real, right.real, "complex.subtract.real"),
+        _spectral_hard_sub(
+            left.imag,
+            right.imag,
+            "complex.subtract.imaginary",
+        ),
+    )
+
+
+def _spectral_ordered_complex_divide(
+    numerator: complex,
+    denominator: complex,
+) -> complex:
+    """Execute the frozen six-product complex-division scalar DAG."""
+
+    a = require_hard_scalar(numerator.real, "divide.numerator.real")
+    b = require_hard_scalar(numerator.imag, "divide.numerator.imag")
+    c = require_hard_scalar(denominator.real, "divide.denominator.real")
+    d = require_hard_scalar(denominator.imag, "divide.denominator.imag")
+    denominator_square = _spectral_hard_add(
+        _spectral_hard_mul(c, c, "divide.denominator.real-square"),
+        _spectral_hard_mul(d, d, "divide.denominator.imag-square"),
+        "divide.denominator.magnitude-square",
+    )
+    if denominator_square <= 0.0:
+        raise ValueError("complex division denominator is zero")
+    real_numerator = _spectral_hard_add(
+        _spectral_hard_mul(a, c, "divide.real.first"),
+        _spectral_hard_mul(b, d, "divide.real.second"),
+        "divide.real.numerator",
+    )
+    imaginary_numerator = _spectral_hard_sub(
+        _spectral_hard_mul(b, c, "divide.imaginary.first"),
+        _spectral_hard_mul(a, d, "divide.imaginary.second"),
+        "divide.imaginary.numerator",
+    )
+    return complex(
+        require_hard_scalar(
+            real_numerator / denominator_square,
+            "divide.real",
+        ),
+        require_hard_scalar(
+            imaginary_numerator / denominator_square,
+            "divide.imaginary",
         ),
     )
 
@@ -1319,6 +1447,292 @@ def _matrix_product_subtraction_roundoff_upper(
     return frobenius_sqrt_upper(sum_squares)
 
 
+def _matrix_frobenius_upper(values: np.ndarray) -> float:
+    """Return an exact-ratio-contained Frobenius upper for fp64 centers."""
+
+    matrix = np.asarray(values, dtype=np.complex128)
+    if matrix.ndim != 2:
+        raise ValueError("Frobenius candidate must be a matrix")
+    sum_squares = Fraction(0)
+    for value in matrix.reshape(-1):
+        real = require_hard_scalar(value.real, "Frobenius.real")
+        imaginary = require_hard_scalar(value.imag, "Frobenius.imaginary")
+        real_fraction = Fraction(*real.as_integer_ratio())
+        imaginary_fraction = Fraction(*imaginary.as_integer_ratio())
+        sum_squares += (
+            real_fraction * real_fraction
+            + imaginary_fraction * imaginary_fraction
+        )
+    return frobenius_sqrt_upper(sum_squares)
+
+
+def _matrix_product_target_residual_upper(
+    left: np.ndarray,
+    right: np.ndarray,
+    target: np.ndarray,
+) -> float:
+    """Enclose ``left @ right - target`` using only scalar hard arithmetic."""
+
+    first = np.asarray(left, dtype=np.complex128)
+    second = np.asarray(right, dtype=np.complex128)
+    expected = np.asarray(target, dtype=np.complex128)
+    if (
+        first.ndim != 2
+        or second.ndim != 2
+        or first.shape[1] != second.shape[0]
+        or expected.shape != (first.shape[0], second.shape[1])
+    ):
+        raise ValueError("matrix target-residual shapes do not align")
+    center = np.empty(expected.shape, dtype=np.complex128)
+    dot_length = first.shape[1]
+    for row in range(first.shape[0]):
+        for column in range(second.shape[1]):
+            product, _, _ = _spectral_ordered_complex_dot_values(
+                tuple(complex(first[row, inner]) for inner in range(dot_length)),
+                tuple(complex(second[inner, column]) for inner in range(dot_length)),
+            )
+            center[row, column] = _spectral_ordered_complex_subtract(
+                product,
+                complex(expected[row, column]),
+            )
+    center_upper = _matrix_frobenius_upper(center)
+    operation_upper = _matrix_product_subtraction_roundoff_upper(
+        first,
+        second,
+    )
+    return directed_add_upper(center_upper, operation_upper)
+
+
+def _f64_from_bits(bits: int, field: str) -> float:
+    if type(bits) is not int or not 0 <= bits <= 0xFFFFFFFFFFFFFFFF:
+        raise ValueError(f"{field} is not an unsigned binary64 bit pattern")
+    return require_hard_scalar(
+        struct.unpack(">d", struct.pack(">Q", bits))[0],
+        field,
+    )
+
+
+def _root64_phase_center_and_error(
+    protocol: Fp64EnclosureProtocol,
+    root_index: int,
+) -> tuple[complex, float]:
+    """Read one verified Root64 center and its exact-ratio distance upper."""
+
+    verified = verify_fp64_enclosure_protocol(protocol)
+    return _root64_phase_center_and_error_from_verified(
+        verified,
+        root_index,
+    )
+
+
+def _root64_phase_center_and_error_from_verified(
+    protocol: Fp64EnclosureProtocol,
+    root_index: int,
+) -> tuple[complex, float]:
+    if type(root_index) is not int or not 0 <= root_index < ROOT_DENOMINATOR:
+        raise ValueError("root_index is outside the Root64 table")
+    entry = protocol.root_interval_table.entries[root_index]
+    center = complex(
+        _f64_from_bits(entry.real_center_f64_bits, "root64.center.real"),
+        _f64_from_bits(entry.imag_center_f64_bits, "root64.center.imaginary"),
+    )
+    error = _f64_from_bits(
+        entry.center_distance_upper_f64_bits,
+        "root64.center_distance_upper",
+    )
+    if error < 0.0:
+        raise ValueError("Root64 center distance must be non-negative")
+    return center, error
+
+
+def _laurent_symbol_center_and_error(
+    coefficients: np.ndarray,
+    support_offsets: tuple[tuple[int, ...], ...],
+    reciprocal_index: tuple[int, ...],
+    protocol: Fp64EnclosureProtocol,
+) -> tuple[np.ndarray, float]:
+    """Evaluate a finite Laurent symbol at Root64 centers and enclose ``η``."""
+
+    values = np.asarray(coefficients, dtype=np.complex128)
+    if (
+        values.ndim != 3
+        or values.shape[0] != len(support_offsets)
+        or values.shape[1] != values.shape[2]
+    ):
+        raise ValueError("Laurent coefficient tensor shape mismatch")
+    if not support_offsets:
+        raise ValueError("Laurent support must be non-empty")
+    ndim = len(support_offsets[0])
+    if type(reciprocal_index) is not tuple or len(reciprocal_index) != ndim:
+        raise ValueError("reciprocal index dimension mismatch")
+    if any(
+        type(offset) is not tuple or len(offset) != ndim
+        for offset in support_offsets
+    ):
+        raise ValueError("Laurent support dimension mismatch")
+    phases: list[complex] = []
+    root_error_upper = +0.0
+    for coefficient, offset in zip(values, support_offsets):
+        phase_index = (
+            -sum(
+                component * coordinate
+                for component, coordinate in zip(reciprocal_index, offset)
+            )
+        ) % ROOT_DENOMINATOR
+        center, phase_error = _root64_phase_center_and_error_from_verified(
+            protocol,
+            phase_index,
+        )
+        phases.append(center)
+        coefficient_upper = _matrix_frobenius_upper(coefficient)
+        root_error_upper = directed_add_upper(
+            root_error_upper,
+            directed_mul_upper(coefficient_upper, phase_error),
+        )
+
+    n_state = values.shape[1]
+    center_matrix = np.empty((n_state, n_state), dtype=np.complex128)
+    operation_error_squares = Fraction(0)
+    phase_tuple = tuple(phases)
+    support_count = len(support_offsets)
+    for row in range(n_state):
+        for column in range(n_state):
+            center, real_sum, imaginary_sum = _spectral_ordered_complex_dot_values(
+                tuple(
+                    complex(values[index, row, column])
+                    for index in range(support_count)
+                ),
+                phase_tuple,
+            )
+            center_matrix[row, column] = center
+            real_error = build_complex_dot_roundoff_bound(
+                length=support_count,
+                absolute_product_sum=real_sum,
+            ).roundoff_upper
+            imaginary_error = build_complex_dot_roundoff_bound(
+                length=support_count,
+                absolute_product_sum=imaginary_sum,
+            ).roundoff_upper
+            real_fraction = Fraction(*real_error.as_integer_ratio())
+            imaginary_fraction = Fraction(*imaginary_error.as_integer_ratio())
+            operation_error_squares += (
+                real_fraction * real_fraction
+                + imaginary_fraction * imaginary_fraction
+            )
+    operation_error_upper = frobenius_sqrt_upper(operation_error_squares)
+    symbol_error_upper = directed_add_upper(
+        root_error_upper,
+        operation_error_upper,
+    )
+    return center_matrix, symbol_error_upper
+
+
+def _hard_spectral_point(
+    transition_coefficients: np.ndarray,
+    transition_support: tuple[tuple[int, ...], ...],
+    metric_coefficients: np.ndarray,
+    metric_support: tuple[tuple[int, ...], ...],
+    reciprocal_index: tuple[int, ...],
+    protocol: Fp64EnclosureProtocol,
+) -> tuple[dict[str, float], np.ndarray, np.ndarray]:
+    """Build one 14-column hard witness without LAPACK."""
+
+    transition_center, eta_m = _laurent_symbol_center_and_error(
+        transition_coefficients,
+        transition_support,
+        reciprocal_index,
+        protocol,
+    )
+    metric_center, eta_g = _laurent_symbol_center_and_error(
+        metric_coefficients,
+        metric_support,
+        reciprocal_index,
+        protocol,
+    )
+    n_state = transition_center.shape[0]
+    if metric_center.shape != (n_state, n_state):
+        raise ValueError("transition and metric state dimensions differ")
+    identity = np.eye(n_state, dtype=np.complex128)
+
+    inverse = _scalar_gauss_jordan_inverse(transition_center)
+    inverse_upper = _matrix_frobenius_upper(inverse)
+    inverse_residual = _matrix_product_target_residual_upper(
+        inverse,
+        transition_center,
+        identity,
+    )
+    inverse_residual = directed_add_upper(
+        inverse_residual,
+        directed_mul_upper(inverse_upper, eta_m),
+    )
+    if inverse_residual >= 1.0:
+        raise ValueError("transition inverse residual must be below one")
+    transition_upper = _matrix_frobenius_upper(transition_center)
+    m_sigma_min = directed_div_lower(
+        directed_sub_lower(1.0, inverse_residual),
+        inverse_upper,
+    )
+    m_sigma_max = directed_add_upper(transition_upper, eta_m)
+    if m_sigma_min <= 0.0:
+        raise ValueError("transition singular-value lower is not positive")
+
+    cholesky = _scalar_hermitian_cholesky(metric_center)
+    cholesky_inverse = _scalar_lower_triangular_inverse(cholesky)
+    cholesky_residual = _matrix_product_target_residual_upper(
+        cholesky,
+        cholesky.conj().T,
+        metric_center,
+    )
+    cholesky_residual = directed_add_upper(cholesky_residual, eta_g)
+    cholesky_inverse_upper = _matrix_frobenius_upper(cholesky_inverse)
+    cholesky_inverse_residual = _matrix_product_target_residual_upper(
+        cholesky_inverse,
+        cholesky,
+        identity,
+    )
+    if cholesky_inverse_residual >= 1.0:
+        raise ValueError("Cholesky inverse residual must be below one")
+    ell = directed_div_lower(
+        directed_sub_lower(1.0, cholesky_inverse_residual),
+        cholesky_inverse_upper,
+    )
+    if ell <= 0.0:
+        raise ValueError("Cholesky inverse lower must be positive")
+    g_lambda_min = directed_sub_lower(
+        directed_mul_lower(ell, ell),
+        cholesky_residual,
+    )
+    metric_upper = _matrix_frobenius_upper(metric_center)
+    g_lambda_max = directed_add_upper(metric_upper, eta_g)
+    if g_lambda_min <= 0.0:
+        raise ValueError("metric eigenvalue lower is not positive")
+
+    return (
+        {
+            "transition_symbol_error_upper_b64": eta_m,
+            "metric_symbol_error_upper_b64": eta_g,
+            "transition_frobenius_upper_b64": transition_upper,
+            "inverse_frobenius_upper_b64": inverse_upper,
+            "inverse_residual_frobenius_upper_b64": inverse_residual,
+            "m_sigma_min_lower_b64": m_sigma_min,
+            "m_sigma_max_upper_b64": m_sigma_max,
+            "metric_frobenius_upper_b64": metric_upper,
+            "cholesky_factorization_residual_frobenius_upper_b64": (
+                cholesky_residual
+            ),
+            "cholesky_inverse_frobenius_upper_b64": cholesky_inverse_upper,
+            "cholesky_inverse_residual_frobenius_upper_b64": (
+                cholesky_inverse_residual
+            ),
+            "ell_lower_b64": ell,
+            "g_lambda_min_lower_b64": g_lambda_min,
+            "g_lambda_max_upper_b64": g_lambda_max,
+        },
+        transition_center,
+        metric_center,
+    )
+
+
 def _build_unavailable_sidecar(
     *,
     grid: DynamicsKGridManifest,
@@ -1354,6 +1768,85 @@ def _build_unavailable_sidecar(
     return _verify_sidecar(result)
 
 
+def _build_columnar_sidecar(
+    *,
+    grid: DynamicsKGridManifest,
+    n_state: int,
+    hard_columns: dict[str, tuple[float, ...]],
+    raw_columns: Optional[dict[str, tuple[float, ...]]],
+    unavailable_reason: Optional[str],
+) -> SpectralPointEnclosureColumnarSidecar:
+    point_count = len(grid.reciprocal_indices)
+    if set(hard_columns) != set(HARD_COLUMN_NAMES):
+        raise ValueError("hard spectral column set is not exact")
+    for name in HARD_COLUMN_NAMES:
+        if type(hard_columns[name]) is not tuple or len(
+            hard_columns[name]
+        ) != point_count:
+            raise ValueError(f"{name} does not match the qualification grid")
+    if raw_columns is None:
+        status: Literal["available-lapack-v1", "unavailable-v1"] = (
+            "unavailable-v1"
+        )
+        reason = _text(unavailable_reason, "raw diagnostic unavailable reason")
+        encoded_raw: dict[str, Optional[str]] = {
+            name: None for name in RAW_COLUMN_NAMES
+        }
+        encoded_count = SPECTRAL_HARD_COLUMN_COUNT
+    else:
+        if unavailable_reason is not None:
+            raise ValueError("available diagnostics cannot carry a failure reason")
+        if set(raw_columns) != set(RAW_COLUMN_NAMES):
+            raise ValueError("raw diagnostic column set is not exact")
+        status = "available-lapack-v1"
+        reason = None
+        encoded_raw = {}
+        for name in RAW_COLUMN_NAMES:
+            values = raw_columns[name]
+            if type(values) is not tuple or len(values) != point_count:
+                raise ValueError(f"{name} does not match the qualification grid")
+            encoded_raw[name] = _encode_f64_column(values)
+        encoded_count = SPECTRAL_AVAILABLE_COLUMN_COUNT
+    _preflight_spectral_resources(
+        point_count=point_count,
+        n_state=n_state,
+        encoded_column_count=encoded_count,
+    )
+    encoded_hard = {
+        name: _encode_f64_column(hard_columns[name])
+        for name in HARD_COLUMN_NAMES
+    }
+    provisional = SpectralPointEnclosureColumnarSidecar(
+        sidecar_schema_version=SPECTRAL_SIDECAR_SCHEMA_VERSION,
+        qualification_grid_sha=grid.dynamics_grid_sha,
+        point_count=point_count,
+        candidate_algorithm_id=CANDIDATE_ALGORITHM_ID,
+        encoding_id=COLUMN_ENCODING_ID,
+        raw_diagnostic_status=status,
+        raw_diagnostic_unavailable_reason=reason,
+        raw_m_sigma_min_b64=encoded_raw["raw_m_sigma_min_b64"],
+        raw_m_sigma_max_b64=encoded_raw["raw_m_sigma_max_b64"],
+        raw_g_lambda_min_b64=encoded_raw["raw_g_lambda_min_b64"],
+        raw_g_lambda_max_b64=encoded_raw["raw_g_lambda_max_b64"],
+        **encoded_hard,
+        raw_byte_count=point_count * 8 * encoded_count,
+        column_data_sha="0" * 64,
+        roundoff_enclosure_method_id=ROUNDING_METHOD_ID,
+        sidecar_sha="0" * 64,
+    )
+    with_column_sha = replace(
+        provisional,
+        column_data_sha=canonical_sha(_column_data_payload(provisional)),
+    )
+    result = replace(
+        with_column_sha,
+        sidecar_sha=canonical_sha(
+            spectral_point_sidecar_payload(with_column_sha)
+        ),
+    )
+    return _verify_sidecar(result)
+
+
 def _constant_transition_matrix(
     transition: VerifiedTransition,
 ) -> tuple[np.ndarray, int]:
@@ -1377,6 +1870,130 @@ def _constant_metric_matrix(
     if values.shape[0] != 1:
         raise ValueError("constant metric kernel must have one coefficient")
     return values[0].copy()
+
+
+def _transition_laurent_coefficients_from_raw(
+    raw: object,
+) -> tuple[np.ndarray, tuple[tuple[int, ...], ...]]:
+    try:
+        spatial_shape = raw.spatial_shape
+        channel_order = raw.channel_order
+        support_offsets = raw.support_offsets
+        frozen_kernel = raw.kernel
+    except AttributeError as exc:
+        raise TypeError("raw transition body is incomplete") from exc
+    kernel = frozen_tensor_array(frozen_kernel)
+    coefficients = np.empty(
+        (
+            len(support_offsets),
+            len(channel_order),
+            len(channel_order),
+        ),
+        dtype=np.complex128,
+    )
+    for index, offset in enumerate(support_offsets):
+        periodic_index = tuple(
+            coordinate % length
+            for coordinate, length in zip(offset, spatial_shape)
+        )
+        coefficients[index] = kernel[
+            (slice(None), slice(None)) + periodic_index
+        ]
+    return coefficients, support_offsets
+
+
+def _metric_laurent_coefficients(
+    witness: StabilityMetricWitness,
+) -> tuple[np.ndarray, tuple[tuple[int, ...], ...]]:
+    values = frozen_tensor_array(witness.metric_kernel)
+    if (
+        values.ndim != 3
+        or values.shape[0] != len(witness.metric_support_offsets)
+        or values.shape[1] != values.shape[2]
+    ):
+        raise ValueError("metric Laurent coefficient tensor shape mismatch")
+    return values.copy(), witness.metric_support_offsets
+
+
+def _axis_derivative_bounds(
+    coefficients: np.ndarray,
+    support_offsets: tuple[tuple[int, ...], ...],
+) -> tuple[float, ...]:
+    values = np.asarray(coefficients, dtype=np.complex128)
+    if values.ndim != 3 or values.shape[0] != len(support_offsets):
+        raise ValueError("derivative coefficient tensor shape mismatch")
+    ndim = len(support_offsets[0])
+    result: list[float] = []
+    coefficient_uppers = tuple(
+        _matrix_frobenius_upper(coefficient) for coefficient in values
+    )
+    for axis in range(ndim):
+        bound = +0.0
+        for offset, coefficient_upper in zip(
+            support_offsets,
+            coefficient_uppers,
+        ):
+            distance = abs(offset[axis])
+            if distance == 0:
+                continue
+            bound = directed_add_upper(
+                bound,
+                directed_mul_upper(float(distance), coefficient_upper),
+            )
+        result.append(bound)
+    return tuple(result)
+
+
+def _coverage_increment(
+    fill_distance: float,
+    derivative_bounds: tuple[float, ...],
+) -> float:
+    total = +0.0
+    for bound in derivative_bounds:
+        total = directed_add_upper(total, bound)
+    if total == 0.0:
+        return +0.0
+    return directed_mul_upper(fill_distance, total)
+
+
+def _optional_raw_point_diagnostic(
+    transition_center: np.ndarray,
+    metric_center: np.ndarray,
+) -> Optional[tuple[dict[str, float], float]]:
+    """Attempt one LAPACK diagnostic and retain only five scalar values."""
+
+    try:
+        singular = np.linalg.svd(transition_center, compute_uv=False)
+        eigenvalues = np.linalg.eigvalsh(metric_center)
+        spectrum = np.linalg.eigvals(transition_center)
+        values = {
+            "raw_m_sigma_min_b64": require_hard_scalar(
+                float(np.min(singular)),
+                "raw sigma min",
+            ),
+            "raw_m_sigma_max_b64": require_hard_scalar(
+                float(np.max(singular)),
+                "raw sigma max",
+            ),
+            "raw_g_lambda_min_b64": require_hard_scalar(
+                float(np.min(eigenvalues)),
+                "raw lambda min",
+            ),
+            "raw_g_lambda_max_b64": require_hard_scalar(
+                float(np.max(eigenvalues)),
+                "raw lambda max",
+            ),
+        }
+        radius = +0.0
+        for value in spectrum:
+            drift = require_hard_scalar(
+                float(abs(abs(complex(value)) - 1.0)),
+                "raw spectral radius drift",
+            )
+            radius = max(radius, drift)
+    except Exception:
+        return None
+    return values, radius
 
 
 def _expected_exact_zero_coverage(
@@ -1557,6 +2174,210 @@ def _expected_exact_zero_coverage(
     return result
 
 
+def _expected_nonzero_coverage(
+    transition: VerifiedTransition,
+    stability_metric: StabilityMetricWitness,
+    fp64_protocol: Fp64EnclosureProtocol,
+) -> SpectralMarginCoverage:
+    transition_view = _reverify_verified_transition(transition)
+    structure = build_structure_manifest(
+        transition_view.factory,
+        transition_view.prestructure,
+    )
+    metric = verify_stability_metric_witness(
+        stability_metric,
+        transition_view.factory,
+        transition_view.prestructure,
+        structure,
+    )
+    protocol = verify_fp64_enclosure_protocol(fp64_protocol)
+    raw_transition = transition_view.transition
+    grid = build_dynamics_grid_manifest(
+        raw_transition.support_offsets,
+        metric.metric_support_offsets,
+    )
+    verify_dynamics_grid_manifest(
+        grid,
+        raw_transition.support_offsets,
+        metric.metric_support_offsets,
+    )
+    if grid.qualification_profile != "cartesian-full-64-v1":
+        raise ValueError("nonzero coverage requires the full-64 grid")
+    point_count = len(grid.reciprocal_indices)
+    n_state = len(raw_transition.channel_order)
+    _preflight_spectral_resources(
+        point_count=point_count,
+        n_state=n_state,
+        encoded_column_count=SPECTRAL_AVAILABLE_COLUMN_COUNT,
+    )
+    transition_coefficients, transition_support = (
+        _transition_laurent_coefficients_from_raw(raw_transition)
+    )
+    metric_coefficients, metric_support = _metric_laurent_coefficients(metric)
+    if transition_coefficients.shape[1:] != (n_state, n_state):
+        raise ValueError("transition Laurent state shape changed during replay")
+    if metric_coefficients.shape[1:] != (n_state, n_state):
+        raise ValueError("metric Laurent state shape differs from transition")
+
+    hard_lists: dict[str, list[float]] = {
+        name: [] for name in HARD_COLUMN_NAMES
+    }
+    raw_lists: dict[str, list[float]] = {
+        name: [] for name in RAW_COLUMN_NAMES
+    }
+    diagnostics_available = True
+    radius_diagnostic_value = +0.0
+    for reciprocal_index in grid.reciprocal_indices:
+        point, transition_center, metric_center = _hard_spectral_point(
+            transition_coefficients,
+            transition_support,
+            metric_coefficients,
+            metric_support,
+            reciprocal_index,
+            protocol,
+        )
+        for name in HARD_COLUMN_NAMES:
+            hard_lists[name].append(point[name])
+        if diagnostics_available:
+            diagnostic = _optional_raw_point_diagnostic(
+                transition_center,
+                metric_center,
+            )
+            if diagnostic is None:
+                diagnostics_available = False
+                for values in raw_lists.values():
+                    values.clear()
+            else:
+                point_raw, point_radius = diagnostic
+                for name in RAW_COLUMN_NAMES:
+                    raw_lists[name].append(point_raw[name])
+                radius_diagnostic_value = max(
+                    radius_diagnostic_value,
+                    point_radius,
+                )
+    hard_columns = {
+        name: tuple(values) for name, values in hard_lists.items()
+    }
+
+    if not diagnostics_available:
+        raw_columns = None
+        radius_diagnostic = None
+        unavailable_reason = "lapack-diagnostics-unavailable-v1"
+        status: Literal["available-lapack-v1", "unavailable-v1"] = (
+            "unavailable-v1"
+        )
+        raw_m_min = None
+        raw_m_max = None
+        raw_g_min = None
+        raw_g_max = None
+    else:
+        raw_columns = {
+            name: tuple(values) for name, values in raw_lists.items()
+        }
+        radius_diagnostic = radius_diagnostic_value
+        unavailable_reason = None
+        status = "available-lapack-v1"
+        raw_m_min = raw_columns["raw_m_sigma_min_b64"]
+        raw_m_max = raw_columns["raw_m_sigma_max_b64"]
+        raw_g_min = raw_columns["raw_g_lambda_min_b64"]
+        raw_g_max = raw_columns["raw_g_lambda_max_b64"]
+    sidecar = _build_columnar_sidecar(
+        grid=grid,
+        n_state=n_state,
+        hard_columns=hard_columns,
+        raw_columns=raw_columns,
+        unavailable_reason=unavailable_reason,
+    )
+
+    table = protocol.root_interval_table
+    fill = _fraction_upper_float(
+        Fraction(
+            table.pi_upper_numerator,
+            (1 << table.dyadic_exponent) * ROOT_DENOMINATOR,
+        ),
+        "fill_distance",
+    )
+    m_derivatives = _axis_derivative_bounds(
+        transition_coefficients,
+        transition_support,
+    )
+    g_derivatives = _axis_derivative_bounds(
+        metric_coefficients,
+        metric_support,
+    )
+    m_increment = _coverage_increment(fill, m_derivatives)
+    g_increment = _coverage_increment(fill, g_derivatives)
+    grid_m_min = hard_columns["m_sigma_min_lower_b64"]
+    grid_m_max = hard_columns["m_sigma_max_upper_b64"]
+    grid_g_min = hard_columns["g_lambda_min_lower_b64"]
+    grid_g_max = hard_columns["g_lambda_max_upper_b64"]
+    covered_m_min = directed_sub_lower(min(grid_m_min), m_increment)
+    covered_m_max = directed_add_upper(max(grid_m_max), m_increment)
+    covered_g_min = directed_sub_lower(min(grid_g_min), g_increment)
+    covered_g_max = directed_add_upper(max(grid_g_max), g_increment)
+    if covered_m_min <= 0.0:
+        raise ValueError("covered transition singular lower is not positive")
+    if covered_g_min <= 0.0:
+        raise ValueError("covered metric eigenvalue lower is not positive")
+    m_condition = directed_div_upper(covered_m_max, covered_m_min)
+    g_condition = directed_div_upper(covered_g_max, covered_g_min)
+
+    provisional = SpectralMarginCoverage(
+        coverage_schema_version=SPECTRAL_COVERAGE_SCHEMA_VERSION,
+        transition_sha=raw_transition.transition_sha,
+        stability_metric_witness_sha=metric.witness_sha,
+        fp64_enclosure_protocol=protocol,
+        qualification_grid=grid,
+        spectral_diagnostic_grid=grid,
+        torus_domain_id=TORUS_DOMAIN_ID,
+        distance_convention_id=DISTANCE_CONVENTION_ID,
+        fill_distance=fill,
+        raw_diagnostic_status=status,
+        raw_diagnostic_unavailable_reason=unavailable_reason,
+        raw_m_sigma_min=raw_m_min,
+        raw_m_sigma_max=raw_m_max,
+        raw_g_lambda_min=raw_g_min,
+        raw_g_lambda_max=raw_g_max,
+        point_enclosures=sidecar,
+        grid_m_sigma_min_lower=grid_m_min,
+        grid_m_sigma_max_upper=grid_m_max,
+        grid_g_lambda_min_lower=grid_g_min,
+        grid_g_lambda_max_upper=grid_g_max,
+        m_sigma_min_axis_derivative_bounds=m_derivatives,
+        m_sigma_max_axis_derivative_bounds=m_derivatives,
+        g_lambda_min_axis_derivative_bounds=g_derivatives,
+        g_lambda_max_axis_derivative_bounds=g_derivatives,
+        m_sigma_min_coverage_increment=m_increment,
+        m_sigma_max_coverage_increment=m_increment,
+        g_lambda_min_coverage_increment=g_increment,
+        g_lambda_max_coverage_increment=g_increment,
+        covered_m_sigma_min_lower=covered_m_min,
+        covered_m_sigma_max_upper=covered_m_max,
+        covered_g_lambda_min_lower=covered_g_min,
+        covered_g_lambda_max_upper=covered_g_max,
+        covered_m_condition_number_upper=m_condition,
+        covered_g_condition_number_upper=g_condition,
+        spectral_radius_drift_diagnostic=radius_diagnostic,
+        coverage_sha="0" * 64,
+    )
+    result = replace(
+        provisional,
+        coverage_sha=canonical_sha(
+            spectral_margin_coverage_payload(provisional)
+        ),
+    )
+    _require_coverage_body_within_cap(result)
+    if result.covered_m_sigma_min_lower < SPECTRAL_M_SIGMA_MIN_GATE:
+        raise ValueError("covered transition singular lower is unresolved")
+    if result.covered_m_condition_number_upper > SPECTRAL_CONDITION_MAX:
+        raise ValueError("covered transition condition upper is unresolved")
+    if result.covered_g_lambda_min_lower < SPECTRAL_G_LAMBDA_MIN_GATE:
+        raise ValueError("covered metric eigenvalue lower is unresolved")
+    if result.covered_g_condition_number_upper > SPECTRAL_CONDITION_MAX:
+        raise ValueError("covered metric condition upper is unresolved")
+    return result
+
+
 def build_exact_zero_spectral_margin_coverage(
     transition: VerifiedTransition,
     stability_metric: StabilityMetricWitness,
@@ -1575,38 +2396,62 @@ def build_exact_zero_spectral_margin_coverage(
     )
 
 
+def build_spectral_margin_coverage(
+    transition: VerifiedTransition,
+    stability_metric: StabilityMetricWitness,
+    fp64_protocol: Fp64EnclosureProtocol,
+) -> SpectralMarginCoverage:
+    """Build singleton or full-64 coverage from the unique support grid."""
+
+    if type(transition) is not VerifiedTransition:
+        raise TypeError("transition must be an exact VerifiedTransition")
+    if type(stability_metric) is not StabilityMetricWitness:
+        raise TypeError("stability_metric has the wrong exact type")
+    try:
+        raw_transition = transition.transition
+    except (AttributeError, TypeError) as exc:
+        raise TypeError("transition is not a live VerifiedTransition") from exc
+    grid = build_dynamics_grid_manifest(
+        raw_transition.support_offsets,
+        stability_metric.metric_support_offsets,
+    )
+    if grid.qualification_profile == "exact-offset-zero-v1":
+        return _expected_exact_zero_coverage(
+            transition,
+            stability_metric,
+            fp64_protocol,
+        )
+    return _expected_nonzero_coverage(
+        transition,
+        stability_metric,
+        fp64_protocol,
+    )
+
+
 def verify_spectral_margin_coverage(
     coverage: SpectralMarginCoverage,
     transition: VerifiedTransition,
     stability_metric: StabilityMetricWitness,
 ) -> SpectralMarginCoverage:
-    """Reconstruct exact-zero coverage from the live transition and metric."""
+    """Reconstruct singleton or full-64 coverage from live source bodies."""
 
     if type(coverage) is not SpectralMarginCoverage:
         raise TypeError("coverage must be a SpectralMarginCoverage")
-    _preflight_exact_zero_coverage_record(coverage, transition)
+    _preflight_coverage_record(coverage, transition)
     _require_coverage_body_within_cap(coverage)
     if coverage.coverage_schema_version != SPECTRAL_COVERAGE_SCHEMA_VERSION:
         raise ValueError("unexpected spectral coverage schema")
-    transition_view = _reverify_verified_transition(transition)
-    structure = build_structure_manifest(
-        transition_view.factory,
-        transition_view.prestructure,
-    )
-    metric = verify_stability_metric_witness(
-        stability_metric,
-        transition_view.factory,
-        transition_view.prestructure,
-        structure,
-    )
+    if type(stability_metric) is not StabilityMetricWitness:
+        raise TypeError("stability_metric has the wrong exact type")
+    raw_transition = transition.transition
     for grid in (
         coverage.qualification_grid,
         coverage.spectral_diagnostic_grid,
     ):
         verify_dynamics_grid_manifest(
             grid,
-            transition_view.transition.support_offsets,
-            metric.metric_support_offsets,
+            raw_transition.support_offsets,
+            stability_metric.metric_support_offsets,
         )
     verify_fp64_enclosure_protocol(coverage.fp64_enclosure_protocol)
     _verify_sidecar(coverage.point_enclosures)
@@ -1614,9 +2459,9 @@ def verify_spectral_margin_coverage(
         spectral_margin_coverage_payload(coverage)
     ):
         raise ValueError("coverage_sha does not match complete body")
-    expected = _expected_exact_zero_coverage(
+    expected = build_spectral_margin_coverage(
         transition,
-        metric,
+        stability_metric,
         coverage.fp64_enclosure_protocol,
     )
     if coverage.coverage_sha != expected.coverage_sha:
@@ -2207,6 +3052,7 @@ __all__ = [
     "SpectralPointEnclosureColumnarSidecar",
     "VerifiedNormalizedMetricResidualAudit",
     "build_exact_zero_spectral_margin_coverage",
+    "build_spectral_margin_coverage",
     "build_power_drift_audit",
     "certify_normalized_metric_residual_audit",
     "normalized_metric_residual_audit_payload",
