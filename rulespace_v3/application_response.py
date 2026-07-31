@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import copy
+import functools
+import inspect
 import math
 import re
 import struct
+import threading
+import types
+import weakref
 from dataclasses import dataclass, fields as dataclass_fields
-from typing import Literal
+from typing import Callable, Literal
 import numpy as np
 
 from .evidence import canonical_sha
@@ -1019,7 +1024,7 @@ def verify_application_paired_response_outcome_v2_body(
 class VerifiedApplicationEndpointReferenceV2:
     """Immutable actual-only endpoint-reference value capability."""
 
-    __slots__ = ("__issued_raw", "__live_upstream")
+    __slots__ = ("__issued_raw", "__live_upstream", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("application endpoint-reference v2 is issuer-only")
@@ -1027,10 +1032,6 @@ class VerifiedApplicationEndpointReferenceV2:
     def __setattr__(self, name: str, value: object) -> None:
         del name, value
         raise AttributeError("application endpoint-reference v2 is immutable")
-
-    @property
-    def reference(self) -> ApplicationEndpointReferenceV2:
-        return _require_endpoint_reference_value(self)
 
 
 class VerifiedApplicationEndpointShellV2:
@@ -1084,19 +1085,7 @@ class VerifiedApplicationPairedResponseOutcomeV2:
         return require_application_paired_response_outcome_v2(self)
 
 
-def _replay_application_endpoint_reference_v2(
-    formal_parent_v2,
-    permit_v2,
-    materialization_v2,
-    protocol_v2,
-    actual_prestructure_v2,
-    matched_ablated_prestructure_v2,
-    actual_transition_v2,
-    matched_ablated_transition_v2,
-    actual_certificate_v2,
-    matched_ablated_certificate_v2,
-    qualification_v2,
-):
+def _load_exact_application_response_v2_upstream() -> tuple[object, ...]:
     from .application_authority_v2 import (
         VerifiedCalibrationApplicationPermitV2,
         require_calibration_application_permit_v2,
@@ -1123,6 +1112,61 @@ def _replay_application_endpoint_reference_v2(
         VerifiedApplicationScenarioResponseProtocolV2,
         verify_v3m0_scenario_response_protocol,
     )
+
+    return (
+        VerifiedParentFreezeV2,
+        require_current_parent,
+        VerifiedCalibrationApplicationPermitV2,
+        require_calibration_application_permit_v2,
+        VerifiedV3M0ApplicationScenarioMaterializationV2,
+        verify_v3m0_application_scenario_materialization_v2,
+        VerifiedApplicationScenarioResponseProtocolV2,
+        verify_v3m0_scenario_response_protocol,
+        VerifiedPrestructureAuthority,
+        _reverify_verified_prestructure_authority,
+        VerifiedTransition,
+        _reverify_verified_transition,
+        VerifiedDynamicsCertificate,
+        _reverify_verified_dynamics_certificate,
+        VerifiedCertificateBackedQualification,
+        _reverify_verified_certificate_backed_qualification,
+    )
+
+
+_APPLICATION_RESPONSE_V2_UPSTREAM: tuple[object, ...] = ()
+
+
+def _replay_application_endpoint_reference_v2(
+    formal_parent_v2,
+    permit_v2,
+    materialization_v2,
+    protocol_v2,
+    actual_prestructure_v2,
+    matched_ablated_prestructure_v2,
+    actual_transition_v2,
+    matched_ablated_transition_v2,
+    actual_certificate_v2,
+    matched_ablated_certificate_v2,
+    qualification_v2,
+):
+    (
+        VerifiedParentFreezeV2,
+        require_current_parent,
+        VerifiedCalibrationApplicationPermitV2,
+        require_calibration_application_permit_v2,
+        VerifiedV3M0ApplicationScenarioMaterializationV2,
+        verify_v3m0_application_scenario_materialization_v2,
+        VerifiedApplicationScenarioResponseProtocolV2,
+        verify_v3m0_scenario_response_protocol,
+        VerifiedPrestructureAuthority,
+        _reverify_verified_prestructure_authority,
+        VerifiedTransition,
+        _reverify_verified_transition,
+        VerifiedDynamicsCertificate,
+        _reverify_verified_dynamics_certificate,
+        VerifiedCertificateBackedQualification,
+        _reverify_verified_certificate_backed_qualification,
+    ) = _APPLICATION_RESPONSE_V2_UPSTREAM
 
     exact_values = (
         formal_parent_v2,
@@ -1187,6 +1231,292 @@ def _replay_application_endpoint_reference_v2(
     )
 
 
+@dataclass(frozen=True)
+class _ApplicationEndpointReferenceIdentityV2:
+    issued_raw: ApplicationEndpointReferenceV2
+    live_upstream: tuple[object, ...]
+
+
+def _freeze_application_response_call_graph(
+    root: Callable,
+    *,
+    _partial_type=functools.partial,
+) -> object:
+    """Clone the reachable project call graph into private globals."""
+
+    function_memo: dict[int, Callable] = {}
+    module_memo: dict[tuple[int, tuple[str, ...]], object] = {}
+
+    def referenced_code_names(code: types.CodeType) -> tuple[str, ...]:
+        names = list(code.co_names)
+        for constant in code.co_consts:
+            if isinstance(constant, types.CodeType):
+                names.extend(referenced_code_names(constant))
+        return tuple(dict.fromkeys(names))
+
+    def freeze_value(
+        value: object,
+        referenced_names: tuple[str, ...] = (),
+    ) -> object:
+        if inspect.isfunction(value) and value.__module__.startswith("rulespace_v3."):
+            return freeze_function(value)
+        if type(value) is _partial_type:
+            keywords = value.keywords or {}
+            return _partial_type(
+                freeze_value(value.func),
+                *(freeze_value(item) for item in value.args),
+                **{key: freeze_value(item) for key, item in keywords.items()},
+            )
+        if inspect.ismodule(value):
+            module_values = vars(value)
+            key = (id(value), referenced_names)
+            cached_module = module_memo.get(key)
+            if cached_module is not None:
+                return cached_module
+            proxy = types.SimpleNamespace()
+            module_memo[key] = proxy
+            for name in referenced_names:
+                if name in module_values:
+                    setattr(
+                        proxy,
+                        name,
+                        freeze_value(module_values[name], referenced_names),
+                    )
+            return proxy
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        if type(value) is list:
+            return [freeze_value(item) for item in value]
+        if type(value) is dict:
+            return {key: freeze_value(item) for key, item in value.items()}
+        return value
+
+    def freeze_closure_value(
+        value: object,
+        referenced_names: tuple[str, ...],
+    ) -> object:
+        if inspect.isfunction(value) and value.__module__.startswith("rulespace_v3."):
+            return freeze_function(value)
+        if type(value) is _partial_type:
+            return freeze_value(value)
+        if inspect.ismodule(value):
+            return freeze_value(value, referenced_names)
+        if type(value) is tuple:
+            return tuple(freeze_closure_value(item, referenced_names) for item in value)
+        return value
+
+    def make_cell(value: object) -> object:
+        def read_cell() -> object:
+            return value
+
+        return read_cell.__closure__[0]
+
+    def freeze_function(function: Callable) -> Callable:
+        cached = function_memo.get(id(function))
+        if cached is not None:
+            return cached
+        source_globals = function.__globals__
+        builtins_body = source_globals.get("__builtins__", {})
+        private_builtins = (
+            dict(builtins_body)
+            if type(builtins_body) is dict
+            else dict(vars(builtins_body))
+        )
+        private_globals: dict[str, object] = {
+            "__builtins__": private_builtins,
+            "__name__": source_globals.get("__name__", __name__),
+            "__package__": source_globals.get("__package__", __package__),
+        }
+        source_closure = function.__closure__
+        private_cells = (
+            None
+            if source_closure is None
+            else tuple(make_cell(None) for _ in source_closure)
+        )
+        clone = types.FunctionType(
+            function.__code__,
+            private_globals,
+            function.__name__,
+            None,
+            private_cells,
+        )
+        function_memo[id(function)] = clone
+        referenced_names = referenced_code_names(function.__code__)
+        if source_closure is not None:
+            assert private_cells is not None
+            for private_cell, source_cell in zip(
+                private_cells,
+                source_closure,
+            ):
+                private_cell.cell_contents = freeze_closure_value(
+                    source_cell.cell_contents,
+                    referenced_names,
+                )
+        for name in referenced_names:
+            if name in source_globals:
+                private_globals[name] = freeze_value(
+                    source_globals[name],
+                    referenced_names,
+                )
+        clone.__defaults__ = (
+            None
+            if function.__defaults__ is None
+            else tuple(
+                freeze_value(item, referenced_names) for item in function.__defaults__
+            )
+        )
+        clone.__kwdefaults__ = (
+            None
+            if function.__kwdefaults__ is None
+            else {
+                key: freeze_value(item, referenced_names)
+                for key, item in function.__kwdefaults__.items()
+            }
+        )
+        return clone
+
+    return _partial_type(freeze_function(root))
+
+
+def _make_application_endpoint_reference_authority_v2(
+    replay_call,
+    verify_call=verify_application_endpoint_reference_v2_body,
+    *,
+    wrapper_type=VerifiedApplicationEndpointReferenceV2,
+    identity_type=_ApplicationEndpointReferenceIdentityV2,
+    clone=copy.deepcopy,
+    weak_reference=weakref.ref,
+    lock_builder=threading.RLock,
+    type_fn=type,
+    id_fn=id,
+    object_type=object,
+    type_error=TypeError,
+    value_error=ValueError,
+    attribute_error=AttributeError,
+):
+    """Build a full-upstream-only issuer and its live identity consumer."""
+
+    live: dict[
+        int,
+        tuple[
+            weakref.ReferenceType[VerifiedApplicationEndpointReferenceV2],
+            _ApplicationEndpointReferenceIdentityV2,
+        ],
+    ] = {}
+    lock = lock_builder()
+
+    def issue(
+        formal_parent_v2,
+        permit_v2,
+        materialization_v2,
+        protocol_v2,
+        actual_prestructure_v2,
+        matched_ablated_prestructure_v2,
+        actual_transition_v2,
+        matched_ablated_transition_v2,
+        actual_certificate_v2,
+        matched_ablated_certificate_v2,
+        qualification_v2,
+    ):
+        live_upstream = (
+            formal_parent_v2,
+            permit_v2,
+            materialization_v2,
+            protocol_v2,
+            actual_prestructure_v2,
+            matched_ablated_prestructure_v2,
+            actual_transition_v2,
+            matched_ablated_transition_v2,
+            actual_certificate_v2,
+            matched_ablated_certificate_v2,
+            qualification_v2,
+        )
+        replayed = verify_call(replay_call(*live_upstream))
+        authority_raw = clone(replayed)
+        exposed_raw = clone(replayed)
+        wrapper = object_type.__new__(wrapper_type)
+        object_type.__setattr__(
+            wrapper,
+            "_VerifiedApplicationEndpointReferenceV2__issued_raw",
+            exposed_raw,
+        )
+        object_type.__setattr__(
+            wrapper,
+            "_VerifiedApplicationEndpointReferenceV2__live_upstream",
+            live_upstream,
+        )
+        identity = id_fn(wrapper)
+        authority = identity_type(
+            issued_raw=authority_raw,
+            live_upstream=live_upstream,
+        )
+
+        def remove(reference, wrapper_id=identity):
+            with lock:
+                current = live.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del live[wrapper_id]
+
+        reference = weak_reference(wrapper, remove)
+        with lock:
+            current = live.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError("application endpoint identity collision")
+            live[identity] = (reference, authority)
+        return wrapper
+
+    def require(wrapper):
+        if type_fn(wrapper) is not wrapper_type:
+            raise type_error(
+                "application endpoint reference requires an exact live capability"
+            )
+        with lock:
+            current = live.get(id_fn(wrapper))
+            if current is None or current[0]() is not wrapper:
+                raise value_error("application endpoint identity is not live")
+            authority = current[1]
+        try:
+            exposed_raw = object_type.__getattribute__(
+                wrapper,
+                "_VerifiedApplicationEndpointReferenceV2__issued_raw",
+            )
+            exposed_upstream = object_type.__getattribute__(
+                wrapper,
+                "_VerifiedApplicationEndpointReferenceV2__live_upstream",
+            )
+        except attribute_error as exc:
+            raise value_error(
+                "application endpoint authority record is incomplete"
+            ) from exc
+        if (
+            type_fn(exposed_upstream) is not tuple
+            or len(exposed_upstream) != 11
+            or any(
+                observed is not frozen
+                for observed, frozen in zip(
+                    exposed_upstream,
+                    authority.live_upstream,
+                )
+            )
+        ):
+            raise value_error("application endpoint live upstream drifted")
+        exposed = verify_call(exposed_raw)
+        snapshot = verify_call(authority.issued_raw)
+        replayed = verify_call(replay_call(*authority.live_upstream))
+        if exposed != snapshot or replayed != snapshot:
+            raise value_error("application endpoint immutable snapshot drifted")
+        return clone(replayed)
+
+    def reference_property(wrapper):
+        return require(wrapper)
+
+    issue.__name__ = "issue_v3m0_application_endpoint_reference_v2"
+    issue.__qualname__ = "issue_v3m0_application_endpoint_reference_v2"
+    require.__name__ = "require_application_endpoint_reference_v2"
+    require.__qualname__ = "require_application_endpoint_reference_v2"
+    return issue, require, reference_property
+
+
 def _read_value_capability(
     value: object,
     wrapper_type: type,
@@ -1210,7 +1540,7 @@ def _read_value_capability(
 
 
 def _replay_application_endpoint_shell_v2(reference):
-    _require_endpoint_reference_value(reference)
+    require_application_endpoint_reference_v2(reference)
     raise ApplicationResponseV2UpstreamUnavailable(
         "actual-only endpoint shell numerical replay is not connected"
     )
@@ -1228,34 +1558,6 @@ def _replay_application_paired_response_outcome_v2(shell):
     raise ApplicationResponseV2UpstreamUnavailable(
         "atomic actual/matched response numerical replay is not connected"
     )
-
-
-def _require_endpoint_reference_value(
-    value: VerifiedApplicationEndpointReferenceV2,
-) -> ApplicationEndpointReferenceV2:
-    replay_inputs, expected_raw = _read_value_capability(
-        value,
-        VerifiedApplicationEndpointReferenceV2,
-        "_VerifiedApplicationEndpointReferenceV2__issued_raw",
-        "_VerifiedApplicationEndpointReferenceV2__live_upstream",
-        11,
-        "application endpoint reference v2",
-    )
-    replayed = verify_application_endpoint_reference_v2_body(
-        _replay_application_endpoint_reference_v2(*replay_inputs)
-    )
-    expected = verify_application_endpoint_reference_v2_body(expected_raw)
-    if replayed != expected:
-        raise ValueError(
-            "application endpoint reference v2 replay differs from issued body"
-        )
-    return replayed
-
-
-def require_application_endpoint_reference_v2(
-    value: VerifiedApplicationEndpointReferenceV2,
-) -> ApplicationEndpointReferenceV2:
-    return _require_endpoint_reference_value(value)
 
 
 def require_application_endpoint_shell_v2(
@@ -1324,61 +1626,65 @@ def require_application_paired_response_outcome_v2(
     return replayed
 
 
-def issue_v3m0_application_endpoint_reference_v2(
-    formal_parent_v2,
-    permit_v2,
-    materialization_v2,
-    protocol_v2,
-    actual_prestructure_v2,
-    matched_ablated_prestructure_v2,
-    actual_transition_v2,
-    matched_ablated_transition_v2,
-    actual_certificate_v2,
-    matched_ablated_certificate_v2,
-    qualification_v2,
+def _make_locked_application_response_tail_v2(
+    reference_require,
+    shell_require,
+    unavailable_type=ApplicationResponseV2UpstreamUnavailable,
 ):
-    replay_inputs = (
-        formal_parent_v2,
-        permit_v2,
-        materialization_v2,
-        protocol_v2,
-        actual_prestructure_v2,
-        matched_ablated_prestructure_v2,
-        actual_transition_v2,
-        matched_ablated_transition_v2,
-        actual_certificate_v2,
-        matched_ablated_certificate_v2,
-        qualification_v2,
-    )
-    issued_raw = verify_application_endpoint_reference_v2_body(
-        _replay_application_endpoint_reference_v2(*replay_inputs)
-    )
-    capability = object.__new__(VerifiedApplicationEndpointReferenceV2)
-    object.__setattr__(
-        capability,
-        "_VerifiedApplicationEndpointReferenceV2__issued_raw",
-        copy.deepcopy(issued_raw),
-    )
-    object.__setattr__(
-        capability,
-        "_VerifiedApplicationEndpointReferenceV2__live_upstream",
-        replay_inputs,
-    )
-    return capability
+    def issue_shell(reference):
+        reference_require(reference)
+        raise unavailable_type(
+            "actual-only endpoint shell numerical replay is not connected"
+        )
+
+    def issue_pair(shell):
+        shell_require(shell)
+        raise unavailable_type(
+            "atomic actual/matched response numerical replay is not connected"
+        )
+
+    issue_shell.__name__ = "issue_v3m0_application_endpoint_shell_v2"
+    issue_shell.__qualname__ = "issue_v3m0_application_endpoint_shell_v2"
+    issue_pair.__name__ = "issue_v3m0_application_paired_response_v2"
+    issue_pair.__qualname__ = "issue_v3m0_application_paired_response_v2"
+    return issue_shell, issue_pair
 
 
-def issue_v3m0_application_endpoint_shell_v2(reference):
-    _require_endpoint_reference_value(reference)
-    raise ApplicationResponseV2UpstreamUnavailable(
-        "actual-only endpoint shell numerical replay is not connected"
+_APPLICATION_RESPONSE_V2_UPSTREAM = _load_exact_application_response_v2_upstream()
+_closed_application_endpoint_reference_replay_v2 = (
+    _freeze_application_response_call_graph(_replay_application_endpoint_reference_v2)
+)
+_closed_application_endpoint_reference_verify_v2 = (
+    _freeze_application_response_call_graph(
+        verify_application_endpoint_reference_v2_body
     )
-
-
-def issue_v3m0_application_paired_response_v2(shell):
-    require_application_endpoint_shell_v2(shell)
-    raise ApplicationResponseV2UpstreamUnavailable(
-        "atomic actual/matched response numerical replay is not connected"
-    )
+)
+(
+    _issue_verified_application_endpoint_reference_v2,
+    _reverify_verified_application_endpoint_reference_v2,
+    _closed_application_endpoint_reference_property_v2,
+) = _make_application_endpoint_reference_authority_v2(
+    _closed_application_endpoint_reference_replay_v2,
+    _closed_application_endpoint_reference_verify_v2,
+)
+issue_v3m0_application_endpoint_reference_v2 = (
+    _issue_verified_application_endpoint_reference_v2
+)
+require_application_endpoint_reference_v2 = (
+    _reverify_verified_application_endpoint_reference_v2
+)
+setattr(
+    VerifiedApplicationEndpointReferenceV2,
+    "reference",
+    property(_closed_application_endpoint_reference_property_v2),
+)
+(
+    issue_v3m0_application_endpoint_shell_v2,
+    issue_v3m0_application_paired_response_v2,
+) = _make_locked_application_response_tail_v2(
+    require_application_endpoint_reference_v2,
+    require_application_endpoint_shell_v2,
+)
 
 
 __all__ = [
