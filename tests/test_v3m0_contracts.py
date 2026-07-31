@@ -147,6 +147,14 @@ class UndefinedReasonTests(unittest.TestCase):
                 "SHELL_TRACKING_AMBIGUOUS": "shell_tracking_ambiguous",
                 "UNSTABLE": "unstable",
                 "MANIFEST_MISMATCH": "manifest_mismatch",
+                "PRESTRUCTURE_INVALID": "prestructure_invalid",
+                "REALITY_VIOLATION": "reality_violation",
+                "LAURENT_RESOURCE_EXCEEDED": (
+                    "laurent_resource_exceeded"
+                ),
+                "STRUCTURE_UNRESOLVED": "structure_unresolved",
+                "DYNAMICS_BRIDGE_FAILED": "dynamics_bridge_failed",
+                "STABILITY_UNRESOLVED": "stability_unresolved",
             },
         )
 
