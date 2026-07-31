@@ -11,6 +11,7 @@ from unittest import mock
 import numpy as np
 
 import rulespace_v3.certificate as certificate_module
+import rulespace_v3.spectral as spectral_module
 from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.bridge import (
     audit_full_state_bridge,
@@ -198,6 +199,22 @@ class DynamicsCertificateTests(unittest.TestCase):
             VerifiedDynamicsCertificationOutcome,
         )
         self.assertIsNotNone(verified_outcome.certificate)
+
+    def test_success_hydrate_dispatches_through_generic_spectral_builder(self):
+        assert self.result.certificate is not None
+        certificate = self.result.certificate.certificate
+        with mock.patch.object(
+            spectral_module,
+            "build_spectral_margin_coverage",
+            wraps=spectral_module.build_spectral_margin_coverage,
+        ) as dispatch:
+            hydrated = verify_dynamics_certificate(
+                certificate,
+                self.factory,
+                self.authority,
+            )
+        self.assertIs(type(hydrated), VerifiedDynamicsCertificate)
+        dispatch.assert_called_once()
 
     def test_raw_failure_hydrator_rejects_false_prestructure_failure(self):
         attempt = certificate_module._attempt(
@@ -611,10 +628,10 @@ class DynamicsCertificateTests(unittest.TestCase):
 
     def test_ordinary_evidence_insufficiency_is_unresolved_not_unstable(self):
         with mock.patch(
-            "rulespace_v3.certificate.build_exact_zero_spectral_margin_coverage",
+            "rulespace_v3.certificate.build_spectral_margin_coverage",
             side_effect=ValueError("candidate inverse unresolved"),
         ):
-            outcome = self._certify(core=True).outcome
+            outcome = self._certify().outcome
         self.assertEqual(
             outcome.failure,
             DynamicsCertificationFailure.SPECTRAL_COVERAGE_UNRESOLVED,

@@ -94,8 +94,8 @@ from .spectral import (
     PowerDriftAudit,
     SpectralMarginCoverage,
     SpectralPointEnclosureColumnarSidecar,
-    build_exact_zero_spectral_margin_coverage,
     build_power_drift_audit,
+    build_spectral_margin_coverage,
     certify_normalized_metric_residual_audit,
     normalized_metric_residual_audit_payload,
     power_drift_audit_payload,
@@ -1690,7 +1690,7 @@ def certify_transition_dynamics(
             verified_transition.transition.support_offsets,
             metric.metric_support_offsets,
         )
-        spectral = build_exact_zero_spectral_margin_coverage(
+        spectral = build_spectral_margin_coverage(
             verified_transition,
             metric,
             protocol,
@@ -2043,7 +2043,7 @@ def _verify_failure_evidence(
         raise ValueError("attempt metric evidence differs from replay")
 
     try:
-        replayed_spectral = build_exact_zero_spectral_margin_coverage(
+        replayed_spectral = build_spectral_margin_coverage(
             transition,
             metric,
             protocol,
