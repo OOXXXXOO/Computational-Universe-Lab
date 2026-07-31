@@ -1243,6 +1243,41 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
                 curvature_normalizer=1.0,
             )
 
+    def test_public_authority_freezes_complete_live_replay_graph(self) -> None:
+        import rulespace_v3.scenario_response_protocol as protocol_module
+        from rulespace_v3.scenario_response_protocol import (
+            VerifiedApplicationScenarioResponseProtocolV2,
+            issue_v3m0_scenario_response_protocol,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        with patch.object(
+            protocol_module,
+            "_make_exact_scenario_response_protocol_compiler",
+            return_value=lambda *_: protocol,
+        ), patch.object(
+            protocol_module,
+            "_make_live_scenario_response_protocol_replayer",
+            return_value=lambda *_: protocol,
+        ):
+            with self.assertRaises((TypeError, ValueError, RuntimeError)):
+                issue_v3m0_scenario_response_protocol(
+                    object(),
+                    object(),
+                    object(),
+                )
+
+        forged = object.__new__(
+            VerifiedApplicationScenarioResponseProtocolV2
+        )
+        with patch.object(
+            protocol_module,
+            "verify_v3m0_scenario_response_protocol",
+            return_value=protocol,
+        ):
+            with self.assertRaises((TypeError, ValueError, AttributeError)):
+                _ = forged.protocol
+
 
 if __name__ == "__main__":
     unittest.main()

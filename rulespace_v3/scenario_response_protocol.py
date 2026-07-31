@@ -40,6 +40,7 @@ from .grids import (
     build_application_bridge_grid_manifest,
     build_response_grid_manifest,
 )
+from .frozen_call_graph import freeze_rulespace_call_graph
 from .thresholds import BRIDGE_TOLERANCE
 
 
@@ -2020,10 +2021,52 @@ def _make_closed_protocol_api(
     return issue_v3m0_scenario_response_protocol, verify_v3m0_scenario_response_protocol
 
 
+_closed_replay_from_live_upstream = freeze_rulespace_call_graph(
+    _replay_from_live_upstream
+)
 (
-    issue_v3m0_scenario_response_protocol,
-    verify_v3m0_scenario_response_protocol,
-) = _make_closed_protocol_api()
+    _raw_issue_v3m0_scenario_response_protocol,
+    _raw_verify_v3m0_scenario_response_protocol,
+) = _make_closed_protocol_api(
+    replay_from_live_upstream=_closed_replay_from_live_upstream.__call__,
+)
+
+
+def _make_protocol_property_binding():
+    consumer_holder = []
+
+    def protocol_property(self):
+        if len(consumer_holder) != 1:
+            raise RuntimeError("scenario protocol property is not bound exactly once")
+        return consumer_holder[0](self)
+
+    def bind(consumer):
+        if consumer_holder:
+            raise RuntimeError("scenario protocol property is already bound")
+        consumer_holder.append(consumer)
+
+    return property(protocol_property), bind
+
+
+(
+    _protocol_property,
+    _bind_protocol_property,
+) = _make_protocol_property_binding()
+VerifiedApplicationScenarioResponseProtocolV2.protocol = _protocol_property
+del _protocol_property
+del _make_protocol_property_binding
+
+issue_v3m0_scenario_response_protocol = freeze_rulespace_call_graph(
+    _raw_issue_v3m0_scenario_response_protocol
+)
+verify_v3m0_scenario_response_protocol = freeze_rulespace_call_graph(
+    _raw_verify_v3m0_scenario_response_protocol
+)
+_bind_protocol_property(verify_v3m0_scenario_response_protocol)
+del _bind_protocol_property
+del _raw_issue_v3m0_scenario_response_protocol
+del _raw_verify_v3m0_scenario_response_protocol
+del _closed_replay_from_live_upstream
 
 
 __all__ = [
