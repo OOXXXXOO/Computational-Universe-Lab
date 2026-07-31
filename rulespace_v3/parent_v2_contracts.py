@@ -483,6 +483,9 @@ class CurrentApplicationAuthorityV2:
     application_instance_id: str
     based_on_application_spec_sha: str
     source_candidate_v1_application_sha: str
+    complete_scenario_execution_specs: tuple[
+        ApplicationScenarioExecutionSpec, ...
+    ]
     scenario_authorities: tuple[CurrentScenarioAuthorityV2, ...]
     application_authority_sha: str
 
@@ -501,10 +504,38 @@ class CurrentApplicationAuthorityV2:
             "source_candidate_v1_application_sha",
         )
         if (
-            type(self.scenario_authorities) is not tuple
-            or not self.scenario_authorities
+            type(self.complete_scenario_execution_specs) is not tuple
+            or not self.complete_scenario_execution_specs
+            or not all(
+                type(item) is ApplicationScenarioExecutionSpec
+                for item in self.complete_scenario_execution_specs
+            )
         ):
-            raise TypeError("scenario_authorities must be a non-empty exact tuple")
+            raise TypeError(
+                "complete_scenario_execution_specs must be a non-empty "
+                "exact tuple"
+            )
+        complete_ids: list[str] = []
+        for index, spec in enumerate(self.complete_scenario_execution_specs):
+            _exact_record(
+                spec,
+                ApplicationScenarioExecutionSpec,
+                f"complete scenario execution spec[{index}]",
+            )
+            spec.__post_init__()
+            if spec.scenario_sha != canonical_sha(
+                application_scenario_execution_spec_payload(spec)
+            ):
+                raise ValueError("complete scenario execution SHA drifted")
+            if not spec.scenario_id.startswith(self.application_instance_id + "."):
+                raise ValueError(
+                    "complete scenario execution spec is outside its application"
+                )
+            complete_ids.append(spec.scenario_id)
+        if len(complete_ids) != len(set(complete_ids)):
+            raise ValueError("complete scenario execution specs contain duplicate IDs")
+        if type(self.scenario_authorities) is not tuple:
+            raise TypeError("scenario_authorities must be an exact tuple")
         if not all(
             type(item) is CurrentScenarioAuthorityV2
             for item in self.scenario_authorities
@@ -521,6 +552,17 @@ class CurrentApplicationAuthorityV2:
                 != self.based_on_application_spec_sha
             ):
                 raise ValueError("scenario authority is spliced across applications")
+        expected_success_specs = tuple(
+            item
+            for item in self.complete_scenario_execution_specs
+            if item.execution_lane == "BLOCK_SUCCESS"
+        )
+        if tuple(
+            item.scenario_execution_spec for item in self.scenario_authorities
+        ) != expected_success_specs:
+            raise ValueError(
+                "scenario authorities are not the exact ordered BLOCK_SUCCESS subset"
+            )
         _sha(self.application_authority_sha, "application_authority_sha")
 
 
@@ -543,6 +585,13 @@ def current_application_authority_v2_payload(
         "source_candidate_v1_application_sha": (
             authority.source_candidate_v1_application_sha
         ),
+        "complete_scenario_execution_specs": [
+            {
+                **application_scenario_execution_spec_payload(item),
+                "scenario_sha": item.scenario_sha,
+            }
+            for item in authority.complete_scenario_execution_specs
+        ],
         "scenario_authorities": [
             {
                 **current_scenario_authority_v2_payload(item),

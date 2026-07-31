@@ -117,6 +117,10 @@ class ParentFreezeV2ContractTests(unittest.TestCase):
             CurrentApplicationAuthorityV2.__dataclass_fields__,
         )
         self.assertIn(
+            "complete_scenario_execution_specs",
+            CurrentApplicationAuthorityV2.__dataclass_fields__,
+        )
+        self.assertIn(
             "reviewed_candidate_v2",
             ParentFreezeV2Manifest.__dataclass_fields__,
         )
@@ -410,6 +414,216 @@ class ParentFreezeV2ContractTests(unittest.TestCase):
             _require_complete_block_success_registry(self.all_current),
             self.all_current,
         )
+
+    def test_all_twenty_application_authorities_bind_reviewed_scenario_tuples(
+        self,
+    ) -> None:
+        from rulespace_v3.parent_freeze import APPLICATION_CONTROL_CASE_IDS
+        from rulespace_v3.parent_freeze_v2 import (
+            _group_application_authorities,
+            _live_candidate_v1,
+        )
+
+        candidate = _live_candidate_v1()
+        applications = _group_application_authorities(self.all_current, candidate)
+
+        self.assertEqual(
+            tuple(item.control_case_id for item in applications),
+            APPLICATION_CONTROL_CASE_IDS,
+        )
+        candidate_by_case = {
+            item.control_case_id: item for item in candidate.application_candidates
+        }
+        for application in applications:
+            with self.subTest(control_case_id=application.control_case_id):
+                expected_specs = tuple(
+                    item.scenario_execution_spec
+                    for item in candidate_by_case[
+                        application.control_case_id
+                    ].scenario_candidates
+                )
+                self.assertEqual(
+                    getattr(
+                        application,
+                        "complete_scenario_execution_specs",
+                        (),
+                    ),
+                    expected_specs,
+                )
+                self.assertEqual(
+                    tuple(
+                        item.scenario_id
+                        for item in application.scenario_authorities
+                    ),
+                    tuple(
+                        item.scenario_id
+                        for item in expected_specs
+                        if item.execution_lane == "BLOCK_SUCCESS"
+                    ),
+                )
+
+    def test_c07_split_and_typed_analysis_cases_keep_exact_reviewed_lineage(
+        self,
+    ) -> None:
+        from rulespace_v3.parent_freeze_v2 import (
+            _group_application_authorities,
+            _live_candidate_v1,
+        )
+
+        applications = {
+            item.control_case_id: item
+            for item in _group_application_authorities(
+                self.all_current,
+                _live_candidate_v1(),
+            )
+        }
+        c07 = applications.get("C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE")
+        self.assertIsNotNone(c07)
+        self.assertEqual(
+            tuple(
+                item.scenario_id.rsplit(".", 2)[-2]
+                for item in getattr(
+                    c07,
+                    "complete_scenario_execution_specs",
+                    (),
+                )
+            ),
+            ("constructive", "destructive"),
+        )
+
+        expected = {
+            "C13_BOTH_ZERO_UNDEFINED": (
+                (
+                    "EXPECTED_TYPED_TERMINATION",
+                    "activation",
+                    "VerifiedResponseBlockAttemptOutcome",
+                ),
+            ),
+            "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL": (
+                (
+                    "EXPECTED_TYPED_TERMINATION",
+                    "endpoint_shell",
+                    "VerifiedResponseBlockAttemptOutcome",
+                ),
+                (
+                    "EXPECTED_TYPED_TERMINATION",
+                    "activation",
+                    "VerifiedResponseBlockAttemptOutcome",
+                ),
+                (
+                    "EXPECTED_TYPED_TERMINATION",
+                    "trace",
+                    "VerifiedResponseBlockAttemptOutcome",
+                ),
+                (
+                    "EXPECTED_TYPED_TERMINATION",
+                    "stability",
+                    "VerifiedResponseBlockAttemptOutcome",
+                ),
+            ),
+            "C20_DM26_CLEAN_ZERO_TRUE_FLOOR": (
+                (
+                    "ANALYSIS_CONTROL",
+                    None,
+                    "VerifiedDeterministicSeriesControlOutcome",
+                ),
+                (
+                    "ANALYSIS_CONTROL",
+                    None,
+                    "VerifiedDeterministicSeriesControlOutcome",
+                ),
+            ),
+        }
+        for control_case_id, expected_lineage in expected.items():
+            with self.subTest(control_case_id=control_case_id):
+                application = applications.get(control_case_id)
+                self.assertIsNotNone(application)
+                self.assertEqual(application.scenario_authorities, ())
+                self.assertEqual(
+                    tuple(
+                        (
+                            item.execution_lane,
+                            item.expected_terminal_stage,
+                            item.expected_artifact_type,
+                        )
+                        for item in getattr(
+                            application,
+                            "complete_scenario_execution_specs",
+                            (),
+                        )
+                    ),
+                    expected_lineage,
+                )
+
+    def test_reordered_or_spliced_complete_scenario_tuple_fails_after_resign(
+        self,
+    ) -> None:
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_freeze import (
+            parent_freeze_candidate_application_payload,
+            parent_freeze_candidate_manifest_payload,
+        )
+        from rulespace_v3.parent_freeze_v2 import (
+            _group_application_authorities,
+            _live_candidate_v1,
+        )
+
+        candidate = _live_candidate_v1()
+        by_case = {
+            item.control_case_id: item for item in candidate.application_candidates
+        }
+
+        def resigned_candidate(replacement):
+            application = replace(
+                replacement,
+                candidate_application_sha="0" * 64,
+            )
+            application = replace(
+                application,
+                candidate_application_sha=canonical_sha(
+                    parent_freeze_candidate_application_payload(application)
+                ),
+            )
+            applications = tuple(
+                application
+                if item.control_case_id == application.control_case_id
+                else item
+                for item in candidate.application_candidates
+            )
+            attacked = replace(
+                candidate,
+                application_candidates=applications,
+                candidate_sha="0" * 64,
+            )
+            return replace(
+                attacked,
+                candidate_sha=canonical_sha(
+                    parent_freeze_candidate_manifest_payload(attacked)
+                ),
+            )
+
+        c14 = by_case["C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL"]
+        reordered = resigned_candidate(
+            replace(
+                c14,
+                scenario_candidates=tuple(reversed(c14.scenario_candidates)),
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "canonical|historical|reviewed"):
+            _group_application_authorities(self.all_current, reordered)
+
+        c13 = by_case["C13_BOTH_ZERO_UNDEFINED"]
+        spliced = resigned_candidate(
+            replace(
+                c14,
+                scenario_candidates=(
+                    c13.scenario_candidates[0],
+                    *c14.scenario_candidates[1:],
+                ),
+            )
+        )
+        with self.assertRaises(ValueError):
+            _group_application_authorities(self.all_current, spliced)
 
     def test_complete_registry_gate_rejects_missing_duplicate_and_extra(self) -> None:
         from rulespace_v3.parent_freeze_v2 import (

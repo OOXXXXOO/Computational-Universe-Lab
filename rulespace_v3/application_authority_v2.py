@@ -195,11 +195,8 @@ class CalibrationApplicationPermitV2:
         _text(self.control_case_id, "control_case_id")
         if type(self.application_authority) is not CurrentApplicationAuthorityV2:
             raise TypeError("permit application authority has the wrong strict type")
-        if (
-            type(self.scenario_authority_shas) is not tuple
-            or not self.scenario_authority_shas
-        ):
-            raise TypeError("scenario_authority_shas must be a non-empty tuple")
+        if type(self.scenario_authority_shas) is not tuple:
+            raise TypeError("scenario_authority_shas must be an exact tuple")
         for index, value in enumerate(self.scenario_authority_shas):
             _sha(value, f"scenario_authority_shas[{index}]")
         if len(self.scenario_authority_shas) != len(
@@ -600,6 +597,32 @@ def _current_application_for_instance(
         )
     application = matches[0]
     _verify_current_application_authority(application)
+
+    candidate_matches = tuple(
+        item
+        for item in parent_manifest.reviewed_candidate_v1.application_candidates
+        if item.application_instance_id == identifier
+    )
+    if len(candidate_matches) != 1:
+        raise ValueError(
+            "application instance ID does not resolve to one reviewed "
+            "candidate-v1 application"
+        )
+    candidate = candidate_matches[0]
+    candidate_specs = tuple(
+        item.scenario_execution_spec for item in candidate.scenario_candidates
+    )
+    if (
+        candidate.control_case_id != application.control_case_id
+        or candidate.based_on_application_spec_sha
+        != application.based_on_application_spec_sha
+        or candidate.candidate_application_sha
+        != application.source_candidate_v1_application_sha
+        or candidate_specs != application.complete_scenario_execution_specs
+    ):
+        raise ValueError(
+            "current application authority is spliced from reviewed candidate-v1"
+        )
 
     source_matches = tuple(
         item

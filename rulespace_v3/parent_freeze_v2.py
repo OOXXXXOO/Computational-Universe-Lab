@@ -1338,17 +1338,49 @@ def _group_application_authorities(
     scenario_authorities: tuple[CurrentScenarioAuthorityV2, ...],
     candidate_v1: ParentFreezeCandidateManifest,
 ) -> tuple[CurrentApplicationAuthorityV2, ...]:
+    scenario_authorities = _require_complete_block_success_registry(
+        scenario_authorities
+    )
+    candidate_v1 = verify_parent_freeze_candidate(candidate_v1)
     application_index, _ = _candidate_v1_indices(candidate_v1)
+    historical_application_index = {
+        item.control_case_id: item
+        for item in issue_v3m0_parent_freeze().manifest.synthetic_control_application_specs
+    }
     grouped: list[CurrentApplicationAuthorityV2] = []
     for source_application in candidate_v1.application_candidates:
+        canonical_source = application_index[source_application.control_case_id]
+        historical_source = historical_application_index.get(
+            source_application.control_case_id
+        )
+        if historical_source is None or (
+            source_application.application_instance_id
+            != historical_source.application_instance_id
+            or source_application.based_on_application_spec_sha
+            != historical_source.application_spec_sha
+        ):
+            raise ValueError(
+                "reviewed candidate application is spliced from historical Parent-v1"
+            )
+        complete_specs = tuple(
+            item.scenario_execution_spec
+            for item in source_application.scenario_candidates
+        )
         members = tuple(
             item
             for item in scenario_authorities
             if item.control_case_id == source_application.control_case_id
         )
-        if not members:
-            continue
-        canonical_source = application_index[source_application.control_case_id]
+        expected_success_ids = tuple(
+            item.scenario_id
+            for item in complete_specs
+            if item.execution_lane == "BLOCK_SUCCESS"
+        )
+        if tuple(item.scenario_id for item in members) != expected_success_ids:
+            raise ValueError(
+                "reviewed application authorities differ from the exact "
+                "BLOCK_SUCCESS scenario subset"
+            )
         provisional = CurrentApplicationAuthorityV2(
             application_authority_schema_version=(
                 CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION
@@ -1362,6 +1394,7 @@ def _group_application_authorities(
             source_candidate_v1_application_sha=(
                 canonical_source.candidate_application_sha
             ),
+            complete_scenario_execution_specs=complete_specs,
             scenario_authorities=members,
             application_authority_sha="0" * 64,
         )

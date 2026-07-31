@@ -234,6 +234,7 @@ def _application_authority(
         application_instance_id=application_instance_id,
         based_on_application_spec_sha=SHA1,
         source_candidate_v1_application_sha=SHA1,
+        complete_scenario_execution_specs=(execution,),
         scenario_authorities=(scenario,),
         application_authority_sha=SHA0,
     )
@@ -256,11 +257,31 @@ def _parent_manifest(*application_stages):
         )
         for application, pipeline_stage in application_stages
     )
+    candidates = tuple(
+        SimpleNamespace(
+            control_case_id=application.control_case_id,
+            application_instance_id=application.application_instance_id,
+            based_on_application_spec_sha=(
+                application.based_on_application_spec_sha
+            ),
+            candidate_application_sha=(
+                application.source_candidate_v1_application_sha
+            ),
+            scenario_candidates=tuple(
+                SimpleNamespace(scenario_execution_spec=execution)
+                for execution in application.complete_scenario_execution_specs
+            ),
+        )
+        for application in applications
+    )
     return SimpleNamespace(
         parent_freeze_v2_sha=SHA1,
         current_application_authorities=applications,
         historical_parent_v1=SimpleNamespace(
             synthetic_control_application_specs=specifications,
+        ),
+        reviewed_candidate_v1=SimpleNamespace(
+            application_candidates=candidates,
         ),
     )
 
@@ -703,6 +724,178 @@ class CalibrationApplicationPermitV2WireTests(unittest.TestCase):
                 )
                 with self.assertRaises(ValueError):
                     verify_calibration_application_permit_v2_wire(attacked)
+
+
+class CalibrationApplicationPermitV2CanonicalParentTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
+        from rulespace_v3.parent_freeze_v2 import (
+            _build_reviewed_modified_scenario_authorities,
+            _build_reviewed_unchanged_scenario_authorities,
+            _group_application_authorities,
+            _live_candidate_v1,
+            _ordered_current_scenario_authorities,
+        )
+
+        candidate = _live_candidate_v1()
+        current = _ordered_current_scenario_authorities(
+            _build_reviewed_modified_scenario_authorities(),
+            _build_reviewed_unchanged_scenario_authorities(),
+        )
+        cls.candidate = candidate
+        cls.parent = SimpleNamespace(
+            parent_freeze_v2_sha=SHA1,
+            current_application_authorities=(
+                _group_application_authorities(current, candidate)
+            ),
+            historical_parent_v1=issue_v3m0_parent_freeze().manifest,
+            reviewed_candidate_v1=candidate,
+        )
+
+    def test_c13_c14_c20_permits_keep_complete_typed_analysis_lineage(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+
+        candidate_by_case = {
+            item.control_case_id: item
+            for item in self.candidate.application_candidates
+        }
+        expected_lanes = {
+            "C13_BOTH_ZERO_UNDEFINED": ("EXPECTED_TYPED_TERMINATION",),
+            "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL": (
+                "EXPECTED_TYPED_TERMINATION",
+                "EXPECTED_TYPED_TERMINATION",
+                "EXPECTED_TYPED_TERMINATION",
+                "EXPECTED_TYPED_TERMINATION",
+            ),
+            "C20_DM26_CLEAN_ZERO_TRUE_FLOOR": (
+                "ANALYSIS_CONTROL",
+                "ANALYSIS_CONTROL",
+            ),
+        }
+        for control_case_id, lanes in expected_lanes.items():
+            with self.subTest(control_case_id=control_case_id):
+                source = candidate_by_case[control_case_id]
+                permit = _expected_calibration_application_permit_v2(
+                    self.parent,
+                    _calibration(),
+                    source.application_instance_id,
+                )
+                self.assertEqual(permit.scenario_authority_shas, ())
+                self.assertEqual(
+                    permit.application_authority.complete_scenario_execution_specs,
+                    tuple(
+                        item.scenario_execution_spec
+                        for item in source.scenario_candidates
+                    ),
+                )
+                self.assertEqual(
+                    tuple(
+                        item.execution_lane
+                        for item in (
+                            permit.application_authority.complete_scenario_execution_specs
+                        )
+                    ),
+                    lanes,
+                )
+
+    def test_c07_permit_keeps_constructive_destructive_reviewed_split(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+
+        source = next(
+            item
+            for item in self.candidate.application_candidates
+            if item.control_case_id
+            == "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE"
+        )
+        permit = _expected_calibration_application_permit_v2(
+            self.parent,
+            _calibration(),
+            source.application_instance_id,
+        )
+        expected_ids = tuple(
+            item.scenario_execution_spec.scenario_id
+            for item in source.scenario_candidates
+        )
+        self.assertEqual(
+            tuple(
+                item.scenario_id
+                for item in (
+                    permit.application_authority.complete_scenario_execution_specs
+                )
+            ),
+            expected_ids,
+        )
+        self.assertEqual(
+            tuple(
+                item.scenario_id
+                for item in permit.application_authority.scenario_authorities
+            ),
+            expected_ids,
+        )
+
+    def test_resigned_current_application_cannot_reorder_reviewed_tuple(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_v2_contracts import (
+            current_application_authority_v2_payload,
+        )
+
+        source = next(
+            item
+            for item in self.parent.current_application_authorities
+            if item.control_case_id
+            == "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL"
+        )
+        provisional = replace(
+            source,
+            complete_scenario_execution_specs=tuple(
+                reversed(source.complete_scenario_execution_specs)
+            ),
+            application_authority_sha=SHA0,
+        )
+        attacked = replace(
+            provisional,
+            application_authority_sha=canonical_sha(
+                current_application_authority_v2_payload(provisional)
+            ),
+        )
+        parent = SimpleNamespace(
+            **{
+                **vars(self.parent),
+                "current_application_authorities": tuple(
+                    attacked if item is source else item
+                    for item in self.parent.current_application_authorities
+                ),
+            }
+        )
+
+        with self.assertRaisesRegex(ValueError, "reviewed candidate|spliced"):
+            _expected_calibration_application_permit_v2(
+                parent,
+                _calibration(),
+                attacked.application_instance_id,
+            )
+
+    def test_real_c01_c03_selected_lanes_still_cannot_receive_permits(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+
+        for source in self.candidate.application_candidates[:3]:
+            with self.subTest(control_case_id=source.control_case_id):
+                with self.assertRaisesRegex(ValueError, "selected calibration"):
+                    _expected_calibration_application_permit_v2(
+                        self.parent,
+                        _calibration(),
+                        source.application_instance_id,
+                    )
 
 
 class CalibrationApplicationPermitV2CapabilityTests(unittest.TestCase):
