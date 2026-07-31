@@ -94,15 +94,27 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
     ) -> None:
         for order in (256, 512, 1024, 2048, 4096, 8192):
             with self.subTest(order=order, scenario="phase"):
-                actual = self._cross_response(math.pi / 4.0, order)
-                ablated = self._cross_response(-math.pi / 4.0, order)
-                self.assertLessEqual(abs(actual + ablated), 1.0e-12)
-                self.assertGreater(abs(actual), 0.49)
+                y0_matched_ablated = self._cross_response(
+                    -math.pi / 4.0,
+                    order,
+                )
+                y1_actual = self._cross_response(math.pi / 4.0, order)
+                self.assertLessEqual(
+                    abs(y0_matched_ablated + y1_actual),
+                    1.0e-12,
+                )
+                self.assertGreater(abs(y1_actual), 0.49)
             with self.subTest(order=order, scenario="gain"):
-                actual = self._cross_response(math.pi / 4.0, order)
-                ablated = self._cross_response(math.pi / 12.0, order)
-                self.assertLessEqual(abs(actual - 2.0 * ablated), 1.0e-12)
-                self.assertGreater(abs(ablated), 0.24)
+                y0_matched_ablated = self._cross_response(
+                    math.pi / 4.0,
+                    order,
+                )
+                y1_actual = self._cross_response(math.pi / 12.0, order)
+                self.assertLessEqual(
+                    abs(y0_matched_ablated - 2.0 * y1_actual),
+                    1.0e-12,
+                )
+                self.assertGreater(abs(y1_actual), 0.24)
             for theta in (
                 -math.pi / 4.0,
                 math.pi / 12.0,
