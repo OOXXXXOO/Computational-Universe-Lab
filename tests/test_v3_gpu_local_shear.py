@@ -404,6 +404,30 @@ def test_program_and_state_validation_fail_closed() -> None:
         runner(state[:0])
 
 
+@pytest.mark.parametrize(
+    "coefficient",
+    [
+        np.complex64(0.5 + 0.25j),
+        np.float32(0.5),
+        0.5,
+        1,
+        True,
+    ],
+    ids=("complex64", "float32", "float", "int", "bool"),
+)
+def test_coefficient_requires_exact_builtin_complex(coefficient) -> None:
+    api = _api()
+
+    with pytest.raises(TypeError, match="built-in complex"):
+        api.LocalShearStep(
+            operation_id="local_canonical_shear",
+            source_index=0,
+            destination_index=1,
+            offset=(0, 0),
+            coefficient=coefficient,
+        )
+
+
 def test_neutral_identity_is_a_copy_and_does_not_change_state() -> None:
     api = _api()
     program = api.LocalShearProgram(

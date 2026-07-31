@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import math
-from numbers import Complex
 from typing import Callable, Tuple
 
 import numpy as np
@@ -44,14 +43,13 @@ class LocalShearStep:
         for axis, coordinate in enumerate(self.offset):
             if type(coordinate) is not int:
                 raise TypeError(f"offset[{axis}] must be an integer")
-        if not isinstance(self.coefficient, Complex):
-            raise TypeError("coefficient must be a complex scalar")
-        coefficient = complex(self.coefficient)
+        if type(self.coefficient) is not complex:
+            raise TypeError("coefficient must be an exact built-in complex")
+        coefficient = self.coefficient
         if not math.isfinite(coefficient.real) or not math.isfinite(
             coefficient.imag
         ):
             raise ValueError("coefficient must be finite")
-        object.__setattr__(self, "coefficient", coefficient)
         if self.operation_id == _LOCAL_OPERATION:
             if self.source_index == self.destination_index:
                 raise ValueError("local shear channels must differ")
