@@ -5,12 +5,229 @@ from __future__ import annotations
 import copy
 import inspect
 from dataclasses import fields, replace
+from types import SimpleNamespace
 import unittest
+from unittest import mock
 
 import numpy as np
 
 
 class ApplicationMaterializationV2ContractTests(unittest.TestCase):
+    def _c04_private_upstream(self):
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_freeze import (
+            build_v3m0_parent_freeze_candidate,
+            issue_v3m0_parent_freeze,
+        )
+        from rulespace_v3.parent_freeze_v2 import (
+            _build_reviewed_unchanged_scenario_authorities,
+        )
+        from rulespace_v3.parent_v2_contracts import (
+            CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION,
+            CurrentApplicationAuthorityV2,
+            current_application_authority_v2_payload,
+        )
+
+        historical = issue_v3m0_parent_freeze().manifest
+        candidate = build_v3m0_parent_freeze_candidate()
+        scenario = next(
+            item
+            for item in _build_reviewed_unchanged_scenario_authorities()
+            if item.control_case_id == "C04_CANONICAL_ANGLE_025_075"
+        )
+        candidate_application = next(
+            item
+            for item in candidate.application_candidates
+            if item.control_case_id == scenario.control_case_id
+        )
+        provisional = CurrentApplicationAuthorityV2(
+            application_authority_schema_version=(
+                CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION
+            ),
+            authority_state="CURRENT_REVIEWED_APPLICATION",
+            control_case_id=scenario.control_case_id,
+            application_instance_id=scenario.application_instance_id,
+            based_on_application_spec_sha=scenario.based_on_application_spec_sha,
+            source_candidate_v1_application_sha=(
+                candidate_application.candidate_application_sha
+            ),
+            complete_scenario_execution_specs=tuple(
+                item.scenario_execution_spec
+                for item in candidate_application.scenario_candidates
+            ),
+            scenario_authorities=(scenario,),
+            application_authority_sha="0" * 64,
+        )
+        application = replace(
+            provisional,
+            application_authority_sha=canonical_sha(
+                current_application_authority_v2_payload(provisional)
+            ),
+        )
+        parent_sha = "a" * 64
+        parent_manifest = SimpleNamespace(
+            parent_freeze_v2_sha=parent_sha,
+            historical_parent_v1=historical,
+            reviewed_candidate_v1=candidate,
+            reviewed_candidate_v2=None,
+            current_application_authorities=(application,),
+        )
+        permit = SimpleNamespace(
+            parent_freeze_v2_sha=parent_sha,
+            permit_sha="b" * 64,
+            control_case_id=application.control_case_id,
+            application_authority=application,
+            scenario_authority_shas=(scenario.scenario_authority_sha,),
+            selected_fejer_order=256,
+        )
+        return parent_manifest, permit, scenario
+
+    def _c05_private_upstream(self):
+        from rulespace_v3.c05_projector_recipe import (
+            C05_PROJECTOR_RECIPE_STATE,
+            build_c05_projector_orientation_recipe,
+        )
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_candidate_v2 import (
+            PARENT_CANDIDATE_V2_BINDING_SCHEMA_VERSION,
+            CandidateConstructionPreflightBinding,
+            _build_scenario_refreeze,
+            _C05_RECIPE_COMMIT_SHA,
+            _C05_RECIPE_SOURCE_PATH,
+            _C05_RECIPE_SOURCE_SHA,
+            _finish_binding,
+        )
+        from rulespace_v3.parent_freeze import (
+            build_v3m0_parent_freeze_candidate,
+            issue_v3m0_parent_freeze,
+        )
+        from rulespace_v3.parent_freeze_v2 import (
+            _build_response_contract_from_refreeze,
+        )
+        from rulespace_v3.parent_v2_contracts import (
+            CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION,
+            CURRENT_SCENARIO_AUTHORITY_SCHEMA_VERSION,
+            CurrentApplicationAuthorityV2,
+            CurrentScenarioAuthorityV2,
+            current_application_authority_v2_payload,
+            current_scenario_authority_v2_payload,
+        )
+
+        historical = issue_v3m0_parent_freeze().manifest
+        candidate = build_v3m0_parent_freeze_candidate()
+        candidate_application = next(
+            item
+            for item in candidate.application_candidates
+            if item.control_case_id == "C05_PHASE_AND_SCALAR_GAIN"
+        )
+        authorities = []
+        refreezes = []
+        for candidate_scenario in candidate_application.scenario_candidates:
+            execution = candidate_scenario.scenario_execution_spec
+            if execution.execution_lane != "BLOCK_SUCCESS":
+                continue
+            kind = "phase" if execution.scenario_id.endswith(".phase.v1") else "gain"
+            recipe = build_c05_projector_orientation_recipe(kind)
+            binding = _finish_binding(
+                CandidateConstructionPreflightBinding(
+                    binding_schema_version=(PARENT_CANDIDATE_V2_BINDING_SCHEMA_VERSION),
+                    scenario_id=execution.scenario_id,
+                    preflight_kind="C05_PROJECTOR_RECIPE",
+                    source_path=_C05_RECIPE_SOURCE_PATH,
+                    source_sha=_C05_RECIPE_SOURCE_SHA,
+                    source_commit_sha=_C05_RECIPE_COMMIT_SHA,
+                    candidate_v1_sha=candidate.candidate_sha,
+                    candidate_application_sha=(
+                        candidate_application.candidate_application_sha
+                    ),
+                    candidate_scenario_sha=(candidate_scenario.candidate_scenario_sha),
+                    scenario_execution_spec_sha=execution.scenario_sha,
+                    based_on_application_spec_sha=(
+                        candidate_scenario.based_on_application_spec_sha
+                    ),
+                    preflight_state=C05_PROJECTOR_RECIPE_STATE,
+                    preflight_artifact_sha=recipe.recipe_sha,
+                    derivation_or_recipe_sha=recipe.recipe_sha,
+                    binding_sha="0" * 64,
+                )
+            )
+            refreeze = _build_scenario_refreeze(candidate, binding)
+            response = _build_response_contract_from_refreeze(refreeze)
+            provisional = CurrentScenarioAuthorityV2(
+                scenario_authority_schema_version=(
+                    CURRENT_SCENARIO_AUTHORITY_SCHEMA_VERSION
+                ),
+                authority_state="CURRENT_REVIEWED_SCENARIO",
+                control_case_id=candidate_application.control_case_id,
+                application_instance_id=(candidate_application.application_instance_id),
+                based_on_application_spec_sha=(
+                    candidate_application.based_on_application_spec_sha
+                ),
+                scenario_id=execution.scenario_id,
+                scenario_execution_spec=execution,
+                source_disposition="CANDIDATE_V2_REVIEWED_MODIFIED",
+                source_candidate_v1_scenario_sha=(
+                    candidate_scenario.candidate_scenario_sha
+                ),
+                source_candidate_v2_refreeze_sha=refreeze.scenario_refreeze_sha,
+                response_contract=response,
+                scenario_authority_sha="0" * 64,
+            )
+            authorities.append(
+                replace(
+                    provisional,
+                    scenario_authority_sha=canonical_sha(
+                        current_scenario_authority_v2_payload(provisional)
+                    ),
+                )
+            )
+            refreezes.append(refreeze)
+        application_provisional = CurrentApplicationAuthorityV2(
+            application_authority_schema_version=(
+                CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION
+            ),
+            authority_state="CURRENT_REVIEWED_APPLICATION",
+            control_case_id=candidate_application.control_case_id,
+            application_instance_id=candidate_application.application_instance_id,
+            based_on_application_spec_sha=(
+                candidate_application.based_on_application_spec_sha
+            ),
+            source_candidate_v1_application_sha=(
+                candidate_application.candidate_application_sha
+            ),
+            complete_scenario_execution_specs=tuple(
+                item.scenario_execution_spec
+                for item in candidate_application.scenario_candidates
+            ),
+            scenario_authorities=tuple(authorities),
+            application_authority_sha="0" * 64,
+        )
+        application = replace(
+            application_provisional,
+            application_authority_sha=canonical_sha(
+                current_application_authority_v2_payload(application_provisional)
+            ),
+        )
+        parent_sha = "d" * 64
+        parent_manifest = SimpleNamespace(
+            parent_freeze_v2_sha=parent_sha,
+            historical_parent_v1=historical,
+            reviewed_candidate_v1=candidate,
+            reviewed_candidate_v2=SimpleNamespace(scenario_refreezes=tuple(refreezes)),
+            current_application_authorities=(application,),
+        )
+        permit = SimpleNamespace(
+            parent_freeze_v2_sha=parent_sha,
+            permit_sha="e" * 64,
+            control_case_id=application.control_case_id,
+            application_authority=application,
+            scenario_authority_shas=tuple(
+                item.scenario_authority_sha for item in authorities
+            ),
+            selected_fejer_order=256,
+        )
+        return parent_manifest, permit, tuple(authorities)
+
     def _resign_step(self, value):
         from rulespace_v3.application_materialization_v2 import (
             scenario_local_shear_step_v2_payload,
@@ -269,7 +486,9 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
             dt=0.125,
             target_blind_parameters=(("selected_fejer_order", 256.0),),
             boundary_manifest_id="periodic-v1",
-            actual_step_shas=tuple(item.step_sha for item in actual_effect.ordered_steps),
+            actual_step_shas=tuple(
+                item.step_sha for item in actual_effect.ordered_steps
+            ),
             matched_ablated_step_shas=tuple(
                 item.step_sha for item in matched_effect.ordered_steps
             ),
@@ -372,7 +591,9 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
         ):
             self.assertIn(required, names)
         self.assertEqual(
-            tuple(inspect.signature(materialize_v3m0_application_scenario_v2).parameters),
+            tuple(
+                inspect.signature(materialize_v3m0_application_scenario_v2).parameters
+            ),
             ("formal_parent_v2", "permit_v2", "scenario_id"),
         )
         self.assertEqual(
@@ -383,7 +604,9 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
             ),
             ("value",),
         )
-        self.assertFalse(hasattr(VerifiedV3M0ApplicationScenarioMaterializationV2, "hydrate"))
+        self.assertFalse(
+            hasattr(VerifiedV3M0ApplicationScenarioMaterializationV2, "hydrate")
+        )
 
     def test_delayed_permit_wiring_uses_v2_public_consumer(self) -> None:
         from rulespace_v3.application_authority_v2 import (
@@ -399,6 +622,211 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
                 object.__new__(VerifiedParentFreezeV2),
                 object.__new__(VerifiedCalibrationApplicationPermitV2),
             )
+
+    def test_private_replayer_compiles_c04_to_the_live_matched_pair(self) -> None:
+        import rulespace_v3.application_materialization_v2 as materialization_v2
+        from rulespace_v3.factory import _reverify_verified_factory
+
+        self.assertTrue(
+            hasattr(materialization_v2, "_make_expected_live_materialization_v2"),
+            "private dependency-injected exact replayer is not implemented",
+        )
+        _make_expected_live_materialization_v2 = (
+            materialization_v2._make_expected_live_materialization_v2
+        )
+
+        parent_manifest, permit, scenario = self._c04_private_upstream()
+        parent_token = object()
+        permit_token = object()
+        replayer = _make_expected_live_materialization_v2(
+            lambda parent, live_permit: (
+                (
+                    parent_manifest,
+                    permit,
+                )
+                if (parent, live_permit) == (parent_token, permit_token)
+                else (_ for _ in ()).throw(ValueError("unexpected injected upstream"))
+            )
+        )
+
+        replay = replayer(parent_token, permit_token, scenario.scenario_id)
+        body = replay.materialization
+        actual = _reverify_verified_factory(replay.actual_factory)
+        matched = _reverify_verified_factory(replay.matched_ablated_factory)
+
+        self.assertEqual(
+            body.formal_parent_v2_sha, parent_manifest.parent_freeze_v2_sha
+        )
+        self.assertEqual(body.permit_v2_sha, permit.permit_sha)
+        self.assertEqual(body.scenario_authority_sha, scenario.scenario_authority_sha)
+        self.assertEqual(
+            body.response_contract_sha,
+            scenario.response_contract.response_contract_sha,
+        )
+        self.assertEqual(actual.role, "actual")
+        self.assertEqual(matched.role, "matched_ablated")
+        self.assertIs(replay.ablation_outcome.pair.actual, replay.actual_factory)
+        self.assertIs(
+            replay.ablation_outcome.pair.ablated,
+            replay.matched_ablated_factory,
+        )
+        self.assertEqual(
+            actual.factory.factory_sha,
+            body.actual_factory_binding.factory_sha,
+        )
+        self.assertEqual(
+            matched.factory.factory_sha,
+            body.matched_ablated_factory_binding.factory_sha,
+        )
+
+    def test_private_replayer_rejects_parent_application_and_scenario_splices(
+        self,
+    ) -> None:
+        from rulespace_v3.application_materialization_v2 import (
+            _make_expected_live_materialization_v2,
+        )
+
+        parent_manifest, permit, scenario = self._c04_private_upstream()
+
+        def replay_with(candidate_permit):
+            return _make_expected_live_materialization_v2(
+                lambda parent, live_permit: (parent_manifest, candidate_permit)
+            )(object(), object(), scenario.scenario_id)
+
+        with self.assertRaisesRegex(ValueError, "Parent-v2 roots"):
+            replay_with(
+                SimpleNamespace(
+                    **{
+                        **vars(permit),
+                        "parent_freeze_v2_sha": "c" * 64,
+                    }
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "permit-v2 body"):
+            replay_with(
+                SimpleNamespace(
+                    **{
+                        **vars(permit),
+                        "control_case_id": "C99_HOSTILE_SPLICE",
+                    }
+                )
+            )
+        with self.assertRaisesRegex(ValueError, "BLOCK_SUCCESS scenario"):
+            _make_expected_live_materialization_v2(
+                lambda parent, live_permit: (parent_manifest, permit)
+            )(object(), object(), "v3m0.hostile.cross-scenario")
+
+        hostile_application = replace(
+            permit.application_authority,
+            application_authority_sha="f" * 64,
+        )
+        hostile_parent = SimpleNamespace(
+            **{
+                **vars(parent_manifest),
+                "current_application_authorities": (hostile_application,),
+            }
+        )
+        hostile_permit = SimpleNamespace(
+            **{
+                **vars(permit),
+                "application_authority": hostile_application,
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "application-authority SHA"):
+            _make_expected_live_materialization_v2(
+                lambda parent, live_permit: (hostile_parent, hostile_permit)
+            )(object(), object(), scenario.scenario_id)
+
+    def test_private_replayer_compiles_reviewed_candidate_v2_recipe(self) -> None:
+        from rulespace_v3.application_materialization_v2 import (
+            _make_expected_live_materialization_v2,
+        )
+
+        parent_manifest, permit, authorities = self._c05_private_upstream()
+        scenario = authorities[0]
+        replay = _make_expected_live_materialization_v2(
+            lambda parent, live_permit: (parent_manifest, permit)
+        )(object(), object(), scenario.scenario_id)
+
+        self.assertEqual(
+            replay.materialization.scenario_id,
+            scenario.scenario_id,
+        )
+        self.assertEqual(
+            replay.materialization.scenario_recipe.operation_dag_sha,
+            scenario.response_contract.operation_dag_sha,
+        )
+        self.assertIs(replay.ablation_outcome.pair.actual, replay.actual_factory)
+        self.assertIs(
+            replay.ablation_outcome.pair.ablated,
+            replay.matched_ablated_factory,
+        )
+
+    def test_private_replayer_rejects_candidate_v2_refreeze_splices(self) -> None:
+        from rulespace_v3.application_materialization_v2 import (
+            _make_expected_live_materialization_v2,
+        )
+
+        parent_manifest, permit, authorities = self._c05_private_upstream()
+        scenario = authorities[0]
+        refreezes = parent_manifest.reviewed_candidate_v2.scenario_refreezes
+
+        cross_scenario_parent = SimpleNamespace(
+            **{
+                **vars(parent_manifest),
+                "reviewed_candidate_v2": SimpleNamespace(
+                    scenario_refreezes=(refreezes[1],)
+                ),
+            }
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            "candidate-v2 scenario refreeze does not resolve",
+        ):
+            _make_expected_live_materialization_v2(
+                lambda parent, live_permit: (
+                    cross_scenario_parent,
+                    permit,
+                )
+            )(object(), object(), scenario.scenario_id)
+
+        drifted_refreeze = replace(
+            refreezes[0],
+            scenario_refreeze_sha="f" * 64,
+        )
+        hash_drift_parent = SimpleNamespace(
+            **{
+                **vars(parent_manifest),
+                "reviewed_candidate_v2": SimpleNamespace(
+                    scenario_refreezes=(drifted_refreeze, refreezes[1])
+                ),
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "scenario-refreeze SHA"):
+            _make_expected_live_materialization_v2(
+                lambda parent, live_permit: (hash_drift_parent, permit)
+            )(object(), object(), scenario.scenario_id)
+
+    def test_public_api_captures_its_fail_closed_replayer(self) -> None:
+        import rulespace_v3.application_materialization_v2 as materialization_v2
+
+        with mock.patch.object(
+            materialization_v2,
+            "_expected_live_materialization_v2",
+            side_effect=AssertionError("module-global rebind was consumed"),
+        ) as rebound:
+            with self.assertRaises(
+                (
+                    TypeError,
+                    materialization_v2.ApplicationMaterializationV2UpstreamUnavailable,
+                )
+            ):
+                materialization_v2.materialize_v3m0_application_scenario_v2(
+                    object(),
+                    object(),
+                    "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1",
+                )
+        rebound.assert_not_called()
 
     def test_exact_body_replays_scenario_selectors_and_factories(self) -> None:
         from rulespace_v3.application_materialization_v2 import (
@@ -575,10 +1003,15 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
                 object.__new__(VerifiedCalibrationApplicationPermit),
             ),
             (object.__new__(ParentFreezeCandidateV2Manifest), self._body()),
-            (self._body(), object.__new__(VerifiedV3M0ApplicationScenarioMaterialization)),
+            (
+                self._body(),
+                object.__new__(VerifiedV3M0ApplicationScenarioMaterialization),
+            ),
         )
         for parent, permit in foreign_pairs:
-            with self.subTest(parent=type(parent).__name__, permit=type(permit).__name__):
+            with self.subTest(
+                parent=type(parent).__name__, permit=type(permit).__name__
+            ):
                 with self.assertRaises((TypeError, ValueError, RuntimeError)):
                     materialize_v3m0_application_scenario_v2(
                         parent,
