@@ -6,8 +6,8 @@ audited with :func:`verify_application_scenario_response_protocol_v2_body`,
 but they cannot be promoted.  Issuance is closed over the exact live
 Parent-v2, permit-v2 and materialization-v2 replayers.  The exact compiler is
 dependency-injected and audits the complete upstream lineage before returning
-any body.  Public issuance still fails closed while the live materialization
-and repository-closed analytic input resolver are unavailable.
+any body.  Public issuance still fails closed while the cross-module live
+identity bridge and repository-closed complete input resolver are unavailable.
 
 No measured response, singular value, verdict, threshold override or caller
 supplied numerical construction enters the issuer API.
@@ -30,11 +30,17 @@ from .factory import (
     FrozenComplexTensor,
     basis_manifest_array,
     basis_manifest_payload,
+    freeze_complex_tensor,
     frozen_tensor_array,
     frozen_tensor_payload,
     verify_basis_manifest,
     verify_frozen_tensor,
 )
+from .grids import (
+    build_application_bridge_grid_manifest,
+    build_response_grid_manifest,
+)
+from .thresholds import BRIDGE_TOLERANCE
 
 
 SCENARIO_RESPONSE_MOMENTUM_WIRE_V2_SCHEMA_VERSION = (
@@ -260,7 +266,7 @@ class ScenarioResponseMomentumWireV2:
     expected_matched_shell_rank: int
     curvature_incidence_family_id: Literal[
         "identity-incidence-v1",
-        "discrete-laplacian-incidence-v1",
+        "synthetic-lattice-laplacian-incidence-v1",
     ]
     curvature_incidence_operator: FrozenComplexTensor
     curvature_normalizer_formula_id: str
@@ -720,6 +726,47 @@ class ApplicationScenarioResponseProtocolV2:
         _positive_float(self.bridge_tolerance, "bridge_tolerance")
 
 
+@dataclass(frozen=True)
+class ExpectedScenarioProtocolInputs:
+    """Complete upstream-derived inputs consumed by the exact compiler."""
+
+    response_grid_sha: str
+    source_bridge_grid_sha: str
+    readout_bridge_grid_sha: str
+    bridge_tolerance: float
+    source_metric_whitener: FrozenComplexTensor
+    h_metric_whitener: FrozenComplexTensor
+    curvature_metric_whitener: FrozenComplexTensor
+    momentum_wires: tuple[ScenarioResponseMomentumWireV2, ...]
+    geometry_bundle: Optional[ScenarioResponseGeometryBundleV2]
+
+    def __post_init__(self) -> None:
+        _exact_record(
+            self,
+            ExpectedScenarioProtocolInputs,
+            "expected scenario protocol inputs",
+        )
+        for field in (
+            "response_grid_sha",
+            "source_bridge_grid_sha",
+            "readout_bridge_grid_sha",
+        ):
+            _sha(getattr(self, field), field)
+        _positive_float(self.bridge_tolerance, "bridge_tolerance")
+        for value, field in (
+            (self.source_metric_whitener, "source_metric_whitener"),
+            (self.h_metric_whitener, "h_metric_whitener"),
+            (self.curvature_metric_whitener, "curvature_metric_whitener"),
+        ):
+            _matrix(value, field)
+        if type(self.momentum_wires) is not tuple or not self.momentum_wires:
+            raise ValueError("momentum_wires must be a non-empty exact tuple")
+        for wire in self.momentum_wires:
+            _verify_momentum_wire(wire)
+        if self.geometry_bundle is not None:
+            _verify_geometry_bundle(self.geometry_bundle)
+
+
 def application_scenario_response_protocol_v2_payload(
     protocol: ApplicationScenarioResponseProtocolV2,
 ) -> dict[str, object]:
@@ -892,6 +939,22 @@ def _verify_basis_and_selectors(
         raise ValueError("source_metric_whitener dimension drifted")
     if h_whitener.shape != (c_readout.shape[0], c_readout.shape[0]):
         raise ValueError("h_metric_whitener dimension drifted")
+    if type(protocol.momentum_wires) is not tuple:
+        raise TypeError("momentum_wires must be an exact tuple")
+    for wire in protocol.momentum_wires:
+        incidence = _matrix(
+            wire.curvature_incidence_operator,
+            "curvature_incidence_operator",
+        )
+        if incidence.shape[1] != h_whitener.shape[0]:
+            raise ValueError(
+                "h_metric_whitener dimension does not match incidence input"
+            )
+        if incidence.shape[0] != curvature_whitener.shape[0]:
+            raise ValueError(
+                "curvature_metric_whitener dimension does not match "
+                "incidence output"
+            )
     for value, field in (
         (source_whitener, "source_metric_whitener"),
         (h_whitener, "h_metric_whitener"),
@@ -1050,6 +1113,252 @@ def _unique_by_identifier(
     if len(matches) != 1:
         raise ValueError(f"{field} does not resolve to exactly one live body")
     return matches[0]
+
+
+def _restrict_metric_whitener(
+    common_whitener: FrozenComplexTensor,
+    scenario_embedding: np.ndarray,
+    *,
+    field: str,
+    tensor_builder=freeze_complex_tensor,
+) -> FrozenComplexTensor:
+    """Return the canonical positive whitener of an induced metric.
+
+    ``scenario_embedding`` maps scenario coordinates into the historical
+    common coordinate space.  Restricting the metric, rather than slicing or
+    substituting an identity, keeps non-trivial historical calibration data
+    visible after a scenario selector is applied.
+    """
+
+    common = _matrix(common_whitener, f"historical {field}")
+    if type(scenario_embedding) is not np.ndarray:
+        raise TypeError(f"{field} embedding must be a NumPy ndarray")
+    if (
+        scenario_embedding.dtype != np.dtype(np.complex128)
+        or scenario_embedding.ndim != 2
+        or any(size <= 0 for size in scenario_embedding.shape)
+    ):
+        raise ValueError(f"{field} embedding must be a non-empty complex128 matrix")
+    if common.shape[1] != scenario_embedding.shape[0]:
+        raise ValueError(f"{field} embedding common dimension drifted")
+    metric = (
+        scenario_embedding.conj().T
+        @ common.conj().T
+        @ common
+        @ scenario_embedding
+    )
+    _require_hermitian_positive(metric, f"restricted {field} metric")
+    eigenvalues, eigenvectors = np.linalg.eigh(metric)
+    root = np.asarray(
+        (eigenvectors * np.sqrt(eigenvalues)) @ eigenvectors.conj().T,
+        dtype=np.complex128,
+    )
+    _require_hermitian_positive(root, f"restricted {field} whitener")
+    if (
+        _spectral_residual(root.conj().T @ root - metric)
+        > SELECTOR_RESIDUAL_TOLERANCE
+    ):
+        raise ValueError(f"restricted {field} whitener does not factor its metric")
+    return tensor_builder(root)
+
+
+def _build_expected_scenario_protocol_inputs(
+    parent_body: object,
+    permit_body: object,
+    materialization_body: object,
+    *,
+    momentum_wires: tuple[ScenarioResponseMomentumWireV2, ...],
+    geometry_bundle: Optional[ScenarioResponseGeometryBundleV2],
+    unique_by_identifier=_unique_by_identifier,
+    lineage_equal=_lineage_equal,
+    response_grid_builder=build_response_grid_manifest,
+    bridge_grid_builder=build_application_bridge_grid_manifest,
+    metric_restrictor=_restrict_metric_whitener,
+) -> ExpectedScenarioProtocolInputs:
+    """Derive every structural protocol input from the reviewed lineage.
+
+    Momentum and geometry remain supplied by the separate analytic resolver;
+    this helper composes them with grids, threshold and metric restrictions
+    that can be reconstructed mechanically from Parent-v1 plus the live
+    scenario recipe.  It is private dependency injection only and is not a
+    repository issuance fallback.
+    """
+
+    application = permit_body.application_authority
+    historical_application = unique_by_identifier(
+        parent_body.historical_parent_v1.synthetic_control_application_specs,
+        materialization_body.application_instance_id,
+        "application_instance_id",
+    )
+    for observed, expected, field in (
+        (
+            historical_application.control_case_id,
+            application.control_case_id,
+            "historical control case",
+        ),
+        (
+            historical_application.application_spec_sha,
+            application.based_on_application_spec_sha,
+            "historical application spec SHA",
+        ),
+        (
+            historical_application.application_instance_id,
+            materialization_body.application_instance_id,
+            "historical application instance",
+        ),
+    ):
+        lineage_equal(observed, expected, field)
+
+    scenario = unique_by_identifier(
+        application.scenario_authorities,
+        materialization_body.scenario_id,
+        "scenario_id",
+    )
+    response = scenario.response_contract
+    response_grid = response_grid_builder(historical_application)
+    bridge_grid = bridge_grid_builder(historical_application)
+    grid_protocol = historical_application.grid_protocol
+    for observed, expected, field in (
+        (
+            response.response_torus_denominators,
+            response_grid.torus_denominators,
+            "response grid torus",
+        ),
+        (
+            response.response_reciprocal_indices,
+            response_grid.reciprocal_indices,
+            "response grid indices",
+        ),
+        (
+            response.source_readout_bridge_reciprocal_indices,
+            bridge_grid.reciprocal_indices,
+            "source/readout bridge indices",
+        ),
+        (
+            response.source_readout_bridge_steps,
+            grid_protocol.bridge_steps,
+            "source/readout bridge steps",
+        ),
+        (
+            response.reference_reciprocal_index,
+            grid_protocol.reference_reciprocal_index,
+            "reference reciprocal index",
+        ),
+        (
+            materialization_body.construction_trace.state_shape[1:],
+            bridge_grid.spatial_shape,
+            "bridge spatial shape",
+        ),
+    ):
+        lineage_equal(observed, expected, field)
+
+    basis_protocol = historical_application.basis_protocol
+    for observed, expected, field in (
+        (
+            materialization_body.common_source_basis,
+            basis_protocol.source_basis,
+            "historical common source basis",
+        ),
+        (
+            materialization_body.common_readout_basis,
+            basis_protocol.readout_basis,
+            "historical common readout basis",
+        ),
+    ):
+        lineage_equal(observed, expected, field)
+
+    recipe = materialization_body.scenario_recipe
+    c_source = _matrix(recipe.source_selector, "source_selector")
+    c_readout = _matrix(recipe.readout_selector, "readout_selector")
+    b_source = basis_manifest_array(materialization_body.common_source_basis)
+    w_readout = basis_manifest_array(materialization_body.common_readout_basis)
+    expected_injection = b_source.T @ c_source
+    expected_coisometry = c_readout @ np.conjugate(w_readout)
+    if not np.array_equal(
+        frozen_tensor_array(materialization_body.scenario_source_injection),
+        expected_injection,
+    ):
+        raise ValueError("source injection is not historical B_source.T @ C_source")
+    if not np.array_equal(
+        frozen_tensor_array(materialization_body.scenario_readout_coisometry),
+        expected_coisometry,
+    ):
+        raise ValueError(
+            "readout coisometry is not historical C_readout @ conj(W_readout)"
+        )
+
+    readout_protocol = historical_application.readout_protocol
+    source_whitener = metric_restrictor(
+        readout_protocol.source_metric_whitener,
+        c_source,
+        field="source metric",
+    )
+    h_whitener = metric_restrictor(
+        readout_protocol.h_metric_whitener,
+        np.asarray(c_readout.conj().T, dtype=np.complex128),
+        field="h metric",
+    )
+    common_incidence = _matrix(
+        readout_protocol.curvature_incidence_operator,
+        "historical curvature incidence operator",
+    )
+    normalized_incidence = common_incidence @ c_readout.conj().T
+    curvature_embedding = np.eye(
+        normalized_incidence.shape[0],
+        dtype=np.complex128,
+    )
+    curvature_whitener = metric_restrictor(
+        readout_protocol.curvature_metric_whitener,
+        curvature_embedding,
+        field="curvature metric",
+    )
+    if type(momentum_wires) is not tuple or not momentum_wires:
+        raise ValueError("analytic momentum resolver returned no exact wires")
+    for wire in momentum_wires:
+        _verify_momentum_wire(wire)
+        expected_incidence = (
+            np.float64(wire.curvature_normalizer_value) * normalized_incidence
+        )
+        if not np.array_equal(
+            frozen_tensor_array(wire.curvature_incidence_operator),
+            expected_incidence,
+        ):
+            raise ValueError(
+                "analytic momentum incidence is not the historical restriction"
+            )
+        if not np.array_equal(
+            frozen_tensor_array(
+                wire.normalized_curvature_incidence_operator
+            ),
+            normalized_incidence,
+        ):
+            raise ValueError(
+                "normalized momentum incidence is not the historical restriction"
+            )
+        if (
+            normalized_incidence.shape[1]
+            != frozen_tensor_array(h_whitener).shape[0]
+        ):
+            raise ValueError("h metric does not match incidence input dimension")
+        if (
+            normalized_incidence.shape[0]
+            != frozen_tensor_array(curvature_whitener).shape[0]
+        ):
+            raise ValueError(
+                "curvature metric does not match incidence output dimension"
+            )
+
+    return ExpectedScenarioProtocolInputs(
+        response_grid_sha=response_grid.response_grid_sha,
+        source_bridge_grid_sha=bridge_grid.bridge_grid_sha,
+        readout_bridge_grid_sha=bridge_grid.bridge_grid_sha,
+        bridge_tolerance=BRIDGE_TOLERANCE,
+        source_metric_whitener=source_whitener,
+        h_metric_whitener=h_whitener,
+        curvature_metric_whitener=curvature_whitener,
+        momentum_wires=momentum_wires,
+        geometry_bundle=geometry_bundle,
+    )
 
 
 def _verify_exact_protocol_upstream_lineage(
@@ -1429,7 +1738,7 @@ def _make_exact_scenario_response_protocol_compiler(
     permit_body_type: type,
     materialization_body_type: type,
     protocol_body_builder,
-    analytic_lineage_resolver,
+    expected_inputs_resolver,
     protocol_body_verifier=verify_application_scenario_response_protocol_v2_body,
     upstream_lineage_verifier=_verify_exact_protocol_upstream_lineage,
     lineage_equal=_lineage_equal,
@@ -1439,7 +1748,8 @@ def _make_exact_scenario_response_protocol_compiler(
     ``protocol_body_builder`` is deliberately private dependency injection.
     Public issuance never exposes it, so tests can exercise a positive exact
     compilation without creating a caller-controlled production hydration
-    path while the analytic resolver is still under construction.
+    path while the complete expected-input resolver is still under
+    construction.
     """
 
     for value, field in (
@@ -1451,7 +1761,7 @@ def _make_exact_scenario_response_protocol_compiler(
             raise TypeError(f"{field} must be an exact class")
     if (
         not callable(protocol_body_builder)
-        or not callable(analytic_lineage_resolver)
+        or not callable(expected_inputs_resolver)
         or not callable(protocol_body_verifier)
         or not callable(upstream_lineage_verifier)
         or not callable(lineage_equal)
@@ -1474,28 +1784,39 @@ def _make_exact_scenario_response_protocol_compiler(
             permit_body,
             materialization_body,
         )
-        analytic_lineage = analytic_lineage_resolver(
+        expected_inputs = expected_inputs_resolver(
             parent_body,
             permit_body,
             materialization_body,
         )
-        if type(analytic_lineage) is not tuple or len(analytic_lineage) != 2:
+        if type(expected_inputs) is not ExpectedScenarioProtocolInputs:
             raise TypeError(
-                "analytic lineage resolver must return an exact wires/bundle pair"
+                "expected input resolver must return exact "
+                "ExpectedScenarioProtocolInputs"
             )
-        expected_wires, expected_geometry = analytic_lineage
-        if type(expected_wires) is not tuple:
-            raise TypeError("analytic momentum lineage must be an exact tuple")
-        lineage_equal(
-            protocol.momentum_wires,
-            expected_wires,
-            "analytic momentum",
-        )
-        lineage_equal(
-            protocol.geometry_bundle,
-            expected_geometry,
-            "analytic geometry bundle",
-        )
+        expected_inputs.__post_init__()
+        for field in (
+            "response_grid_sha",
+            "source_bridge_grid_sha",
+            "readout_bridge_grid_sha",
+            "source_metric_whitener",
+            "h_metric_whitener",
+            "curvature_metric_whitener",
+            "momentum_wires",
+            "geometry_bundle",
+        ):
+            lineage_equal(
+                getattr(protocol, field),
+                getattr(expected_inputs, field),
+                field,
+            )
+        if not _fp64_equal(
+            protocol.bridge_tolerance,
+            expected_inputs.bridge_tolerance,
+        ):
+            raise ValueError(
+                "scenario response protocol bridge_tolerance lineage drifted"
+            )
         return protocol
 
     return compile_exact
@@ -1509,6 +1830,7 @@ def _make_live_scenario_response_protocol_replayer(
     parent_reverifier,
     permit_reverifier,
     materialization_reverifier,
+    upstream_relationship_verifier,
     exact_compiler,
 ):
     """Close exact live identities over the pure protocol compiler."""
@@ -1517,6 +1839,7 @@ def _make_live_scenario_response_protocol_replayer(
         parent_reverifier,
         permit_reverifier,
         materialization_reverifier,
+        upstream_relationship_verifier,
         exact_compiler,
     )
     if not all(callable(item) for item in dependencies):
@@ -1534,6 +1857,11 @@ def _make_live_scenario_response_protocol_replayer(
         parent_body = parent_reverifier(formal_parent_v2)
         permit_body = permit_reverifier(permit_v2)
         materialization_body = materialization_reverifier(materialization_v2)
+        upstream_relationship_verifier(
+            formal_parent_v2,
+            permit_v2,
+            materialization_v2,
+        )
         return exact_compiler(parent_body, permit_body, materialization_body)
 
     return replay
@@ -1573,14 +1901,25 @@ def _repository_closed_protocol_body_builder(
     )
 
 
-def _repository_closed_protocol_analytic_lineage(
+def _repository_closed_expected_protocol_inputs(
     parent_body: object,
     permit_body: object,
     materialization_body: object,
-) -> tuple[tuple[ScenarioResponseMomentumWireV2, ...], object]:
+) -> ExpectedScenarioProtocolInputs:
     del parent_body, permit_body, materialization_body
     raise ScenarioResponseProtocolUpstreamUnavailable(
-        "repository-closed momentum/geometry analytic lineage is not connected"
+        "repository-closed complete expected protocol inputs are not connected"
+    )
+
+
+def _repository_closed_live_relationship_verifier(
+    formal_parent_v2: object,
+    permit_v2: object,
+    materialization_v2: object,
+) -> None:
+    del formal_parent_v2, permit_v2, materialization_v2
+    raise ScenarioResponseProtocolUpstreamUnavailable(
+        "cross-module permit/materialization live-identity bridge is not connected"
     )
 
 
@@ -1607,8 +1946,8 @@ def _replay_from_live_upstream(
         permit_body_type=CalibrationApplicationPermitV2,
         materialization_body_type=ApplicationScenarioMaterializationV2,
         protocol_body_builder=_repository_closed_protocol_body_builder,
-        analytic_lineage_resolver=(
-            _repository_closed_protocol_analytic_lineage
+        expected_inputs_resolver=(
+            _repository_closed_expected_protocol_inputs
         ),
     )
     replay = _make_live_scenario_response_protocol_replayer(
@@ -1618,6 +1957,9 @@ def _replay_from_live_upstream(
         parent_reverifier=require_current_parent,
         permit_reverifier=require_permit,
         materialization_reverifier=require_materialization,
+        upstream_relationship_verifier=(
+            _repository_closed_live_relationship_verifier
+        ),
         exact_compiler=compiler,
     )
     return replay(formal_parent_v2, permit_v2, materialization_v2)

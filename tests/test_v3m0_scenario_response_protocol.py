@@ -22,6 +22,27 @@ SHA = "a" * 64
 
 
 class ScenarioResponseProtocolContractTests(unittest.TestCase):
+    @classmethod
+    def _historical_parent(cls):
+        from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
+
+        cached = getattr(cls, "_historical_parent_cache", None)
+        if cached is None:
+            cached = issue_v3m0_parent_freeze().manifest
+            cls._historical_parent_cache = cached
+        return cached
+
+    @classmethod
+    def _historical_application(cls, control_case_id):
+        applications = tuple(
+            item
+            for item in cls._historical_parent().synthetic_control_application_specs
+            if item.control_case_id == control_case_id
+        )
+        if len(applications) != 1:
+            raise AssertionError("test fixture did not resolve one historical application")
+        return applications[0]
+
     def _upstream_bodies(self, protocol):
         response_contract = SimpleNamespace(
             scenario_id=protocol.scenario_id,
@@ -71,6 +92,7 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         )
         parent = SimpleNamespace(
             parent_freeze_v2_sha=protocol.formal_parent_v2_sha,
+            historical_parent_v1=self._historical_parent(),
             current_application_authorities=(application_authority,),
         )
         permit = SimpleNamespace(
@@ -158,6 +180,19 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         )
         return parent, permit, materialization
 
+    def _expected_inputs(self, protocol, parent, permit, materialization):
+        from rulespace_v3.scenario_response_protocol import (
+            _build_expected_scenario_protocol_inputs,
+        )
+
+        return _build_expected_scenario_protocol_inputs(
+            parent,
+            permit,
+            materialization,
+            momentum_wires=protocol.momentum_wires,
+            geometry_bundle=protocol.geometry_bundle,
+        )
+
     def _resign_momentum(self, momentum):
         from rulespace_v3.evidence import canonical_sha
         from rulespace_v3.scenario_response_protocol import (
@@ -203,8 +238,14 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
     def _protocol(self, *, laplacian: bool = False, geometry: bool = True):
         from rulespace_v3.evidence import canonical_sha
         from rulespace_v3.factory import (
+            basis_manifest_array,
             build_basis_manifest,
             freeze_complex_tensor,
+            frozen_tensor_array,
+        )
+        from rulespace_v3.grids import (
+            build_application_bridge_grid_manifest,
+            build_response_grid_manifest,
         )
         from rulespace_v3.scenario_response_protocol import (
             APPLICATION_SCENARIO_RESPONSE_PROTOCOL_V2_SCHEMA_VERSION,
@@ -228,79 +269,170 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         )
         scenario_sha = "2" * 64
         recipe_sha = "3" * 64
-        channels = ("q", "p")
-        state_schema_id = "v3m0.test.state.v1"
-        common_source = build_basis_manifest(
-            role="source",
-            state_schema_id=state_schema_id,
-            channel_order=channels,
-            vectors=np.eye(2, dtype=np.complex128),
-        )
-        common_readout = build_basis_manifest(
-            role="readout",
-            state_schema_id=state_schema_id,
-            channel_order=channels,
-            vectors=np.asarray(((1j, 0.0), (0.0, 1.0)), dtype=np.complex128),
-        )
-        source_selector_values = np.asarray(((1.0,), (0.0,)), dtype=np.complex128)
-        readout_selector_values = np.asarray(((1.0, 0.0),), dtype=np.complex128)
-        source_injection_values = np.eye(2, dtype=np.complex128).T @ source_selector_values
-        executable_readout = np.conjugate(
-            np.asarray(((1j, 0.0), (0.0, 1.0)), dtype=np.complex128)
-        )
-        readout_values = readout_selector_values @ executable_readout
-
-        reciprocal_index = (1, 0)
-        momentum_values = (2.0 * math.pi / 8.0, 0.0)
         if laplacian:
-            normalizer = float(
-                4.0
-                * sum(
-                    np.sin(np.float64(value) / np.float64(2.0)) ** 2
-                    for value in momentum_values
+            application = self._historical_application(control_case_id)
+            common_source = application.basis_protocol.source_basis
+            common_readout = application.basis_protocol.readout_basis
+            channels = common_source.channel_order
+            state_schema_id = common_source.state_schema_id
+            source_selector_values = np.asarray(
+                (
+                    (1.0, 0.0),
+                    (0.0, 1.0),
+                    (0.0, 0.0),
+                    (0.0, 0.0),
+                ),
+                dtype=np.complex128,
+            )
+            readout_selector_values = np.asarray(
+                (
+                    (1.0, 0.0, 0.0, 0.0),
+                    (0.0, 1.0, 0.0, 0.0),
+                ),
+                dtype=np.complex128,
+            )
+            grid = application.grid_protocol
+            response_grid = build_response_grid_manifest(application)
+            bridge_grid = build_application_bridge_grid_manifest(application)
+            spatial_shape = grid.spatial_shape
+            denominators = grid.response_torus_denominators
+            reciprocal_indices = grid.response_reciprocal_indices
+            bridge_indices = grid.bridge_reciprocal_indices
+            bridge_steps = grid.bridge_steps
+            reference_index = grid.reference_reciprocal_index
+            phase_band = grid.preregistered_phase_bands[0]
+            expected_rank = grid.expected_shell_rank
+            application_spec_sha = application.application_spec_sha
+            application_instance_id = application.application_instance_id
+            response_grid_sha = response_grid.response_grid_sha
+            bridge_grid_sha = bridge_grid.bridge_grid_sha
+            common_incidence = frozen_tensor_array(
+                application.readout_protocol.curvature_incidence_operator
+            )
+            normalized_incidence = (
+                common_incidence @ readout_selector_values.conj().T
+            )
+            source_metric_whitener = freeze_complex_tensor(
+                np.eye(source_selector_values.shape[1], dtype=np.complex128)
+            )
+            h_metric_whitener = freeze_complex_tensor(
+                np.eye(readout_selector_values.shape[0], dtype=np.complex128)
+            )
+            curvature_metric_whitener = (
+                application.readout_protocol.curvature_metric_whitener
+            )
+        else:
+            channels = ("q", "p")
+            state_schema_id = "v3m0.test.state.v1"
+            common_source = build_basis_manifest(
+                role="source",
+                state_schema_id=state_schema_id,
+                channel_order=channels,
+                vectors=np.eye(2, dtype=np.complex128),
+            )
+            common_readout = build_basis_manifest(
+                role="readout",
+                state_schema_id=state_schema_id,
+                channel_order=channels,
+                vectors=np.asarray(
+                    ((1j, 0.0), (0.0, 1.0)), dtype=np.complex128
+                ),
+            )
+            source_selector_values = np.asarray(
+                ((1.0,), (0.0,)), dtype=np.complex128
+            )
+            readout_selector_values = np.asarray(
+                ((1.0, 0.0),), dtype=np.complex128
+            )
+            spatial_shape = (8, 8)
+            denominators = (8, 8)
+            reciprocal_indices = ((1, 0),)
+            bridge_indices = ((1, 0),)
+            bridge_steps = (4,)
+            reference_index = (1, 0)
+            phase_band = (0.2, 0.4)
+            expected_rank = 1
+            application_spec_sha = SHA
+            application_instance_id = (
+                f"v3m0.calibration.{control_slug}.application.main.v2"
+            )
+            response_grid_sha = "e" * 64
+            bridge_grid_sha = "f" * 64
+            normalized_incidence = np.eye(1, dtype=np.complex128)
+            identity = freeze_complex_tensor(np.eye(1, dtype=np.complex128))
+            source_metric_whitener = identity
+            h_metric_whitener = identity
+            curvature_metric_whitener = identity
+
+        source_injection_values = (
+            basis_manifest_array(common_source).T @ source_selector_values
+        )
+        readout_values = readout_selector_values @ np.conjugate(
+            basis_manifest_array(common_readout)
+        )
+        momentum_wires = []
+        for reciprocal_index in reciprocal_indices:
+            momentum_values = tuple(
+                2.0
+                * math.pi
+                * (index if index <= denominator // 2 else index - denominator)
+                / denominator
+                for index, denominator in zip(reciprocal_index, denominators)
+            )
+            if laplacian:
+                normalizer = float(
+                    4.0
+                    * sum(
+                        np.sin(np.float64(value) / np.float64(2.0)) ** 2
+                        for value in momentum_values
+                    )
+                )
+                incidence_family = "synthetic-lattice-laplacian-incidence-v1"
+                normalizer_formula = "nu-inc-4-sum-sin2-half-v1"
+                derivation = (
+                    "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
+                )
+                incidence_values = normalizer * normalized_incidence
+            else:
+                normalizer = 1.0
+                incidence_family = "identity-incidence-v1"
+                normalizer_formula = "identity-positive-normalizer-v1"
+                derivation = "identity-incidence-derivation-v1"
+                incidence_values = normalized_incidence
+            momentum = ScenarioResponseMomentumWireV2(
+                momentum_wire_schema_version=(
+                    SCENARIO_RESPONSE_MOMENTUM_WIRE_V2_SCHEMA_VERSION
+                ),
+                scenario_id=scenario_id,
+                reciprocal_index=reciprocal_index,
+                momentum_wire=momentum_values,
+                phase_band=phase_band,
+                expected_actual_shell_rank=expected_rank,
+                expected_matched_shell_rank=expected_rank,
+                curvature_incidence_family_id=incidence_family,
+                curvature_incidence_operator=freeze_complex_tensor(
+                    incidence_values
+                ),
+                curvature_normalizer_formula_id=normalizer_formula,
+                curvature_normalizer_derivation_id=derivation,
+                curvature_normalizer_value=normalizer,
+                normalized_curvature_incidence_operator=freeze_complex_tensor(
+                    incidence_values / np.float64(normalizer)
+                ),
+                curvature_ir_limit_formula_id=(
+                    "normalized-incidence-ir-limit-v1"
+                ),
+                curvature_ir_certificate_sha="4" * 64,
+                momentum_wire_sha="0" * 64,
+            )
+            momentum_wires.append(
+                replace(
+                    momentum,
+                    momentum_wire_sha=canonical_sha(
+                        scenario_response_momentum_wire_v2_payload(momentum)
+                    ),
                 )
             )
-            incidence_family = "synthetic-lattice-laplacian-incidence-v1"
-            normalizer_formula = "nu-inc-4-sum-sin2-half-v1"
-            derivation = (
-                "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
-            )
-            incidence_values = normalizer * np.eye(1, dtype=np.complex128)
-        else:
-            normalizer = 1.0
-            incidence_family = "identity-incidence-v1"
-            normalizer_formula = "identity-positive-normalizer-v1"
-            derivation = "identity-incidence-derivation-v1"
-            incidence_values = np.eye(1, dtype=np.complex128)
-        normalized_values = incidence_values / np.float64(normalizer)
-        momentum = ScenarioResponseMomentumWireV2(
-            momentum_wire_schema_version=(
-                SCENARIO_RESPONSE_MOMENTUM_WIRE_V2_SCHEMA_VERSION
-            ),
-            scenario_id=scenario_id,
-            reciprocal_index=reciprocal_index,
-            momentum_wire=momentum_values,
-            phase_band=(0.2, 0.4),
-            expected_actual_shell_rank=1,
-            expected_matched_shell_rank=1,
-            curvature_incidence_family_id=incidence_family,
-            curvature_incidence_operator=freeze_complex_tensor(incidence_values),
-            curvature_normalizer_formula_id=normalizer_formula,
-            curvature_normalizer_derivation_id=derivation,
-            curvature_normalizer_value=normalizer,
-            normalized_curvature_incidence_operator=freeze_complex_tensor(
-                normalized_values
-            ),
-            curvature_ir_limit_formula_id="normalized-incidence-ir-limit-v1",
-            curvature_ir_certificate_sha="4" * 64,
-            momentum_wire_sha="0" * 64,
-        )
-        momentum = replace(
-            momentum,
-            momentum_wire_sha=canonical_sha(
-                scenario_response_momentum_wire_v2_payload(momentum)
-            ),
-        )
 
         geometry_bundle = None
         if geometry:
@@ -343,7 +475,9 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
                 ),
             )
 
-        identity = freeze_complex_tensor(np.eye(1, dtype=np.complex128))
+        source_trials = freeze_complex_tensor(
+            np.eye(source_selector_values.shape[1], dtype=np.complex128)
+        )
         protocol = ApplicationScenarioResponseProtocolV2(
             protocol_schema_version=(
                 APPLICATION_SCENARIO_RESPONSE_PROTOCOL_V2_SCHEMA_VERSION
@@ -351,10 +485,8 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             protocol_state="FORMAL_PARENT_V2_BOUND_PRE_RESPONSE",
             formal_parent_v2_sha="0" * 64,
             permit_v2_sha="1" * 64,
-            application_spec_sha=SHA,
-            application_instance_id=(
-                f"v3m0.calibration.{control_slug}.application.main.v2"
-            ),
+            application_spec_sha=application_spec_sha,
+            application_instance_id=application_instance_id,
             control_case_id=control_case_id,
             scenario_id=scenario_id,
             scenario_sha=scenario_sha,
@@ -378,22 +510,22 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             readout_coisometry=freeze_complex_tensor(readout_values),
             state_schema_id=state_schema_id,
             channel_order=channels,
-            spatial_shape=(8, 8),
-            response_torus_denominators=(8, 8),
-            response_reciprocal_indices=(reciprocal_index,),
-            response_grid_sha="e" * 64,
-            source_bridge_reciprocal_indices=(reciprocal_index,),
-            source_bridge_grid_sha="f" * 64,
-            readout_bridge_reciprocal_indices=(reciprocal_index,),
-            readout_bridge_grid_sha="0" * 63 + "1",
-            source_readout_bridge_steps=(4,),
-            reference_reciprocal_index=reciprocal_index,
-            source_trial_vectors=identity,
+            spatial_shape=spatial_shape,
+            response_torus_denominators=denominators,
+            response_reciprocal_indices=reciprocal_indices,
+            response_grid_sha=response_grid_sha,
+            source_bridge_reciprocal_indices=bridge_indices,
+            source_bridge_grid_sha=bridge_grid_sha,
+            readout_bridge_reciprocal_indices=bridge_indices,
+            readout_bridge_grid_sha=bridge_grid_sha,
+            source_readout_bridge_steps=bridge_steps,
+            reference_reciprocal_index=reference_index,
+            source_trial_vectors=source_trials,
             bridge_tolerance=1.0e-12,
-            source_metric_whitener=identity,
-            h_metric_whitener=identity,
-            curvature_metric_whitener=identity,
-            momentum_wires=(momentum,),
+            source_metric_whitener=source_metric_whitener,
+            h_metric_whitener=h_metric_whitener,
+            curvature_metric_whitener=curvature_metric_whitener,
+            momentum_wires=tuple(momentum_wires),
             geometry_bundle=geometry_bundle,
             protocol_sha="0" * 64,
         )
@@ -446,6 +578,24 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             ("value",),
         )
 
+    def test_momentum_wire_literal_uses_the_current_c12_family_id(self) -> None:
+        from typing import get_args, get_type_hints
+
+        from rulespace_v3.scenario_response_protocol import (
+            ScenarioResponseMomentumWireV2,
+        )
+
+        annotation = get_type_hints(ScenarioResponseMomentumWireV2)[
+            "curvature_incidence_family_id"
+        ]
+        self.assertEqual(
+            get_args(annotation),
+            (
+                "identity-incidence-v1",
+                "synthetic-lattice-laplacian-incidence-v1",
+            ),
+        )
+
     def test_delayed_upstream_wiring_uses_exact_v2_public_consumers(self) -> None:
         from rulespace_v3.application_authority_v2 import (
             VerifiedCalibrationApplicationPermitV2,
@@ -494,6 +644,175 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             protocol,
         )
 
+    def test_curvature_whitener_dimension_matches_every_incidence_output(
+        self,
+    ) -> None:
+        from rulespace_v3.factory import freeze_complex_tensor
+        from rulespace_v3.scenario_response_protocol import (
+            verify_application_scenario_response_protocol_v2_body,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        hostile = self._resign_protocol(
+            replace(
+                protocol,
+                curvature_metric_whitener=freeze_complex_tensor(
+                    np.eye(3, dtype=np.complex128)
+                ),
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "curvature.*incidence output"):
+            verify_application_scenario_response_protocol_v2_body(hostile)
+
+    def test_exact_compiler_mechanically_binds_every_expected_input(
+        self,
+    ) -> None:
+        import struct
+
+        from rulespace_v3.factory import (
+            freeze_complex_tensor,
+            frozen_tensor_array,
+        )
+        from rulespace_v3.grids import (
+            build_application_bridge_grid_manifest,
+            build_response_grid_manifest,
+        )
+        from rulespace_v3.scenario_response_protocol import (
+            ExpectedScenarioProtocolInputs,
+            _make_exact_scenario_response_protocol_compiler,
+        )
+        from rulespace_v3.thresholds import BRIDGE_TOLERANCE
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        parent, permit, materialization = self._upstream_bodies(protocol)
+        expected = self._expected_inputs(
+            protocol,
+            parent,
+            permit,
+            materialization,
+        )
+        self.assertIs(type(expected), ExpectedScenarioProtocolInputs)
+        application = self._historical_application(protocol.control_case_id)
+        response_grid = build_response_grid_manifest(application)
+        bridge_grid = build_application_bridge_grid_manifest(application)
+        self.assertEqual(expected.response_grid_sha, response_grid.response_grid_sha)
+        self.assertEqual(
+            expected.source_bridge_grid_sha,
+            bridge_grid.bridge_grid_sha,
+        )
+        self.assertEqual(
+            expected.readout_bridge_grid_sha,
+            bridge_grid.bridge_grid_sha,
+        )
+        self.assertEqual(
+            struct.pack("!d", expected.bridge_tolerance),
+            struct.pack("!d", BRIDGE_TOLERANCE),
+        )
+
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: protocol,
+            expected_inputs_resolver=lambda *_: expected,
+        )
+        self.assertIs(compiler(parent, permit, materialization), protocol)
+
+        polluted_expected = copy.deepcopy(expected)
+        object.__setattr__(polluted_expected, "caller_override", "forged")
+        polluted_compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: protocol,
+            expected_inputs_resolver=lambda *_: polluted_expected,
+        )
+        with self.assertRaisesRegex(ValueError, "unknown or missing"):
+            polluted_compiler(parent, permit, materialization)
+
+        attacks = (
+            ("response_grid_sha", "e" * 64),
+            ("source_bridge_grid_sha", "f" * 64),
+            ("readout_bridge_grid_sha", "1" * 64),
+            (
+                "bridge_tolerance",
+                float(np.nextafter(BRIDGE_TOLERANCE, math.inf)),
+            ),
+            (
+                "source_metric_whitener",
+                freeze_complex_tensor(
+                    2.0 * frozen_tensor_array(protocol.source_metric_whitener)
+                ),
+            ),
+            (
+                "h_metric_whitener",
+                freeze_complex_tensor(
+                    2.0 * frozen_tensor_array(protocol.h_metric_whitener)
+                ),
+            ),
+            (
+                "curvature_metric_whitener",
+                freeze_complex_tensor(
+                    2.0
+                    * frozen_tensor_array(protocol.curvature_metric_whitener)
+                ),
+            ),
+        )
+        for field, attacked_value in attacks:
+            with self.subTest(field=field):
+                hostile = self._resign_protocol(
+                    replace(protocol, **{field: attacked_value})
+                )
+                hostile_compiler = _make_exact_scenario_response_protocol_compiler(
+                    parent_body_type=type(parent),
+                    permit_body_type=type(permit),
+                    materialization_body_type=type(materialization),
+                    protocol_body_builder=lambda *_, value=hostile: value,
+                    expected_inputs_resolver=lambda *_: expected,
+                )
+                with self.assertRaisesRegex(ValueError, field):
+                    hostile_compiler(parent, permit, materialization)
+
+    def test_metric_restriction_is_derived_not_temporary_identity(self) -> None:
+        from rulespace_v3.factory import (
+            freeze_complex_tensor,
+            frozen_tensor_array,
+        )
+        from rulespace_v3.scenario_response_protocol import (
+            _restrict_metric_whitener,
+        )
+
+        common = freeze_complex_tensor(
+            np.diag(np.asarray((2.0, 3.0), dtype=np.complex128))
+        )
+        embedding = np.asarray(
+            ((1.0 / math.sqrt(2.0),), (1.0 / math.sqrt(2.0),)),
+            dtype=np.complex128,
+        )
+        restricted = frozen_tensor_array(
+            _restrict_metric_whitener(
+                common,
+                embedding,
+                field="test metric",
+            )
+        )
+        common_values = frozen_tensor_array(common)
+        expected_metric = (
+            embedding.conj().T
+            @ common_values.conj().T
+            @ common_values
+            @ embedding
+        )
+        self.assertTrue(
+            np.allclose(
+                restricted.conj().T @ restricted,
+                expected_metric,
+                rtol=0.0,
+                atol=1.0e-15,
+            )
+        )
+        self.assertFalse(np.array_equal(restricted, np.eye(1)))
+
     def test_readout_manifest_conjugation_cannot_be_resigned_away(self) -> None:
         from rulespace_v3.factory import basis_manifest_array, freeze_complex_tensor
         from rulespace_v3.scenario_response_protocol import (
@@ -524,7 +843,10 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         )
         hostile_momentum = self._resign_momentum(hostile_momentum)
         hostile = self._resign_protocol(
-            replace(protocol, momentum_wires=(hostile_momentum,))
+            replace(
+                protocol,
+                momentum_wires=(hostile_momentum, *protocol.momentum_wires[1:]),
+            )
         )
         with self.assertRaisesRegex(ValueError, "spliced"):
             verify_application_scenario_response_protocol_v2_body(hostile)
@@ -552,7 +874,10 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             replace(momentum, curvature_normalizer_value=attacked_nu)
         )
         hostile = self._resign_protocol(
-            replace(protocol, momentum_wires=(hostile_momentum,))
+            replace(
+                protocol,
+                momentum_wires=(hostile_momentum, *protocol.momentum_wires[1:]),
+            )
         )
         with self.assertRaisesRegex(ValueError, "normalizer"):
             verify_application_scenario_response_protocol_v2_body(hostile)
@@ -585,9 +910,8 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             permit_body_type=type(permit),
             materialization_body_type=type(materialization),
             protocol_body_builder=lambda *_: protocol,
-            analytic_lineage_resolver=lambda *_: (
-                protocol.momentum_wires,
-                protocol.geometry_bundle,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent, permit, materialization
             ),
         )
         self.assertIs(compiler(parent, permit, materialization), protocol)
@@ -605,9 +929,8 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             permit_body_type=type(permit),
             materialization_body_type=type(materialization),
             protocol_body_builder=lambda *_: hostile_protocol,
-            analytic_lineage_resolver=lambda *_: (
-                protocol.momentum_wires,
-                protocol.geometry_bundle,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent, permit, materialization
             ),
         )
         with self.assertRaisesRegex(ValueError, "scenario"):
@@ -631,19 +954,21 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             )
         )
         hostile_protocol = self._resign_protocol(
-            replace(protocol, momentum_wires=(hostile_wire,))
+            replace(
+                protocol,
+                momentum_wires=(hostile_wire, *protocol.momentum_wires[1:]),
+            )
         )
         hostile_compiler = _make_exact_scenario_response_protocol_compiler(
             parent_body_type=type(parent),
             permit_body_type=type(permit),
             materialization_body_type=type(materialization),
             protocol_body_builder=lambda *_: hostile_protocol,
-            analytic_lineage_resolver=lambda *_: (
-                protocol.momentum_wires,
-                protocol.geometry_bundle,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent, permit, materialization
             ),
         )
-        with self.assertRaisesRegex(ValueError, "analytic momentum"):
+        with self.assertRaisesRegex(ValueError, "momentum_wires"):
             hostile_compiler(parent, permit, materialization)
 
     def test_private_live_replayer_rejects_value_equal_fresh_capabilities(
@@ -685,9 +1010,8 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             permit_body_type=type(permit_body),
             materialization_body_type=type(materialization_body),
             protocol_body_builder=lambda *_: protocol,
-            analytic_lineage_resolver=lambda *_: (
-                protocol.momentum_wires,
-                protocol.geometry_bundle,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent_body, permit_body, materialization_body
             ),
         )
         replay = _make_live_scenario_response_protocol_replayer(
@@ -709,6 +1033,7 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
                 materialization_body,
                 "materialization",
             ),
+            upstream_relationship_verifier=lambda *_: None,
             exact_compiler=compiler,
         )
         self.assertIs(replay(parent, permit, materialization), protocol)
@@ -718,6 +1043,96 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             replay(parent, PermitCapability(), materialization)
         with self.assertRaisesRegex(ValueError, "identity is not live"):
             replay(parent, permit, MaterializationCapability())
+
+    def test_live_replayer_requires_the_same_cross_module_identity_chain(self) -> None:
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+            _make_live_scenario_response_protocol_replayer,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        parent_body, permit_body, materialization_body = self._upstream_bodies(
+            protocol
+        )
+
+        class ParentCapability:
+            pass
+
+        class PermitCapability:
+            pass
+
+        class MaterializationCapability:
+            pass
+
+        parent_a, parent_b = ParentCapability(), ParentCapability()
+        permit_a, permit_b = PermitCapability(), PermitCapability()
+        materialization_a = MaterializationCapability()
+
+        def accept_pair(first, second, body, label):
+            def require(value):
+                if value is not first and value is not second:
+                    raise ValueError(f"{label} identity is not live")
+                return body
+
+            return require
+
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent_body),
+            permit_body_type=type(permit_body),
+            materialization_body_type=type(materialization_body),
+            protocol_body_builder=lambda *_: protocol,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent_body, permit_body, materialization_body
+            ),
+        )
+
+        allowed_chains = (
+            (parent_a, permit_a, materialization_a),
+        )
+
+        def verify_relationship(parent, permit, materialization):
+            if not any(
+                parent is expected_parent
+                and permit is expected_permit
+                and materialization is expected_materialization
+                for expected_parent, expected_permit, expected_materialization in (
+                    allowed_chains
+                )
+            ):
+                raise ValueError("cross-module live identity chain drifted")
+
+        replay = _make_live_scenario_response_protocol_replayer(
+            parent_capability_type=ParentCapability,
+            permit_capability_type=PermitCapability,
+            materialization_capability_type=MaterializationCapability,
+            parent_reverifier=accept_pair(
+                parent_a,
+                parent_b,
+                parent_body,
+                "Parent",
+            ),
+            permit_reverifier=accept_pair(
+                permit_a,
+                permit_b,
+                permit_body,
+                "permit",
+            ),
+            materialization_reverifier=lambda value: (
+                materialization_body
+                if value is materialization_a
+                else (_ for _ in ()).throw(
+                    ValueError("materialization identity is not live")
+                )
+            ),
+            upstream_relationship_verifier=verify_relationship,
+            exact_compiler=compiler,
+        )
+        self.assertIs(
+            replay(parent_a, permit_a, materialization_a),
+            protocol,
+        )
+        with self.assertRaisesRegex(ValueError, "cross-module"):
+            replay(parent_b, permit_b, materialization_a)
 
     def test_exact_compiler_freezes_its_lineage_validation_call_graph(self) -> None:
         import rulespace_v3.scenario_response_protocol as protocol_module
@@ -732,9 +1147,8 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             permit_body_type=type(permit),
             materialization_body_type=type(materialization),
             protocol_body_builder=lambda *_: protocol,
-            analytic_lineage_resolver=lambda *_: (
-                protocol.momentum_wires,
-                protocol.geometry_bundle,
+            expected_inputs_resolver=lambda *_: self._expected_inputs(
+                protocol, parent, permit, materialization
             ),
         )
         hostile_materialization = copy.copy(materialization)
