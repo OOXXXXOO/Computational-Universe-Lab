@@ -8,12 +8,11 @@ application shell for C15--C19.  These recipes therefore remain explicitly
 pending until the rank-two correction is signed and a live permit supplies the
 selected Fejer order.
 
-The common C15--C17 carrier has a two-dimensional positive-frequency shell.
-Its projector changes between the two frozen momenta, so the direct-sum
-response can resolve four source directions without increasing the state
-schema beyond ``(q0,p0,q1,p1)``.  Every elementary operation is a radius-one
-real-space shear and the matched branch is obtained only by deleting the
-target-conditioned shear slots.
+C15--C17 share the four-channel state schema and rank-two shell contract.
+C15/C16 use a momentum-dependent positive-frequency carrier; C17 uses a
+dedicated on-site ``diag(J,-J)`` carrier and a canonical graph conjugation.
+Every elementary operation is a radius-one real-space shear and the matched
+branch is obtained only by deleting the target-conditioned shear slots.
 """
 
 from __future__ import annotations
@@ -44,6 +43,10 @@ from .factory import (
     frozen_tensor_array,
     verify_frozen_tensor,
 )
+from .geometry import (
+    GeometryNumericalThresholds,
+    _compute_geometry_spectrum_from_matrices,
+)
 from .parent_freeze import (
     ApplicationScenarioExecutionSpec,
     SyntheticApplicationOperation,
@@ -69,6 +72,12 @@ GEOMETRY_APPLICATION_RECIPE_SCHEMA_VERSION = (
 )
 GEOMETRY_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION = (
     "v3m0.geometry-operator-bundle-template.v1"
+)
+GEOMETRY_SCENARIO_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION = (
+    "v3m0.geometry-scenario-operator-bundle-template.v1"
+)
+C17_FINITE_RESPONSE_PREFLIGHT_SCHEMA_VERSION = (
+    "v3m0.c17-finite-response-preflight.v1"
 )
 GEOMETRY_APPLICATION_INTEGRATION_STATE = (
     "PENDING_PARENT_REFREEZE_AND_LIVE_PERMIT_T_BINDING"
@@ -147,6 +156,18 @@ def _sha(value: object, field: str) -> str:
     if _LOWER_SHA.fullmatch(result) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256")
     return result
+
+
+def _exact_record(value: object, record_type: type, field: str) -> None:
+    if type(value) is not record_type:
+        raise TypeError(f"{field} must be an exact {record_type.__name__}")
+    try:
+        observed = frozenset(vars(value))
+    except TypeError as exc:
+        raise TypeError(f"{field} has no exact record body") from exc
+    expected = frozenset(record_type.__dataclass_fields__)
+    if observed != expected:
+        raise ValueError(f"{field} contains missing or unknown fields")
 
 
 def _operation_record(
@@ -423,6 +444,549 @@ class GeometryOperatorBundleTemplate:
         _sha(self.bundle_sha, "bundle_sha")
 
 
+@dataclass(frozen=True)
+class GeometryScenarioOperatorBundleTemplate:
+    """Scenario-bound pre-response geometry, never a live authority."""
+
+    bundle_schema_version: str
+    parent_freeze_sha: str
+    control_case_id: str
+    application_spec_sha: str
+    scenario_id: str
+    scenario_sha: str
+    scenario_recipe_sha: str
+    construction_rule_id: str
+    selected_fejer_order: int
+    observer_dimension: int
+    kernel_basis: FrozenComplexTensor
+    physical_quotient_map: FrozenComplexTensor
+    physical_quotient_metric: FrozenComplexTensor
+    target_physical_representatives: FrozenComplexTensor
+    undressed_response_representatives: Optional[FrozenComplexTensor]
+    dressed_response_representatives: Optional[FrozenComplexTensor]
+    gauge_basis: Optional[FrozenComplexTensor]
+    gauge_graph_singular_values: tuple[float, ...]
+    finite_graph_formula_id: Optional[str]
+    fejer_opposite_phase_leakage: Optional[float]
+    expected_undressed_finite_graph_singular_values: tuple[float, ...]
+    expected_dressed_finite_graph_singular_values: tuple[float, ...]
+    coverage_control: Optional[float]
+    gauge_amplitude: Optional[float]
+    integration_state: Literal[
+        "PENDING_PARENT_REFREEZE_AND_LIVE_PERMIT_T_BINDING"
+    ]
+    bundle_sha: str
+
+    def __post_init__(self) -> None:
+        if (
+            self.bundle_schema_version
+            != GEOMETRY_SCENARIO_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION
+        ):
+            raise ValueError("scenario geometry bundle schema is not frozen")
+        for field in (
+            "parent_freeze_sha",
+            "application_spec_sha",
+            "scenario_sha",
+            "scenario_recipe_sha",
+            "bundle_sha",
+        ):
+            _sha(getattr(self, field), field)
+        if self.control_case_id not in _CONTROL_CASES:
+            raise ValueError("scenario geometry control case is not registered")
+        if self.scenario_id not in (
+            *C16_GEOMETRY_SCENARIO_IDS,
+            *C17_GEOMETRY_SCENARIO_IDS,
+        ):
+            raise ValueError("scenario geometry bundle is not C16 or C17")
+        _text(self.construction_rule_id, "construction_rule_id")
+        if self.selected_fejer_order not in _CANDIDATE_FEJER_ORDERS:
+            raise ValueError("scenario geometry Fejer order is not preregistered")
+        if self.observer_dimension != 8:
+            raise ValueError("scenario geometry observer dimension is not frozen")
+        for field in (
+            "kernel_basis",
+            "physical_quotient_map",
+            "physical_quotient_metric",
+            "target_physical_representatives",
+        ):
+            if type(getattr(self, field)) is not FrozenComplexTensor:
+                raise TypeError(f"{field} has the wrong strict type")
+        for field in (
+            "undressed_response_representatives",
+            "dressed_response_representatives",
+            "gauge_basis",
+        ):
+            value = getattr(self, field)
+            if value is not None and type(value) is not FrozenComplexTensor:
+                raise TypeError(f"{field} has the wrong strict type")
+        if type(self.gauge_graph_singular_values) is not tuple or not all(
+            type(value) is float and math.isfinite(value) and value >= 0.0
+            for value in self.gauge_graph_singular_values
+        ):
+            raise TypeError("gauge graph singular values must be finite fp64")
+        if self.finite_graph_formula_id is not None:
+            _text(self.finite_graph_formula_id, "finite_graph_formula_id")
+        if self.fejer_opposite_phase_leakage is not None and (
+            type(self.fejer_opposite_phase_leakage) is not float
+            or not math.isfinite(self.fejer_opposite_phase_leakage)
+            or self.fejer_opposite_phase_leakage < 0.0
+        ):
+            raise TypeError("Fejer opposite-phase leakage must be finite fp64")
+        for field in (
+            "expected_undressed_finite_graph_singular_values",
+            "expected_dressed_finite_graph_singular_values",
+        ):
+            values = getattr(self, field)
+            if type(values) is not tuple or not all(
+                type(value) is float and math.isfinite(value) and value >= 0.0
+                for value in values
+            ):
+                raise TypeError(
+                    f"{field} must contain nonnegative finite fp64 values"
+                )
+        for field in ("coverage_control", "gauge_amplitude"):
+            value = getattr(self, field)
+            if value is not None and (
+                type(value) is not float or not math.isfinite(value)
+            ):
+                raise TypeError(f"{field} must be finite fp64 or None")
+        if self.integration_state != GEOMETRY_APPLICATION_INTEGRATION_STATE:
+            raise ValueError("scenario geometry bundle cannot claim live integration")
+
+
+@dataclass(frozen=True)
+class C17FiniteResponsePreflight:
+    """Saved raw two-branch diagnostic; explicitly not scientific authority."""
+
+    preflight_schema_version: str
+    parent_freeze_sha: str
+    scenario_id: str
+    scenario_sha: str
+    scenario_recipe_sha: str
+    bundle_sha: str
+    selected_fejer_order: int
+    finite_graph_formula_id: str
+    fejer_opposite_phase_leakage: float
+    raw_undressed_response: FrozenComplexTensor
+    raw_dressed_response: FrozenComplexTensor
+    undressed_active_singular_values: tuple[float, ...]
+    dressed_active_singular_values: tuple[float, ...]
+    undressed_graph_singular_values: tuple[float, ...]
+    dressed_graph_singular_values: tuple[float, ...]
+    expected_undressed_graph_singular_values: tuple[float, ...]
+    expected_dressed_graph_singular_values: tuple[float, ...]
+    undressed_physical_block_singular_values: tuple[float, ...]
+    dressed_physical_block_singular_values: tuple[float, ...]
+    expected_undressed_physical_block_singular_values: tuple[float, ...]
+    expected_dressed_physical_block_singular_values: tuple[float, ...]
+    undressed_g_spectrum: tuple[float, ...]
+    dressed_g_spectrum: tuple[float, ...]
+    undressed_c_spectrum: tuple[float, ...]
+    dressed_c_spectrum: tuple[float, ...]
+    graph_prediction_residual: float
+    undressed_physical_block_prediction_residual: float
+    dressed_physical_block_prediction_residual: float
+    coverage_spectrum_drift: float
+    integration_state: Literal[
+        "PENDING_PARENT_REFREEZE_AND_LIVE_PERMIT_T_BINDING"
+    ]
+    preflight_sha: str
+
+    def __post_init__(self) -> None:
+        if self.preflight_schema_version != C17_FINITE_RESPONSE_PREFLIGHT_SCHEMA_VERSION:
+            raise ValueError("C17 finite-response preflight schema is not frozen")
+        for field in (
+            "parent_freeze_sha",
+            "scenario_sha",
+            "scenario_recipe_sha",
+            "bundle_sha",
+            "preflight_sha",
+        ):
+            _sha(getattr(self, field), field)
+        if self.scenario_id != C17_GEOMETRY_SCENARIO_IDS[0]:
+            raise ValueError("C17 finite-response scenario is not frozen")
+        if self.selected_fejer_order not in _CANDIDATE_FEJER_ORDERS:
+            raise ValueError("C17 finite-response order is not preregistered")
+        _text(self.finite_graph_formula_id, "finite_graph_formula_id")
+        for field in (
+            "fejer_opposite_phase_leakage",
+            "graph_prediction_residual",
+            "undressed_physical_block_prediction_residual",
+            "dressed_physical_block_prediction_residual",
+            "coverage_spectrum_drift",
+        ):
+            value = getattr(self, field)
+            if type(value) is not float or not math.isfinite(value) or value < 0.0:
+                raise TypeError(f"{field} must be nonnegative finite fp64")
+        for field in ("raw_undressed_response", "raw_dressed_response"):
+            if type(getattr(self, field)) is not FrozenComplexTensor:
+                raise TypeError(f"{field} has the wrong strict type")
+        for field in (
+            "undressed_active_singular_values",
+            "dressed_active_singular_values",
+            "undressed_graph_singular_values",
+            "dressed_graph_singular_values",
+            "expected_undressed_graph_singular_values",
+            "expected_dressed_graph_singular_values",
+            "undressed_physical_block_singular_values",
+            "dressed_physical_block_singular_values",
+            "expected_undressed_physical_block_singular_values",
+            "expected_dressed_physical_block_singular_values",
+            "undressed_g_spectrum",
+            "dressed_g_spectrum",
+            "undressed_c_spectrum",
+            "dressed_c_spectrum",
+        ):
+            values = getattr(self, field)
+            if (
+                type(values) is not tuple
+                or len(values) != 2
+                or not all(
+                    type(value) is float
+                    and math.isfinite(value)
+                    and value >= 0.0
+                    for value in values
+                )
+            ):
+                raise TypeError(f"{field} must contain two nonnegative fp64 values")
+        if self.integration_state != GEOMETRY_APPLICATION_INTEGRATION_STATE:
+            raise ValueError("C17 preflight cannot claim live integration")
+
+
+def geometry_scenario_operator_bundle_template_payload(
+    bundle: GeometryScenarioOperatorBundleTemplate,
+) -> dict[str, object]:
+    if type(bundle) is not GeometryScenarioOperatorBundleTemplate:
+        raise TypeError(
+            "bundle must be an exact GeometryScenarioOperatorBundleTemplate"
+        )
+    return {
+        "bundle_schema_version": bundle.bundle_schema_version,
+        "parent_freeze_sha": bundle.parent_freeze_sha,
+        "control_case_id": bundle.control_case_id,
+        "application_spec_sha": bundle.application_spec_sha,
+        "scenario_id": bundle.scenario_id,
+        "scenario_sha": bundle.scenario_sha,
+        "scenario_recipe_sha": bundle.scenario_recipe_sha,
+        "construction_rule_id": bundle.construction_rule_id,
+        "selected_fejer_order": bundle.selected_fejer_order,
+        "observer_dimension": bundle.observer_dimension,
+        "kernel_basis_sha": bundle.kernel_basis.tensor_sha,
+        "physical_quotient_map_sha": bundle.physical_quotient_map.tensor_sha,
+        "physical_quotient_metric_sha": (
+            bundle.physical_quotient_metric.tensor_sha
+        ),
+        "target_physical_representatives_sha": (
+            bundle.target_physical_representatives.tensor_sha
+        ),
+        "undressed_response_representatives_sha": (
+            None
+            if bundle.undressed_response_representatives is None
+            else bundle.undressed_response_representatives.tensor_sha
+        ),
+        "dressed_response_representatives_sha": (
+            None
+            if bundle.dressed_response_representatives is None
+            else bundle.dressed_response_representatives.tensor_sha
+        ),
+        "gauge_basis_sha": (
+            None
+            if bundle.gauge_basis is None
+            else bundle.gauge_basis.tensor_sha
+        ),
+        "gauge_graph_singular_values": list(
+            bundle.gauge_graph_singular_values
+        ),
+        "finite_graph_formula_id": bundle.finite_graph_formula_id,
+        "fejer_opposite_phase_leakage": (
+            bundle.fejer_opposite_phase_leakage
+        ),
+        "expected_undressed_finite_graph_singular_values": list(
+            bundle.expected_undressed_finite_graph_singular_values
+        ),
+        "expected_dressed_finite_graph_singular_values": list(
+            bundle.expected_dressed_finite_graph_singular_values
+        ),
+        "coverage_control": bundle.coverage_control,
+        "gauge_amplitude": bundle.gauge_amplitude,
+        "integration_state": bundle.integration_state,
+    }
+
+
+def c17_finite_response_preflight_payload(
+    preflight: C17FiniteResponsePreflight,
+) -> dict[str, object]:
+    if type(preflight) is not C17FiniteResponsePreflight:
+        raise TypeError("preflight must be an exact C17FiniteResponsePreflight")
+    return {
+        "preflight_schema_version": preflight.preflight_schema_version,
+        "parent_freeze_sha": preflight.parent_freeze_sha,
+        "scenario_id": preflight.scenario_id,
+        "scenario_sha": preflight.scenario_sha,
+        "scenario_recipe_sha": preflight.scenario_recipe_sha,
+        "bundle_sha": preflight.bundle_sha,
+        "selected_fejer_order": preflight.selected_fejer_order,
+        "finite_graph_formula_id": preflight.finite_graph_formula_id,
+        "fejer_opposite_phase_leakage": (
+            preflight.fejer_opposite_phase_leakage
+        ),
+        "raw_undressed_response_sha": preflight.raw_undressed_response.tensor_sha,
+        "raw_dressed_response_sha": preflight.raw_dressed_response.tensor_sha,
+        "undressed_active_singular_values": list(
+            preflight.undressed_active_singular_values
+        ),
+        "dressed_active_singular_values": list(
+            preflight.dressed_active_singular_values
+        ),
+        "undressed_graph_singular_values": list(
+            preflight.undressed_graph_singular_values
+        ),
+        "dressed_graph_singular_values": list(
+            preflight.dressed_graph_singular_values
+        ),
+        "expected_undressed_graph_singular_values": list(
+            preflight.expected_undressed_graph_singular_values
+        ),
+        "expected_dressed_graph_singular_values": list(
+            preflight.expected_dressed_graph_singular_values
+        ),
+        "undressed_physical_block_singular_values": list(
+            preflight.undressed_physical_block_singular_values
+        ),
+        "dressed_physical_block_singular_values": list(
+            preflight.dressed_physical_block_singular_values
+        ),
+        "expected_undressed_physical_block_singular_values": list(
+            preflight.expected_undressed_physical_block_singular_values
+        ),
+        "expected_dressed_physical_block_singular_values": list(
+            preflight.expected_dressed_physical_block_singular_values
+        ),
+        "undressed_g_spectrum": list(preflight.undressed_g_spectrum),
+        "dressed_g_spectrum": list(preflight.dressed_g_spectrum),
+        "undressed_c_spectrum": list(preflight.undressed_c_spectrum),
+        "dressed_c_spectrum": list(preflight.dressed_c_spectrum),
+        "graph_prediction_residual": preflight.graph_prediction_residual,
+        "undressed_physical_block_prediction_residual": (
+            preflight.undressed_physical_block_prediction_residual
+        ),
+        "dressed_physical_block_prediction_residual": (
+            preflight.dressed_physical_block_prediction_residual
+        ),
+        "coverage_spectrum_drift": preflight.coverage_spectrum_drift,
+        "integration_state": preflight.integration_state,
+    }
+
+
+def _validate_c17_finite_response_preflight(
+    preflight: C17FiniteResponsePreflight,
+) -> None:
+    _exact_record(preflight, C17FiniteResponsePreflight, "C17 preflight")
+    for tensor in (
+        preflight.raw_undressed_response,
+        preflight.raw_dressed_response,
+    ):
+        _exact_record(tensor, FrozenComplexTensor, "C17 raw response tensor")
+        verify_frozen_tensor(tensor)
+        if frozen_tensor_array(tensor).shape != (8, 2):
+            raise ValueError("C17 raw response shape is not frozen")
+    if preflight.preflight_sha != canonical_sha(
+        c17_finite_response_preflight_payload(preflight)
+    ):
+        raise ValueError("C17 finite-response preflight SHA does not match its body")
+
+
+def _validate_geometry_scenario_operator_bundle_template(
+    bundle: GeometryScenarioOperatorBundleTemplate,
+) -> None:
+    _exact_record(
+        bundle,
+        GeometryScenarioOperatorBundleTemplate,
+        "scenario geometry bundle",
+    )
+    tensors = (
+        bundle.kernel_basis,
+        bundle.physical_quotient_map,
+        bundle.physical_quotient_metric,
+        bundle.target_physical_representatives,
+        bundle.undressed_response_representatives,
+        bundle.dressed_response_representatives,
+        bundle.gauge_basis,
+    )
+    for tensor in tensors:
+        if tensor is not None:
+            _exact_record(tensor, FrozenComplexTensor, "scenario bundle tensor")
+            verify_frozen_tensor(tensor)
+    kernel = frozen_tensor_array(bundle.kernel_basis)
+    quotient = frozen_tensor_array(bundle.physical_quotient_map)
+    metric = frozen_tensor_array(bundle.physical_quotient_metric)
+    targets = frozen_tensor_array(bundle.target_physical_representatives)
+    if kernel.ndim != 2 or kernel.shape[0] != bundle.observer_dimension:
+        raise ValueError("scenario geometry kernel shape is not frozen")
+    if quotient.ndim != 2 or quotient.shape[1] != bundle.observer_dimension:
+        raise ValueError("scenario geometry quotient shape is not frozen")
+    if metric.shape != (quotient.shape[0], quotient.shape[0]):
+        raise ValueError("scenario geometry metric shape is not frozen")
+    if targets.ndim != 2 or targets.shape[0] != bundle.observer_dimension:
+        raise ValueError("scenario geometry target shape is not frozen")
+    if bundle.scenario_id in C16_GEOMETRY_SCENARIO_IDS:
+        if (
+            bundle.control_case_id != "C16_COVERAGE_025_075"
+            or bundle.coverage_control not in (0.25, 0.75)
+            or bundle.gauge_amplitude is not None
+            or bundle.gauge_basis is not None
+            or bundle.gauge_graph_singular_values != ()
+            or bundle.finite_graph_formula_id is not None
+            or bundle.fejer_opposite_phase_leakage is not None
+            or bundle.expected_undressed_finite_graph_singular_values != ()
+            or bundle.expected_dressed_finite_graph_singular_values != ()
+            or bundle.undressed_response_representatives is not None
+            or bundle.dressed_response_representatives is not None
+            or targets.shape != (8, 1)
+        ):
+            raise ValueError("C16 scenario geometry semantics are not frozen")
+        if abs(float(np.linalg.norm(targets)) - 1.0) > 1.0e-12:
+            raise ValueError("C16 target representative is not normalized")
+    else:
+        undressed_tensor = bundle.undressed_response_representatives
+        dressed_tensor = bundle.dressed_response_representatives
+        gauge_tensor = bundle.gauge_basis
+        if (
+            bundle.control_case_id != "C17_QUOTIENT_GAUGE_COVERAGE"
+            or bundle.coverage_control is not None
+            or bundle.gauge_amplitude != 8.0
+            or undressed_tensor is None
+            or dressed_tensor is None
+            or gauge_tensor is None
+            or len(bundle.gauge_graph_singular_values) != 2
+            or bundle.finite_graph_formula_id
+            != "c17-fejer-shared-U-actual-a-ablated-a-over-Tplus1-v1"
+            or bundle.fejer_opposite_phase_leakage is None
+            or len(bundle.expected_undressed_finite_graph_singular_values) != 2
+            or len(bundle.expected_dressed_finite_graph_singular_values) != 2
+        ):
+            raise ValueError("C17 scenario geometry semantics are not frozen")
+        undressed = frozen_tensor_array(undressed_tensor)
+        dressed = frozen_tensor_array(dressed_tensor)
+        gauge = frozen_tensor_array(gauge_tensor)
+        if (
+            undressed.shape != (8, 2)
+            or dressed.shape != (8, 2)
+            or targets.shape != (8, 2)
+        ):
+            raise ValueError("C17 response/target representative shapes are not frozen")
+        if gauge.shape != (8, 2):
+            raise ValueError("C17 gauge basis shape is not frozen")
+        identity_two = np.eye(2, dtype=np.complex128)
+        if max(
+            np.linalg.norm(undressed.conj().T @ undressed - identity_two, ord=2),
+            np.linalg.norm(dressed.conj().T @ dressed - identity_two, ord=2),
+            np.linalg.norm(gauge.conj().T @ gauge - identity_two, ord=2),
+            np.linalg.norm(undressed.conj().T @ gauge, ord=2),
+        ) > 1.0e-12:
+            raise ValueError("C17 T/U/G frames are not orthonormal")
+        graph_normalizer = math.sqrt(1.0 + bundle.gauge_amplitude**2)
+        expected_dressed = (
+            undressed + bundle.gauge_amplitude * gauge
+        ) / graph_normalizer
+        if np.linalg.norm(dressed - expected_dressed, ord=2) > 1.0e-12:
+            raise ValueError("C17 dressed response does not contain its gauge tensor")
+        physical_block = undressed.conj().T @ dressed
+        if float(np.min(np.linalg.svd(physical_block, compute_uv=False))) <= 1.0e-12:
+            raise ValueError("C17 analytic physical graph block is singular")
+        analytic_graph = (gauge.conj().T @ dressed) @ np.linalg.inv(
+            physical_block
+        )
+        replayed_graph_singular_values = tuple(
+            float(value)
+            for value in np.linalg.svd(analytic_graph, compute_uv=False)
+        )
+        if max(
+            abs(observed - expected)
+            for observed, expected in zip(
+                replayed_graph_singular_values,
+                bundle.gauge_graph_singular_values,
+            )
+        ) > 1.0e-12 or max(
+            abs(value - bundle.gauge_amplitude)
+            for value in replayed_graph_singular_values
+        ) > 1.0e-12:
+            raise ValueError("C17 normalized graph slopes do not equal amplitude")
+        if np.linalg.norm(quotient @ gauge, ord=2) > 1.0e-12:
+            raise ValueError("C17 gauge direction survives the physical quotient")
+        quotient_projector = quotient.conj().T @ quotient
+        if np.linalg.norm(
+            quotient_projector @ undressed - undressed,
+            ord=2,
+        ) > 1.0e-12:
+            raise ValueError("C17 quotient does not retain the physical target")
+        kernel_gram = kernel.conj().T @ kernel
+        if np.linalg.norm(
+            kernel_gram - np.eye(kernel.shape[1], dtype=np.complex128),
+            ord=2,
+        ) > 1.0e-12:
+            raise ValueError("C17 TT-plus-gauge kernel is not orthonormal")
+        if np.linalg.norm(
+            kernel - np.column_stack((undressed, gauge)),
+            ord=2,
+        ) > 1.0e-12:
+            raise ValueError("C17 kernel does not equal TT plus Gauge")
+        mapped_physical = quotient @ undressed
+        mapped_targets = quotient @ targets
+        if max(
+            np.linalg.norm(
+                mapped_physical.conj().T @ mapped_physical - identity_two,
+                ord=2,
+            ),
+            np.linalg.norm(
+                mapped_targets.conj().T @ mapped_targets - identity_two,
+                ord=2,
+            ),
+        ) > 1.0e-12:
+            raise ValueError("C17 quotient response/target frames are not normalized")
+        target_overlap = mapped_physical.conj().T @ mapped_targets
+        analytic_coverage = np.linalg.eigvalsh(
+            target_overlap.conj().T @ target_overlap
+        )
+        if np.linalg.norm(
+            analytic_coverage - np.asarray((0.25, 0.75)),
+            ord=2,
+        ) > 1.0e-12:
+            raise ValueError("C17 shared target coverage is not 0.25/0.75")
+        if np.linalg.norm(
+            metric - np.eye(metric.shape[0], dtype=np.complex128),
+            ord=2,
+        ) > 1.0e-12:
+            raise ValueError("C17 physical quotient metric is not identity")
+        expected_leakage = 1.0 / float(bundle.selected_fejer_order + 1)
+        expected_undressed_slope = (
+            bundle.gauge_amplitude * expected_leakage
+        )
+        if (
+            abs(bundle.fejer_opposite_phase_leakage - expected_leakage)
+            > 1.0e-15
+            or max(
+                abs(value - expected_undressed_slope)
+                for value in (
+                    bundle.expected_undressed_finite_graph_singular_values
+                )
+            )
+            > 1.0e-12
+            or max(
+                abs(value - bundle.gauge_amplitude)
+                for value in (
+                    bundle.expected_dressed_finite_graph_singular_values
+                )
+            )
+            > 1.0e-12
+        ):
+            raise ValueError("C17 finite-T graph prediction does not replay")
+    if bundle.bundle_sha != canonical_sha(
+        geometry_scenario_operator_bundle_template_payload(bundle)
+    ):
+        raise ValueError("scenario geometry bundle SHA does not match its body")
+
+
 def geometry_operator_bundle_template_payload(
     bundle: GeometryOperatorBundleTemplate,
 ) -> dict[str, object]:
@@ -453,16 +1017,14 @@ def geometry_operator_bundle_template_payload(
 def _validate_geometry_operator_bundle_template(
     bundle: GeometryOperatorBundleTemplate,
 ) -> None:
-    if type(bundle) is not GeometryOperatorBundleTemplate:
-        raise TypeError(
-            "bundle must be an exact GeometryOperatorBundleTemplate"
-        )
+    _exact_record(bundle, GeometryOperatorBundleTemplate, "bundle")
     for tensor in (
         bundle.kernel_basis,
         bundle.physical_quotient_map,
         bundle.physical_quotient_metric,
         bundle.target_physical_representatives,
     ):
+        _exact_record(tensor, FrozenComplexTensor, "bundle tensor")
         verify_frozen_tensor(tensor)
     if bundle.bundle_sha != canonical_sha(
         geometry_operator_bundle_template_payload(bundle)
@@ -593,6 +1155,47 @@ def _condition_common_carrier(
         target_conditioned=True,
     )
     return (*inverse, *blind, *conditioned)
+
+
+def _c17_steps(
+    derivation_digest: str,
+    gauge_amplitude: float,
+) -> tuple[
+    tuple[ApplicationLocalShearStep, ...],
+    tuple[ApplicationLocalShearStep, ...],
+]:
+    """Encode ``t + a*g`` as a unitary graph rotation with ``tan θ=a``."""
+
+    if gauge_amplitude != 8.0:
+        raise ValueError("C17 gauge amplitude is not the frozen value")
+    blind = (
+        *_canonical_pair_rotation_steps(
+            0,
+            math.pi / 2.0,
+            "blind.c17.physical-positive",
+            target_conditioned=False,
+            derivation_effect_digest=derivation_digest,
+        ),
+        *_canonical_pair_rotation_steps(
+            1,
+            -math.pi / 2.0,
+            "blind.c17.gauge-negative",
+            target_conditioned=False,
+            derivation_effect_digest=derivation_digest,
+        ),
+    )
+    conditioned = _two_mode_rotation_steps(
+        math.atan(gauge_amplitude),
+        "conditioned.c17.quotient-gauge.forward",
+        target_conditioned=True,
+        derivation_effect_digest=derivation_digest,
+    )
+    inverse = _inverse_steps(
+        conditioned,
+        "conditioned.c17.quotient-gauge.inverse",
+        target_conditioned=True,
+    )
+    return (*inverse, *blind, *conditioned), blind
 
 
 def _c18_steps(
@@ -762,10 +1365,18 @@ def _source_and_sectors(
     actual_steps: tuple[ApplicationLocalShearStep, ...],
     blind_steps: tuple[ApplicationLocalShearStep, ...],
 ) -> tuple[np.ndarray, tuple[str, ...]]:
+    if scenario_id in C17_GEOMETRY_SCENARIO_IDS:
+        dressed_positive = _canonical_projector_columns(
+            _positive_projector(_symbol_from_steps(actual_steps, 0.0)),
+            2,
+        )
+        return dressed_positive, (
+            "dressed-coverage-probe-0",
+            "dressed-coverage-probe-1",
+        )
     if scenario_id in (
         *C15_GEOMETRY_SCENARIO_IDS,
         *C16_GEOMETRY_SCENARIO_IDS,
-        *C17_GEOMETRY_SCENARIO_IDS,
     ):
         semantic = _common_semantic_basis(blind_steps)
         if scenario_id == C15_GEOMETRY_SCENARIO_IDS[0]:
@@ -778,7 +1389,7 @@ def _source_and_sectors(
             return semantic[:, (0, 1, 3)], ("TT0", "TT1", "Row")
         if scenario_id in C16_GEOMETRY_SCENARIO_IDS:
             return semantic[:, :1], ("coverage-probe",)
-        return semantic[:, :2], ("coverage-probe-0", "coverage-probe-1")
+        raise AssertionError("unreachable C15/C16 geometry source scenario")
     if scenario_id in C18_GEOMETRY_SCENARIO_IDS:
         actual_positive = _canonical_projector_columns(
             _positive_projector(_symbol_from_steps(actual_steps, 0.0)),
@@ -834,12 +1445,21 @@ def build_geometry_application_recipe(
 
     application, scenario = _find_application_and_scenario(parent, scenario_id)
     dag_sha = _scenario_dag_sha(application, scenario)
+    coverage_control, gauge_amplitude = _coverage_and_gauge(
+        application,
+        scenario,
+    )
     if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS:
         actual_steps, blind_steps = _c18_steps(dag_sha)
         rule_id = "rank-two-unary-independent-axis-carrier-v1"
     elif scenario.scenario_id in C19_GEOMETRY_SCENARIO_IDS:
         actual_steps, blind_steps = _c19_steps(dag_sha)
         rule_id = "rank-two-full-positive-observer-collapse-v1"
+    elif scenario.scenario_id in C17_GEOMETRY_SCENARIO_IDS:
+        if gauge_amplitude is None:
+            raise ValueError("C17 gauge amplitude is absent from its Parent DAG")
+        actual_steps, blind_steps = _c17_steps(dag_sha, gauge_amplitude)
+        rule_id = "rank-two-quotient-gauge-graph-carrier-v1"
     else:
         blind_steps = _common_blind_steps(dag_sha)
         actual_steps = _condition_common_carrier(blind_steps, dag_sha)
@@ -848,10 +1468,6 @@ def build_geometry_application_recipe(
         scenario.scenario_id,
         actual_steps,
         blind_steps,
-    )
-    coverage_control, gauge_amplitude = _coverage_and_gauge(
-        application,
-        scenario,
     )
     source_manifest = application.basis_protocol.source_basis
     readout_manifest = application.basis_protocol.readout_basis
@@ -921,11 +1537,15 @@ def build_geometry_application_recipe(
 
 
 def _validate_recipe(recipe: GeometryApplicationRecipeArtifact) -> None:
-    if type(recipe) is not GeometryApplicationRecipeArtifact:
-        raise TypeError("recipe must be an exact GeometryApplicationRecipeArtifact")
+    _exact_record(recipe, GeometryApplicationRecipeArtifact, "geometry recipe")
     for step in recipe.actual_steps:
+        _exact_record(step, ApplicationLocalShearStep, "geometry shear step")
         if step.step_sha != canonical_sha(application_local_shear_step_payload(step)):
             raise ValueError("geometry shear step SHA does not match its body")
+    for field in ("source_injection", "readout"):
+        tensor = getattr(recipe, field)
+        _exact_record(tensor, FrozenComplexTensor, field)
+        verify_frozen_tensor(tensor)
     if recipe.actual_effect_digest != _executed_effect_digest(
         recipe.actual_steps,
         "actual",
@@ -1260,6 +1880,293 @@ def verify_c15_analytic_geometry_bundle(
     return bundle
 
 
+def _issue_geometry_scenario_bundle(
+    provisional: GeometryScenarioOperatorBundleTemplate,
+) -> GeometryScenarioOperatorBundleTemplate:
+    bundle = replace(
+        provisional,
+        bundle_sha=canonical_sha(
+            geometry_scenario_operator_bundle_template_payload(provisional)
+        ),
+    )
+    _validate_geometry_scenario_operator_bundle_template(bundle)
+    return bundle
+
+
+def build_c16_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    scenario_id: str,
+    selected_fejer_order: int,
+) -> GeometryScenarioOperatorBundleTemplate:
+    """Freeze one C16 coverage target before measuring its response."""
+
+    if scenario_id not in C16_GEOMETRY_SCENARIO_IDS:
+        raise ValueError("C16 analytic bundle requires a frozen C16 scenario")
+    recipe = build_geometry_application_recipe(parent, scenario_id)
+    coverage = recipe.coverage_control
+    if coverage not in (0.25, 0.75):
+        raise ValueError("C16 coverage control is not the frozen low/high pair")
+    c15 = build_c15_analytic_geometry_bundle(parent, selected_fejer_order)
+    physical_response = frozen_tensor_array(
+        c15.target_physical_representatives
+    )[:, 0]
+    quotient = frozen_tensor_array(c15.physical_quotient_map)
+    physical_complement = quotient.conj().T[:, 2]
+    target = (
+        math.sqrt(coverage) * physical_response
+        + math.sqrt(1.0 - coverage) * physical_complement
+    )[:, None]
+    manifest = _reverify_verified_parent_freeze(parent)
+    return _issue_geometry_scenario_bundle(
+        GeometryScenarioOperatorBundleTemplate(
+            bundle_schema_version=(
+                GEOMETRY_SCENARIO_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION
+            ),
+            parent_freeze_sha=manifest.parent_freeze_sha,
+            control_case_id=recipe.control_case_id,
+            application_spec_sha=recipe.application_spec_sha,
+            scenario_id=recipe.scenario_id,
+            scenario_sha=recipe.scenario_sha,
+            scenario_recipe_sha=recipe.recipe_sha,
+            construction_rule_id="c16-analytic-coverage-orientation-bundle-v1",
+            selected_fejer_order=selected_fejer_order,
+            observer_dimension=8,
+            kernel_basis=c15.kernel_basis,
+            physical_quotient_map=c15.physical_quotient_map,
+            physical_quotient_metric=c15.physical_quotient_metric,
+            target_physical_representatives=freeze_complex_tensor(target),
+            undressed_response_representatives=None,
+            dressed_response_representatives=None,
+            gauge_basis=None,
+            gauge_graph_singular_values=(),
+            finite_graph_formula_id=None,
+            fejer_opposite_phase_leakage=None,
+            expected_undressed_finite_graph_singular_values=(),
+            expected_dressed_finite_graph_singular_values=(),
+            coverage_control=coverage,
+            gauge_amplitude=None,
+            integration_state=GEOMETRY_APPLICATION_INTEGRATION_STATE,
+            bundle_sha="0" * 64,
+        )
+    )
+
+
+def verify_c16_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    bundle: GeometryScenarioOperatorBundleTemplate,
+) -> GeometryScenarioOperatorBundleTemplate:
+    """Replay one pending C16 bundle against its live ParentFreeze."""
+
+    _validate_geometry_scenario_operator_bundle_template(bundle)
+    if (
+        bundle.scenario_id not in C16_GEOMETRY_SCENARIO_IDS
+        or bundle.construction_rule_id
+        != "c16-analytic-coverage-orientation-bundle-v1"
+    ):
+        raise ValueError("bundle is not a C16 analytic geometry template")
+    expected = build_c16_analytic_geometry_bundle(
+        parent,
+        bundle.scenario_id,
+        bundle.selected_fejer_order,
+    )
+    if bundle != expected:
+        raise ValueError("C16 analytic geometry bundle differs from live replay")
+    return bundle
+
+
+def build_c17_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    selected_fejer_order: int,
+) -> GeometryScenarioOperatorBundleTemplate:
+    """Freeze the normalized ``t + 8g`` graph before finite response.
+
+    A literal raw-response displacement by a unit gauge vector has norm eight
+    and is impossible for the two-momentum stack of contraction-valued Fejer
+    responses.  The Parent amplitude is therefore the projective graph slope:
+    the local conditioned conjugation uses ``theta=atan(8)``, so its active
+    shell and the shared source have the canonical representative
+    ``(t + 8g)/sqrt(65)``.  The actual finite response therefore has graph
+    slope eight, while the matched branch receives only the deterministic
+    opposite-phase Fejer leakage ``8/(T+1)``.  All frames below come from
+    analytic shell projectors, never a measured response.
+    """
+
+    recipe = build_geometry_application_recipe(
+        parent,
+        C17_GEOMETRY_SCENARIO_IDS[0],
+    )
+    if recipe.gauge_amplitude != 8.0:
+        raise ValueError("C17 gauge amplitude is not the frozen value")
+    if selected_fejer_order not in _CANDIDATE_FEJER_ORDERS:
+        raise ValueError("C17 analytic bundle Fejer order is not preregistered")
+    source = frozen_tensor_array(recipe.source_injection)
+    undressed_projector_output = np.vstack(
+        tuple(
+            _positive_projector(
+                _symbol_from_steps(recipe.matched_ablated_steps, momentum)
+            )
+            @ source
+            for momentum in _COMMON_MOMENTA
+        )
+    )
+    dressed_projector_output = np.vstack(
+        tuple(
+            _positive_projector(
+                _symbol_from_steps(recipe.actual_steps, momentum)
+            )
+            @ source
+            for momentum in _COMMON_MOMENTA
+        )
+    )
+    undressed_response = _analytic_orthonormal_columns(
+        undressed_projector_output,
+        expected_rank=2,
+    )
+    dressed_unaligned = _analytic_orthonormal_columns(
+        dressed_projector_output,
+        expected_rank=2,
+    )
+    overlap = undressed_response.conj().T @ dressed_unaligned
+    overlap_left, _, overlap_right = np.linalg.svd(
+        overlap,
+        full_matrices=False,
+    )
+    dressed_response = dressed_unaligned @ (
+        overlap_right.conj().T @ overlap_left.conj().T
+    )
+    amplitude = recipe.gauge_amplitude
+    graph_normalizer = math.sqrt(1.0 + amplitude**2)
+    expected_cosine = 1.0 / graph_normalizer
+    expected_sine = amplitude / graph_normalizer
+    physical_coefficients = undressed_response.conj().T @ dressed_response
+    if np.linalg.norm(
+        physical_coefficients
+        - expected_cosine * np.eye(2, dtype=np.complex128),
+        ord=2,
+    ) > 1.0e-12:
+        raise ValueError("C17 analytic physical graph block is not frozen")
+    gauge_residual = dressed_response - undressed_response @ physical_coefficients
+    gauge_basis = gauge_residual / expected_sine
+    if np.linalg.norm(
+        gauge_basis.conj().T @ gauge_basis
+        - np.eye(2, dtype=np.complex128),
+        ord=2,
+    ) > 1.0e-12 or np.linalg.norm(
+        undressed_response.conj().T @ gauge_basis,
+        ord=2,
+    ) > 1.0e-12:
+        raise ValueError("C17 analytic T/G graph frame is not orthonormal")
+    expected_dressed = (
+        undressed_response + amplitude * gauge_basis
+    ) / graph_normalizer
+    if np.linalg.norm(dressed_response - expected_dressed, ord=2) > 1.0e-12:
+        raise ValueError("C17 analytic dressed graph does not replay")
+    analytic_graph = (gauge_basis.conj().T @ dressed_response) @ np.linalg.inv(
+        undressed_response.conj().T @ dressed_response
+    )
+    graph_slopes = tuple(
+        float(value)
+        for value in np.linalg.svd(analytic_graph, compute_uv=False)
+    )
+    if max(abs(value - amplitude) for value in graph_slopes) > 1.0e-12:
+        raise ValueError("C17 analytic shell does not realize the Parent graph slope")
+    physical_projector = (
+        np.eye(8, dtype=np.complex128)
+        - gauge_basis @ gauge_basis.conj().T
+    )
+    physical_frame = _analytic_orthonormal_columns(
+        physical_projector,
+        expected_rank=6,
+    )
+    quotient = physical_frame.conj().T
+    physical_complement = _analytic_orthonormal_columns(
+        physical_projector
+        - undressed_response @ undressed_response.conj().T,
+        expected_rank=2,
+    )
+    targets = np.column_stack(
+        (
+            0.5 * undressed_response[:, 0]
+            + math.sqrt(0.75) * physical_complement[:, 0],
+            math.sqrt(0.75) * undressed_response[:, 1]
+            + 0.5 * physical_complement[:, 1],
+        )
+    )
+    leakage = 1.0 / float(selected_fejer_order + 1)
+    expected_undressed_finite_slope = amplitude * leakage
+    manifest = _reverify_verified_parent_freeze(parent)
+    return _issue_geometry_scenario_bundle(
+        GeometryScenarioOperatorBundleTemplate(
+            bundle_schema_version=(
+                GEOMETRY_SCENARIO_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION
+            ),
+            parent_freeze_sha=manifest.parent_freeze_sha,
+            control_case_id=recipe.control_case_id,
+            application_spec_sha=recipe.application_spec_sha,
+            scenario_id=recipe.scenario_id,
+            scenario_sha=recipe.scenario_sha,
+            scenario_recipe_sha=recipe.recipe_sha,
+            construction_rule_id="c17-analytic-quotient-gauge-bundle-v1",
+            selected_fejer_order=selected_fejer_order,
+            observer_dimension=8,
+            kernel_basis=freeze_complex_tensor(
+                np.column_stack((undressed_response, gauge_basis))
+            ),
+            physical_quotient_map=freeze_complex_tensor(quotient),
+            physical_quotient_metric=freeze_complex_tensor(
+                np.eye(6, dtype=np.complex128)
+            ),
+            target_physical_representatives=freeze_complex_tensor(targets),
+            undressed_response_representatives=(
+                freeze_complex_tensor(undressed_response)
+            ),
+            dressed_response_representatives=(
+                freeze_complex_tensor(dressed_response)
+            ),
+            gauge_basis=freeze_complex_tensor(gauge_basis),
+            gauge_graph_singular_values=graph_slopes,
+            finite_graph_formula_id=(
+                "c17-fejer-shared-U-actual-a-ablated-a-over-Tplus1-v1"
+            ),
+            fejer_opposite_phase_leakage=leakage,
+            expected_undressed_finite_graph_singular_values=(
+                expected_undressed_finite_slope,
+                expected_undressed_finite_slope,
+            ),
+            expected_dressed_finite_graph_singular_values=(
+                amplitude,
+                amplitude,
+            ),
+            coverage_control=None,
+            gauge_amplitude=recipe.gauge_amplitude,
+            integration_state=GEOMETRY_APPLICATION_INTEGRATION_STATE,
+            bundle_sha="0" * 64,
+        )
+    )
+
+
+def verify_c17_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    bundle: GeometryScenarioOperatorBundleTemplate,
+) -> GeometryScenarioOperatorBundleTemplate:
+    """Replay the pending C17 dressed/undressed bundle and its amplitude."""
+
+    _validate_geometry_scenario_operator_bundle_template(bundle)
+    if (
+        bundle.scenario_id != C17_GEOMETRY_SCENARIO_IDS[0]
+        or bundle.construction_rule_id
+        != "c17-analytic-quotient-gauge-bundle-v1"
+    ):
+        raise ValueError("bundle is not a C17 analytic geometry template")
+    expected = build_c17_analytic_geometry_bundle(
+        parent,
+        bundle.selected_fejer_order,
+    )
+    if bundle != expected:
+        raise ValueError("C17 analytic geometry bundle differs from live replay")
+    return bundle
+
+
 def _finite_response(
     recipe: GeometryApplicationRecipeArtifact,
     branch: Literal["actual", "matched_ablated"],
@@ -1307,6 +2214,230 @@ def _finite_response(
             )
         )
     return np.vstack(blocks)
+
+
+def _c17_active_frame(
+    response: np.ndarray,
+) -> tuple[np.ndarray, tuple[float, ...]]:
+    left, singular_values, _ = np.linalg.svd(response, full_matrices=False)
+    active = singular_values > 0.001
+    if int(np.count_nonzero(active)) != 2:
+        raise ValueError("C17 finite response does not have active rank two")
+    return (
+        np.asarray(left[:, active], dtype=np.complex128),
+        tuple(float(value) for value in singular_values[active]),
+    )
+
+
+def _c17_graph_spectrum(
+    frame: np.ndarray,
+    physical_basis: np.ndarray,
+    gauge_basis: np.ndarray,
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    physical_block = physical_basis.conj().T @ frame
+    physical_singular_values = np.linalg.svd(
+        physical_block,
+        compute_uv=False,
+    )
+    if float(np.min(physical_singular_values)) <= 1.0e-12:
+        raise ValueError("C17 finite physical graph block is singular")
+    graph = (gauge_basis.conj().T @ frame) @ np.linalg.inv(physical_block)
+    return (
+        tuple(float(value) for value in np.linalg.svd(graph, compute_uv=False)),
+        tuple(float(value) for value in physical_singular_values),
+    )
+
+
+def measure_c17_finite_response_preflight(
+    parent: VerifiedParentFreeze,
+    bundle: GeometryScenarioOperatorBundleTemplate,
+) -> C17FiniteResponsePreflight:
+    """Run both real recipe branches and save a non-authoritative diagnostic."""
+
+    verified = verify_c17_analytic_geometry_bundle(parent, bundle)
+    recipe = verify_geometry_application_recipe(
+        parent,
+        build_geometry_application_recipe(parent, verified.scenario_id),
+    )
+    raw_undressed = _finite_response(
+        recipe,
+        "matched_ablated",
+        verified.selected_fejer_order,
+    )
+    raw_dressed = _finite_response(
+        recipe,
+        "actual",
+        verified.selected_fejer_order,
+    )
+    undressed_frame, undressed_active = _c17_active_frame(raw_undressed)
+    dressed_frame, dressed_active = _c17_active_frame(raw_dressed)
+    physical_basis = frozen_tensor_array(
+        verified.undressed_response_representatives
+    )
+    gauge_basis = frozen_tensor_array(verified.gauge_basis)
+    undressed_graph, undressed_physical_singular_values = _c17_graph_spectrum(
+        undressed_frame,
+        physical_basis,
+        gauge_basis,
+    )
+    dressed_graph, dressed_physical_singular_values = _c17_graph_spectrum(
+        dressed_frame,
+        physical_basis,
+        gauge_basis,
+    )
+    expected_undressed_graph = (
+        verified.expected_undressed_finite_graph_singular_values
+    )
+    expected_dressed_graph = (
+        verified.expected_dressed_finite_graph_singular_values
+    )
+    expected_undressed_physical_value = 1.0 / math.sqrt(
+        1.0 + expected_undressed_graph[0] ** 2
+    )
+    expected_dressed_physical_value = 1.0 / math.sqrt(
+        1.0 + expected_dressed_graph[0] ** 2
+    )
+    expected_undressed_physical_singular_values = (
+        expected_undressed_physical_value,
+        expected_undressed_physical_value,
+    )
+    expected_dressed_physical_singular_values = (
+        expected_dressed_physical_value,
+        expected_dressed_physical_value,
+    )
+    graph_residual = max(
+        max(
+            abs(observed - expected)
+            for observed, expected in zip(
+                undressed_graph,
+                expected_undressed_graph,
+            )
+        ),
+        max(
+            abs(observed - expected)
+            for observed, expected in zip(
+                dressed_graph,
+                expected_dressed_graph,
+            )
+        ),
+    )
+    undressed_physical_block_residual = max(
+        abs(observed - expected)
+        for observed, expected in zip(
+            undressed_physical_singular_values,
+            expected_undressed_physical_singular_values,
+        )
+    )
+    dressed_physical_block_residual = max(
+        abs(observed - expected)
+        for observed, expected in zip(
+            dressed_physical_singular_values,
+            expected_dressed_physical_singular_values,
+        )
+    )
+    thresholds = GeometryNumericalThresholds(
+        signal_threshold=0.001,
+        geometry_threshold=0.05,
+        geometry_ambiguity_half_width=0.01,
+        coverage_threshold=0.5,
+        coverage_ambiguity_half_width=0.1,
+    )
+    kernel = frozen_tensor_array(verified.kernel_basis)
+    quotient = frozen_tensor_array(verified.physical_quotient_map)
+    metric = frozen_tensor_array(verified.physical_quotient_metric)
+    targets = frozen_tensor_array(verified.target_physical_representatives)
+    undressed_geometry = _compute_geometry_spectrum_from_matrices(
+        undressed_frame,
+        kernel,
+        quotient,
+        metric,
+        targets,
+        thresholds=thresholds,
+    )
+    dressed_geometry = _compute_geometry_spectrum_from_matrices(
+        dressed_frame,
+        kernel,
+        quotient,
+        metric,
+        targets,
+        thresholds=thresholds,
+    )
+    coverage_drift = max(
+        abs(left - right)
+        for left, right in zip(
+            undressed_geometry.c_spectrum,
+            dressed_geometry.c_spectrum,
+        )
+    )
+    provisional = C17FiniteResponsePreflight(
+        preflight_schema_version=C17_FINITE_RESPONSE_PREFLIGHT_SCHEMA_VERSION,
+        parent_freeze_sha=verified.parent_freeze_sha,
+        scenario_id=verified.scenario_id,
+        scenario_sha=verified.scenario_sha,
+        scenario_recipe_sha=verified.scenario_recipe_sha,
+        bundle_sha=verified.bundle_sha,
+        selected_fejer_order=verified.selected_fejer_order,
+        finite_graph_formula_id=verified.finite_graph_formula_id,
+        fejer_opposite_phase_leakage=(
+            verified.fejer_opposite_phase_leakage
+        ),
+        raw_undressed_response=freeze_complex_tensor(raw_undressed),
+        raw_dressed_response=freeze_complex_tensor(raw_dressed),
+        undressed_active_singular_values=undressed_active,
+        dressed_active_singular_values=dressed_active,
+        undressed_graph_singular_values=undressed_graph,
+        dressed_graph_singular_values=dressed_graph,
+        expected_undressed_graph_singular_values=expected_undressed_graph,
+        expected_dressed_graph_singular_values=expected_dressed_graph,
+        undressed_physical_block_singular_values=(
+            undressed_physical_singular_values
+        ),
+        dressed_physical_block_singular_values=(
+            dressed_physical_singular_values
+        ),
+        expected_undressed_physical_block_singular_values=(
+            expected_undressed_physical_singular_values
+        ),
+        expected_dressed_physical_block_singular_values=(
+            expected_dressed_physical_singular_values
+        ),
+        undressed_g_spectrum=undressed_geometry.g_spectrum,
+        dressed_g_spectrum=dressed_geometry.g_spectrum,
+        undressed_c_spectrum=undressed_geometry.c_spectrum,
+        dressed_c_spectrum=dressed_geometry.c_spectrum,
+        graph_prediction_residual=float(graph_residual),
+        undressed_physical_block_prediction_residual=float(
+            undressed_physical_block_residual
+        ),
+        dressed_physical_block_prediction_residual=float(
+            dressed_physical_block_residual
+        ),
+        coverage_spectrum_drift=float(coverage_drift),
+        integration_state=GEOMETRY_APPLICATION_INTEGRATION_STATE,
+        preflight_sha="0" * 64,
+    )
+    result = replace(
+        provisional,
+        preflight_sha=canonical_sha(
+            c17_finite_response_preflight_payload(provisional)
+        ),
+    )
+    _validate_c17_finite_response_preflight(result)
+    return result
+
+
+def verify_c17_finite_response_preflight(
+    parent: VerifiedParentFreeze,
+    bundle: GeometryScenarioOperatorBundleTemplate,
+    preflight: C17FiniteResponsePreflight,
+) -> C17FiniteResponsePreflight:
+    """Hydrate only by replaying both real pending C17 branches."""
+
+    _validate_c17_finite_response_preflight(preflight)
+    expected = measure_c17_finite_response_preflight(parent, bundle)
+    if preflight != expected:
+        raise ValueError("C17 finite-response preflight differs from live replay")
+    return preflight
 
 
 def _orthonormal_columns(
@@ -1403,20 +2534,32 @@ __all__ = [
     "C15_GEOMETRY_SCENARIO_IDS",
     "C16_GEOMETRY_SCENARIO_IDS",
     "C17_GEOMETRY_SCENARIO_IDS",
+    "C17_FINITE_RESPONSE_PREFLIGHT_SCHEMA_VERSION",
     "C18_GEOMETRY_SCENARIO_IDS",
     "C19_GEOMETRY_SCENARIO_IDS",
     "GEOMETRY_APPLICATION_INTEGRATION_STATE",
     "GEOMETRY_APPLICATION_RECIPE_SCHEMA_VERSION",
     "GEOMETRY_APPLICATION_SCENARIO_IDS",
     "GEOMETRY_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION",
+    "GEOMETRY_SCENARIO_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION",
+    "C17FiniteResponsePreflight",
     "GeometryApplicationRecipeArtifact",
     "GeometryOperatorBundleTemplate",
+    "GeometryScenarioOperatorBundleTemplate",
     "build_c15_analytic_geometry_bundle",
+    "build_c16_analytic_geometry_bundle",
+    "build_c17_analytic_geometry_bundle",
     "build_geometry_application_recipe",
     "build_geometry_recipe_trace_and_operators",
     "geometry_application_recipe_payload",
     "geometry_application_recipe_symbol",
     "geometry_operator_bundle_template_payload",
+    "geometry_scenario_operator_bundle_template_payload",
+    "c17_finite_response_preflight_payload",
+    "measure_c17_finite_response_preflight",
     "verify_c15_analytic_geometry_bundle",
+    "verify_c16_analytic_geometry_bundle",
+    "verify_c17_analytic_geometry_bundle",
+    "verify_c17_finite_response_preflight",
     "verify_geometry_application_recipe",
 ]
