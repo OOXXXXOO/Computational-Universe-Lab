@@ -1117,26 +1117,95 @@ def _integer_parameter(
     return wire.integer_value
 
 
-def _validate_c18_source_axes(
+def _text_parameter(
+    operation: SyntheticApplicationOperation,
+    name: str,
+) -> str:
+    wire = _parameter(operation, name)
+    if wire.value_kind != "text" or wire.text_value is None:
+        raise TypeError(f"{name} must be a text wire")
+    return wire.text_value
+
+
+@dataclass(frozen=True)
+class _C18OperationContract:
+    actual_source_axis: int
+    independent_source_axis: int
+    new_axis_amplitude: float
+    observer: str
+
+
+def _extract_c18_operation_contract(
     application: V3M0SyntheticControlApplicationSpec,
-) -> None:
-    def unique_operation(suffix: str) -> SyntheticApplicationOperation:
+    scenario: ApplicationScenarioExecutionSpec,
+) -> _C18OperationContract:
+    verify_synthetic_control_application_spec(application)
+
+    def unique_operation(local_id: str) -> SyntheticApplicationOperation:
+        identifier = f"{application.application_instance_id}.{local_id}"
         matches = tuple(
             operation
             for operation in application.operations
-            if operation.operation_instance_id.endswith(f".{suffix}")
+            if operation.operation_instance_id == identifier
         )
         if len(matches) != 1:
-            raise ValueError("C18 source-axis operation is not Parent-unique")
+            raise ValueError("C18 operation is not Parent-unique")
         return matches[0]
 
     actual_domain = unique_operation("00-actual-source-domain")
     independent_axis = unique_operation("01-ablated-new-source-axis")
+    observer_operation = unique_operation("02-unary-geometry-sigma")
     if (
-        _integer_parameter(actual_domain, "source-axis") != 0
-        or _integer_parameter(independent_axis, "independent-source-axis") != 1
+        actual_domain.operation_kind != "identity-v1"
+        or actual_domain.input_operation_instance_ids
+        or tuple(name for name, _ in actual_domain.parameters)
+        != ("source-axis",)
+    ):
+        raise ValueError("C18 actual source operation is not frozen")
+    if (
+        independent_axis.operation_kind != "source-linear-mix-v1"
+        or independent_axis.input_operation_instance_ids
+        != (actual_domain.operation_instance_id,)
+        or tuple(name for name, _ in independent_axis.parameters)
+        != ("independent-source-axis", "new-axis-amplitude")
+    ):
+        raise ValueError("C18 independent source dependency is not frozen")
+    if (
+        observer_operation.operation_kind != "geometry-subspace-v1"
+        or observer_operation.input_operation_instance_ids
+        != (
+            actual_domain.operation_instance_id,
+            independent_axis.operation_instance_id,
+        )
+        or tuple(name for name, _ in observer_operation.parameters)
+        != ("observer",)
+        or scenario.operation_output_ids
+        != (observer_operation.operation_instance_id,)
+    ):
+        raise ValueError("C18 observer operation/output is not frozen")
+    actual_axis = _integer_parameter(actual_domain, "source-axis")
+    new_axis = _integer_parameter(
+        independent_axis,
+        "independent-source-axis",
+    )
+    amplitude = _fp64_parameter(independent_axis, "new-axis-amplitude")
+    observer = _text_parameter(observer_operation, "observer")
+    if (
+        actual_axis != 0
+        or new_axis != 1
+        or actual_axis == new_axis
     ):
         raise ValueError("C18 source axes differ from the frozen q0/q1 selectors")
+    if amplitude != 1.0:
+        raise ValueError("C18 new-axis amplitude is not the frozen exact unit")
+    if observer != "geometry-and-sigma":
+        raise ValueError("C18 observer is not the frozen geometry-and-sigma pair")
+    return _C18OperationContract(
+        actual_source_axis=actual_axis,
+        independent_source_axis=new_axis,
+        new_axis_amplitude=amplitude,
+        observer=observer,
+    )
 
 
 def _common_blind_steps(
@@ -1254,30 +1323,38 @@ def _c17_steps(
 
 def _c18_steps(
     derivation_digest: str,
+    contract: _C18OperationContract,
 ) -> tuple[
     tuple[ApplicationLocalShearStep, ...],
     tuple[ApplicationLocalShearStep, ...],
 ]:
+    quarter_turn = contract.new_axis_amplitude * math.pi / 2.0
     blind = (
         *_canonical_pair_rotation_steps(
-            0,
-            math.pi / 2.0,
-            "blind.c18.mode0-quarter-turn",
+            contract.actual_source_axis,
+            quarter_turn,
+            f"blind.c18.mode{contract.actual_source_axis}-quarter-turn",
             target_conditioned=False,
             derivation_effect_digest=derivation_digest,
         ),
         *_canonical_pair_rotation_steps(
-            1,
-            math.pi / 2.0,
-            "blind.c18.mode1-quarter-turn",
+            contract.independent_source_axis,
+            quarter_turn,
+            (
+                "blind.c18."
+                f"mode{contract.independent_source_axis}-quarter-turn"
+            ),
             target_conditioned=False,
             derivation_effect_digest=derivation_digest,
         ),
     )
     conditioned = _canonical_pair_rotation_steps(
-        1,
-        -math.pi / 2.0,
-        "conditioned.c18.mode1-cancel-quarter-turn",
+        contract.independent_source_axis,
+        -quarter_turn,
+        (
+            "conditioned.c18."
+            f"mode{contract.independent_source_axis}-cancel-quarter-turn"
+        ),
         target_conditioned=True,
         derivation_effect_digest=derivation_digest,
     )
@@ -1410,6 +1487,7 @@ def _source_and_sectors(
     scenario_id: str,
     actual_steps: tuple[ApplicationLocalShearStep, ...],
     blind_steps: tuple[ApplicationLocalShearStep, ...],
+    c18_contract: Optional[_C18OperationContract] = None,
 ) -> tuple[np.ndarray, tuple[str, ...]]:
     if scenario_id in C17_GEOMETRY_SCENARIO_IDS:
         dressed_positive = _canonical_projector_columns(
@@ -1437,10 +1515,24 @@ def _source_and_sectors(
             return semantic[:, :1], ("coverage-probe",)
         raise AssertionError("unreachable C15/C16 geometry source scenario")
     if scenario_id in C18_GEOMETRY_SCENARIO_IDS:
-        return (
-            np.eye(4, dtype=np.complex128)[:, (0, 2)],
-            ("actual-source-q0", "matched-new-source-q1"),
+        if c18_contract is None:
+            raise ValueError("C18 source selector lacks its Parent operation contract")
+        source_indices = (
+            2 * c18_contract.actual_source_axis,
+            2 * c18_contract.independent_source_axis,
         )
+        return (
+            np.eye(4, dtype=np.complex128)[:, source_indices],
+            (
+                f"actual-source-q{c18_contract.actual_source_axis}",
+                (
+                    "matched-new-source-"
+                    f"q{c18_contract.independent_source_axis}"
+                ),
+            ),
+        )
+    if c18_contract is not None:
+        raise ValueError("non-C18 geometry recipe received a C18 contract")
     # C19 shifts the two positive phases by the same tiny amount.  The
     # eigenspace is unchanged, while ``(I-iM)/2`` is a projector only at the
     # unshifted quarter turn; derive the source from that exact blind carrier.
@@ -1487,9 +1579,13 @@ def build_geometry_application_recipe(
         application,
         scenario,
     )
+    c18_contract: Optional[_C18OperationContract] = None
     if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS:
-        _validate_c18_source_axes(application)
-        actual_steps, blind_steps = _c18_steps(dag_sha)
+        c18_contract = _extract_c18_operation_contract(
+            application,
+            scenario,
+        )
+        actual_steps, blind_steps = _c18_steps(dag_sha, c18_contract)
         rule_id = "c18-on-site-actual-rank1-matched-rank2-v1"
     elif scenario.scenario_id in C19_GEOMETRY_SCENARIO_IDS:
         actual_steps, blind_steps = _c19_steps(dag_sha)
@@ -1507,6 +1603,7 @@ def build_geometry_application_recipe(
         scenario.scenario_id,
         actual_steps,
         blind_steps,
+        c18_contract,
     )
     source_manifest = application.basis_protocol.source_basis
     readout_manifest = application.basis_protocol.readout_basis
@@ -1561,7 +1658,13 @@ def build_geometry_application_recipe(
         matched_ablated_steps=ablated_steps,
         source_injection=freeze_complex_tensor(source_values),
         readout=freeze_complex_tensor(
-            np.eye(4, dtype=np.complex128)[(1, 3), :]
+            np.eye(4, dtype=np.complex128)[
+                (
+                    2 * c18_contract.actual_source_axis + 1,
+                    2 * c18_contract.independent_source_axis + 1,
+                ),
+                :,
+            ]
             if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS
             else np.eye(4, dtype=np.complex128)
         ),

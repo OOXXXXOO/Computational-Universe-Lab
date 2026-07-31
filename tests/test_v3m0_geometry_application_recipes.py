@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import struct
 from dataclasses import replace
 import unittest
 from unittest.mock import patch
@@ -37,7 +38,11 @@ from rulespace_v3.geometry_application_recipes import (
     geometry_operator_bundle_template_payload,
 )
 from rulespace_v3.evidence import canonical_sha
-from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
+from rulespace_v3.parent_freeze import (
+    issue_v3m0_parent_freeze,
+    synthetic_application_operation_payload,
+    synthetic_control_application_spec_payload,
+)
 from rulespace_v3.response import (
     _extract_projector_candidates,
     compute_fejer_filtered_response,
@@ -650,6 +655,138 @@ class GeometryApplicationRecipeTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "differs from|live parent"):
             verifier(self.parent, control_splice)
+
+    def test_c18_parent_parameters_must_mechanically_control_the_recipe(
+        self,
+    ) -> None:
+        scenario_id = C18_GEOMETRY_SCENARIO_IDS[0]
+        application = next(
+            item
+            for item in self.parent.manifest.synthetic_control_application_specs
+            if item.control_case_id == "C18_ABLATED_INDEPENDENT_UNARY"
+        )
+        scenario = application.scenario_execution_specs[0]
+
+        def resign_operation(operation, **changes):
+            provisional = replace(
+                operation,
+                **changes,
+                operation_sha="0" * 64,
+            )
+            return replace(
+                provisional,
+                operation_sha=canonical_sha(
+                    synthetic_application_operation_payload(provisional)
+                ),
+            )
+
+        def replace_wire(operation, parameter_name, wire):
+            return resign_operation(
+                operation,
+                parameters=tuple(
+                    (
+                        name,
+                        wire if name == parameter_name else value,
+                    )
+                    for name, value in operation.parameters
+                ),
+            )
+
+        def resign_application(changed_operation):
+            provisional = replace(
+                application,
+                operations=tuple(
+                    changed_operation
+                    if item.operation_instance_id
+                    == changed_operation.operation_instance_id
+                    else item
+                    for item in application.operations
+                ),
+                application_spec_sha="0" * 64,
+            )
+            return replace(
+                provisional,
+                application_spec_sha=canonical_sha(
+                    synthetic_control_application_spec_payload(provisional)
+                ),
+            )
+
+        actual_domain = next(
+            item
+            for item in application.operations
+            if item.operation_instance_id.endswith("00-actual-source-domain")
+        )
+        independent_axis = next(
+            item
+            for item in application.operations
+            if item.operation_instance_id.endswith("01-ablated-new-source-axis")
+        )
+        observer = next(
+            item
+            for item in application.operations
+            if item.operation_instance_id.endswith("02-unary-geometry-sigma")
+        )
+        amplitude_wire = dict(independent_axis.parameters)["new-axis-amplitude"]
+        observer_wire = dict(observer.parameters)["observer"]
+        actual_axis_wire = dict(actual_domain.parameters)["source-axis"]
+        independent_axis_wire = dict(independent_axis.parameters)[
+            "independent-source-axis"
+        ]
+        attacks = (
+            replace_wire(
+                independent_axis,
+                "new-axis-amplitude",
+                replace(
+                    amplitude_wire,
+                    fp64_bits_value=struct.unpack(
+                        ">Q",
+                        struct.pack(">d", 2.0),
+                    )[0],
+                ),
+            ),
+            replace_wire(
+                observer,
+                "observer",
+                replace(observer_wire, text_value="geometry-only"),
+            ),
+            replace_wire(
+                actual_domain,
+                "source-axis",
+                replace(actual_axis_wire, integer_value=1),
+            ),
+            replace_wire(
+                independent_axis,
+                "independent-source-axis",
+                replace(independent_axis_wire, integer_value=0),
+            ),
+            resign_operation(
+                independent_axis,
+                input_operation_instance_ids=(),
+            ),
+            resign_operation(
+                observer,
+                operation_kind="identity-v1",
+            ),
+        )
+        for hostile_operation in attacks:
+            hostile_application = resign_application(hostile_operation)
+            with self.subTest(
+                operation=hostile_operation.operation_instance_id,
+                parameters=hostile_operation.parameters,
+            ):
+                with patch.object(
+                    geometry_recipes,
+                    "_find_application_and_scenario",
+                    return_value=(hostile_application, scenario),
+                ):
+                    with self.assertRaisesRegex(
+                        (TypeError, ValueError),
+                        "C18|source|amplitude|observer|operation|dependency",
+                    ):
+                        build_geometry_application_recipe(
+                            self.parent,
+                            scenario_id,
+                        )
 
     def test_c18_factory_bridge_is_on_site_and_exact_at_l8_l16(self) -> None:
         recipe = self.recipes[C18_GEOMETRY_SCENARIO_IDS[0]]
