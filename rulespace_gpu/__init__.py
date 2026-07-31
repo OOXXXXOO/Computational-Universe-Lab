@@ -1,10 +1,23 @@
-"""rulespace_gpu — device-agnostic engine for the Projective Rule-Space Program.
+"""Device adapters for the Projective Rule-Space Program.
 
-    from rulespace_gpu import backend as B, engine, states, observables
-    print(B.NAME, B.device_info())
-
-Backend chosen by env var RULESPACE_BACKEND in {mlx, jax, numpy, auto}.
+Legacy modules remain available through the original package attributes, but
+are imported only when requested.  This keeps isolated adapters free from the
+legacy environment-selected backend during import.
 """
-from . import backend, engine, states, observables
+
+from importlib import import_module
+
 
 __all__ = ["backend", "engine", "states", "observables"]
+
+
+def __getattr__(name: str):
+    if name not in __all__:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = import_module(f"{__name__}.{name}")
+    globals()[name] = module
+    return module
+
+
+def __dir__():
+    return sorted((*globals(), *__all__))
