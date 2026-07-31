@@ -202,6 +202,19 @@ class C05ProjectorOrientationRecipeTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "unknown fields"):
                     verify_c05_projector_orientation_recipe(recipe)
 
+    def test_verifier_rejects_tuple_subclass_channel_order(self) -> None:
+        class HostileTuple(tuple):
+            pass
+
+        recipe = build_c05_projector_orientation_recipe("phase")
+        object.__setattr__(
+            recipe,
+            "channel_order",
+            HostileTuple(recipe.channel_order),
+        )
+        with self.assertRaisesRegex(TypeError, "exact tuple"):
+            verify_c05_projector_orientation_recipe(recipe)
+
     def test_ablation_deletes_only_six_conditioned_local_slots(self) -> None:
         for kind, recipe in self.recipes.items():
             trace, pair = _build_factory_pair(recipe, self.target, length=8)

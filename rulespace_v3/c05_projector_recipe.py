@@ -213,6 +213,8 @@ class C05ProjectorOrientationRecipe:
             raise ValueError("C05 projector scenario kind is not closed")
         _text(self.recipe_id, "recipe_id")
         _text(self.state_schema_id, "state_schema_id")
+        if type(self.channel_order) is not tuple:
+            raise TypeError("channel_order must be an exact tuple")
         if self.channel_order != _CHANNEL_ORDER or self.spatial_ndim != 1:
             raise ValueError("C05 projector state space is not frozen")
         if self.public_basis_contract_id != C05_PROJECTOR_PUBLIC_BASIS_CONTRACT_ID:
@@ -415,6 +417,8 @@ def _validate_recipe(recipe: C05ProjectorOrientationRecipe) -> None:
         C05ProjectorOrientationRecipe,
         "recipe",
     )
+    if type(recipe.channel_order) is not tuple:
+        raise TypeError("channel_order must be an exact tuple")
     for field in ("actual_steps", "matched_ablated_steps"):
         steps = getattr(recipe, field)
         if type(steps) is not tuple:
