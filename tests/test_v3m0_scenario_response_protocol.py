@@ -1135,6 +1135,61 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cross-module"):
             replay(parent_b, permit_b, materialization_a)
 
+    def test_repository_relationship_verifier_uses_live_owner_bridges(
+        self,
+    ) -> None:
+        import rulespace_v3.application_authority_v2 as authority_module
+        import rulespace_v3.application_materialization_v2 as materialization_module
+        from rulespace_v3.application_authority_v2 import (
+            VerifiedCalibrationApplicationPermitV2,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            VerifiedV3M0ApplicationScenarioMaterializationV2,
+        )
+        from rulespace_v3.parent_authority import VerifiedParentFreezeV2
+        from rulespace_v3.scenario_response_protocol import (
+            _repository_closed_live_relationship_verifier,
+        )
+
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    _repository_closed_live_relationship_verifier
+                ).parameters
+            ),
+            ("formal_parent_v2", "permit_v2", "materialization_v2"),
+        )
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_):
+                poisoned_calls.append(label)
+                raise AssertionError(f"rebound {label} bridge was called")
+
+            return poisoned
+
+        with (
+            patch.object(
+                authority_module,
+                "_require_calibration_application_permit_v2_for_parent",
+                poison("permit-parent"),
+            ),
+            patch.object(
+                materialization_module,
+                "_require_application_scenario_materialization_v2_for_upstream",
+                poison("materialization-upstream"),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "live"):
+                _repository_closed_live_relationship_verifier(
+                    object.__new__(VerifiedParentFreezeV2),
+                    object.__new__(VerifiedCalibrationApplicationPermitV2),
+                    object.__new__(
+                        VerifiedV3M0ApplicationScenarioMaterializationV2
+                    ),
+                )
+        self.assertEqual(poisoned_calls, [])
+
     def test_exact_compiler_freezes_its_lineage_validation_call_graph(self) -> None:
         import rulespace_v3.scenario_response_protocol as protocol_module
         from rulespace_v3.scenario_response_protocol import (

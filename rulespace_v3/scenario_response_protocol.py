@@ -27,11 +27,13 @@ import numpy as np
 from .application_authority_v2 import (
     CalibrationApplicationPermitV2,
     VerifiedCalibrationApplicationPermitV2,
+    _require_calibration_application_permit_v2_for_parent,
     require_calibration_application_permit_v2,
 )
 from .application_materialization_v2 import (
     ApplicationScenarioMaterializationV2,
     VerifiedV3M0ApplicationScenarioMaterializationV2,
+    _require_application_scenario_materialization_v2_for_upstream,
     verify_v3m0_application_scenario_materialization_v2,
 )
 from .evidence import canonical_sha
@@ -1911,15 +1913,42 @@ def _repository_closed_expected_protocol_inputs(
     )
 
 
-def _repository_closed_live_relationship_verifier(
-    formal_parent_v2: object,
-    permit_v2: object,
-    materialization_v2: object,
-) -> None:
-    del formal_parent_v2, permit_v2, materialization_v2
-    raise ScenarioResponseProtocolUpstreamUnavailable(
-        "cross-module permit/materialization live-identity bridge is not connected"
+def _make_repository_closed_live_relationship_verifier(
+    *,
+    permit_parent_reverifier,
+    materialization_upstream_reverifier,
+):
+    if not callable(permit_parent_reverifier) or not callable(
+        materialization_upstream_reverifier
+    ):
+        raise TypeError("repository relationship reverifiers must be callable")
+
+    def verify(
+        formal_parent_v2: object,
+        permit_v2: object,
+        materialization_v2: object,
+    ) -> None:
+        permit_parent_reverifier(permit_v2, formal_parent_v2)
+        materialization_upstream_reverifier(
+            formal_parent_v2,
+            permit_v2,
+            materialization_v2,
+        )
+
+    verify.__name__ = "_repository_closed_live_relationship_verifier"
+    return verify
+
+
+_repository_closed_live_relationship_verifier = (
+    _make_repository_closed_live_relationship_verifier(
+        permit_parent_reverifier=(
+            _require_calibration_application_permit_v2_for_parent
+        ),
+        materialization_upstream_reverifier=(
+            _require_application_scenario_materialization_v2_for_upstream
+        ),
     )
+)
 
 
 def _make_repository_closed_live_upstream_replayer(
@@ -1982,6 +2011,8 @@ _replay_from_live_upstream = _make_repository_closed_live_upstream_replayer(
     compiler_factory=_make_exact_scenario_response_protocol_compiler,
     live_replayer_factory=_make_live_scenario_response_protocol_replayer,
 )
+
+del _make_repository_closed_live_relationship_verifier
 
 
 def _make_closed_protocol_api(
