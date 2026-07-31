@@ -15,6 +15,11 @@ from rulespace_v3.replay_scope import (
     _replay_scope_statistics,
     _scoped_replay_context,
 )
+from rulespace_v3.runtime import (
+    RUNTIME_EVALUATOR_ID,
+    RUNTIME_SCHEMA_VERSION,
+    RuntimeEvidenceManifest,
+)
 from tests.test_v3m0_dynamics import _quarter_turn_controls
 
 
@@ -29,6 +34,63 @@ class _Leaf:
 @dataclass(frozen=True)
 class _CertificateBody:
     leaf: _Leaf
+
+
+@dataclass(frozen=True)
+class _FrozenSlotsWire:
+    __slots__ = ("value",)
+
+    value: object
+
+
+@dataclass(frozen=True)
+class _AliasedWire:
+    left: _FrozenSlotsWire
+    right: _FrozenSlotsWire
+
+
+class _IntSubclass(int):
+    pass
+
+
+class ExactWireSnapshotTests(unittest.TestCase):
+    def test_frozen_slots_runtime_manifest_is_cloned_with_exact_type(self):
+        manifest = RuntimeEvidenceManifest(
+            runtime_schema_version=RUNTIME_SCHEMA_VERSION,
+            evaluator_id=RUNTIME_EVALUATOR_ID,
+            source_closure=(("rulespace_v3/runtime.py", "a" * 64),),
+            python_version="3.9.0",
+            numpy_version="2.0.0",
+            scipy_version="1.13.0",
+            blas_config_sha="b" * 64,
+            lapack_config_sha="c" * 64,
+            platform_id="test-platform",
+            runtime_manifest_sha="d" * 64,
+        )
+        clone = certificate_module._snapshot_exact_wire(manifest)
+        self.assertIs(type(clone), RuntimeEvidenceManifest)
+        self.assertEqual(clone, manifest)
+        self.assertIsNot(clone, manifest)
+
+    def test_alias_is_preserved_but_snapshot_is_independent(self):
+        shared = _FrozenSlotsWire(1)
+        wire = _AliasedWire(shared, shared)
+        clone = certificate_module._snapshot_exact_wire(wire)
+        self.assertIs(type(clone), _AliasedWire)
+        self.assertIs(clone.left, clone.right)
+        self.assertIsNot(clone.left, shared)
+        object.__setattr__(shared, "value", 2)
+        self.assertEqual(clone.left.value, 1)
+
+    def test_cycle_unknown_object_and_scalar_subclass_are_rejected(self):
+        cycle = _FrozenSlotsWire(None)
+        object.__setattr__(cycle, "value", cycle)
+        with self.assertRaisesRegex(ValueError, "acyclic"):
+            certificate_module._snapshot_exact_wire(cycle)
+        with self.assertRaisesRegex(TypeError, "non-wire"):
+            certificate_module._snapshot_exact_wire(object())
+        with self.assertRaisesRegex(TypeError, "non-wire"):
+            certificate_module._snapshot_exact_wire(_IntSubclass(1))
 
 
 class CertificateScopedReplayTests(unittest.TestCase):

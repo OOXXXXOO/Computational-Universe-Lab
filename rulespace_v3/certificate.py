@@ -17,7 +17,6 @@ import re
 import threading
 import types
 import weakref
-from copy import deepcopy
 from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
 from typing import Callable, Optional
@@ -134,6 +133,62 @@ _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
 _VALIDATED_TOKEN = object()
 _ZERO_SHA = "0" * 64
+
+
+def _snapshot_exact_wire(
+    value: object,
+) -> object:
+    """Clone a validated inert wire without invoking frozen-slot setters."""
+
+    memo: dict[int, object] = {}
+    active: set[int] = set()
+
+    def snapshot(item: object) -> object:
+        if item is None or type(item) in (bool, int, float, str, bytes):
+            return item
+        if isinstance(item, Enum):
+            return item
+        identity = id(item)
+        if identity in active:
+            raise ValueError("authority snapshot wire must be acyclic")
+        cached = memo.get(identity)
+        if cached is not None:
+            return cached
+        active.add(identity)
+        try:
+            if type(item) is tuple:
+                clone = tuple(snapshot(child) for child in item)
+                memo[identity] = clone
+                return clone
+            if type(item) is list:
+                clone_list: list[object] = []
+                memo[identity] = clone_list
+                clone_list.extend(snapshot(child) for child in item)
+                return clone_list
+            if type(item) is dict:
+                clone_dict: dict[object, object] = {}
+                memo[identity] = clone_dict
+                for key, child in item.items():
+                    clone_dict[snapshot(key)] = snapshot(child)
+                return clone_dict
+            if is_dataclass(item) and not isinstance(item, type):
+                clone_record = object.__new__(type(item))
+                memo[identity] = clone_record
+                for field in fields(item):
+                    object.__setattr__(
+                        clone_record,
+                        field.name,
+                        snapshot(getattr(item, field.name)),
+                    )
+                return clone_record
+        finally:
+            active.remove(identity)
+        raise TypeError(
+            "authority snapshot encountered a non-wire value "
+            f"{type(item).__name__}"
+        )
+
+    return snapshot(value)
 
 
 def _make_bounded_canonical_sha(
@@ -1057,7 +1112,7 @@ def _make_certificate_authority(
             raise TypeError("certificate issuance requires validation")
         seal = _certificate_seal(certificate)
         record = _VerifiedCertificateRecord(
-            certificate=deepcopy(certificate),
+            certificate=_snapshot_exact_wire(certificate),
             factory=factory,
             authority=authority,
             seal=seal,
@@ -1298,7 +1353,7 @@ def _make_outcome_authority(
             )
         seal = _outcome_seal(outcome)
         record = _VerifiedOutcomeRecord(
-            outcome=deepcopy(outcome),
+            outcome=_snapshot_exact_wire(outcome),
             certificate=certificate,
             factory=factory,
             authority=authority,
