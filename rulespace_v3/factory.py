@@ -978,8 +978,8 @@ def basis_manifest_array(basis: BasisManifest) -> np.ndarray:
 def frozen_tensor_payload(tensor: FrozenComplexTensor) -> dict[str, object]:
     """Return the complete tensor body, excluding only ``tensor_sha``."""
 
-    if not isinstance(tensor, FrozenComplexTensor):
-        raise TypeError("tensor must be a FrozenComplexTensor")
+    if type(tensor) is not FrozenComplexTensor:
+        raise TypeError("tensor must be an exact FrozenComplexTensor")
     return {
         "tensor_schema_version": tensor.tensor_schema_version,
         "shape": list(tensor.shape),
@@ -992,8 +992,8 @@ def _tensor_record(tensor: FrozenComplexTensor) -> dict[str, object]:
 
 
 def verify_frozen_tensor(tensor: FrozenComplexTensor) -> FrozenComplexTensor:
-    if not isinstance(tensor, FrozenComplexTensor):
-        raise TypeError("tensor must be a FrozenComplexTensor")
+    if type(tensor) is not FrozenComplexTensor:
+        raise TypeError("tensor must be an exact FrozenComplexTensor")
     if tensor.tensor_schema_version != TENSOR_SCHEMA_VERSION:
         raise ValueError("unexpected tensor_schema_version")
     if tensor.tensor_sha != canonical_sha(frozen_tensor_payload(tensor)):
