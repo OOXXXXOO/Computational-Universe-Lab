@@ -146,7 +146,7 @@ class CurrentWindowReplayV2Tests(unittest.TestCase):
             calls.append("replay")
             return self.registry, self.replay
 
-        build, require = _make_current_window_calibration_protocol_v2_api(
+        build, require, replay = _make_current_window_calibration_protocol_v2_api(
             registry_type=FakeRegistryCapability,
             registry_replayer=replay_registry,
             body_builder=_build_current_window_calibration_protocol_v2_body,
@@ -155,7 +155,11 @@ class CurrentWindowReplayV2Tests(unittest.TestCase):
         capability = build(registry_capability)
         protocol = require(capability)
         self.assertEqual(protocol.parent_freeze_v2_sha, self.parent_v2_sha)
-        self.assertEqual(calls, ["replay", "replay"])
+        replayed_protocol, replayed_registry, replayed_task8 = replay(capability)
+        self.assertEqual(replayed_protocol, protocol)
+        self.assertEqual(replayed_registry, self.registry)
+        self.assertIs(replayed_task8, self.replay)
+        self.assertEqual(calls, ["replay", "replay", "replay"])
 
         forged = object.__new__(VerifiedCurrentWindowCalibrationProtocolV2)
         object.__setattr__(forged, "_protocol_sha", protocol.protocol_sha)
@@ -181,7 +185,7 @@ class CurrentWindowReplayV2Tests(unittest.TestCase):
             pass
 
         registry_capability = FakeRegistryCapability()
-        build, require = _make_current_window_calibration_protocol_v2_api(
+        build, require, _ = _make_current_window_calibration_protocol_v2_api(
             registry_type=FakeRegistryCapability,
             registry_replayer=lambda value: (self.registry, self.replay),
             body_builder=_build_current_window_calibration_protocol_v2_body,

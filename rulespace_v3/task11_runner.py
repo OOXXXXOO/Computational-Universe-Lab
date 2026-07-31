@@ -37,11 +37,14 @@ from .certificate import (
 from .contracts import BlockStatus
 from .current_window_replay import (
     CurrentWindowCalibrationProtocolV2,
+    VerifiedCurrentWindowCalibrationProtocolV2,
+    _replay_current_window_calibration_protocol_v2,
     verify_current_window_calibration_protocol_v2_body,
 )
 from .dynamics import VerifiedTransition, measure_transition
 from .evidence import canonical_sha
 from .factory import VerifiedFactory, _reverify_verified_factory
+from .frozen_call_graph import freeze_rulespace_call_graph
 from .grids import build_dynamics_grid_manifest
 from .metric import build_stability_metric_witness
 from .parent_freeze import VerifiedParentFreeze, _reverify_verified_parent_freeze
@@ -613,13 +616,13 @@ def _build_window_candidate_audit(
     )
 
 
-def run_task11_window_calibration(
+def _run_task11_window_calibration_from_replay(
     parent: VerifiedParentFreeze,
     task8_replay: CurrentTask8ControlReplay,
     current_registry: CurrentControlRegistryV2,
     current_window: CurrentWindowCalibrationProtocolV2,
 ) -> WindowCalibrationOutcome:
-    """Replay Task 10 and the frozen six-order Task-11 response graph."""
+    """Numerical body helper; raw replay values carry no authority semantics."""
 
     if type(parent) is not VerifiedParentFreeze:
         raise TypeError("Task-11 runner requires the exact historical Parent")
@@ -655,6 +658,58 @@ def run_task11_window_calibration(
             protocol,
             candidates,
         )
+
+
+def _historical_parent_from_task8_replay(
+    replay: CurrentTask8ControlReplay,
+) -> VerifiedParentFreeze:
+    if type(replay) is not CurrentTask8ControlReplay:
+        raise TypeError("Task-11 current-window replay returned the wrong type")
+    parent = _reverify_verified_control_registry(replay.legacy_registry).parent
+    if type(parent) is not VerifiedParentFreeze:
+        raise TypeError("Task-11 replay lost its historical Parent capability")
+    return parent
+
+
+def _make_public_task11_runner(
+    *,
+    window_type: type,
+    window_replayer,
+    parent_resolver,
+    numerical_executor,
+):
+    """Capture the sole live provenance route into the numerical body helper."""
+
+    def run_task11_window_calibration(
+        current_window: VerifiedCurrentWindowCalibrationProtocolV2,
+    ) -> WindowCalibrationOutcome:
+        if type(current_window) is not window_type:
+            raise TypeError(
+                "Task-11 runner requires an exact live current-window capability"
+            )
+        protocol, current_registry, task8_replay = window_replayer(
+            current_window
+        )
+        parent = parent_resolver(task8_replay)
+        return numerical_executor(
+            parent,
+            task8_replay,
+            current_registry,
+            protocol,
+        )
+
+    return freeze_rulespace_call_graph(run_task11_window_calibration)
+
+
+run_task11_window_calibration = _make_public_task11_runner(
+    window_type=VerifiedCurrentWindowCalibrationProtocolV2,
+    # The replay bridge is already independently frozen.  Its bound call
+    # wrapper composes that sealed graph without recursively re-freezing the
+    # guard's private class snapshots.
+    window_replayer=_replay_current_window_calibration_protocol_v2.__call__,
+    parent_resolver=_historical_parent_from_task8_replay,
+    numerical_executor=_run_task11_window_calibration_from_replay,
+)
 
 
 __all__ = [

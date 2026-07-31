@@ -428,7 +428,11 @@ def _make_current_window_calibration_protocol_v2_api(
         if type(task8_replay) is not CurrentTask8ControlReplay:
             raise TypeError("current window Task-8 replay returned the wrong type")
         protocol = body_builder(current_registry, task8_replay)
-        return body_verifier(protocol, current_registry, task8_replay)
+        return (
+            body_verifier(protocol, current_registry, task8_replay),
+            current_registry,
+            task8_replay,
+        )
 
     def _live_record(value):
         if type(value) is not wrapper_type:
@@ -451,7 +455,7 @@ def _make_current_window_calibration_protocol_v2_api(
     def build_current_window_calibration_protocol_v2(
         registry_capability,
     ) -> VerifiedCurrentWindowCalibrationProtocolV2:
-        protocol = _replay(registry_capability)
+        protocol, _, _ = _replay(registry_capability)
         wrapper = object.__new__(wrapper_type)
         object.__setattr__(wrapper, "_protocol_sha", protocol.protocol_sha)
         identity = id(wrapper)
@@ -483,20 +487,43 @@ def _make_current_window_calibration_protocol_v2_api(
         value: VerifiedCurrentWindowCalibrationProtocolV2,
     ) -> CurrentWindowCalibrationProtocolV2:
         record = _live_record(value)
-        protocol = _replay(record.registry_capability)
+        protocol, _, _ = _replay(record.registry_capability)
         if protocol.protocol_sha != record.protocol_sha:
             raise ValueError("current window protocol replay seal mismatch")
         return copy.deepcopy(protocol)
 
+    def replay_current_window_calibration_protocol_v2(
+        value: VerifiedCurrentWindowCalibrationProtocolV2,
+    ) -> tuple[
+        CurrentWindowCalibrationProtocolV2,
+        CurrentControlRegistryV2,
+        CurrentTask8ControlReplay,
+    ]:
+        """Private downstream bridge to the canonical live Task-8 replay."""
+
+        record = _live_record(value)
+        protocol, current_registry, task8_replay = _replay(
+            record.registry_capability
+        )
+        if protocol.protocol_sha != record.protocol_sha:
+            raise ValueError("current window protocol replay seal mismatch")
+        return (
+            copy.deepcopy(protocol),
+            copy.deepcopy(current_registry),
+            task8_replay,
+        )
+
     return (
         build_current_window_calibration_protocol_v2,
         require_current_window_calibration_protocol_v2,
+        replay_current_window_calibration_protocol_v2,
     )
 
 
 (
     _raw_build_current_window_calibration_protocol_v2,
     _raw_require_current_window_calibration_protocol_v2,
+    _raw_replay_current_window_calibration_protocol_v2,
 ) = _make_current_window_calibration_protocol_v2_api(
     registry_type=VerifiedCurrentControlRegistryV2,
     registry_replayer=_replay_current_control_registry_v2,
@@ -533,9 +560,13 @@ build_current_window_calibration_protocol_v2 = freeze_rulespace_call_graph(
 require_current_window_calibration_protocol_v2 = freeze_rulespace_call_graph(
     _raw_require_current_window_calibration_protocol_v2
 )
+_replay_current_window_calibration_protocol_v2 = freeze_rulespace_call_graph(
+    _raw_replay_current_window_calibration_protocol_v2
+)
 del (
     _raw_build_current_window_calibration_protocol_v2,
     _raw_require_current_window_calibration_protocol_v2,
+    _raw_replay_current_window_calibration_protocol_v2,
 )
 _bind_current_window_property(require_current_window_calibration_protocol_v2)
 del _bind_current_window_property

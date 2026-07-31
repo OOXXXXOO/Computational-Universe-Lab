@@ -144,6 +144,42 @@ def _exact_record(value: object, record_type: type, field: str) -> object:
     return value
 
 
+def _exact_dataclass_items(
+    value: object,
+    field: str,
+    fields: dict[str, object],
+) -> tuple[tuple[str, object], ...]:
+    """Read plain or slotted dataclass fields without dispatching getters."""
+
+    expected = frozenset(fields)
+    declared_slots: set[str] = set()
+    for record_type in type(value).__mro__:
+        slots = vars(record_type).get("__slots__", ())
+        if type(slots) is str:
+            declared_slots.add(slots)
+        else:
+            declared_slots.update(slots)
+    if declared_slots.difference(
+        expected,
+        {"__dict__", "__weakref__"},
+    ):
+        raise ValueError(f"{field} contains missing or unknown fields")
+    try:
+        body = vars(value)
+    except TypeError:
+        body = None
+    if body is not None and frozenset(body) != expected:
+        raise ValueError(f"{field} contains missing or unknown fields")
+    result = []
+    for name in fields:
+        try:
+            nested = object.__getattribute__(value, name)
+        except AttributeError as exc:
+            raise ValueError(f"{field} contains a missing field: {name}") from exc
+        result.append((name, nested))
+    return tuple(result)
+
+
 def _exact_dataclass_tree(value: object, field: str) -> None:
     """Reject unknown fields at every recursively embedded dataclass.
 
@@ -167,32 +203,9 @@ def _exact_dataclass_tree(value: object, field: str) -> None:
             identity = id(item)
             if identity in active:
                 raise ValueError(f"{path} contains a cyclic dataclass")
-            expected = frozenset(fields)
-            declared_slots: set[str] = set()
-            for record_type in item_type.__mro__:
-                slots = vars(record_type).get("__slots__", ())
-                if type(slots) is str:
-                    declared_slots.add(slots)
-                else:
-                    declared_slots.update(slots)
-            unknown_slots = declared_slots.difference(
-                expected,
-                {"__dict__", "__weakref__"},
-            )
-            if unknown_slots:
-                raise ValueError(f"{path} contains missing or unknown fields")
-            try:
-                body = vars(item)
-            except TypeError:
-                body = None
-            if body is not None and frozenset(body) != expected:
-                raise ValueError(f"{path} contains missing or unknown fields")
+            items = _exact_dataclass_items(item, path, fields)
             active.add(identity)
-            for name in reversed(tuple(fields)):
-                try:
-                    nested = object.__getattribute__(item, name)
-                except AttributeError as exc:
-                    raise ValueError(f"{path} contains a missing field: {name}") from exc
+            for name, nested in reversed(items):
                 stack.append((nested, f"{path}.{name}"))
             active.remove(identity)
             continue
@@ -386,22 +399,15 @@ def _preflight_response_evidence_body(
         if fields is not None:
             if identity in active:
                 raise ValueError(f"{path} contains a cyclic record")
-            try:
-                body = vars(item)
-            except TypeError as exc:
-                raise TypeError(f"{path} has no exact dataclass body") from exc
-            expected = frozenset(fields)
-            observed = frozenset(body)
-            if observed != expected:
-                raise ValueError(f"{path} contains missing or unknown fields")
+            items = _exact_dataclass_items(item, path, fields)
             charge(8 * len(fields))
             active.add(identity)
             pending.append((item, path, depth, True))
-            for name in reversed(tuple(fields)):
+            for name, nested in reversed(items):
                 charge(text_bytes(name, f"{path}.{name}"))
                 pending.append(
                     (
-                        body[name],
+                        nested,
                         f"{path}.{name}",
                         depth + 1,
                         False,
