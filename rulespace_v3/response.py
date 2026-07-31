@@ -78,6 +78,10 @@ from .registry import (
     _reverify_verified_control_registry,
     control_registry_entry_payload,
 )
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
+)
 from .thresholds import (
     phase_grid_step,
     phase_separation_min,
@@ -6334,6 +6338,291 @@ _authority_structural_clone = _make_authority_structural_clone(
 )
 
 
+def _response_authority_binding_digest(
+    authority_kind,
+    body_digest,
+    bindings,
+    *,
+    canonical_hash=canonical_sha,
+    type_fn=type,
+    id_fn=id,
+    str_type=str,
+    tuple_type=tuple,
+    type_error=TypeError,
+    value_error=ValueError,
+):
+    """Seal process-local authority identities for one replay-scope proof."""
+
+    if type_fn(authority_kind) is not str_type or not authority_kind:
+        raise type_error("response authority kind must be exact nonempty text")
+    if (
+        type_fn(body_digest) is not str_type
+        or _LOWER_SHA.fullmatch(body_digest) is None
+    ):
+        raise value_error("response authority body digest must be a SHA-256")
+    if type_fn(bindings) is not tuple_type or not bindings:
+        raise type_error("response authority bindings must be a nonempty tuple")
+    return canonical_hash(
+        {
+            "binding_schema_version": "v3m0.response-authority-binding.v1",
+            "authority_kind": authority_kind,
+            "body_digest": body_digest,
+            "binding_identities": [
+                {
+                    "exact_type": (
+                        f"{type_fn(item).__module__}."
+                        f"{type_fn(item).__qualname__}"
+                    ),
+                    "identity": id_fn(item),
+                }
+                for item in bindings
+            ],
+        }
+    )
+
+
+def _validate_cached_reference_binding(authority):
+    """Revalidate every live non-numerical endpoint-reference binding."""
+
+    if type(authority) is not _ReferenceAuthority:
+        raise TypeError("cached reference authority has the wrong exact type")
+    spec = authority.outcome.reference_spec
+    (
+        _registry_view,
+        protocol_view,
+        _factory_view,
+        transition_record,
+        registry_entry,
+        protocol_entry,
+    ) = _bind_reference_inputs(
+        authority.registry,
+        authority.protocol,
+        authority.factory,
+        authority.transition,
+        authority.certificate,
+        spec.control_registry_entry.control_id,
+    )
+    expected_spec = _expected_reference_spec(
+        protocol_view,
+        transition_record,
+        authority.certificate,
+        registry_entry,
+        protocol_entry,
+        spec.candidate_fejer_order,
+    )
+    if spec != expected_spec:
+        raise ValueError("cached reference authority binding changed")
+
+
+def _validate_cached_shell_binding(authority):
+    """Revalidate shell identities/specification without shell extraction."""
+
+    if type(authority) is not _ShellAuthority:
+        raise TypeError("cached shell authority has the wrong exact type")
+    reference_authority = _reverify_verified_endpoint_reference_outcome(
+        authority.reference
+    )
+    if (
+        reference_authority.registry is not authority.registry
+        or reference_authority.protocol is not authority.protocol
+        or reference_authority.factory is not authority.factory
+        or reference_authority.transition is not authority.transition
+        or reference_authority.certificate is not authority.certificate
+    ):
+        raise ValueError("cached shell inputs differ from reference authority")
+    outcome = authority.outcome
+    if outcome.reference_outcome != reference_authority.outcome:
+        raise ValueError("cached shell reference snapshot changed")
+    spec = outcome.attempt_audit.shell_spec
+    verified_spec = verify_endpoint_shell_spec(spec, authority.protocol)
+    expected_spec = _legacy_build_endpoint_shell_spec(
+        authority.protocol,
+        authority.reference,
+    )
+    if verified_spec != expected_spec:
+        raise ValueError("cached shell specification binding changed")
+    transition_record = _reverify_verified_transition(authority.transition)
+    certificate_record = _reverify_verified_dynamics_certificate(
+        authority.certificate
+    )
+    if (
+        transition_record.factory is not authority.factory
+        or certificate_record.factory is not authority.factory
+        or certificate_record.certificate.transition
+        != transition_record.transition
+    ):
+        raise ValueError("cached shell dynamics binding changed")
+    shell = outcome.shell
+    if shell is not None and (
+        shell.shell_spec != spec
+        or shell.actual_factory_sha != transition_record.transition.factory_sha
+        or shell.actual_transition_sha
+        != transition_record.transition.transition_sha
+        or shell.actual_dynamics_certificate_sha
+        != certificate_record.certificate.certificate_sha
+        or shell.dt != transition_record.transition.dt
+    ):
+        raise ValueError("cached shell manifest binding changed")
+
+
+def _validate_cached_paired_binding(authority):
+    """Revalidate paired input authorities without response recomputation."""
+
+    if type(authority) is not _PairedAuthority:
+        raise TypeError("cached paired authority has the wrong exact type")
+    if type(authority.inputs) is not tuple or len(authority.inputs) != 9:
+        raise ValueError("cached paired authority inputs are incomplete")
+    (
+        registry,
+        protocol,
+        qualified_ablation,
+        actual_transition,
+        ablated_transition,
+        actual_certificate,
+        ablated_certificate,
+        run_spec,
+        shell,
+    ) = authority.inputs
+    if type(qualified_ablation) is not VerifiedCertificateBackedQualification:
+        raise TypeError("cached paired qualification has the wrong exact type")
+    _preflight_bridge_output_body(run_spec)
+    _preflight_response_values_body(run_spec)
+    registry_view = _reverify_verified_control_registry(registry)
+    protocol_view = _reverify_verified_window_calibration_protocol(protocol)
+    qualification_view = _reverify_verified_certificate_backed_qualification(
+        qualified_ablation
+    )
+    actual_transition_view = _reverify_verified_transition(actual_transition)
+    ablated_transition_view = _reverify_verified_transition(ablated_transition)
+    actual_certificate_view = _reverify_verified_dynamics_certificate(
+        actual_certificate
+    )
+    ablated_certificate_view = _reverify_verified_dynamics_certificate(
+        ablated_certificate
+    )
+    shell_view = _reverify_verified_endpoint_shell_outcome(shell)
+
+    qualification_outcome = qualification_view.outcome
+    qualification_evidence = qualification_outcome.evidence
+    construction = qualification_view.construction
+    if qualification_evidence is None or construction.pair is None:
+        raise ValueError("cached paired qualification lost matched evidence")
+    actual_factory = construction.pair.actual
+    ablated_factory = construction.pair.ablated
+    actual_factory_view = _reverify_verified_factory(actual_factory)
+    ablated_factory_view = _reverify_verified_factory(ablated_factory)
+    raw_actual_transition = actual_transition_view.transition
+    raw_ablated_transition = ablated_transition_view.transition
+    raw_actual_certificate = actual_certificate_view.certificate
+    raw_ablated_certificate = ablated_certificate_view.certificate
+    qualified_ablated_certificate = _reverify_verified_dynamics_certificate(
+        qualification_view.certificate
+    ).certificate
+    shell_outcome = shell_view.outcome
+    protocol_body = protocol_view.protocol
+    outcome = authority.outcome
+    attempt = outcome.attempt_audit
+    if (
+        attempt.window_protocol != protocol_body
+        or attempt.qualification_sha != qualification_outcome.outcome_sha
+        or attempt.actual_factory_sha
+        != actual_factory_view.factory.factory_sha
+        or attempt.ablated_factory_sha
+        != ablated_factory_view.factory.factory_sha
+        or attempt.actual_transition != raw_actual_transition
+        or attempt.ablated_transition != raw_ablated_transition
+        or attempt.actual_dynamics_certificate != raw_actual_certificate
+        or attempt.ablated_dynamics_certificate != raw_ablated_certificate
+        or attempt.run_spec != run_spec
+        or attempt.shell_outcome != shell_outcome
+    ):
+        raise ValueError("cached paired evidence/input snapshot changed")
+
+    qualification_invalid = (
+        qualified_ablated_certificate != raw_ablated_certificate
+        or qualification_evidence.verified_certificate_sha
+        != raw_ablated_certificate.certificate_sha
+        or qualification_evidence.pair_snapshot.actual_factory
+        != actual_factory_view.factory
+        or qualification_evidence.pair_snapshot.ablated_factory
+        != ablated_factory_view.factory
+        or qualification_evidence.pair_snapshot.ablation_manifest
+        != construction.pair.manifest
+    )
+    if qualification_invalid:
+        if outcome.failure is not PairedResponseFailure.QUALIFICATION_INVALID:
+            raise ValueError("cached paired qualification disposition changed")
+        return
+    if outcome.failure is PairedResponseFailure.QUALIFICATION_INVALID:
+        raise ValueError("cached paired qualification disposition changed")
+
+    binding_invalid = False
+    try:
+        if protocol_view.registry is not registry:
+            raise ValueError("window protocol is not bound to this registry")
+        if shell_view.registry is not registry or shell_view.protocol is not protocol:
+            raise ValueError("endpoint shell registry/protocol binding mismatch")
+        if (
+            actual_transition_view.factory is not actual_factory
+            or actual_certificate_view.factory is not actual_factory
+            or ablated_transition_view.factory is not ablated_factory
+            or ablated_certificate_view.factory is not ablated_factory
+        ):
+            raise ValueError("paired transition/certificate factory binding mismatch")
+        if (
+            raw_actual_certificate.transition != raw_actual_transition
+            or raw_ablated_certificate.transition != raw_ablated_transition
+        ):
+            raise ValueError("paired certificate transition body mismatch")
+        if (
+            shell_view.factory is not actual_factory
+            or shell_view.transition is not actual_transition
+            or shell_view.certificate is not actual_certificate
+        ):
+            raise ValueError("endpoint shell live input binding mismatch")
+        if not shell_outcome.status.defined or shell_outcome.shell is None:
+            raise ValueError("paired response requires a successful endpoint shell")
+        if verify_response_run_spec(run_spec, protocol) is not run_spec:
+            raise ValueError("run spec verifier did not preserve the raw body")
+        _protocol_entry, registry_entry = _protocol_entry_for_spec(
+            run_spec,
+            protocol_view,
+        )
+        control_index = CONTROL_ORDER.index(registry_entry.control_id)
+        if registry_view.controls[control_index].factory is not actual_factory:
+            raise ValueError("paired actual factory is not the closed control factory")
+        if (
+            run_spec.source_basis != registry_entry.source_basis
+            or run_spec.readout_basis != registry_entry.readout_basis
+        ):
+            raise ValueError("paired source/readout basis differs from registry")
+        if (
+            raw_actual_transition.state_schema_id != run_spec.state_schema_id
+            or raw_ablated_transition.state_schema_id != run_spec.state_schema_id
+            or raw_actual_transition.channel_order != run_spec.channel_order
+            or raw_ablated_transition.channel_order != run_spec.channel_order
+            or raw_actual_transition.spatial_shape != run_spec.spatial_shape
+            or raw_ablated_transition.spatial_shape != run_spec.spatial_shape
+            or raw_actual_transition.dt != raw_ablated_transition.dt
+        ):
+            raise ValueError("paired transition state contract mismatch")
+        shell_manifest = shell_outcome.shell
+        if (
+            shell_manifest.shell_spec.control_registry_entry != registry_entry
+            or shell_manifest.shell_spec.response_grid != run_spec.response_grid
+            or shell_manifest.shell_spec.candidate_fejer_order
+            != run_spec.fejer_order
+            or shell_manifest.dt != raw_actual_transition.dt
+        ):
+            raise ValueError("paired shell/run binding mismatch")
+    except (TypeError, ValueError):
+        binding_invalid = True
+    if binding_invalid != (
+        outcome.failure is PairedResponseFailure.INPUT_BINDING_INVALID
+    ):
+        raise ValueError("cached paired input-binding disposition changed")
+
+
 def _make_closed_reference_authority(
     expected_call,
     preflight_call,
@@ -6349,13 +6638,53 @@ def _make_closed_reference_authority(
     type_fn=type,
     id_fn=id,
     object_type=object,
+    getattr_fn=getattr,
     type_error=TypeError,
     value_error=ValueError,
     attribute_error=AttributeError,
     authority_schema=("v3m0.verified-endpoint-reference-outcome.v2"),
+    binding_validator=None,
+    authority_binding_digest=_response_authority_binding_digest,
+    cached_replay_is_valid=_cached_replay_is_valid,
+    record_successful_replay=_record_successful_replay,
 ):
     live = {}
     lock = lock_builder()
+    namespace = "rulespace_v3.response.VerifiedEndpointReferenceOutcome"
+
+    if binding_validator is None:
+
+        def binding_validator(_authority):
+            return None
+
+    def exposed_bodies(raw):
+        return raw, getattr_fn(raw, "reference", None)
+
+    def authority_digest(authority):
+        return authority_binding_digest(
+            "endpoint-reference",
+            authority.body_digest,
+            (
+                authority.outcome,
+                authority.registry,
+                authority.protocol,
+                authority.factory,
+                authority.transition,
+                authority.certificate,
+            ),
+        )
+
+    def authority_view(authority):
+        return authority_type(
+            outcome=clone(authority.outcome),
+            registry=authority.registry,
+            protocol=authority.protocol,
+            factory=authority.factory,
+            transition=authority.transition,
+            certificate=authority.certificate,
+            body_digest=authority.body_digest,
+            seal=authority.seal,
+        )
 
     def issue(
         registry,
@@ -6414,6 +6743,16 @@ def _make_closed_reference_authority(
         reference = weak_reference(wrapper, remove)
         with lock:
             live[identity] = (reference, authority)
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=issuance_token,
+            exposed_bodies=exposed_bodies(exposed_snapshot),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=authority_digest(authority),
+        )
         return wrapper
 
     def reverify(wrapper):
@@ -6445,6 +6784,39 @@ def _make_closed_reference_authority(
             raise value_error("endpoint reference token mismatch")
         preflight_call(raw)
         preflight_call(authority.outcome)
+
+        def cheap_validator():
+            raw_digest = structural_digest(raw)
+            snapshot_digest = structural_digest(authority.outcome)
+            expected_seal = structural_seal(
+                authority_schema,
+                authority.body_digest,
+            )
+            if (
+                raw_digest != authority.body_digest
+                or snapshot_digest != authority.body_digest
+                or wrapper_seal != authority.seal
+                or wrapper_seal != expected_seal
+            ):
+                raise value_error(
+                    "endpoint reference cached immutable guard mismatch"
+                )
+            if binding_validator(authority) is not None:
+                raise type_error("reference binding validator must return None")
+
+        current_authority_digest = authority_digest(authority)
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
+            cheap_validator=cheap_validator,
+        ):
+            return authority_view(authority)
         control_id = authority.outcome.reference_spec.control_registry_entry.control_id
         order = authority.outcome.reference_spec.candidate_fejer_order
         expected = expected_call(
@@ -6469,16 +6841,17 @@ def _make_closed_reference_authority(
             or wrapper_seal != expected_seal
         ):
             raise value_error("endpoint reference immutable snapshot mismatch")
-        return authority_type(
-            outcome=clone(authority.outcome),
-            registry=authority.registry,
-            protocol=authority.protocol,
-            factory=authority.factory,
-            transition=authority.transition,
-            certificate=authority.certificate,
-            body_digest=authority.body_digest,
-            seal=authority.seal,
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
         )
+        return authority_view(authority)
 
     def build(
         registry,
@@ -6545,13 +6918,55 @@ def _make_closed_shell_authority(
     type_fn=type,
     id_fn=id,
     object_type=object,
+    getattr_fn=getattr,
     type_error=TypeError,
     value_error=ValueError,
     attribute_error=AttributeError,
     authority_schema="v3m0.verified-endpoint-shell-outcome.v2",
+    binding_validator=None,
+    authority_binding_digest=_response_authority_binding_digest,
+    cached_replay_is_valid=_cached_replay_is_valid,
+    record_successful_replay=_record_successful_replay,
 ):
     live = {}
     lock = lock_builder()
+    namespace = "rulespace_v3.response.VerifiedEndpointShellOutcome"
+
+    if binding_validator is None:
+
+        def binding_validator(_authority):
+            return None
+
+    def exposed_bodies(raw):
+        return raw, getattr_fn(raw, "shell", None)
+
+    def authority_digest(authority):
+        return authority_binding_digest(
+            "endpoint-shell",
+            authority.body_digest,
+            (
+                authority.outcome,
+                authority.reference,
+                authority.registry,
+                authority.protocol,
+                authority.factory,
+                authority.transition,
+                authority.certificate,
+            ),
+        )
+
+    def authority_view(authority):
+        return authority_type(
+            outcome=clone(authority.outcome),
+            reference=authority.reference,
+            registry=authority.registry,
+            protocol=authority.protocol,
+            factory=authority.factory,
+            transition=authority.transition,
+            certificate=authority.certificate,
+            body_digest=authority.body_digest,
+            seal=authority.seal,
+        )
 
     def issue(
         registry,
@@ -6611,6 +7026,16 @@ def _make_closed_shell_authority(
         weak = weak_reference(wrapper, remove)
         with lock:
             live[identity] = (weak, authority)
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=issuance_token,
+            exposed_bodies=exposed_bodies(exposed_snapshot),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=authority_digest(authority),
+        )
         return wrapper
 
     def reverify(wrapper):
@@ -6640,6 +7065,37 @@ def _make_closed_shell_authority(
             raise value_error("endpoint shell token mismatch")
         preflight_call(raw)
         preflight_call(authority.outcome)
+
+        def cheap_validator():
+            raw_digest = structural_digest(raw)
+            snapshot_digest = structural_digest(authority.outcome)
+            expected_seal = structural_seal(
+                authority_schema,
+                authority.body_digest,
+            )
+            if (
+                raw_digest != authority.body_digest
+                or snapshot_digest != authority.body_digest
+                or wrapper_seal != authority.seal
+                or wrapper_seal != expected_seal
+            ):
+                raise value_error("endpoint shell cached immutable guard mismatch")
+            if binding_validator(authority) is not None:
+                raise type_error("shell binding validator must return None")
+
+        current_authority_digest = authority_digest(authority)
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
+            cheap_validator=cheap_validator,
+        ):
+            return authority_view(authority)
         expected = expected_call(
             authority.registry,
             authority.protocol,
@@ -6662,17 +7118,17 @@ def _make_closed_shell_authority(
             or wrapper_seal != expected_seal
         ):
             raise value_error("endpoint shell immutable snapshot mismatch")
-        return authority_type(
-            outcome=clone(authority.outcome),
-            reference=authority.reference,
-            registry=authority.registry,
-            protocol=authority.protocol,
-            factory=authority.factory,
-            transition=authority.transition,
-            certificate=authority.certificate,
-            body_digest=authority.body_digest,
-            seal=authority.seal,
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
         )
+        return authority_view(authority)
 
     def build_spec(protocol, reference):
         return build_spec_call(protocol, reference)
@@ -6752,13 +7208,42 @@ def _make_closed_paired_authority(
     type_fn=type,
     id_fn=id,
     object_type=object,
+    getattr_fn=getattr,
     type_error=TypeError,
     value_error=ValueError,
     attribute_error=AttributeError,
     authority_schema="v3m0.verified-paired-response-outcome.v2",
+    binding_validator=None,
+    authority_binding_digest=_response_authority_binding_digest,
+    cached_replay_is_valid=_cached_replay_is_valid,
+    record_successful_replay=_record_successful_replay,
 ):
     live = {}
     lock = lock_builder()
+    namespace = "rulespace_v3.response.VerifiedPairedResponseOutcome"
+
+    if binding_validator is None:
+
+        def binding_validator(_authority):
+            return None
+
+    def exposed_bodies(raw):
+        return raw, getattr_fn(raw, "paired_response", None)
+
+    def authority_digest(authority):
+        return authority_binding_digest(
+            "paired-response",
+            authority.body_digest,
+            (authority.outcome, authority.inputs, *authority.inputs),
+        )
+
+    def authority_view(authority):
+        return authority_type(
+            outcome=clone(authority.outcome),
+            inputs=authority.inputs,
+            body_digest=authority.body_digest,
+            seal=authority.seal,
+        )
 
     def require_qualification(value):
         if qualification_type is not None and type_fn(value) is not qualification_type:
@@ -6825,6 +7310,16 @@ def _make_closed_paired_authority(
         reference = weak_reference(wrapper, remove)
         with lock:
             live[identity] = (reference, authority)
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=issuance_token,
+            exposed_bodies=exposed_bodies(exposed_snapshot),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=authority_digest(authority),
+        )
         return wrapper
 
     def reverify(wrapper):
@@ -6854,6 +7349,37 @@ def _make_closed_paired_authority(
             raise value_error("paired response token mismatch")
         preflight_call(raw)
         preflight_call(authority.outcome)
+
+        def cheap_validator():
+            raw_digest = structural_digest(raw)
+            snapshot_digest = structural_digest(authority.outcome)
+            expected_seal = structural_seal(
+                authority_schema,
+                authority.body_digest,
+            )
+            if (
+                raw_digest != authority.body_digest
+                or snapshot_digest != authority.body_digest
+                or wrapper_seal != authority.seal
+                or wrapper_seal != expected_seal
+            ):
+                raise value_error("paired response cached immutable guard mismatch")
+            if binding_validator(authority) is not None:
+                raise type_error("paired binding validator must return None")
+
+        current_authority_digest = authority_digest(authority)
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
+            cheap_validator=cheap_validator,
+        ):
+            return authority_view(authority)
         expected = expected_call(*authority.inputs)
         preflight_call(expected)
         raw_digest = structural_digest(raw)
@@ -6868,12 +7394,17 @@ def _make_closed_paired_authority(
             or wrapper_seal != expected_seal
         ):
             raise value_error("paired response immutable snapshot mismatch")
-        return authority_type(
-            outcome=clone(authority.outcome),
-            inputs=authority.inputs,
-            body_digest=authority.body_digest,
-            seal=authority.seal,
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=exposed_bodies(raw),
+            seal=wrapper_seal,
+            authority=authority,
+            authority_digest=current_authority_digest,
         )
+        return authority_view(authority)
 
     def build(
         registry,
@@ -6932,9 +7463,15 @@ _authority_structural_digest, _authority_structural_seal = (
         dataclass_items=_closed_authority_dataclass_items,
     )
 )
+_closed_authority_binding_digest = _freeze_response_call_graph(
+    _response_authority_binding_digest
+)
 _closed_expected_reference = _freeze_response_call_graph(_expected_reference_outcome)
 _closed_preflight_reference = _freeze_response_call_graph(
     _preflight_reference_outcome_body
+)
+_closed_validate_reference_binding = _freeze_response_call_graph(
+    _validate_cached_reference_binding
 )
 (
     build_endpoint_reference,
@@ -6948,6 +7485,8 @@ _closed_preflight_reference = _freeze_response_call_graph(
     _closed_preflight_reference,
     _authority_structural_digest,
     _authority_structural_seal,
+    binding_validator=_closed_validate_reference_binding,
+    authority_binding_digest=_closed_authority_binding_digest,
 )
 _reverify_reference_authority = _reverify_verified_endpoint_reference_outcome
 setattr(
@@ -6966,6 +7505,9 @@ _closed_build_shell_spec = _freeze_response_call_graph(
 )
 _closed_expected_shell = _freeze_response_call_graph(_expected_shell_outcome)
 _closed_preflight_shell = _freeze_response_call_graph(_preflight_shell_outcome_body)
+_closed_validate_shell_binding = _freeze_response_call_graph(
+    _validate_cached_shell_binding
+)
 (
     build_endpoint_shell_spec,
     build_endpoint_shell,
@@ -6980,6 +7522,8 @@ _closed_preflight_shell = _freeze_response_call_graph(_preflight_shell_outcome_b
     _closed_preflight_shell,
     _authority_structural_digest,
     _authority_structural_seal,
+    binding_validator=_closed_validate_shell_binding,
+    authority_binding_digest=_closed_authority_binding_digest,
 )
 _reverify_shell_authority = _reverify_verified_endpoint_shell_outcome
 setattr(
@@ -6996,6 +7540,9 @@ setattr(
 _closed_expected_paired = _freeze_response_call_graph(_expected_paired_outcome)
 _closed_hydrate_paired = _freeze_response_call_graph(_hydrate_paired_inputs_from_raw)
 _closed_preflight_paired = _freeze_response_call_graph(_preflight_paired_outcome_body)
+_closed_validate_paired_binding = _freeze_response_call_graph(
+    _validate_cached_paired_binding
+)
 (
     build_paired_filtered_response,
     verify_paired_filtered_response,
@@ -7010,6 +7557,8 @@ _closed_preflight_paired = _freeze_response_call_graph(_preflight_paired_outcome
     _authority_structural_digest,
     _authority_structural_seal,
     qualification_type=VerifiedCertificateBackedQualification,
+    binding_validator=_closed_validate_paired_binding,
+    authority_binding_digest=_closed_authority_binding_digest,
 )
 _reverify_paired_authority = _reverify_verified_paired_response_outcome
 setattr(
