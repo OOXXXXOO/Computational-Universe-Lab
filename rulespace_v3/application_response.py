@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import math
 import re
+import struct
 from dataclasses import dataclass, fields as dataclass_fields
 from typing import Literal
 from weakref import WeakKeyDictionary
@@ -42,6 +43,7 @@ _AUTHORITY_STATE = "CURRENT_PARENT_V2_RESPONSE_CHAIN_BOUND"
 _FEJER_ORDERS = frozenset((256, 512, 1024, 2048, 4096, 8192))
 _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _ISOMETRY_TOLERANCE = 1.0e-12
+_PROJECTOR_RANK_TOLERANCE = 1.0e-10
 
 UPSTREAM_V2_WIRING_POINTS = (
     "live Parent-v2/permit-v2/materialization-v2/protocol-v2 replayers",
@@ -98,6 +100,7 @@ def _exact_record(value: object, record_type: type, field: str) -> None:
 
 def _exact_tensor(value: object, field: str) -> FrozenComplexTensor:
     _exact_record(value, FrozenComplexTensor, field)
+    FrozenComplexTensor.__post_init__(value)
     return verify_frozen_tensor(value)
 
 
@@ -584,6 +587,16 @@ def verify_application_endpoint_reference_v2_body(
         > _ISOMETRY_TOLERANCE
     ):
         raise ValueError("endpoint projector is not Hermitian idempotent")
+    if (
+        int(
+            np.linalg.matrix_rank(
+                projector,
+                tol=_PROJECTOR_RANK_TOLERANCE,
+            )
+        )
+        != value.rank
+    ):
+        raise ValueError("endpoint projector rank differs from declared rank")
     return copy.deepcopy(value)
 
 
@@ -728,13 +741,52 @@ def verify_application_endpoint_shell_v2_body(
         state_count,
     ):
         raise ValueError("shell projector tensor shape differs from run spec")
+    reference_rows = tuple(
+        index
+        for index, reciprocal_index in enumerate(
+            value.run_spec.response_reciprocal_indices
+        )
+        if reciprocal_index == reference.reference_reciprocal_index
+    )
+    if len(reference_rows) != 1:
+        raise ValueError("endpoint shell reference row is not unique")
+    reference_row = reference_rows[0]
+    row_width = state_count * state_count
+    row_start = reference_row * row_width
+    shell_reference_wire = value.shell_projectors.values_wire[
+        row_start : row_start + row_width
+    ]
+    reference_wire = reference.projector.values_wire
+    if (
+        struct.pack(">d", value.shell_phases[reference_row])
+        != struct.pack(">d", reference.reference_phase)
+        or struct.pack(">d", value.point_participations[reference_row])
+        != struct.pack(">d", reference.participation)
+        or len(shell_reference_wire) != len(reference_wire)
+        or any(
+            struct.pack(">dd", *shell_value)
+            != struct.pack(">dd", *reference_value)
+            for shell_value, reference_value in zip(
+                shell_reference_wire,
+                reference_wire,
+            )
+        )
+    ):
+        raise ValueError(
+            "endpoint shell reference row contains a cross-splice"
+        )
     for projector in projectors:
         if (
             float(np.linalg.norm(projector - projector.conj().T, 2))
             > _ISOMETRY_TOLERANCE
             or float(np.linalg.norm(projector @ projector - projector, 2))
             > _ISOMETRY_TOLERANCE
-            or int(np.linalg.matrix_rank(projector, tol=1.0e-10))
+            or int(
+                np.linalg.matrix_rank(
+                    projector,
+                    tol=_PROJECTOR_RANK_TOLERANCE,
+                )
+            )
             != reference.expected_shell_rank
         ):
             raise ValueError("shell projector fails Hermitian/rank contract")
@@ -1002,10 +1054,6 @@ class VerifiedApplicationEndpointReferenceV2:
     def __init__(self) -> None:
         raise TypeError("application endpoint-reference v2 is issuer-only")
 
-    @property
-    def reference(self) -> ApplicationEndpointReferenceV2:
-        return require_application_endpoint_reference_v2(self)
-
 
 class VerifiedApplicationEndpointShellV2:
     """Opaque actual-only endpoint-shell capability."""
@@ -1014,10 +1062,6 @@ class VerifiedApplicationEndpointShellV2:
 
     def __init__(self) -> None:
         raise TypeError("application endpoint-shell v2 is issuer-only")
-
-    @property
-    def shell(self) -> ApplicationEndpointShellV2:
-        return require_application_endpoint_shell_v2(self)
 
 
 class VerifiedApplicationBranchSourceReadoutResponseV2:
@@ -1028,10 +1072,6 @@ class VerifiedApplicationBranchSourceReadoutResponseV2:
     def __init__(self) -> None:
         raise TypeError("application branch response v2 is issuer-only")
 
-    @property
-    def response(self) -> ApplicationBranchSourceReadoutResponseV2:
-        return require_application_branch_source_readout_response_v2(self)
-
 
 class VerifiedApplicationPairedResponseOutcomeV2:
     """Opaque atomic actual/matched response capability."""
@@ -1040,96 +1080,6 @@ class VerifiedApplicationPairedResponseOutcomeV2:
 
     def __init__(self) -> None:
         raise TypeError("application paired response v2 is issuer-only")
-
-    @property
-    def outcome(self) -> ApplicationPairedResponseOutcomeV2:
-        return require_application_paired_response_outcome_v2(self)
-
-
-_REFERENCE_LIVE: WeakKeyDictionary[
-    VerifiedApplicationEndpointReferenceV2,
-    ApplicationEndpointReferenceV2,
-] = WeakKeyDictionary()
-_SHELL_LIVE: WeakKeyDictionary[
-    VerifiedApplicationEndpointShellV2,
-    ApplicationEndpointShellV2,
-] = WeakKeyDictionary()
-_BRANCH_RESPONSE_LIVE: WeakKeyDictionary[
-    VerifiedApplicationBranchSourceReadoutResponseV2,
-    ApplicationBranchSourceReadoutResponseV2,
-] = WeakKeyDictionary()
-_PAIR_LIVE: WeakKeyDictionary[
-    VerifiedApplicationPairedResponseOutcomeV2,
-    ApplicationPairedResponseOutcomeV2,
-] = WeakKeyDictionary()
-_AUTHORITY_SEAL = object()
-
-
-def _require_live_body(
-    value: object,
-    wrapper_type: type,
-    registry: WeakKeyDictionary,
-    verifier,
-    field: str,
-):
-    if type(value) is not wrapper_type:
-        raise TypeError(f"{field} requires an exact live opaque capability")
-    try:
-        seal = value._authority_seal
-        raw = registry[value]
-    except (AttributeError, KeyError) as exc:
-        raise ValueError(f"{field} capability identity is not live") from exc
-    if seal is not _AUTHORITY_SEAL:
-        raise ValueError(f"{field} capability seal is forged")
-    return verifier(raw)
-
-
-def require_application_endpoint_reference_v2(
-    value: VerifiedApplicationEndpointReferenceV2,
-) -> ApplicationEndpointReferenceV2:
-    return _require_live_body(
-        value,
-        VerifiedApplicationEndpointReferenceV2,
-        _REFERENCE_LIVE,
-        verify_application_endpoint_reference_v2_body,
-        "application endpoint reference v2",
-    )
-
-
-def require_application_endpoint_shell_v2(
-    value: VerifiedApplicationEndpointShellV2,
-) -> ApplicationEndpointShellV2:
-    return _require_live_body(
-        value,
-        VerifiedApplicationEndpointShellV2,
-        _SHELL_LIVE,
-        verify_application_endpoint_shell_v2_body,
-        "application endpoint shell v2",
-    )
-
-
-def require_application_branch_source_readout_response_v2(
-    value: VerifiedApplicationBranchSourceReadoutResponseV2,
-) -> ApplicationBranchSourceReadoutResponseV2:
-    return _require_live_body(
-        value,
-        VerifiedApplicationBranchSourceReadoutResponseV2,
-        _BRANCH_RESPONSE_LIVE,
-        verify_application_branch_source_readout_response_v2_body,
-        "application branch response v2",
-    )
-
-
-def require_application_paired_response_outcome_v2(
-    value: VerifiedApplicationPairedResponseOutcomeV2,
-) -> ApplicationPairedResponseOutcomeV2:
-    return _require_live_body(
-        value,
-        VerifiedApplicationPairedResponseOutcomeV2,
-        _PAIR_LIVE,
-        verify_application_paired_response_outcome_v2_body,
-        "application paired response v2",
-    )
 
 
 def _replay_application_endpoint_reference_v2(
@@ -1163,10 +1113,132 @@ def _replay_application_endpoint_reference_v2(
     )
 
 
-def _make_public_response_v2_issuers(
+def _make_closed_response_v2_api(
     *,
     reference_replayer=_replay_application_endpoint_reference_v2,
 ):
+    reference_live: WeakKeyDictionary[
+        VerifiedApplicationEndpointReferenceV2,
+        ApplicationEndpointReferenceV2,
+    ] = WeakKeyDictionary()
+    shell_live: WeakKeyDictionary[
+        VerifiedApplicationEndpointShellV2,
+        ApplicationEndpointShellV2,
+    ] = WeakKeyDictionary()
+    branch_response_live: WeakKeyDictionary[
+        VerifiedApplicationBranchSourceReadoutResponseV2,
+        ApplicationBranchSourceReadoutResponseV2,
+    ] = WeakKeyDictionary()
+    pair_live: WeakKeyDictionary[
+        VerifiedApplicationPairedResponseOutcomeV2,
+        ApplicationPairedResponseOutcomeV2,
+    ] = WeakKeyDictionary()
+    authority_seal = object()
+
+    def _require_live_body(
+        value: object,
+        wrapper_type: type,
+        registry: WeakKeyDictionary,
+        verifier,
+        field: str,
+    ):
+        if type(value) is not wrapper_type:
+            raise TypeError(
+                f"{field} requires an exact live opaque capability"
+            )
+        try:
+            seal = value._authority_seal
+            raw = registry[value]
+        except (AttributeError, KeyError) as exc:
+            raise ValueError(
+                f"{field} capability identity is not live"
+            ) from exc
+        if seal is not authority_seal:
+            raise ValueError(f"{field} capability seal is forged")
+        return verifier(raw)
+
+    def require_application_endpoint_reference_v2(
+        value: VerifiedApplicationEndpointReferenceV2,
+    ) -> ApplicationEndpointReferenceV2:
+        return _require_live_body(
+            value,
+            VerifiedApplicationEndpointReferenceV2,
+            reference_live,
+            verify_application_endpoint_reference_v2_body,
+            "application endpoint reference v2",
+        )
+
+    def require_application_endpoint_shell_v2(
+        value: VerifiedApplicationEndpointShellV2,
+    ) -> ApplicationEndpointShellV2:
+        return _require_live_body(
+            value,
+            VerifiedApplicationEndpointShellV2,
+            shell_live,
+            verify_application_endpoint_shell_v2_body,
+            "application endpoint shell v2",
+        )
+
+    def require_application_branch_source_readout_response_v2(
+        value: VerifiedApplicationBranchSourceReadoutResponseV2,
+    ) -> ApplicationBranchSourceReadoutResponseV2:
+        return _require_live_body(
+            value,
+            VerifiedApplicationBranchSourceReadoutResponseV2,
+            branch_response_live,
+            verify_application_branch_source_readout_response_v2_body,
+            "application branch response v2",
+        )
+
+    def require_application_paired_response_outcome_v2(
+        value: VerifiedApplicationPairedResponseOutcomeV2,
+    ) -> ApplicationPairedResponseOutcomeV2:
+        return _require_live_body(
+            value,
+            VerifiedApplicationPairedResponseOutcomeV2,
+            pair_live,
+            verify_application_paired_response_outcome_v2_body,
+            "application paired response v2",
+        )
+
+    def _reference_property(
+        value: VerifiedApplicationEndpointReferenceV2,
+    ) -> ApplicationEndpointReferenceV2:
+        return require_application_endpoint_reference_v2(value)
+
+    def _shell_property(
+        value: VerifiedApplicationEndpointShellV2,
+    ) -> ApplicationEndpointShellV2:
+        return require_application_endpoint_shell_v2(value)
+
+    def _response_property(
+        value: VerifiedApplicationBranchSourceReadoutResponseV2,
+    ) -> ApplicationBranchSourceReadoutResponseV2:
+        return require_application_branch_source_readout_response_v2(value)
+
+    def _outcome_property(
+        value: VerifiedApplicationPairedResponseOutcomeV2,
+    ) -> ApplicationPairedResponseOutcomeV2:
+        return require_application_paired_response_outcome_v2(value)
+
+    VerifiedApplicationEndpointReferenceV2.reference = property(
+        _reference_property
+    )
+    VerifiedApplicationEndpointShellV2.shell = property(_shell_property)
+    VerifiedApplicationBranchSourceReadoutResponseV2.response = property(
+        _response_property
+    )
+    VerifiedApplicationPairedResponseOutcomeV2.outcome = property(
+        _outcome_property
+    )
+
+    def _issue_live_body(raw, wrapper_type, registry, verifier):
+        verified = verifier(raw)
+        capability = object.__new__(wrapper_type)
+        object.__setattr__(capability, "_authority_seal", authority_seal)
+        registry[capability] = verified
+        return capability
+
     def issue_v3m0_application_endpoint_reference_v2(
         formal_parent_v2,
         permit_v2,
@@ -1180,7 +1252,7 @@ def _make_public_response_v2_issuers(
         matched_ablated_certificate_v2,
         qualification_v2,
     ):
-        return reference_replayer(
+        raw = reference_replayer(
             formal_parent_v2,
             permit_v2,
             materialization_v2,
@@ -1192,6 +1264,12 @@ def _make_public_response_v2_issuers(
             actual_certificate_v2,
             matched_ablated_certificate_v2,
             qualification_v2,
+        )
+        return _issue_live_body(
+            raw,
+            VerifiedApplicationEndpointReferenceV2,
+            reference_live,
+            verify_application_endpoint_reference_v2_body,
         )
 
     def issue_v3m0_application_endpoint_shell_v2(reference):
@@ -1207,6 +1285,10 @@ def _make_public_response_v2_issuers(
         )
 
     return (
+        require_application_endpoint_reference_v2,
+        require_application_endpoint_shell_v2,
+        require_application_branch_source_readout_response_v2,
+        require_application_paired_response_outcome_v2,
         issue_v3m0_application_endpoint_reference_v2,
         issue_v3m0_application_endpoint_shell_v2,
         issue_v3m0_application_paired_response_v2,
@@ -1214,12 +1296,16 @@ def _make_public_response_v2_issuers(
 
 
 (
+    require_application_endpoint_reference_v2,
+    require_application_endpoint_shell_v2,
+    require_application_branch_source_readout_response_v2,
+    require_application_paired_response_outcome_v2,
     issue_v3m0_application_endpoint_reference_v2,
     issue_v3m0_application_endpoint_shell_v2,
     issue_v3m0_application_paired_response_v2,
-) = _make_public_response_v2_issuers()
+) = _make_closed_response_v2_api()
 
-del _make_public_response_v2_issuers
+del _make_closed_response_v2_api
 
 
 __all__ = [

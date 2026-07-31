@@ -164,7 +164,9 @@ class _Bodies:
                 actual_dynamics_certificate_sha=(
                     authority.actual_dynamics_certificate_sha
                 ),
-                reference_reciprocal_index=(0, 0),
+                reference_reciprocal_index=(
+                    run_spec.reference_reciprocal_index
+                ),
                 preregistered_phase_band=(0.1, 0.5),
                 reference_phase=0.25,
                 expected_shell_rank=2,
@@ -331,15 +333,15 @@ class _Bodies:
             ),
         )
 
-    def _pair(self):
+    def _pair(self, *, run_spec=None, authority=None, shell=None):
         from rulespace_v3.application_response import (
             APPLICATION_PAIRED_RESPONSE_OUTCOME_V2_SCHEMA_VERSION,
             ApplicationPairedResponseOutcomeV2,
         )
 
-        run_spec = self._run_spec()
-        authority = self._authority(run_spec)
-        shell = self._shell(run_spec, authority)
+        run_spec = self._run_spec() if run_spec is None else run_spec
+        authority = self._authority(run_spec) if authority is None else authority
+        shell = self._shell(run_spec, authority) if shell is None else shell
         actual = self._branch_response(
             "actual",
             run_spec=run_spec,
@@ -364,6 +366,54 @@ class _Bodies:
                 matched_ablated_response=matched,
                 atomic_pair_sha=SHA0,
             )
+        )
+
+    def _pair_with_self_signed_unverified_shell(self, pair, shell):
+        """Build the exact cross-splice attack without recursive helpers."""
+        from rulespace_v3.application_response import (
+            application_branch_source_readout_response_v2_payload,
+            application_endpoint_shell_v2_payload,
+            application_paired_response_outcome_v2_payload,
+        )
+        from rulespace_v3.evidence import canonical_sha
+
+        shell_record = {
+            **application_endpoint_shell_v2_payload(shell),
+            "endpoint_shell_sha": shell.endpoint_shell_sha,
+        }
+        signed_branches = []
+        branch_records = []
+        for branch in (
+            pair.actual_response,
+            pair.matched_ablated_response,
+        ):
+            branch_payload = (
+                application_branch_source_readout_response_v2_payload(branch)
+            )
+            branch_payload["actual_endpoint_shell"] = shell_record
+            signed = replace(
+                branch,
+                actual_endpoint_shell=shell,
+                branch_response_sha=canonical_sha(branch_payload),
+            )
+            signed_branches.append(signed)
+            branch_records.append(
+                {
+                    **branch_payload,
+                    "branch_response_sha": signed.branch_response_sha,
+                }
+            )
+
+        pair_payload = application_paired_response_outcome_v2_payload(pair)
+        pair_payload["actual_endpoint_shell"] = shell_record
+        pair_payload["actual_response"] = branch_records[0]
+        pair_payload["matched_ablated_response"] = branch_records[1]
+        return replace(
+            pair,
+            actual_endpoint_shell=shell,
+            actual_response=signed_branches[0],
+            matched_ablated_response=signed_branches[1],
+            atomic_pair_sha=canonical_sha(pair_payload),
         )
 
 
@@ -395,6 +445,31 @@ class ApplicationResponseV2SurfaceTests(unittest.TestCase):
             VerifiedApplicationPairedResponseOutcomeV2,
         ):
             self.assertIsInstance(contract.__name__, str)
+
+    def test_module_exposes_no_mutable_live_tables_or_authority_seal(self) -> None:
+        """数据完整性状态必须只存在于 factory closure。"""
+        from weakref import WeakKeyDictionary
+
+        import rulespace_v3.application_response as response_v2
+
+        legacy_names = {
+            "_REFERENCE_LIVE",
+            "_SHELL_LIVE",
+            "_BRANCH_RESPONSE_LIVE",
+            "_PAIR_LIVE",
+            "_AUTHORITY_SEAL",
+        }
+        exposed = vars(response_v2)
+        self.assertTrue(legacy_names.isdisjoint(exposed))
+        self.assertFalse(
+            any(isinstance(value, WeakKeyDictionary) for value in exposed.values())
+        )
+        self.assertFalse(
+            any(
+                name.startswith(("hydrate_", "register_"))
+                for name in response_v2.__all__
+            )
+        )
 
 
 class ApplicationResponseV2AuthorityContractTests(_Bodies, unittest.TestCase):
@@ -446,6 +521,42 @@ class ApplicationEndpointReferenceV2ContractTests(_Bodies, unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "actual-only"):
             replace(reference, branch="matched_ablated")
 
+    def test_reference_data_integrity_rejects_declared_rank_mismatch(self) -> None:
+        """数据完整性要求 declared rank 与 projector 实秩对拍。"""
+        from rulespace_v3.application_response import (
+            verify_application_endpoint_reference_v2_body,
+        )
+
+        reference = self._reference()
+        rank_splice = self._resign_reference(
+            replace(reference, expected_shell_rank=1, rank=1)
+        )
+
+        with self.assertRaisesRegex(ValueError, "rank"):
+            verify_application_endpoint_reference_v2_body(rank_splice)
+
+    def test_tensor_data_integrity_rejects_list_shape_after_self_signing(
+        self,
+    ) -> None:
+        """数据完整性要求 exact tensor 重放严格 wire post-init。"""
+        from rulespace_v3.application_response import (
+            verify_application_response_run_spec_v2_body,
+        )
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.factory import frozen_tensor_payload
+
+        run_spec = self._run_spec()
+        tensor = run_spec.source_injection_isometry
+        object.__setattr__(tensor, "shape", [2, 2])
+        object.__setattr__(
+            tensor,
+            "tensor_sha",
+            canonical_sha(frozen_tensor_payload(tensor)),
+        )
+
+        with self.assertRaisesRegex(TypeError, "shape.*tuple"):
+            verify_application_response_run_spec_v2_body(run_spec)
+
 
 class ApplicationEndpointShellV2ContractTests(_Bodies, unittest.TestCase):
     def test_shell_is_actual_only_and_nests_the_exact_reference(self) -> None:
@@ -471,6 +582,83 @@ class ApplicationEndpointShellV2ContractTests(_Bodies, unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "run spec|splice"):
             self._resign_shell(replace(shell, run_spec=other_run))
+
+    def test_reference_row_cross_splices_rejected_by_shell_and_atomic_pair(
+        self,
+    ) -> None:
+        """reference 行 phase/projector/participation 交叉拼接必须拒绝。"""
+        from rulespace_v3.application_response import (
+            verify_application_endpoint_shell_v2_body,
+            verify_application_paired_response_outcome_v2_body,
+        )
+        from rulespace_v3.factory import freeze_complex_tensor
+
+        run_spec = self._resign_run_spec(
+            replace(
+                self._run_spec(),
+                reference_reciprocal_index=(1, 0),
+            )
+        )
+        authority = self._authority(run_spec)
+        reference = self._reference(run_spec, authority)
+        shell = self._shell(run_spec, authority, reference)
+        pair = self._pair(
+            run_spec=run_spec,
+            authority=authority,
+            shell=shell,
+        )
+
+        projector_splice = np.stack(
+            (
+                np.eye(2, dtype=np.complex128),
+                np.eye(2, dtype=np.complex128),
+            )
+        )
+        projector_splice[1, 0, 1] = 1.0e-13
+        projector_splice[1, 1, 0] = 1.0e-13
+        splices = (
+            (
+                "phase",
+                self._resign_shell(
+                    replace(shell, shell_phases=(0.25, 0.30))
+                ),
+            ),
+            (
+                "projector",
+                self._resign_shell(
+                    replace(
+                        shell,
+                        shell_projectors=freeze_complex_tensor(
+                            projector_splice
+                        ),
+                    )
+                ),
+            ),
+            (
+                "participation",
+                self._resign_shell(
+                    replace(shell, point_participations=(1.0, 0.75))
+                ),
+            ),
+        )
+        for field, spliced_shell in splices:
+            with self.subTest(field=field):
+                spliced_pair = self._pair_with_self_signed_unverified_shell(
+                    pair,
+                    spliced_shell,
+                )
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "reference row|cross-splice",
+                ):
+                    verify_application_endpoint_shell_v2_body(spliced_shell)
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "reference row|cross-splice",
+                ):
+                    verify_application_paired_response_outcome_v2_body(
+                        spliced_pair
+                    )
 
 
 class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
@@ -543,6 +731,42 @@ class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
 
 
 class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
+    def test_exact_wrapper_data_integrity_resists_registry_and_global_redirects(
+        self,
+    ) -> None:
+        """exact wrapper 不得借模块 registry 或 global lookup 交叉拼接。"""
+        import rulespace_v3.application_response as response_v2
+
+        wrapper = object.__new__(
+            response_v2.VerifiedApplicationEndpointReferenceV2
+        )
+        raw = self._reference()
+        legacy_registry = getattr(response_v2, "_REFERENCE_LIVE", None)
+        legacy_seal = getattr(response_v2, "_AUTHORITY_SEAL", object())
+        object.__setattr__(wrapper, "_authority_seal", legacy_seal)
+        if legacy_registry is not None:
+            legacy_registry[wrapper] = raw
+        try:
+            with self.assertRaisesRegex(ValueError, "live|seal"):
+                response_v2.require_application_endpoint_reference_v2(wrapper)
+        finally:
+            if legacy_registry is not None:
+                legacy_registry.pop(wrapper, None)
+
+        original_require = (
+            response_v2.require_application_endpoint_reference_v2
+        )
+        response_v2.require_application_endpoint_reference_v2 = lambda _: raw
+        try:
+            with self.assertRaisesRegex(ValueError, "live|seal"):
+                _ = wrapper.reference
+            with self.assertRaisesRegex(ValueError, "live|seal"):
+                response_v2.issue_v3m0_application_endpoint_shell_v2(wrapper)
+        finally:
+            response_v2.require_application_endpoint_reference_v2 = (
+                original_require
+            )
+
     def test_opaque_wrappers_reject_raw_forged_and_subclass_values(self) -> None:
         from rulespace_v3.application_response import (
             VerifiedApplicationBranchSourceReadoutResponseV2,
