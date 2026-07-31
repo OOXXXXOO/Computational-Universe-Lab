@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import math
 import re
+import struct
+import sys
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -37,6 +40,189 @@ FINITE_VALUE_POLICY = (
 )
 OUTWARD_ROUNDING_ID = "nextafter-after-every-scalar-op-v1"
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
+
+_POSITIVE_ZERO_BITS = 0x0000000000000000
+_MINIMUM_SUBNORMAL_BITS = 0x0000000000000001
+_TWO_MINIMUM_SUBNORMAL_BITS = 0x0000000000000002
+_HALF_MINIMUM_NORMAL_BITS = 0x0008000000000000
+_MINIMUM_NORMAL_BITS = 0x0010000000000000
+_HALF_ULP_AT_ONE_BITS = 0x3CA0000000000000
+_HALF_BITS = 0x3FE0000000000000
+_ONE_DOWN_BITS = 0x3FEFFFFFFFFFFFFF
+_ONE_BITS = 0x3FF0000000000000
+_ONE_UP_BITS = 0x3FF0000000000001
+_ONE_TWO_ULPS_UP_BITS = 0x3FF0000000000002
+_POSITIVE_INFINITY_BITS = 0x7FF0000000000000
+_NEGATIVE_ZERO_BITS = 0x8000000000000000
+_NEGATIVE_MINIMUM_SUBNORMAL_BITS = 0x8000000000000001
+_NEGATIVE_ONE_BITS = 0xBFF0000000000000
+_NEGATIVE_INFINITY_BITS = 0xFFF0000000000000
+
+
+@dataclass(frozen=True)
+class _Fp64RuntimeObservation:
+    double_byte_width: int
+    radix: int
+    mantissa_digits: int
+    minimum_exponent: int
+    maximum_exponent: int
+    tie_even_lower_result_bits: int
+    tie_odd_lower_result_bits: int
+    half_minimum_normal_result_bits: int
+    minimum_subnormal_scaled_result_bits: int
+    minimum_subnormal_sum_result_bits: int
+    nextafter_positive_zero_up_bits: int
+    nextafter_negative_zero_down_bits: int
+    nextafter_positive_minsub_to_zero_bits: int
+    nextafter_negative_minsub_to_zero_bits: int
+    nextafter_one_up_bits: int
+    nextafter_one_down_bits: int
+    positive_zero_bits: int
+    negative_zero_bits: int
+    copied_negative_zero_bits: int
+    negative_zero_sum_bits: int
+    negative_zero_product_bits: int
+
+
+def _runtime_float_from_bits(bits: int) -> float:
+    if type(bits) is not int or not 0 <= bits < (1 << 64):
+        raise TypeError("binary64 bits must be an unsigned 64-bit int")
+    return struct.unpack(">d", struct.pack(">Q", bits))[0]
+
+
+def _runtime_float_bits(value: float) -> int:
+    if type(value) is not float:
+        raise TypeError("runtime binary64 value must be an exact float")
+    return struct.unpack(">Q", struct.pack(">d", value))[0]
+
+
+def _observe_fp64_runtime() -> _Fp64RuntimeObservation:
+    """Execute the frozen scalar probes on runtime-constructed operands."""
+
+    positive_zero = _runtime_float_from_bits(_POSITIVE_ZERO_BITS)
+    negative_zero = _runtime_float_from_bits(_NEGATIVE_ZERO_BITS)
+    minimum_subnormal = _runtime_float_from_bits(
+        _MINIMUM_SUBNORMAL_BITS
+    )
+    negative_minimum_subnormal = _runtime_float_from_bits(
+        _NEGATIVE_MINIMUM_SUBNORMAL_BITS
+    )
+    minimum_normal = _runtime_float_from_bits(_MINIMUM_NORMAL_BITS)
+    half = _runtime_float_from_bits(_HALF_BITS)
+    one = _runtime_float_from_bits(_ONE_BITS)
+    one_up = _runtime_float_from_bits(_ONE_UP_BITS)
+    half_ulp_at_one = _runtime_float_from_bits(_HALF_ULP_AT_ONE_BITS)
+    positive_infinity = _runtime_float_from_bits(
+        _POSITIVE_INFINITY_BITS
+    )
+    negative_one = _runtime_float_from_bits(_NEGATIVE_ONE_BITS)
+    negative_infinity = _runtime_float_from_bits(
+        _NEGATIVE_INFINITY_BITS
+    )
+    subnormal_scale = float(
+        1 << (sys.float_info.mant_dig - 1)
+    )
+    return _Fp64RuntimeObservation(
+        double_byte_width=struct.calcsize("d"),
+        radix=sys.float_info.radix,
+        mantissa_digits=sys.float_info.mant_dig,
+        minimum_exponent=sys.float_info.min_exp,
+        maximum_exponent=sys.float_info.max_exp,
+        tie_even_lower_result_bits=_runtime_float_bits(
+            one + half_ulp_at_one
+        ),
+        tie_odd_lower_result_bits=_runtime_float_bits(
+            one_up + half_ulp_at_one
+        ),
+        half_minimum_normal_result_bits=_runtime_float_bits(
+            minimum_normal * half
+        ),
+        minimum_subnormal_scaled_result_bits=_runtime_float_bits(
+            minimum_subnormal * subnormal_scale
+        ),
+        minimum_subnormal_sum_result_bits=_runtime_float_bits(
+            minimum_subnormal + minimum_subnormal
+        ),
+        nextafter_positive_zero_up_bits=_runtime_float_bits(
+            math.nextafter(positive_zero, one)
+        ),
+        nextafter_negative_zero_down_bits=_runtime_float_bits(
+            math.nextafter(negative_zero, negative_one)
+        ),
+        nextafter_positive_minsub_to_zero_bits=_runtime_float_bits(
+            math.nextafter(minimum_subnormal, positive_zero)
+        ),
+        nextafter_negative_minsub_to_zero_bits=_runtime_float_bits(
+            math.nextafter(negative_minimum_subnormal, positive_zero)
+        ),
+        nextafter_one_up_bits=_runtime_float_bits(
+            math.nextafter(one, positive_infinity)
+        ),
+        nextafter_one_down_bits=_runtime_float_bits(
+            math.nextafter(one, negative_infinity)
+        ),
+        positive_zero_bits=_runtime_float_bits(positive_zero),
+        negative_zero_bits=_runtime_float_bits(negative_zero),
+        copied_negative_zero_bits=_runtime_float_bits(
+            math.copysign(positive_zero, negative_one)
+        ),
+        negative_zero_sum_bits=_runtime_float_bits(
+            negative_zero + negative_zero
+        ),
+        negative_zero_product_bits=_runtime_float_bits(
+            negative_zero * one
+        ),
+    )
+
+
+def _verify_fp64_runtime_observation(
+    observation: _Fp64RuntimeObservation,
+) -> _Fp64RuntimeObservation:
+    if type(observation) is not _Fp64RuntimeObservation:
+        raise TypeError("runtime observation has the wrong exact type")
+    expected = {
+        "double_byte_width": 8,
+        "radix": 2,
+        "mantissa_digits": 53,
+        "minimum_exponent": -1021,
+        "maximum_exponent": 1024,
+        "tie_even_lower_result_bits": _ONE_BITS,
+        "tie_odd_lower_result_bits": _ONE_TWO_ULPS_UP_BITS,
+        "half_minimum_normal_result_bits": _HALF_MINIMUM_NORMAL_BITS,
+        "minimum_subnormal_scaled_result_bits": _MINIMUM_NORMAL_BITS,
+        "minimum_subnormal_sum_result_bits": _TWO_MINIMUM_SUBNORMAL_BITS,
+        "nextafter_positive_zero_up_bits": _MINIMUM_SUBNORMAL_BITS,
+        "nextafter_negative_zero_down_bits": (
+            _NEGATIVE_MINIMUM_SUBNORMAL_BITS
+        ),
+        "nextafter_positive_minsub_to_zero_bits": _POSITIVE_ZERO_BITS,
+        "nextafter_negative_minsub_to_zero_bits": _NEGATIVE_ZERO_BITS,
+        "nextafter_one_up_bits": _ONE_UP_BITS,
+        "nextafter_one_down_bits": _ONE_DOWN_BITS,
+        "positive_zero_bits": _POSITIVE_ZERO_BITS,
+        "negative_zero_bits": _NEGATIVE_ZERO_BITS,
+        "copied_negative_zero_bits": _NEGATIVE_ZERO_BITS,
+        "negative_zero_sum_bits": _NEGATIVE_ZERO_BITS,
+        "negative_zero_product_bits": _NEGATIVE_ZERO_BITS,
+    }
+    for field, frozen in expected.items():
+        observed = getattr(observation, field)
+        if type(observed) is not int:
+            raise TypeError(f"{field} must be an exact int")
+        if observed != frozen:
+            raise ValueError(f"{field} does not match required fp64 semantics")
+    return observation
+
+
+def _require_fp64_runtime_environment() -> _Fp64RuntimeObservation:
+    try:
+        return _verify_fp64_runtime_observation(
+            _observe_fp64_runtime()
+        )
+    except Exception as exc:
+        raise RuntimeError(
+            "fp64 runtime semantics are not certified"
+        ) from exc
 
 
 def _exact_int(value: object, expected: int, field: str) -> None:
@@ -210,7 +396,7 @@ def fp64_enclosure_protocol_payload(
     }
 
 
-def build_fp64_enclosure_protocol() -> Fp64EnclosureProtocol:
+def _build_fp64_enclosure_protocol_body() -> Fp64EnclosureProtocol:
     table = build_root64_interval_table()
     provisional = Fp64EnclosureProtocol(
         protocol_schema_version=FP64_PROTOCOL_SCHEMA_VERSION,
@@ -243,9 +429,15 @@ def build_fp64_enclosure_protocol() -> Fp64EnclosureProtocol:
     )
 
 
+def build_fp64_enclosure_protocol() -> Fp64EnclosureProtocol:
+    _require_fp64_runtime_environment()
+    return _build_fp64_enclosure_protocol_body()
+
+
 def verify_fp64_enclosure_protocol(
     protocol: Fp64EnclosureProtocol,
 ) -> Fp64EnclosureProtocol:
+    _require_fp64_runtime_environment()
     if type(protocol) is not Fp64EnclosureProtocol:
         raise TypeError("protocol must be an Fp64EnclosureProtocol")
     if protocol.protocol_schema_version != FP64_PROTOCOL_SCHEMA_VERSION:
@@ -255,7 +447,7 @@ def verify_fp64_enclosure_protocol(
         fp64_enclosure_protocol_payload(protocol)
     ):
         raise ValueError("protocol_sha does not match complete body")
-    expected = build_fp64_enclosure_protocol()
+    expected = _build_fp64_enclosure_protocol_body()
     if protocol.protocol_sha != expected.protocol_sha:
         raise ValueError("protocol does not match the closed construction")
     return protocol
