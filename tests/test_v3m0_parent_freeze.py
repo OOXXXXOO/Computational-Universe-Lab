@@ -2069,5 +2069,533 @@ class ParentFreezeCapabilityTests(unittest.TestCase):
             _reverify_verified_parent_freeze(revived)
 
 
+class ParentFreezeCandidateTests(unittest.TestCase):
+    def test_inert_candidate_freezes_signed_design_and_preserves_old_root(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        builder = getattr(
+            parent_freeze,
+            "build_v3m0_parent_freeze_candidate",
+            None,
+        )
+        self.assertTrue(callable(builder))
+        for public_name in (
+            "ParentFreezeCandidateManifest",
+            "ScenarioBasisSelectorSpec",
+            "ScenarioResponseTemplate",
+            "ScenarioPredictionQuantity",
+            "ScenarioPredictionProfile",
+            "build_v3m0_parent_freeze_candidate",
+            "verify_parent_freeze_candidate",
+        ):
+            self.assertIn(public_name, parent_freeze.__all__)
+        before = issue_v3m0_parent_freeze().manifest.parent_freeze_sha
+        candidate = builder()
+        after = issue_v3m0_parent_freeze().manifest.parent_freeze_sha
+
+        self.assertEqual(before, after)
+        self.assertEqual(
+            before,
+            "f57079846203b2cbcf86da7ebfb06c8d6bc55c5a2c16e2548e009d2a6ce607d9",
+        )
+        self.assertEqual(candidate.authority_state, "PROVISIONAL_NOT_ISSUED")
+        self.assertEqual(candidate.based_on_parent_freeze_sha, before)
+        self.assertEqual(
+            candidate.scenario_response_design_commit_sha,
+            "0842b1088bf3f6afee39cffebeab0f0ed1852060",
+        )
+        self.assertEqual(
+            candidate.scenario_response_design_source_sha,
+            "da374d880a052518a77461c1ea95d20918e5d1cba1ec7c759fd37127d6887381",
+        )
+        design_path = ROOT / candidate.scenario_response_design_source_path
+        self.assertEqual(
+            hashlib.sha256(design_path.read_bytes()).hexdigest(),
+            candidate.scenario_response_design_source_sha,
+        )
+        self.assertEqual(
+            candidate.required_finalization_state,
+            "SIGNED_INCREMENTAL_ERRATUM_AND_SINGLE_PARENT_REFREEZE",
+        )
+        payload = parent_freeze.parent_freeze_candidate_manifest_payload(
+            candidate
+        )
+        self.assertEqual(candidate.candidate_sha, canonical_sha(payload))
+        self.assertIs(
+            parent_freeze.verify_parent_freeze_candidate(candidate),
+            candidate,
+        )
+
+    def test_candidate_schema_is_exact_and_carries_all_32_scenarios(self) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        self.assertEqual(
+            tuple(parent_freeze.ParentFreezeCandidateManifest.__dataclass_fields__),
+            (
+                "candidate_schema_version",
+                "authority_state",
+                "based_on_parent_freeze_sha",
+                "scenario_response_design_commit_sha",
+                "scenario_response_design_source_path",
+                "scenario_response_design_source_sha",
+                "proposed_parent_freeze_schema_version",
+                "proposed_application_scenario_schema_version",
+                "required_finalization_state",
+                "application_candidates",
+                "candidate_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ParentFreezeCandidateApplication.__dataclass_fields__),
+            (
+                "candidate_application_schema_version",
+                "control_case_id",
+                "application_instance_id",
+                "based_on_application_spec_sha",
+                "scenario_candidates",
+                "candidate_application_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ParentFreezeCandidateScenario.__dataclass_fields__),
+            (
+                "candidate_scenario_schema_version",
+                "control_case_id",
+                "application_instance_id",
+                "based_on_application_spec_sha",
+                "scenario_execution_spec",
+                "selector_spec",
+                "response_template",
+                "prediction_profile",
+                "candidate_scenario_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ScenarioBasisSelectorSpec.__dataclass_fields__),
+            (
+                "selector_schema_version",
+                "scenario_id",
+                "public_source_basis_manifest_id",
+                "public_readout_basis_manifest_id",
+                "source_selector_derivation_id",
+                "readout_selector_derivation_id",
+                "source_selector",
+                "readout_selector",
+                "source_injection",
+                "readout_coisometry",
+                "selector_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ScenarioResponseTemplate.__dataclass_fields__),
+            (
+                "template_schema_version",
+                "scenario_id",
+                "selector_sha",
+                "construction_preflight_state",
+                "response_torus_denominators",
+                "response_reciprocal_indices",
+                "source_readout_bridge_reciprocal_indices",
+                "source_readout_bridge_steps",
+                "reference_reciprocal_index",
+                "preregistered_phase_bands",
+                "expected_actual_shell_rank",
+                "source_trial_vectors",
+                "curvature_incidence_family_id",
+                "curvature_normalizer_formula_id",
+                "geometry_bundle_derivation_id",
+                "template_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ScenarioPredictionQuantity.__dataclass_fields__),
+            (
+                "quantity_schema_version",
+                "quantity_id",
+                "branch_scope",
+                "semantics",
+                "exact_values",
+                "side_labels",
+                "formula_id",
+                "formula_parameter_wires",
+                "qualitative_labels",
+                "quantity_sha",
+            ),
+        )
+        self.assertEqual(
+            tuple(parent_freeze.ScenarioPredictionProfile.__dataclass_fields__),
+            (
+                "profile_schema_version",
+                "scenario_id",
+                "prediction_state",
+                "quantities",
+                "profile_sha",
+            ),
+        )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        applications = candidate.application_candidates
+        self.assertEqual(
+            tuple(item.control_case_id for item in applications),
+            APPLICATION_CONTROL_CASE_IDS,
+        )
+        scenarios = tuple(
+            scenario
+            for application in applications
+            for scenario in application.scenario_candidates
+        )
+        self.assertEqual(len(scenarios), 32)
+        scenario_ids = tuple(
+            item.scenario_execution_spec.scenario_id for item in scenarios
+        )
+        self.assertEqual(len(scenario_ids), len(set(scenario_ids)))
+        self.assertNotIn(
+            "v3m0.synthetic-control.c07.v1.scenario.interference.v1",
+            scenario_ids,
+        )
+        self.assertIn(
+            "v3m0.synthetic-control.c07.v1.scenario.constructive.v1",
+            scenario_ids,
+        )
+        self.assertIn(
+            "v3m0.synthetic-control.c07.v1.scenario.destructive.v1",
+            scenario_ids,
+        )
+        lane_counts = {
+            lane: sum(
+                item.scenario_execution_spec.execution_lane == lane
+                for item in scenarios
+            )
+            for lane in (
+                "BLOCK_SUCCESS",
+                "EXPECTED_TYPED_TERMINATION",
+                "ANALYSIS_CONTROL",
+            )
+        }
+        self.assertEqual(
+            lane_counts,
+            {
+                "BLOCK_SUCCESS": 23,
+                "EXPECTED_TYPED_TERMINATION": 7,
+                "ANALYSIS_CONTROL": 2,
+            },
+        )
+
+    def test_unbuilt_controls_are_explicitly_pending_without_predictions(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        scenarios = tuple(
+            scenario
+            for application in candidate.application_candidates
+            for scenario in application.scenario_candidates
+        )
+        pending_cases = {
+            "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE",
+            "C08_RANK_R_MISSING_MODES",
+            "C10_FULL_SOURCE_EXTRA_MODE",
+            "C12_NU_INC_IR_NORMALIZATION",
+        }
+        observed_pending = {
+            item.control_case_id
+            for item in scenarios
+            if item.response_template.construction_preflight_state
+            == "PENDING_CONSTRUCTION_PREFLIGHT"
+        }
+        self.assertEqual(observed_pending, pending_cases)
+        for item in scenarios:
+            if item.control_case_id in pending_cases:
+                self.assertEqual(
+                    item.prediction_profile.prediction_state,
+                    "PENDING_CONSTRUCTION_PREFLIGHT",
+                )
+                self.assertEqual(item.prediction_profile.quantities, ())
+            self.assertEqual(
+                item.candidate_scenario_sha,
+                canonical_sha(
+                    parent_freeze.parent_freeze_candidate_scenario_payload(item)
+                ),
+            )
+
+    def test_scenario_selectors_follow_the_frozen_matrix_directions(self) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        base = issue_v3m0_parent_freeze().manifest
+        base_by_case = {
+            item.control_case_id: item
+            for item in base.synthetic_control_application_specs
+        }
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        for application in candidate.application_candidates:
+            public = base_by_case[application.control_case_id]
+            b_source = basis_manifest_array(
+                public.basis_protocol.source_basis
+            )
+            w_readout = basis_manifest_array(
+                public.basis_protocol.readout_basis
+            )
+            for scenario in application.scenario_candidates:
+                with self.subTest(
+                    scenario_id=scenario.scenario_execution_spec.scenario_id
+                ):
+                    selector = scenario.selector_spec
+                    c_source = frozen_tensor_array(selector.source_selector)
+                    c_readout = frozen_tensor_array(selector.readout_selector)
+                    source = frozen_tensor_array(selector.source_injection)
+                    readout = frozen_tensor_array(selector.readout_coisometry)
+                    np.testing.assert_allclose(
+                        c_source.conj().T @ c_source,
+                        np.eye(c_source.shape[1]),
+                        rtol=0.0,
+                        atol=1.0e-12,
+                    )
+                    np.testing.assert_allclose(
+                        c_readout @ c_readout.conj().T,
+                        np.eye(c_readout.shape[0]),
+                        rtol=0.0,
+                        atol=1.0e-12,
+                    )
+                    np.testing.assert_array_equal(
+                        source,
+                        b_source.T @ c_source,
+                    )
+                    np.testing.assert_array_equal(
+                        readout,
+                        c_readout @ np.conj(w_readout),
+                    )
+                    trials = frozen_tensor_array(
+                        scenario.response_template.source_trial_vectors
+                    )
+                    np.testing.assert_array_equal(
+                        trials,
+                        np.eye(c_source.shape[1]),
+                    )
+                    self.assertEqual(
+                        selector.selector_sha,
+                        canonical_sha(
+                            parent_freeze.scenario_basis_selector_spec_payload(
+                                selector
+                            )
+                        ),
+                    )
+                    self.assertEqual(
+                        scenario.response_template.template_sha,
+                        canonical_sha(
+                            parent_freeze.scenario_response_template_payload(
+                                scenario.response_template
+                            )
+                        ),
+                    )
+
+    def test_provable_case_selectors_and_actual_shell_ranks_are_migrated(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        by_case = {
+            application.control_case_id: application.scenario_candidates
+            for application in candidate.application_candidates
+        }
+
+        def shapes(control_case_id: str):
+            return tuple(
+                (
+                    frozen_tensor_array(item.selector_spec.source_injection).shape,
+                    frozen_tensor_array(item.selector_spec.readout_coisometry).shape,
+                    item.response_template.expected_actual_shell_rank,
+                )
+                for item in by_case[control_case_id]
+            )
+
+        self.assertEqual(
+            shapes("C05_PHASE_AND_SCALAR_GAIN"),
+            (((4, 1), (1, 4), 2), ((4, 1), (1, 4), 2)),
+        )
+        self.assertEqual(
+            shapes("C15_TT_ROW_FULLH_LOWRANK_GEOMETRY"),
+            (
+                ((4, 4), (4, 4), 2),
+                ((4, 1), (4, 4), 2),
+                ((4, 2), (4, 4), 2),
+                ((4, 3), (4, 4), 2),
+            ),
+        )
+        self.assertEqual(
+            shapes("C16_COVERAGE_025_075"),
+            (((4, 1), (4, 4), 2), ((4, 1), (4, 4), 2)),
+        )
+        self.assertEqual(
+            shapes("C17_QUOTIENT_GAUGE_COVERAGE"),
+            (((4, 2), (4, 4), 2),),
+        )
+        self.assertEqual(
+            shapes("C18_ABLATED_INDEPENDENT_UNARY"),
+            (((4, 2), (2, 4), 1),),
+        )
+        self.assertEqual(
+            shapes("C19_FULL_POSITIVE_OBSERVER_COLLAPSE"),
+            (((4, 2), (4, 4), 2),),
+        )
+        c18 = by_case["C18_ABLATED_INDEPENDENT_UNARY"][0]
+        np.testing.assert_array_equal(
+            frozen_tensor_array(c18.selector_spec.source_injection),
+            np.asarray(
+                ((1.0, 0.0), (0.0, 0.0), (0.0, 1.0), (0.0, 0.0)),
+                dtype=np.complex128,
+            ),
+        )
+        np.testing.assert_array_equal(
+            frozen_tensor_array(c18.selector_spec.readout_coisometry),
+            np.asarray(
+                ((0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)),
+                dtype=np.complex128,
+            ),
+        )
+
+    def test_resigned_selector_direction_splice_is_rejected(self) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+        from rulespace_v3.factory import freeze_complex_tensor
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        application = candidate.application_candidates[4]
+        scenario = application.scenario_candidates[0]
+        selector = scenario.selector_spec
+        changed_source = frozen_tensor_array(selector.source_injection)
+        changed_source[0, 0] += 0.125
+        changed_selector = dataclasses.replace(
+            selector,
+            source_injection=freeze_complex_tensor(changed_source),
+            selector_sha="0" * 64,
+        )
+        changed_selector = dataclasses.replace(
+            changed_selector,
+            selector_sha=canonical_sha(
+                parent_freeze.scenario_basis_selector_spec_payload(
+                    changed_selector
+                )
+            ),
+        )
+        changed_template = dataclasses.replace(
+            scenario.response_template,
+            selector_sha=changed_selector.selector_sha,
+            template_sha="0" * 64,
+        )
+        changed_template = dataclasses.replace(
+            changed_template,
+            template_sha=canonical_sha(
+                parent_freeze.scenario_response_template_payload(
+                    changed_template
+                )
+            ),
+        )
+        changed_scenario = dataclasses.replace(
+            scenario,
+            selector_spec=changed_selector,
+            response_template=changed_template,
+            candidate_scenario_sha="0" * 64,
+        )
+        changed_scenario = dataclasses.replace(
+            changed_scenario,
+            candidate_scenario_sha=canonical_sha(
+                parent_freeze.parent_freeze_candidate_scenario_payload(
+                    changed_scenario
+                )
+            ),
+        )
+        changed_application = dataclasses.replace(
+            application,
+            scenario_candidates=(
+                changed_scenario,
+                *application.scenario_candidates[1:],
+            ),
+            candidate_application_sha="0" * 64,
+        )
+        changed_application = dataclasses.replace(
+            changed_application,
+            candidate_application_sha=canonical_sha(
+                parent_freeze.parent_freeze_candidate_application_payload(
+                    changed_application
+                )
+            ),
+        )
+        changed_candidate = dataclasses.replace(
+            candidate,
+            application_candidates=(
+                *candidate.application_candidates[:4],
+                changed_application,
+                *candidate.application_candidates[5:],
+            ),
+            candidate_sha="0" * 64,
+        )
+        changed_candidate = dataclasses.replace(
+            changed_candidate,
+            candidate_sha=canonical_sha(
+                parent_freeze.parent_freeze_candidate_manifest_payload(
+                    changed_candidate
+                )
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "selector|source|direction"):
+            parent_freeze.verify_parent_freeze_candidate(changed_candidate)
+
+    def test_candidate_has_no_authority_hydration_or_runtime_sha_edges(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+        from rulespace_v3.calibration_authority import (
+            issue_v3m0_calibration_application_permit,
+        )
+
+        candidate = parent_freeze.build_v3m0_parent_freeze_candidate()
+        with self.assertRaises(TypeError):
+            verify_parent_freeze(candidate)  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            _reverify_verified_parent_freeze(candidate)  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            issue_v3m0_calibration_application_permit(
+                candidate,  # type: ignore[arg-type]
+                object(),
+                "v3m0.synthetic-control.c04.v1",
+            )
+        self.assertFalse(
+            hasattr(parent_freeze, "issue_v3m0_parent_freeze_candidate")
+        )
+        self.assertFalse(
+            hasattr(parent_freeze, "convert_parent_freeze_candidate")
+        )
+        payload = parent_freeze.parent_freeze_candidate_manifest_payload(
+            candidate
+        )
+        serialized = repr(payload)
+        forbidden_keys = (
+            "incremental_erratum_source_sha",
+            "recipe_sha",
+            "materialization_sha",
+            "factory_sha",
+            "response_sha",
+            "construction_trace_sha",
+            "permit_sha",
+        )
+        for key in forbidden_keys:
+            self.assertNotIn(key, serialized)
+        draft_path = ROOT / "docsv3/v3-勘误-geometry-scenario-audit-2026-07-31.md"
+        draft_sha = hashlib.sha256(draft_path.read_bytes()).hexdigest()
+        self.assertNotIn(draft_sha, serialized)
+        for application in candidate.application_candidates:
+            self.assertEqual(
+                application.candidate_application_sha,
+                canonical_sha(
+                    parent_freeze.parent_freeze_candidate_application_payload(
+                        application
+                    )
+                ),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

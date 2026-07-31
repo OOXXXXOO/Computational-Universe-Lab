@@ -29,9 +29,11 @@ from .evidence import (
 from .factory import (
     BasisManifest,
     FrozenComplexTensor,
+    basis_manifest_array,
     basis_manifest_payload,
     build_basis_manifest,
     freeze_complex_tensor,
+    frozen_tensor_array,
     frozen_tensor_payload,
     verify_basis_manifest,
     verify_frozen_tensor,
@@ -39,6 +41,21 @@ from .factory import (
 
 
 PARENT_FREEZE_SCHEMA_VERSION = "v3m0.parent-freeze.v1"
+PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION = "v3m0.parent-freeze-candidate.v1"
+PARENT_FREEZE_CANDIDATE_APPLICATION_SCHEMA_VERSION = (
+    "v3m0.parent-freeze-candidate-application.v1"
+)
+PARENT_FREEZE_CANDIDATE_SCENARIO_SCHEMA_VERSION = (
+    "v3m0.parent-freeze-candidate-scenario.v1"
+)
+SCENARIO_BASIS_SELECTOR_SCHEMA_VERSION = "v3m0.scenario-basis-selector.v1"
+SCENARIO_RESPONSE_TEMPLATE_SCHEMA_VERSION = "v3m0.scenario-response-template.v1"
+SCENARIO_PREDICTION_QUANTITY_SCHEMA_VERSION = (
+    "v3m0.scenario-prediction-quantity.v1"
+)
+SCENARIO_PREDICTION_PROFILE_SCHEMA_VERSION = (
+    "v3m0.scenario-prediction-profile.v1"
+)
 APPLICATION_OPERATION_SCHEMA_VERSION = "v3m0.synthetic-application-operation.v1"
 APPLICATION_BASIS_PROTOCOL_SCHEMA_VERSION = (
     "v3m0.synthetic-application-basis-protocol.v1"
@@ -73,6 +90,15 @@ IMPLEMENTATION_PLAN_SOURCE_SHA = (
     "32a9061bac1ac7bdfb0f0014de3dea55f8ca6113a806380906b594ff6a4b0f8f"
 )
 ERRATUM_SOURCE_SHA = "63bcda7cb83c7d725b546e18fda41bfccfc69f4a204ddd05056ed58b1499577b"
+SCENARIO_RESPONSE_DESIGN_COMMIT_SHA = (
+    "0842b1088bf3f6afee39cffebeab0f0ed1852060"
+)
+SCENARIO_RESPONSE_DESIGN_SOURCE_PATH = (
+    "docsv3/v3-设计-scenario-response-refreeze-2026-07-31.md"
+)
+SCENARIO_RESPONSE_DESIGN_SOURCE_SHA = (
+    "da374d880a052518a77461c1ea95d20918e5d1cba1ec7c759fd37127d6887381"
+)
 PARENT_V2_SHA = "bf5668fe03c108624426c2a38c67413818db833f8d0c178455dc424ef96ff1af"
 EXPECTED_SHELL_RANK_SOURCE_ID = "parent-freeze-control-application-spec-v1"
 CURVATURE_NORMALIZER_ID = "synthetic-identity-v1"
@@ -800,6 +826,346 @@ class ParentFreezeManifest:
         _sha(self.parent_freeze_sha, "parent_freeze_sha")
 
 
+CandidatePreflightState = Literal[
+    "PROVISIONAL_ANALYTIC_TEMPLATE",
+    "PENDING_CONSTRUCTION_PREFLIGHT",
+]
+CandidatePredictionState = Literal[
+    "PROVISIONAL_ANALYTIC_PREDICTION",
+    "PENDING_CONSTRUCTION_PREFLIGHT",
+]
+CandidatePredictionSemantics = Literal[
+    "MEASURED_EXACT",
+    "ANALYTIC_SIDE",
+    "FORMULA_DERIVED",
+    "QUALITATIVE_REQUIRED",
+]
+
+
+@dataclass(frozen=True)
+class ScenarioBasisSelectorSpec:
+    selector_schema_version: str
+    scenario_id: str
+    public_source_basis_manifest_id: str
+    public_readout_basis_manifest_id: str
+    source_selector_derivation_id: str
+    readout_selector_derivation_id: str
+    source_selector: FrozenComplexTensor
+    readout_selector: FrozenComplexTensor
+    source_injection: FrozenComplexTensor
+    readout_coisometry: FrozenComplexTensor
+    selector_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.selector_schema_version, "selector_schema_version")
+        _text(self.scenario_id, "scenario_id")
+        _sha(
+            self.public_source_basis_manifest_id,
+            "public_source_basis_manifest_id",
+        )
+        _sha(
+            self.public_readout_basis_manifest_id,
+            "public_readout_basis_manifest_id",
+        )
+        _text(
+            self.source_selector_derivation_id,
+            "source_selector_derivation_id",
+        )
+        _text(
+            self.readout_selector_derivation_id,
+            "readout_selector_derivation_id",
+        )
+        for field in (
+            "source_selector",
+            "readout_selector",
+            "source_injection",
+            "readout_coisometry",
+        ):
+            tensor = getattr(self, field)
+            if type(tensor) is not FrozenComplexTensor:
+                raise TypeError(f"{field} must be a FrozenComplexTensor")
+            verify_frozen_tensor(tensor)
+        _sha(self.selector_sha, "selector_sha")
+
+
+@dataclass(frozen=True)
+class ScenarioResponseTemplate:
+    template_schema_version: str
+    scenario_id: str
+    selector_sha: str
+    construction_preflight_state: CandidatePreflightState
+    response_torus_denominators: tuple[int, ...]
+    response_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_reciprocal_indices: tuple[tuple[int, ...], ...]
+    source_readout_bridge_steps: tuple[int, ...]
+    reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
+    expected_actual_shell_rank: int
+    source_trial_vectors: FrozenComplexTensor
+    curvature_incidence_family_id: str
+    curvature_normalizer_formula_id: str
+    geometry_bundle_derivation_id: Optional[str]
+    template_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.template_schema_version, "template_schema_version")
+        _text(self.scenario_id, "scenario_id")
+        _sha(self.selector_sha, "selector_sha")
+        if self.construction_preflight_state not in (
+            "PROVISIONAL_ANALYTIC_TEMPLATE",
+            "PENDING_CONSTRUCTION_PREFLIGHT",
+        ):
+            raise ValueError("construction preflight state is not frozen")
+        for field in (
+            "response_torus_denominators",
+            "response_reciprocal_indices",
+            "source_readout_bridge_reciprocal_indices",
+            "source_readout_bridge_steps",
+            "reference_reciprocal_index",
+            "preregistered_phase_bands",
+        ):
+            if type(getattr(self, field)) is not tuple:
+                raise TypeError(f"{field} must be a tuple")
+        _positive_int(
+            self.expected_actual_shell_rank,
+            "expected_actual_shell_rank",
+        )
+        if type(self.source_trial_vectors) is not FrozenComplexTensor:
+            raise TypeError("source_trial_vectors must be a FrozenComplexTensor")
+        verify_frozen_tensor(self.source_trial_vectors)
+        _text(
+            self.curvature_incidence_family_id,
+            "curvature_incidence_family_id",
+        )
+        _text(
+            self.curvature_normalizer_formula_id,
+            "curvature_normalizer_formula_id",
+        )
+        if self.geometry_bundle_derivation_id is not None:
+            _text(
+                self.geometry_bundle_derivation_id,
+                "geometry_bundle_derivation_id",
+            )
+        _sha(self.template_sha, "template_sha")
+
+
+@dataclass(frozen=True)
+class ScenarioPredictionQuantity:
+    quantity_schema_version: str
+    quantity_id: str
+    branch_scope: str
+    semantics: CandidatePredictionSemantics
+    exact_values: tuple[TaggedScalarWire, ...]
+    side_labels: tuple[str, ...]
+    formula_id: Optional[str]
+    formula_parameter_wires: tuple[tuple[str, TaggedScalarWire], ...]
+    qualitative_labels: tuple[str, ...]
+    quantity_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.quantity_schema_version, "quantity_schema_version")
+        _text(self.quantity_id, "quantity_id")
+        _text(self.branch_scope, "branch_scope")
+        if self.semantics not in (
+            "MEASURED_EXACT",
+            "ANALYTIC_SIDE",
+            "FORMULA_DERIVED",
+            "QUALITATIVE_REQUIRED",
+        ):
+            raise ValueError("prediction quantity semantics is not frozen")
+        if type(self.exact_values) is not tuple or not all(
+            type(item) is TaggedScalarWire for item in self.exact_values
+        ):
+            raise TypeError("exact_values has the wrong strict wire type")
+        _string_tuple(self.side_labels, "side_labels", allow_empty=True)
+        if self.formula_id is not None:
+            _text(self.formula_id, "formula_id")
+        if type(self.formula_parameter_wires) is not tuple:
+            raise TypeError("formula_parameter_wires must be a tuple")
+        parameter_names = tuple(
+            _text(entry[0], "formula parameter name")
+            for entry in self.formula_parameter_wires
+            if type(entry) is tuple
+            and len(entry) == 2
+            and type(entry[1]) is TaggedScalarWire
+        )
+        if len(parameter_names) != len(self.formula_parameter_wires):
+            raise TypeError("formula_parameter_wires has the wrong strict shape")
+        if parameter_names != tuple(sorted(set(parameter_names))):
+            raise ValueError("formula_parameter_wires must be unique canonical")
+        _string_tuple(
+            self.qualitative_labels,
+            "qualitative_labels",
+            allow_empty=True,
+        )
+        populated = (
+            bool(self.exact_values),
+            bool(self.side_labels),
+            self.formula_id is not None,
+            bool(self.qualitative_labels),
+        )
+        expected_index = {
+            "MEASURED_EXACT": 0,
+            "ANALYTIC_SIDE": 1,
+            "FORMULA_DERIVED": 2,
+            "QUALITATIVE_REQUIRED": 3,
+        }[self.semantics]
+        if not populated[expected_index] or any(
+            value for index, value in enumerate(populated) if index != expected_index
+        ):
+            raise ValueError("prediction quantity payload contradicts semantics")
+        _sha(self.quantity_sha, "quantity_sha")
+
+
+@dataclass(frozen=True)
+class ScenarioPredictionProfile:
+    profile_schema_version: str
+    scenario_id: str
+    prediction_state: CandidatePredictionState
+    quantities: tuple[ScenarioPredictionQuantity, ...]
+    profile_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.profile_schema_version, "profile_schema_version")
+        _text(self.scenario_id, "scenario_id")
+        if self.prediction_state not in (
+            "PROVISIONAL_ANALYTIC_PREDICTION",
+            "PENDING_CONSTRUCTION_PREFLIGHT",
+        ):
+            raise ValueError("prediction state is not frozen")
+        if type(self.quantities) is not tuple or not all(
+            type(item) is ScenarioPredictionQuantity for item in self.quantities
+        ):
+            raise TypeError("quantities has the wrong strict type")
+        if (
+            self.prediction_state == "PENDING_CONSTRUCTION_PREFLIGHT"
+            and self.quantities
+        ):
+            raise ValueError("pending construction cannot carry predictions")
+        _sha(self.profile_sha, "profile_sha")
+
+
+@dataclass(frozen=True)
+class ParentFreezeCandidateScenario:
+    candidate_scenario_schema_version: str
+    control_case_id: str
+    application_instance_id: str
+    based_on_application_spec_sha: str
+    scenario_execution_spec: ApplicationScenarioExecutionSpec
+    selector_spec: ScenarioBasisSelectorSpec
+    response_template: ScenarioResponseTemplate
+    prediction_profile: ScenarioPredictionProfile
+    candidate_scenario_sha: str
+
+    def __post_init__(self) -> None:
+        _text(
+            self.candidate_scenario_schema_version,
+            "candidate_scenario_schema_version",
+        )
+        _text(self.control_case_id, "control_case_id")
+        _text(self.application_instance_id, "application_instance_id")
+        _sha(
+            self.based_on_application_spec_sha,
+            "based_on_application_spec_sha",
+        )
+        if type(self.scenario_execution_spec) is not ApplicationScenarioExecutionSpec:
+            raise TypeError("scenario_execution_spec has the wrong strict type")
+        if type(self.selector_spec) is not ScenarioBasisSelectorSpec:
+            raise TypeError("selector_spec has the wrong strict type")
+        if type(self.response_template) is not ScenarioResponseTemplate:
+            raise TypeError("response_template has the wrong strict type")
+        if type(self.prediction_profile) is not ScenarioPredictionProfile:
+            raise TypeError("prediction_profile has the wrong strict type")
+        _sha(self.candidate_scenario_sha, "candidate_scenario_sha")
+
+
+@dataclass(frozen=True)
+class ParentFreezeCandidateApplication:
+    candidate_application_schema_version: str
+    control_case_id: str
+    application_instance_id: str
+    based_on_application_spec_sha: str
+    scenario_candidates: tuple[ParentFreezeCandidateScenario, ...]
+    candidate_application_sha: str
+
+    def __post_init__(self) -> None:
+        _text(
+            self.candidate_application_schema_version,
+            "candidate_application_schema_version",
+        )
+        _text(self.control_case_id, "control_case_id")
+        _text(self.application_instance_id, "application_instance_id")
+        _sha(
+            self.based_on_application_spec_sha,
+            "based_on_application_spec_sha",
+        )
+        if type(self.scenario_candidates) is not tuple or not all(
+            type(item) is ParentFreezeCandidateScenario
+            for item in self.scenario_candidates
+        ):
+            raise TypeError("scenario_candidates has the wrong strict type")
+        if not self.scenario_candidates:
+            raise ValueError("scenario_candidates must not be empty")
+        _sha(self.candidate_application_sha, "candidate_application_sha")
+
+
+@dataclass(frozen=True)
+class ParentFreezeCandidateManifest:
+    """Inert review body; it is deliberately not a ParentFreeze manifest."""
+
+    candidate_schema_version: str
+    authority_state: Literal["PROVISIONAL_NOT_ISSUED"]
+    based_on_parent_freeze_sha: str
+    scenario_response_design_commit_sha: str
+    scenario_response_design_source_path: str
+    scenario_response_design_source_sha: str
+    proposed_parent_freeze_schema_version: str
+    proposed_application_scenario_schema_version: str
+    required_finalization_state: Literal[
+        "SIGNED_INCREMENTAL_ERRATUM_AND_SINGLE_PARENT_REFREEZE"
+    ]
+    application_candidates: tuple[ParentFreezeCandidateApplication, ...]
+    candidate_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.candidate_schema_version, "candidate_schema_version")
+        if self.authority_state != "PROVISIONAL_NOT_ISSUED":
+            raise ValueError("parent candidate cannot claim issued authority")
+        _sha(self.based_on_parent_freeze_sha, "based_on_parent_freeze_sha")
+        _git_sha(
+            self.scenario_response_design_commit_sha,
+            "scenario_response_design_commit_sha",
+        )
+        _text(
+            self.scenario_response_design_source_path,
+            "scenario_response_design_source_path",
+        )
+        _sha(
+            self.scenario_response_design_source_sha,
+            "scenario_response_design_source_sha",
+        )
+        _text(
+            self.proposed_parent_freeze_schema_version,
+            "proposed_parent_freeze_schema_version",
+        )
+        _text(
+            self.proposed_application_scenario_schema_version,
+            "proposed_application_scenario_schema_version",
+        )
+        if self.required_finalization_state != (
+            "SIGNED_INCREMENTAL_ERRATUM_AND_SINGLE_PARENT_REFREEZE"
+        ):
+            raise ValueError("parent candidate finalization gate is not frozen")
+        if type(self.application_candidates) is not tuple:
+            raise TypeError("application_candidates must be a tuple")
+        if not all(
+            type(item) is ParentFreezeCandidateApplication
+            for item in self.application_candidates
+        ):
+            raise TypeError("application_candidates has the wrong strict type")
+        _sha(self.candidate_sha, "candidate_sha")
+
+
 _PARENT_WIRE_TYPES = (
     ParentFreezeManifest,
     V3M0SyntheticControlApplicationSpec,
@@ -1170,6 +1536,249 @@ def parent_freeze_manifest_payload(
             manifest.protocol_constant_payload
         ),
         "source_closure": [list(entry) for entry in manifest.source_closure],
+    }
+
+
+def scenario_basis_selector_spec_payload(
+    selector: ScenarioBasisSelectorSpec,
+) -> dict[str, object]:
+    if type(selector) is not ScenarioBasisSelectorSpec:
+        raise TypeError("selector must be a ScenarioBasisSelectorSpec")
+    return {
+        "selector_schema_version": selector.selector_schema_version,
+        "scenario_id": selector.scenario_id,
+        "public_source_basis_manifest_id": (
+            selector.public_source_basis_manifest_id
+        ),
+        "public_readout_basis_manifest_id": (
+            selector.public_readout_basis_manifest_id
+        ),
+        "source_selector_derivation_id": (
+            selector.source_selector_derivation_id
+        ),
+        "readout_selector_derivation_id": (
+            selector.readout_selector_derivation_id
+        ),
+        "source_selector": _tensor_record(selector.source_selector),
+        "readout_selector": _tensor_record(selector.readout_selector),
+        "source_injection": _tensor_record(selector.source_injection),
+        "readout_coisometry": _tensor_record(selector.readout_coisometry),
+    }
+
+
+def _candidate_selector_record(
+    selector: ScenarioBasisSelectorSpec,
+) -> dict[str, object]:
+    return {
+        **scenario_basis_selector_spec_payload(selector),
+        "selector_sha": selector.selector_sha,
+    }
+
+
+def scenario_response_template_payload(
+    template: ScenarioResponseTemplate,
+) -> dict[str, object]:
+    if type(template) is not ScenarioResponseTemplate:
+        raise TypeError("template must be a ScenarioResponseTemplate")
+    return {
+        "template_schema_version": template.template_schema_version,
+        "scenario_id": template.scenario_id,
+        "selector_sha": template.selector_sha,
+        "construction_preflight_state": template.construction_preflight_state,
+        "response_torus_denominators": list(
+            template.response_torus_denominators
+        ),
+        "response_reciprocal_indices": [
+            list(item) for item in template.response_reciprocal_indices
+        ],
+        "source_readout_bridge_reciprocal_indices": [
+            list(item)
+            for item in template.source_readout_bridge_reciprocal_indices
+        ],
+        "source_readout_bridge_steps": list(
+            template.source_readout_bridge_steps
+        ),
+        "reference_reciprocal_index": list(
+            template.reference_reciprocal_index
+        ),
+        "preregistered_phase_bands": [
+            list(item) for item in template.preregistered_phase_bands
+        ],
+        "expected_actual_shell_rank": template.expected_actual_shell_rank,
+        "source_trial_vectors": _tensor_record(template.source_trial_vectors),
+        "curvature_incidence_family_id": (
+            template.curvature_incidence_family_id
+        ),
+        "curvature_normalizer_formula_id": (
+            template.curvature_normalizer_formula_id
+        ),
+        "geometry_bundle_derivation_id": (
+            template.geometry_bundle_derivation_id
+        ),
+    }
+
+
+def _candidate_response_template_record(
+    template: ScenarioResponseTemplate,
+) -> dict[str, object]:
+    return {
+        **scenario_response_template_payload(template),
+        "template_sha": template.template_sha,
+    }
+
+
+def scenario_prediction_quantity_payload(
+    quantity: ScenarioPredictionQuantity,
+) -> dict[str, object]:
+    if type(quantity) is not ScenarioPredictionQuantity:
+        raise TypeError("quantity must be a ScenarioPredictionQuantity")
+    return {
+        "quantity_schema_version": quantity.quantity_schema_version,
+        "quantity_id": quantity.quantity_id,
+        "branch_scope": quantity.branch_scope,
+        "semantics": quantity.semantics,
+        "exact_values": [
+            tagged_scalar_wire_payload(item) for item in quantity.exact_values
+        ],
+        "side_labels": list(quantity.side_labels),
+        "formula_id": quantity.formula_id,
+        "formula_parameter_wires": [
+            [name, tagged_scalar_wire_payload(wire)]
+            for name, wire in quantity.formula_parameter_wires
+        ],
+        "qualitative_labels": list(quantity.qualitative_labels),
+    }
+
+
+def _candidate_prediction_quantity_record(
+    quantity: ScenarioPredictionQuantity,
+) -> dict[str, object]:
+    return {
+        **scenario_prediction_quantity_payload(quantity),
+        "quantity_sha": quantity.quantity_sha,
+    }
+
+
+def scenario_prediction_profile_payload(
+    profile: ScenarioPredictionProfile,
+) -> dict[str, object]:
+    if type(profile) is not ScenarioPredictionProfile:
+        raise TypeError("profile must be a ScenarioPredictionProfile")
+    return {
+        "profile_schema_version": profile.profile_schema_version,
+        "scenario_id": profile.scenario_id,
+        "prediction_state": profile.prediction_state,
+        "quantities": [
+            _candidate_prediction_quantity_record(item)
+            for item in profile.quantities
+        ],
+    }
+
+
+def _candidate_prediction_profile_record(
+    profile: ScenarioPredictionProfile,
+) -> dict[str, object]:
+    return {
+        **scenario_prediction_profile_payload(profile),
+        "profile_sha": profile.profile_sha,
+    }
+
+
+def parent_freeze_candidate_scenario_payload(
+    scenario: ParentFreezeCandidateScenario,
+) -> dict[str, object]:
+    if type(scenario) is not ParentFreezeCandidateScenario:
+        raise TypeError("scenario must be a ParentFreezeCandidateScenario")
+    return {
+        "candidate_scenario_schema_version": (
+            scenario.candidate_scenario_schema_version
+        ),
+        "control_case_id": scenario.control_case_id,
+        "application_instance_id": scenario.application_instance_id,
+        "based_on_application_spec_sha": scenario.based_on_application_spec_sha,
+        "scenario_execution_spec": _scenario_record(
+            scenario.scenario_execution_spec
+        ),
+        "selector_spec": _candidate_selector_record(scenario.selector_spec),
+        "response_template": _candidate_response_template_record(
+            scenario.response_template
+        ),
+        "prediction_profile": _candidate_prediction_profile_record(
+            scenario.prediction_profile
+        ),
+    }
+
+
+def _candidate_scenario_record(
+    scenario: ParentFreezeCandidateScenario,
+) -> dict[str, object]:
+    return {
+        **parent_freeze_candidate_scenario_payload(scenario),
+        "candidate_scenario_sha": scenario.candidate_scenario_sha,
+    }
+
+
+def parent_freeze_candidate_application_payload(
+    application: ParentFreezeCandidateApplication,
+) -> dict[str, object]:
+    if type(application) is not ParentFreezeCandidateApplication:
+        raise TypeError("application must be a ParentFreezeCandidateApplication")
+    return {
+        "candidate_application_schema_version": (
+            application.candidate_application_schema_version
+        ),
+        "control_case_id": application.control_case_id,
+        "application_instance_id": application.application_instance_id,
+        "based_on_application_spec_sha": (
+            application.based_on_application_spec_sha
+        ),
+        "scenario_candidates": [
+            _candidate_scenario_record(item)
+            for item in application.scenario_candidates
+        ],
+    }
+
+
+def _candidate_application_record(
+    application: ParentFreezeCandidateApplication,
+) -> dict[str, object]:
+    return {
+        **parent_freeze_candidate_application_payload(application),
+        "candidate_application_sha": application.candidate_application_sha,
+    }
+
+
+def parent_freeze_candidate_manifest_payload(
+    candidate: ParentFreezeCandidateManifest,
+) -> dict[str, object]:
+    """Serialize the inert review candidate without producing a Parent root."""
+
+    if type(candidate) is not ParentFreezeCandidateManifest:
+        raise TypeError("candidate must be a ParentFreezeCandidateManifest")
+    return {
+        "candidate_schema_version": candidate.candidate_schema_version,
+        "authority_state": candidate.authority_state,
+        "based_on_parent_freeze_sha": candidate.based_on_parent_freeze_sha,
+        "scenario_response_design_commit_sha": (
+            candidate.scenario_response_design_commit_sha
+        ),
+        "scenario_response_design_source_path": (
+            candidate.scenario_response_design_source_path
+        ),
+        "scenario_response_design_source_sha": (
+            candidate.scenario_response_design_source_sha
+        ),
+        "proposed_parent_freeze_schema_version": (
+            candidate.proposed_parent_freeze_schema_version
+        ),
+        "proposed_application_scenario_schema_version": (
+            candidate.proposed_application_scenario_schema_version
+        ),
+        "required_finalization_state": candidate.required_finalization_state,
+        "application_candidates": [
+            _candidate_application_record(item)
+            for item in candidate.application_candidates
+        ],
     }
 
 
@@ -3794,6 +4403,574 @@ def _build_closed_parent_freeze() -> ParentFreezeManifest:
 _CLOSED_PARENT_FREEZE = _build_closed_parent_freeze()
 
 
+_CANDIDATE_PENDING_CONSTRUCTION_CASES = frozenset(
+    {
+        "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE",
+        "C08_RANK_R_MISSING_MODES",
+        "C10_FULL_SOURCE_EXTRA_MODE",
+        "C12_NU_INC_IR_NORMALIZATION",
+    }
+)
+
+
+def _candidate_scenario_execution_specs(
+    application: V3M0SyntheticControlApplicationSpec,
+) -> tuple[ApplicationScenarioExecutionSpec, ...]:
+    if application.control_case_id != (
+        "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE"
+    ):
+        return application.scenario_execution_specs
+    instance_id = application.application_instance_id
+    return (
+        _make_scenario_execution_spec(
+            instance_id,
+            slug="constructive",
+            output_local_id="01-constructive",
+            execution_lane="BLOCK_SUCCESS",
+            execution_recipe_id="two-mode-constructive-interference-v2",
+            recipe_derivation_source_id="signed-scenario-response-design-v1",
+            expected_terminal_stage="success",
+        ),
+        _make_scenario_execution_spec(
+            instance_id,
+            slug="destructive",
+            output_local_id="02-destructive",
+            execution_lane="BLOCK_SUCCESS",
+            execution_recipe_id="two-mode-destructive-interference-v2",
+            recipe_derivation_source_id="signed-scenario-response-design-v1",
+            expected_terminal_stage="success",
+        ),
+    )
+
+
+def _build_candidate_selector(
+    application: V3M0SyntheticControlApplicationSpec,
+    scenario: ApplicationScenarioExecutionSpec,
+) -> ScenarioBasisSelectorSpec:
+    source_basis = application.basis_protocol.source_basis
+    readout_basis = application.basis_protocol.readout_basis
+    public_source = basis_manifest_array(source_basis)
+    public_readout = basis_manifest_array(readout_basis)
+    source_selector = np.eye(public_source.shape[0], dtype=np.complex128)
+    readout_selector = np.eye(public_readout.shape[0], dtype=np.complex128)
+    source_derivation_id = "permit-public-basis-identity-selector-v1"
+    readout_derivation_id = "permit-public-coisometry-identity-selector-v1"
+    case_id = application.control_case_id
+    identifier = scenario.scenario_id
+    if case_id == "C05_PHASE_AND_SCALAR_GAIN":
+        if identifier.endswith(".scenario.phase.v1"):
+            source_selector = np.asarray(
+                ((0.0,), (1.0 + 1.0j,), (1.0j,), (0.0,)),
+                dtype=np.complex128,
+            ) / math.sqrt(3.0)
+            readout_selector = np.asarray(
+                ((3.0, 1.0 + 1.0j, -2.0, 2.0j),),
+                dtype=np.complex128,
+            ) / math.sqrt(19.0)
+        else:
+            source_selector = np.asarray(
+                ((0.0,), (1.0,), (-1.0 + 1.0j,), (0.0,)),
+                dtype=np.complex128,
+            ) / math.sqrt(3.0)
+            readout_selector = np.asarray(
+                ((-3.0 + 5.0j, -1.0 + 1.0j, -1.0, -1.0),),
+                dtype=np.complex128,
+            ) / math.sqrt(38.0)
+        source_derivation_id = "identity-column-combination-v1"
+        readout_derivation_id = "identity-normalized-row-combination-v1"
+    elif case_id in {
+        "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+        "C16_COVERAGE_025_075",
+    }:
+        root_two = math.sqrt(2.0)
+        half_root_two = 1.0 / (2.0 * root_two)
+        semantic = np.asarray(
+            (
+                (1.0 / root_two, 0.0, 1.0 / root_two, 0.0),
+                (
+                    -1.0j * half_root_two,
+                    -0.5 + 1.0j * half_root_two,
+                    1.0j * half_root_two,
+                    0.5 - 1.0j * half_root_two,
+                ),
+                (0.0, 1.0 / root_two, 0.0, 1.0 / root_two),
+                (
+                    0.5 + 1.0j * half_root_two,
+                    1.0j * half_root_two,
+                    -0.5 - 1.0j * half_root_two,
+                    -1.0j * half_root_two,
+                ),
+            ),
+            dtype=np.complex128,
+        )
+        if case_id == "C16_COVERAGE_025_075" or identifier.endswith(
+            ".scenario.low-rank-tt.v1"
+        ):
+            source_selector = semantic[:, :1]
+        elif identifier.endswith(".scenario.tt.v1"):
+            source_selector = semantic[:, :2]
+        elif identifier.endswith(".scenario.tt-plus-row.v1"):
+            source_selector = semantic[:, (0, 1, 3)]
+        else:
+            source_selector = semantic
+        source_derivation_id = "analytic-common-geometry-semantic-frame-v1"
+    elif case_id == "C17_QUOTIENT_GAUGE_COVERAGE":
+        cosine = 1.0 / math.sqrt(65.0)
+        sine = 8.0 / math.sqrt(65.0)
+        normalizer = 1.0 / math.sqrt(2.0)
+        source_selector = normalizer * np.asarray(
+            (
+                (cosine, -sine),
+                (-1.0j * cosine, -1.0j * sine),
+                (sine, cosine),
+                (-1.0j * sine, 1.0j * cosine),
+            ),
+            dtype=np.complex128,
+        )
+        source_derivation_id = "c17-analytic-actual-positive-shell-v1"
+    elif case_id == "C18_ABLATED_INDEPENDENT_UNARY":
+        source_selector = np.asarray(
+            ((1.0, 0.0), (0.0, 0.0), (0.0, 1.0), (0.0, 0.0)),
+            dtype=np.complex128,
+        )
+        readout_selector = np.asarray(
+            ((0.0, 1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)),
+            dtype=np.complex128,
+        )
+        source_derivation_id = "c18-q0-q1-independent-source-selector-v2"
+        readout_derivation_id = "c18-p0-p1-readout-selector-v2"
+    elif case_id == "C19_FULL_POSITIVE_OBSERVER_COLLAPSE":
+        normalizer = 1.0 / math.sqrt(2.0)
+        source_selector = normalizer * np.asarray(
+            (
+                (1.0, 0.0),
+                (-1.0j, 0.0),
+                (0.0, 1.0),
+                (0.0, -1.0j),
+            ),
+            dtype=np.complex128,
+        )
+        source_derivation_id = "c19-analytic-full-positive-shell-v1"
+    source_injection = public_source.T @ source_selector
+    readout_coisometry = readout_selector @ np.conj(public_readout)
+    provisional = ScenarioBasisSelectorSpec(
+        selector_schema_version=SCENARIO_BASIS_SELECTOR_SCHEMA_VERSION,
+        scenario_id=scenario.scenario_id,
+        public_source_basis_manifest_id=source_basis.manifest_id,
+        public_readout_basis_manifest_id=readout_basis.manifest_id,
+        source_selector_derivation_id=source_derivation_id,
+        readout_selector_derivation_id=readout_derivation_id,
+        source_selector=freeze_complex_tensor(source_selector),
+        readout_selector=freeze_complex_tensor(readout_selector),
+        source_injection=freeze_complex_tensor(source_injection),
+        readout_coisometry=freeze_complex_tensor(readout_coisometry),
+        selector_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        selector_sha=canonical_sha(
+            scenario_basis_selector_spec_payload(provisional)
+        ),
+    )
+
+
+def _candidate_expected_actual_shell_rank(control_case_id: str, fallback: int) -> int:
+    if control_case_id in {
+        "C05_PHASE_AND_SCALAR_GAIN",
+        "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+        "C16_COVERAGE_025_075",
+        "C17_QUOTIENT_GAUGE_COVERAGE",
+        "C19_FULL_POSITIVE_OBSERVER_COLLAPSE",
+    }:
+        return 2
+    if control_case_id == "C18_ABLATED_INDEPENDENT_UNARY":
+        return 1
+    return fallback
+
+
+def _candidate_geometry_bundle_id(control_case_id: str) -> Optional[str]:
+    return {
+        "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY": (
+            "c15-analytic-shell-semantic-bundle-v1"
+        ),
+        "C16_COVERAGE_025_075": "c16-analytic-coverage-target-bundle-v1",
+        "C17_QUOTIENT_GAUGE_COVERAGE": (
+            "c17-analytic-quotient-gauge-bundle-v1"
+        ),
+        "C18_ABLATED_INDEPENDENT_UNARY": (
+            "c18-independent-unary-direct-sum-bundle-v2"
+        ),
+        "C19_FULL_POSITIVE_OBSERVER_COLLAPSE": (
+            "c19-full-positive-observer-collapse-bundle-v1"
+        ),
+    }.get(control_case_id)
+
+
+def _build_candidate_response_template(
+    application: V3M0SyntheticControlApplicationSpec,
+    scenario: ApplicationScenarioExecutionSpec,
+    selector: ScenarioBasisSelectorSpec,
+) -> ScenarioResponseTemplate:
+    grid = application.grid_protocol
+    pending = application.control_case_id in _CANDIDATE_PENDING_CONSTRUCTION_CASES
+    source_count = frozen_tensor_array(selector.source_selector).shape[1]
+    incidence_family_id = "inherit-case-readout-incidence-v1"
+    normalizer_formula_id = application.readout_protocol.curvature_normalizer_id
+    if application.control_case_id == "C12_NU_INC_IR_NORMALIZATION":
+        incidence_family_id = "synthetic-lattice-laplacian-incidence-v1"
+        normalizer_formula_id = "nu-inc-4-sum-sin2-half-v1"
+    provisional = ScenarioResponseTemplate(
+        template_schema_version=SCENARIO_RESPONSE_TEMPLATE_SCHEMA_VERSION,
+        scenario_id=scenario.scenario_id,
+        selector_sha=selector.selector_sha,
+        construction_preflight_state=(
+            "PENDING_CONSTRUCTION_PREFLIGHT"
+            if pending
+            else "PROVISIONAL_ANALYTIC_TEMPLATE"
+        ),
+        response_torus_denominators=grid.response_torus_denominators,
+        response_reciprocal_indices=grid.response_reciprocal_indices,
+        source_readout_bridge_reciprocal_indices=(
+            grid.bridge_reciprocal_indices
+        ),
+        source_readout_bridge_steps=grid.bridge_steps,
+        reference_reciprocal_index=grid.reference_reciprocal_index,
+        preregistered_phase_bands=grid.preregistered_phase_bands,
+        expected_actual_shell_rank=_candidate_expected_actual_shell_rank(
+            application.control_case_id,
+            grid.expected_shell_rank,
+        ),
+        source_trial_vectors=freeze_complex_tensor(
+            np.eye(source_count, dtype=np.complex128)
+        ),
+        curvature_incidence_family_id=incidence_family_id,
+        curvature_normalizer_formula_id=normalizer_formula_id,
+        geometry_bundle_derivation_id=_candidate_geometry_bundle_id(
+            application.control_case_id
+        ),
+        template_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        template_sha=canonical_sha(
+            scenario_response_template_payload(provisional)
+        ),
+    )
+
+
+def _build_candidate_prediction_profile(
+    control_case_id: str,
+    scenario_id: str,
+) -> ScenarioPredictionProfile:
+    pending = control_case_id in _CANDIDATE_PENDING_CONSTRUCTION_CASES
+    provisional = ScenarioPredictionProfile(
+        profile_schema_version=SCENARIO_PREDICTION_PROFILE_SCHEMA_VERSION,
+        scenario_id=scenario_id,
+        prediction_state=(
+            "PENDING_CONSTRUCTION_PREFLIGHT"
+            if pending
+            else "PROVISIONAL_ANALYTIC_PREDICTION"
+        ),
+        quantities=(),
+        profile_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        profile_sha=canonical_sha(
+            scenario_prediction_profile_payload(provisional)
+        ),
+    )
+
+
+def _build_candidate_scenario(
+    application: V3M0SyntheticControlApplicationSpec,
+    scenario: ApplicationScenarioExecutionSpec,
+) -> ParentFreezeCandidateScenario:
+    selector = _build_candidate_selector(application, scenario)
+    response_template = _build_candidate_response_template(
+        application,
+        scenario,
+        selector,
+    )
+    prediction_profile = _build_candidate_prediction_profile(
+        application.control_case_id,
+        scenario.scenario_id,
+    )
+    provisional = ParentFreezeCandidateScenario(
+        candidate_scenario_schema_version=(
+            PARENT_FREEZE_CANDIDATE_SCENARIO_SCHEMA_VERSION
+        ),
+        control_case_id=application.control_case_id,
+        application_instance_id=application.application_instance_id,
+        based_on_application_spec_sha=application.application_spec_sha,
+        scenario_execution_spec=scenario,
+        selector_spec=selector,
+        response_template=response_template,
+        prediction_profile=prediction_profile,
+        candidate_scenario_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        candidate_scenario_sha=canonical_sha(
+            parent_freeze_candidate_scenario_payload(provisional)
+        ),
+    )
+
+
+def _build_candidate_application(
+    application: V3M0SyntheticControlApplicationSpec,
+) -> ParentFreezeCandidateApplication:
+    scenarios = tuple(
+        _build_candidate_scenario(application, scenario)
+        for scenario in _candidate_scenario_execution_specs(application)
+    )
+    provisional = ParentFreezeCandidateApplication(
+        candidate_application_schema_version=(
+            PARENT_FREEZE_CANDIDATE_APPLICATION_SCHEMA_VERSION
+        ),
+        control_case_id=application.control_case_id,
+        application_instance_id=application.application_instance_id,
+        based_on_application_spec_sha=application.application_spec_sha,
+        scenario_candidates=scenarios,
+        candidate_application_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        candidate_application_sha=canonical_sha(
+            parent_freeze_candidate_application_payload(provisional)
+        ),
+    )
+
+
+def verify_parent_freeze_candidate(
+    candidate: ParentFreezeCandidateManifest,
+) -> ParentFreezeCandidateManifest:
+    """Validate an inert candidate body without hydrating any capability."""
+
+    if type(candidate) is not ParentFreezeCandidateManifest:
+        raise TypeError("candidate must be an exact ParentFreezeCandidateManifest")
+    candidate.__post_init__()
+    if candidate.candidate_schema_version != (
+        PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION
+    ):
+        raise ValueError("unexpected parent candidate schema")
+    if candidate.based_on_parent_freeze_sha != (
+        _CLOSED_PARENT_FREEZE.parent_freeze_sha
+    ):
+        raise ValueError("candidate is not based on the closed Parent root")
+    if candidate.scenario_response_design_commit_sha != (
+        SCENARIO_RESPONSE_DESIGN_COMMIT_SHA
+    ):
+        raise ValueError("candidate design commit is not frozen")
+    if candidate.scenario_response_design_source_path != (
+        SCENARIO_RESPONSE_DESIGN_SOURCE_PATH
+    ):
+        raise ValueError("candidate design source path is not frozen")
+    if candidate.scenario_response_design_source_sha != (
+        SCENARIO_RESPONSE_DESIGN_SOURCE_SHA
+    ):
+        raise ValueError("candidate design source SHA is not frozen")
+    if candidate.proposed_parent_freeze_schema_version != (
+        "v3m0.parent-freeze.v2"
+    ):
+        raise ValueError("candidate proposed Parent schema is not frozen")
+    if candidate.proposed_application_scenario_schema_version != (
+        "v3m0.application-scenario-execution-spec.v2"
+    ):
+        raise ValueError("candidate proposed scenario schema is not frozen")
+    applications = candidate.application_candidates
+    if tuple(item.control_case_id for item in applications) != (
+        APPLICATION_CONTROL_CASE_IDS
+    ):
+        raise ValueError("candidate applications are not in C01-C20 order")
+    base_by_case = {
+        item.control_case_id: item
+        for item in _CLOSED_PARENT_FREEZE.synthetic_control_application_specs
+    }
+    scenario_ids: list[str] = []
+    for application in applications:
+        application.__post_init__()
+        base = base_by_case[application.control_case_id]
+        if (
+            application.application_instance_id != base.application_instance_id
+            or application.based_on_application_spec_sha
+            != base.application_spec_sha
+        ):
+            raise ValueError("candidate application base binding mismatch")
+        if application.candidate_application_sha != canonical_sha(
+            parent_freeze_candidate_application_payload(application)
+        ):
+            raise ValueError("candidate application SHA mismatch")
+        for scenario in application.scenario_candidates:
+            scenario.__post_init__()
+            if (
+                scenario.control_case_id != application.control_case_id
+                or scenario.application_instance_id
+                != application.application_instance_id
+                or scenario.based_on_application_spec_sha
+                != application.based_on_application_spec_sha
+            ):
+                raise ValueError("candidate scenario application binding mismatch")
+            identifier = scenario.scenario_execution_spec.scenario_id
+            if not identifier.startswith(application.application_instance_id + "."):
+                raise ValueError("candidate scenario ID is outside its application")
+            if (
+                scenario.selector_spec.scenario_id != identifier
+                or scenario.response_template.scenario_id != identifier
+                or scenario.prediction_profile.scenario_id != identifier
+            ):
+                raise ValueError("candidate scenario child ID binding mismatch")
+            if scenario.response_template.selector_sha != (
+                scenario.selector_spec.selector_sha
+            ):
+                raise ValueError("candidate response selector binding mismatch")
+            selector = scenario.selector_spec
+            selector.__post_init__()
+            if selector.selector_sha != canonical_sha(
+                scenario_basis_selector_spec_payload(selector)
+            ):
+                raise ValueError("candidate selector SHA mismatch")
+            source_basis = base.basis_protocol.source_basis
+            readout_basis = base.basis_protocol.readout_basis
+            if (
+                selector.public_source_basis_manifest_id
+                != source_basis.manifest_id
+                or selector.public_readout_basis_manifest_id
+                != readout_basis.manifest_id
+            ):
+                raise ValueError("candidate selector public basis binding mismatch")
+            public_source = basis_manifest_array(source_basis)
+            public_readout = basis_manifest_array(readout_basis)
+            source_selector = frozen_tensor_array(selector.source_selector)
+            readout_selector = frozen_tensor_array(selector.readout_selector)
+            if (
+                source_selector.ndim != 2
+                or source_selector.shape[0] != public_source.shape[0]
+                or readout_selector.ndim != 2
+                or readout_selector.shape[1] != public_readout.shape[0]
+            ):
+                raise ValueError("candidate selector shape mismatch")
+            if max(
+                float(
+                    np.linalg.norm(
+                        source_selector.conj().T @ source_selector
+                        - np.eye(source_selector.shape[1]),
+                        ord=2,
+                    )
+                ),
+                float(
+                    np.linalg.norm(
+                        readout_selector @ readout_selector.conj().T
+                        - np.eye(readout_selector.shape[0]),
+                        ord=2,
+                    )
+                ),
+            ) > 1.0e-12:
+                raise ValueError("candidate selector is not isometric/coisometric")
+            expected_source = public_source.T @ source_selector
+            expected_readout = readout_selector @ np.conj(public_readout)
+            if not np.array_equal(
+                frozen_tensor_array(selector.source_injection),
+                expected_source,
+            ):
+                raise ValueError("candidate source selector direction mismatch")
+            if not np.array_equal(
+                frozen_tensor_array(selector.readout_coisometry),
+                expected_readout,
+            ):
+                raise ValueError("candidate readout selector direction mismatch")
+            template = scenario.response_template
+            template.__post_init__()
+            if template.template_sha != canonical_sha(
+                scenario_response_template_payload(template)
+            ):
+                raise ValueError("candidate response template SHA mismatch")
+            expected_pending = (
+                application.control_case_id
+                in _CANDIDATE_PENDING_CONSTRUCTION_CASES
+            )
+            if (
+                template.construction_preflight_state
+                == "PENDING_CONSTRUCTION_PREFLIGHT"
+            ) != expected_pending:
+                raise ValueError("candidate construction preflight state mismatch")
+            trials = frozen_tensor_array(template.source_trial_vectors)
+            if not np.array_equal(
+                trials,
+                np.eye(source_selector.shape[1], dtype=np.complex128),
+            ):
+                raise ValueError("candidate source trials are not identity")
+            profile = scenario.prediction_profile
+            profile.__post_init__()
+            if profile.profile_sha != canonical_sha(
+                scenario_prediction_profile_payload(profile)
+            ):
+                raise ValueError("candidate prediction profile SHA mismatch")
+            if (
+                profile.prediction_state
+                == "PENDING_CONSTRUCTION_PREFLIGHT"
+            ) != expected_pending:
+                raise ValueError("candidate prediction state mismatch")
+            for quantity in profile.quantities:
+                quantity.__post_init__()
+                if quantity.quantity_sha != canonical_sha(
+                    scenario_prediction_quantity_payload(quantity)
+                ):
+                    raise ValueError("candidate prediction quantity SHA mismatch")
+            if scenario.candidate_scenario_sha != canonical_sha(
+                parent_freeze_candidate_scenario_payload(scenario)
+            ):
+                raise ValueError("candidate scenario SHA mismatch")
+            scenario_ids.append(identifier)
+    if len(scenario_ids) != 32 or len(set(scenario_ids)) != 32:
+        raise ValueError("candidate must carry exactly 32 unique scenarios")
+    if candidate.candidate_sha != canonical_sha(
+        parent_freeze_candidate_manifest_payload(candidate)
+    ):
+        raise ValueError("candidate_sha does not match the complete body")
+    return candidate
+
+
+def build_v3m0_parent_freeze_candidate() -> ParentFreezeCandidateManifest:
+    """Build the sole inert Phase-B review candidate; issue no authority."""
+
+    provisional = ParentFreezeCandidateManifest(
+        candidate_schema_version=PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION,
+        authority_state="PROVISIONAL_NOT_ISSUED",
+        based_on_parent_freeze_sha=_CLOSED_PARENT_FREEZE.parent_freeze_sha,
+        scenario_response_design_commit_sha=(
+            SCENARIO_RESPONSE_DESIGN_COMMIT_SHA
+        ),
+        scenario_response_design_source_path=(
+            SCENARIO_RESPONSE_DESIGN_SOURCE_PATH
+        ),
+        scenario_response_design_source_sha=(
+            SCENARIO_RESPONSE_DESIGN_SOURCE_SHA
+        ),
+        proposed_parent_freeze_schema_version="v3m0.parent-freeze.v2",
+        proposed_application_scenario_schema_version=(
+            "v3m0.application-scenario-execution-spec.v2"
+        ),
+        required_finalization_state=(
+            "SIGNED_INCREMENTAL_ERRATUM_AND_SINGLE_PARENT_REFREEZE"
+        ),
+        application_candidates=tuple(
+            _build_candidate_application(application)
+            for application in (
+                _CLOSED_PARENT_FREEZE.synthetic_control_application_specs
+            )
+        ),
+        candidate_sha="0" * 64,
+    )
+    candidate = replace(
+        provisional,
+        candidate_sha=canonical_sha(
+            parent_freeze_candidate_manifest_payload(provisional)
+        ),
+    )
+    return verify_parent_freeze_candidate(candidate)
+
+
 def _freeze_parent_authority_functions(
     *roots: FunctionType,
 ) -> tuple[FunctionType, ...]:
@@ -4089,6 +5266,7 @@ __all__ = [
     "DM26_DETERMINISTIC_CONTROL_SOURCE_ID",
     "ERRATUM_SOURCE_PATH",
     "IMPLEMENTATION_PLAN_SOURCE_PATH",
+    "PARENT_FREEZE_CANDIDATE_SCHEMA_VERSION",
     "PARENT_FREEZE_SCHEMA_VERSION",
     "PROGRAM_ID",
     "TASK9_COMMIT_SHA",
@@ -4098,7 +5276,14 @@ __all__ = [
     "ApplicationScenarioExecutionSpec",
     "ApplicationTerminalStage",
     "DirectionPathClosure",
+    "ParentFreezeCandidateApplication",
+    "ParentFreezeCandidateManifest",
+    "ParentFreezeCandidateScenario",
     "ParentFreezeManifest",
+    "ScenarioBasisSelectorSpec",
+    "ScenarioPredictionProfile",
+    "ScenarioPredictionQuantity",
+    "ScenarioResponseTemplate",
     "SyntheticApplicationBasisProtocol",
     "SyntheticApplicationGridProtocol",
     "SyntheticApplicationOperation",
@@ -4109,8 +5294,16 @@ __all__ = [
     "V3M0SyntheticControlApplicationSpec",
     "VerifiedParentFreeze",
     "application_scenario_execution_spec_payload",
+    "build_v3m0_parent_freeze_candidate",
     "issue_v3m0_parent_freeze",
+    "parent_freeze_candidate_application_payload",
+    "parent_freeze_candidate_manifest_payload",
+    "parent_freeze_candidate_scenario_payload",
     "parent_freeze_manifest_payload",
+    "scenario_basis_selector_spec_payload",
+    "scenario_prediction_profile_payload",
+    "scenario_prediction_quantity_payload",
+    "scenario_response_template_payload",
     "synthetic_application_basis_protocol_payload",
     "synthetic_application_grid_protocol_payload",
     "synthetic_application_operation_payload",
@@ -4120,6 +5313,7 @@ __all__ = [
     "synthetic_control_application_spec_payload",
     "tagged_scalar_wire_payload",
     "verify_parent_freeze",
+    "verify_parent_freeze_candidate",
     "verify_application_scenario_execution_spec",
     "verify_synthetic_control_application_spec",
 ]
