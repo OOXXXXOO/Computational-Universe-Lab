@@ -20,8 +20,10 @@ from typing import Optional
 
 from rulespace_v3.blocks import VerifiedResponseBlock
 from rulespace_v3.calibration_authority import (
+    VerifiedResponseBlockAttemptOutcome,
     VerifiedCalibrationApplicationPermit,
     VerifiedWindowThresholdCalibration,
+    reverify_verified_response_block_attempt_outcome,
 )
 from rulespace_v3.causal import VerifiedSurvivalThresholdCalibration
 from rulespace_v3.contracts import (
@@ -854,12 +856,59 @@ def _evidence_status(value: object) -> tuple[BlockStatus, Optional[EvidenceEnvel
     return _status(), value
 
 
-def _unsupported_typed_capability(value: object) -> BlockStatus:
-    """Fail closed until the upstream task exports a named verified type."""
+def _live_typed_termination(
+    value: object,
+    *,
+    contract: V3M0ScenarioLaneContract,
+    parent_manifest: object,
+    permit: object,
+) -> tuple[BlockStatus, object]:
+    """Strictly replay one exact Task-12 expected-termination capability."""
 
     if value is None:
-        return _status(UndefinedReason.PRESTRUCTURE_INVALID)
-    return _status(UndefinedReason.MANIFEST_MISMATCH)
+        return _status(UndefinedReason.PRESTRUCTURE_INVALID), None
+    if type(value) is not VerifiedResponseBlockAttemptOutcome:
+        return _status(UndefinedReason.MANIFEST_MISMATCH), None
+    try:
+        outcome = reverify_verified_response_block_attempt_outcome(value)
+        scenario = outcome.scenario_spec
+        application = outcome.application_spec
+        if parent_manifest is None or permit is None:
+            raise ValueError("typed termination lacks live parent or permit")
+        if outcome.permit != permit:
+            raise ValueError("typed termination is bound to another permit")
+        if (
+            outcome.permit.parent_freeze.parent_freeze_sha
+            != parent_manifest.parent_freeze_sha
+        ):
+            raise ValueError("typed termination is bound to another parent")
+        if application != permit.application_spec:
+            raise ValueError("typed termination application/permit mismatch")
+        if application.control_case_id != contract.control_id:
+            raise ValueError("typed termination control ID mismatch")
+        if scenario.scenario_id != contract.scenario_id:
+            raise ValueError("typed termination scenario ID mismatch")
+        if scenario.execution_lane != contract.execution_lane:
+            raise ValueError("typed termination lane mismatch")
+        if (
+            scenario.expected_terminal_stage
+            != contract.expected_terminal_stage
+            or scenario.expected_undefined_reason
+            is not contract.expected_undefined_reason
+            or scenario.expected_artifact_type
+            != contract.expected_artifact_type
+        ):
+            raise ValueError("typed termination prophecy mismatch")
+        if (
+            outcome.terminal_stage != contract.expected_terminal_stage
+            or outcome.status.defined
+            or outcome.status.reason is not contract.expected_undefined_reason
+            or outcome.downstream_capability_issued is not False
+        ):
+            raise ValueError("typed termination outcome mismatch")
+    except (AttributeError, TypeError, ValueError, RuntimeError):
+        return _status(UndefinedReason.MANIFEST_MISMATCH), None
+    return _status(), outcome
 
 
 def _live_series_control(
@@ -919,6 +968,42 @@ def _series_audit(
             ("raw_samples", tuple(outcome.raw_samples)),
         ),
         margins=(("strict_live_replay", 1.0),),
+    )
+
+
+def _typed_termination_audit(
+    contract: V3M0ScenarioLaneContract,
+    status: BlockStatus,
+    outcome: object,
+) -> V3M0AuditResult:
+    """Translate one replayed attempt into its exact expected-failure audit."""
+
+    if not status.defined or outcome is None:
+        return V3M0AuditResult(
+            audit_id=contract.scenario_id,
+            status=status,
+            passed=False,
+            raw_spectra=(),
+            margins=(),
+        )
+    return V3M0AuditResult(
+        audit_id=contract.scenario_id,
+        status=_status(),
+        passed=True,
+        raw_spectra=(
+            (
+                "raw_singular_values",
+                tuple(outcome.raw_singular_values),
+            ),
+        ),
+        margins=(("strict_live_replay", 1.0),),
+        termination_events=(
+            (
+                contract.scenario_slug,
+                contract.expected_terminal_stage,
+                contract.expected_undefined_reason,
+            ),
+        ),
     )
 
 
@@ -1139,6 +1224,7 @@ def assemble_v3m0_controls(
     analysis_controls = _row_map(capabilities.analysis_controls)
     block_statuses: dict[str, tuple[BlockStatus, ...]] = {}
     termination_statuses: dict[str, tuple[BlockStatus, ...]] = {}
+    termination_outcomes: dict[str, object] = {}
     analysis_statuses: dict[str, tuple[BlockStatus, ...]] = {}
     analysis_outcomes: dict[str, object] = {}
     no_unexpected_downstream = True
@@ -1293,8 +1379,11 @@ def assemble_v3m0_controls(
                 scenario_id,
                 (None,),
             )[0]
-            termination_status = _unsupported_typed_capability(
-                termination_value
+            termination_status, termination_outcome = _live_typed_termination(
+                termination_value,
+                contract=contract,
+                parent_manifest=parent_manifest,
+                permit=permit_body,
             )
             record_lane_failure(
                 f"{scenario_id}.expected_typed_termination",
@@ -1302,6 +1391,7 @@ def assemble_v3m0_controls(
             )
             typed_statuses.append(termination_status)
             termination_statuses[scenario_id] = tuple(typed_statuses)
+            termination_outcomes[scenario_id] = termination_outcome
             continue
         raise AssertionError("unclassified application scenario lane")
 
@@ -1315,19 +1405,14 @@ def assemble_v3m0_controls(
         for scenario_id in BLOCK_SUCCESS_SCENARIO_IDS
     )
     expected_terminations = tuple(
-        _effective_audit(
-            contract.scenario_id,
-            None,
-            termination_statuses[contract.scenario_id],
-            expected_termination_events=(
-                (
-                    (
-                        contract.scenario_slug,
-                        contract.expected_terminal_stage,
-                        contract.expected_undefined_reason,
-                    ),
+        _typed_termination_audit(
+            contract,
+            _status(
+                _first_failure(
+                    termination_statuses[contract.scenario_id]
                 )
             ),
+            termination_outcomes[contract.scenario_id],
         )
         for contract in SCENARIO_LANE_MANIFEST
         if contract.execution_lane == "EXPECTED_TYPED_TERMINATION"
