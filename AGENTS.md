@@ -8,15 +8,18 @@
 > 2. `docsv3/v3-纲领-北极星-因果可识别涌现边界制图.md`
 > 3. `docsv3/v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`
 > 4. `docsv3/v3-勘误-observer-collapse-coisometry-2026-07-30.md`
-> 5. `docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`
-> 6. `docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
-> 7. v2 当前事实：`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
-> 8. v1 背景：`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`。**
+> 5. `docsv3/v3-勘误-application-scenario与typed-termination-2026-07-31.md`
+> 6. `docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md`
+> 7. `docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
+> 8. v2 当前事实：`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
+> 9. v1 背景：`docs/status/阶段封存-2026-07-26-可达性战役收束-自旋2M3结构性不可达.md`。**
 
 当前活跃战役为 **V3-M0 / 双轴仪器迁移**。只允许实现与认证 construction trace、
 matched ablation、共同响应链、`ε_causal`、`δ_geom`、`σ`、形式化 no-go 和 synthetic
 controls；最高状态为 `READY-V3-M1-ANCHOR-CERTIFICATION`。R30/R23/R25 的物理重测、
 新 family、Round 0、30 格 pilot、正式 `10²–10³` 扫描与 GPU 长跑均未解锁。
+Task 12–17 必须按 2026-07-31 勘误区分 `BLOCK_SUCCESS`、预期 typed termination 与
+analysis control；不得为 C11/C13/C14/C20 伪造成功 `VerifiedResponseBlock`。
 
 v3 的量子本体主线仍是严格局域 unitary QCA；classical-symplectic 只作分栏的结构探针和
 构造预飞，不能支持 quantum L4。底层候选空间仍包含

@@ -40,14 +40,16 @@ v1 历史入口：`docs/status/阶段复盘-2026-07-24-M3与主线校准.md`。
 
 > **状态覆盖（2026-07-30，纲领 v3 生效）**：v1 北极星继续封存，v2 M3′
 > `HALT-PILOT-UNRESOLVED` 作为历史事实保留。当前权威入口为 `docsv3/README.md`；
-> 依次读取 v3 北极星、v3 裁定、observer-collapse coisometry 勘误、V3-M0 任务书和
-> 实施计划。`docs/` 冻结为 v1 历史，
+> 依次读取 v3 北极星、v3 裁定、observer-collapse coisometry 勘误、
+> application-scenario/typed-termination 勘误、V3-M0 任务书和实施计划。`docs/` 冻结为 v1 历史，
 > `docsv2/` 保留 v2 证据链，不追溯改写。
 
 当前活跃战役为 **V3-M0 / 双轴仪器迁移**。仅实施 construction trace、matched ablation、
 共同响应链、`ε_causal`、`δ_geom`、`σ`、形式化 no-go 与 synthetic controls；最高状态
 `READY-V3-M1-ANCHOR-CERTIFICATION`。R30/R23/R25 物理重测、新 family、Round 0、
 30 格 pilot、正式 `10²–10³` 扫描与 GPU 长跑均继续锁定。
+Task 12–17 必须区分成功 block、预期 typed termination 与独立 analysis control；
+C11/C13/C14/C20 的预期 undefined/series 不得被伪装成成功响应块。
 
 底层候选空间仍是
 `target_spec × 复形族 × 物质耦合 × 微观规则参数`；三坐标只是观测坐标。当前 spin 2
