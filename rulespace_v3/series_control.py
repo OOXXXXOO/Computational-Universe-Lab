@@ -312,6 +312,20 @@ def _wire_text(operation: SyntheticApplicationOperation, name: str) -> str:
 def _materialize_outcome(
     parent: VerifiedParentFreeze,
     scenario_id: str,
+    *,
+    wire_float: Callable[[SyntheticApplicationOperation, str], float] = (
+        _wire_float
+    ),
+    wire_text: Callable[[SyntheticApplicationOperation, str], str] = _wire_text,
+    sigma_fitter: Callable[..., SigmaResult] = fit_sigma,
+    fit_payload_builder: Callable[[SigmaResult], dict[str, object]] = (
+        sigma_result_evidence_payload
+    ),
+    outcome_payload_builder: Callable[
+        [DeterministicSeriesControlOutcome],
+        dict[str, object],
+    ] = deterministic_series_control_outcome_payload,
+    canonical_hash: Callable[[object], str] = canonical_sha,
 ) -> DeterministicSeriesControlOutcome:
     if type(parent) is not VerifiedParentFreeze:
         raise TypeError("parent must be a live VerifiedParentFreeze")
@@ -353,12 +367,12 @@ def _materialize_outcome(
     operation = operation_by_id.get(scenario.operation_output_ids[0])
     if operation is None or operation.operation_kind != "deterministic-series-v1":
         raise ValueError("C20 scenario does not select a deterministic series")
-    series_class = _wire_text(operation, "series-class")
+    series_class = wire_text(operation, "series-class")
     if series_class not in _C20_SERIES_CLASSES:
         raise ValueError("C20 series class is not frozen")
-    k_values = tuple(_wire_float(operation, f"k-{index}") for index in range(4))
+    k_values = tuple(wire_float(operation, f"k-{index}") for index in range(4))
     raw_samples = tuple(
-        _wire_float(operation, f"sample-{index}") for index in range(4)
+        wire_float(operation, f"sample-{index}") for index in range(4)
     )
     pair = next(
         (
@@ -373,9 +387,9 @@ def _materialize_outcome(
         ),
         None,
     )
-    if pair is None or _wire_text(pair, "decision-rule") != _C20_DECISION_RULE:
+    if pair is None or wire_text(pair, "decision-rule") != _C20_DECISION_RULE:
         raise ValueError("C20 D-M2-6 pair operation is absent")
-    result = fit_sigma(
+    result = sigma_fitter(
         np.asarray(k_values, dtype=np.float64),
         np.asarray(raw_samples, dtype=np.float64),
         f"v3m0-c20-{scenario.scenario_sha}",
@@ -392,7 +406,7 @@ def _materialize_outcome(
         raise ValueError("C20 clean-zero/true-floor decision is incorrect")
     if result.dm26_decision.both_pollution is not expected_zero:
         raise ValueError("C20 D-M2-6 double test did not separate the controls")
-    fit_payload = sigma_result_evidence_payload(result)
+    fit_payload = fit_payload_builder(result)
     provisional = DeterministicSeriesControlOutcome(
         outcome_schema_version=(
             DETERMINISTIC_SERIES_CONTROL_OUTCOME_SCHEMA_VERSION
@@ -405,14 +419,12 @@ def _materialize_outcome(
         series_class=series_class,
         decision_rule=_C20_DECISION_RULE,
         sigma_result=result,
-        fit_decision_evidence_sha=canonical_sha(fit_payload),
+        fit_decision_evidence_sha=canonical_hash(fit_payload),
         outcome_sha="0" * 64,
     )
     return replace(
         provisional,
-        outcome_sha=canonical_sha(
-            deterministic_series_control_outcome_payload(provisional)
-        ),
+        outcome_sha=canonical_hash(outcome_payload_builder(provisional)),
     )
 
 
@@ -470,8 +482,10 @@ class _SeriesAuthority:
 def _series_seal(
     parent: VerifiedParentFreeze,
     outcome: DeterministicSeriesControlOutcome,
+    *,
+    canonical_hash: Callable[[object], str] = canonical_sha,
 ) -> str:
-    return canonical_sha(
+    return canonical_hash(
         {
             "authority_kind": "v3m0-deterministic-series-control-live-v1",
             "parent_identity": id(parent),
@@ -495,6 +509,14 @@ def _make_series_registry(
     wrapper_type: type[
         VerifiedDeterministicSeriesControlOutcome
     ] = VerifiedDeterministicSeriesControlOutcome,
+    canonical_hash: Callable[[object], str] = canonical_sha,
+    fit_payload_builder: Callable[[SigmaResult], dict[str, object]] = (
+        sigma_result_evidence_payload
+    ),
+    outcome_payload_builder: Callable[
+        [DeterministicSeriesControlOutcome],
+        dict[str, object],
+    ] = deterministic_series_control_outcome_payload,
 ) -> tuple[
     Callable[
         [VerifiedParentFreeze, str],
@@ -578,12 +600,12 @@ def _make_series_registry(
         outcome = materializer(parent, scenario_id)
         if seal_builder(parent, outcome) != authority.seal:
             raise ValueError("deterministic-series live replay changed")
-        if outcome.fit_decision_evidence_sha != canonical_sha(
-            sigma_result_evidence_payload(outcome.sigma_result)
+        if outcome.fit_decision_evidence_sha != canonical_hash(
+            fit_payload_builder(outcome.sigma_result)
         ):
             raise ValueError("fit-decision evidence hash mismatch")
-        if outcome.outcome_sha != canonical_sha(
-            deterministic_series_control_outcome_payload(outcome)
+        if outcome.outcome_sha != canonical_hash(
+            outcome_payload_builder(outcome)
         ):
             raise ValueError("deterministic-series outcome hash mismatch")
         return outcome

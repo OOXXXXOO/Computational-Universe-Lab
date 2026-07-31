@@ -189,6 +189,14 @@ class V3M0DeterministicSeriesControlTests(unittest.TestCase):
             series_control,
             "_materialize_outcome",
             side_effect=AssertionError("mutable module binding was consulted"),
+        ), mock.patch.object(
+            series_control,
+            "fit_sigma",
+            side_effect=AssertionError("mutable fitter binding was consulted"),
+        ), mock.patch.object(
+            series_control,
+            "deterministic_series_control_outcome_payload",
+            side_effect=AssertionError("mutable payload binding was consulted"),
         ):
             fresh = issue_v3m0_deterministic_series_control_outcomes(
                 self.parent
