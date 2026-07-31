@@ -24,6 +24,16 @@ from weakref import WeakKeyDictionary
 
 import numpy as np
 
+from .application_authority_v2 import (
+    CalibrationApplicationPermitV2,
+    VerifiedCalibrationApplicationPermitV2,
+    require_calibration_application_permit_v2,
+)
+from .application_materialization_v2 import (
+    ApplicationScenarioMaterializationV2,
+    VerifiedV3M0ApplicationScenarioMaterializationV2,
+    verify_v3m0_application_scenario_materialization_v2,
+)
 from .evidence import canonical_sha
 from .factory import (
     BasisManifest,
@@ -41,6 +51,8 @@ from .grids import (
     build_response_grid_manifest,
 )
 from .frozen_call_graph import freeze_rulespace_call_graph
+from .parent_authority import VerifiedParentFreezeV2, require_current_parent
+from .parent_v2_contracts import ParentFreezeV2Manifest
 from .thresholds import BRIDGE_TOLERANCE
 
 
@@ -69,8 +81,8 @@ _LAPLACIAN_DERIVATION = (
 )
 _C12_CONTROL_CASE_ID = "C12_NU_INC_IR_NORMALIZATION"
 
-# These exact names are the only delayed wiring points.  Keeping them here is
-# deliberate: a v1 permit/materialization, a provisional candidate or a
+# These exact names are the only upstream assembly points.  Keeping them here
+# is deliberate: a v1 permit/materialization, a provisional candidate or a
 # duck-typed replacement must never become an accidental fallback authority.
 UPSTREAM_V2_WIRING_POINTS = (
     "rulespace_v3.application_authority_v2.VerifiedCalibrationApplicationPermitV2",
@@ -1869,20 +1881,6 @@ def _make_live_scenario_response_protocol_replayer(
 
 
 def _load_exact_v2_upstream() -> tuple[object, ...]:
-    try:
-        from .application_authority_v2 import (
-            VerifiedCalibrationApplicationPermitV2,
-            require_calibration_application_permit_v2,
-        )
-        from .application_materialization_v2 import (
-            VerifiedV3M0ApplicationScenarioMaterializationV2,
-            verify_v3m0_application_scenario_materialization_v2,
-        )
-    except (ImportError, AttributeError) as exc:
-        missing = ", ".join(UPSTREAM_V2_WIRING_POINTS)
-        raise ScenarioResponseProtocolUpstreamUnavailable(
-            f"exact permit-v2/materialization-v2 wiring is unavailable: {missing}"
-        ) from exc
     return (
         VerifiedCalibrationApplicationPermitV2,
         require_calibration_application_permit_v2,
@@ -1924,46 +1922,66 @@ def _repository_closed_live_relationship_verifier(
     )
 
 
-def _replay_from_live_upstream(
-    formal_parent_v2: object,
-    permit_v2: object,
-    materialization_v2: object,
-) -> ApplicationScenarioResponseProtocolV2:
-    from .application_authority_v2 import CalibrationApplicationPermitV2
-    from .application_materialization_v2 import (
-        ApplicationScenarioMaterializationV2,
-    )
-    from .parent_authority import VerifiedParentFreezeV2, require_current_parent
-    from .parent_v2_contracts import ParentFreezeV2Manifest
+def _make_repository_closed_live_upstream_replayer(
+    *,
+    parent_capability_type: type,
+    parent_body_type: type,
+    parent_reverifier,
+    permit_capability_type: type,
+    permit_body_type: type,
+    permit_reverifier,
+    materialization_capability_type: type,
+    materialization_body_type: type,
+    materialization_reverifier,
+    protocol_body_builder,
+    expected_inputs_resolver,
+    upstream_relationship_verifier,
+    compiler_factory,
+    live_replayer_factory,
+):
+    """Resolve and close every exact upstream dependency once at assembly."""
 
-    (
-        permit_type,
-        require_permit,
-        materialization_type,
-        require_materialization,
-    ) = _load_exact_v2_upstream()
-    compiler = _make_exact_scenario_response_protocol_compiler(
-        parent_body_type=ParentFreezeV2Manifest,
-        permit_body_type=CalibrationApplicationPermitV2,
-        materialization_body_type=ApplicationScenarioMaterializationV2,
-        protocol_body_builder=_repository_closed_protocol_body_builder,
-        expected_inputs_resolver=(
-            _repository_closed_expected_protocol_inputs
-        ),
+    compiler = compiler_factory(
+        parent_body_type=parent_body_type,
+        permit_body_type=permit_body_type,
+        materialization_body_type=materialization_body_type,
+        protocol_body_builder=protocol_body_builder,
+        expected_inputs_resolver=expected_inputs_resolver,
     )
-    replay = _make_live_scenario_response_protocol_replayer(
-        parent_capability_type=VerifiedParentFreezeV2,
-        permit_capability_type=permit_type,
-        materialization_capability_type=materialization_type,
-        parent_reverifier=require_current_parent,
-        permit_reverifier=require_permit,
-        materialization_reverifier=require_materialization,
-        upstream_relationship_verifier=(
-            _repository_closed_live_relationship_verifier
-        ),
+    return live_replayer_factory(
+        parent_capability_type=parent_capability_type,
+        permit_capability_type=permit_capability_type,
+        materialization_capability_type=materialization_capability_type,
+        parent_reverifier=parent_reverifier,
+        permit_reverifier=permit_reverifier,
+        materialization_reverifier=materialization_reverifier,
+        upstream_relationship_verifier=upstream_relationship_verifier,
         exact_compiler=compiler,
     )
-    return replay(formal_parent_v2, permit_v2, materialization_v2)
+
+
+_replay_from_live_upstream = _make_repository_closed_live_upstream_replayer(
+    parent_capability_type=VerifiedParentFreezeV2,
+    parent_body_type=ParentFreezeV2Manifest,
+    parent_reverifier=require_current_parent,
+    permit_capability_type=VerifiedCalibrationApplicationPermitV2,
+    permit_body_type=CalibrationApplicationPermitV2,
+    permit_reverifier=require_calibration_application_permit_v2,
+    materialization_capability_type=(
+        VerifiedV3M0ApplicationScenarioMaterializationV2
+    ),
+    materialization_body_type=ApplicationScenarioMaterializationV2,
+    materialization_reverifier=(
+        verify_v3m0_application_scenario_materialization_v2
+    ),
+    protocol_body_builder=_repository_closed_protocol_body_builder,
+    expected_inputs_resolver=_repository_closed_expected_protocol_inputs,
+    upstream_relationship_verifier=(
+        _repository_closed_live_relationship_verifier
+    ),
+    compiler_factory=_make_exact_scenario_response_protocol_compiler,
+    live_replayer_factory=_make_live_scenario_response_protocol_replayer,
+)
 
 
 def _make_closed_protocol_api(
@@ -2032,17 +2050,21 @@ _closed_replay_from_live_upstream = freeze_rulespace_call_graph(
 )
 
 
-def _make_protocol_property_binding():
+def _make_protocol_property_binding(
+    *,
+    builtin_len=len,
+    runtime_error=RuntimeError,
+):
     consumer_holder = []
 
     def protocol_property(self):
-        if len(consumer_holder) != 1:
-            raise RuntimeError("scenario protocol property is not bound exactly once")
+        if builtin_len(consumer_holder) != 1:
+            raise runtime_error("scenario protocol property is not bound exactly once")
         return consumer_holder[0](self)
 
     def bind(consumer):
         if consumer_holder:
-            raise RuntimeError("scenario protocol property is already bound")
+            raise runtime_error("scenario protocol property is already bound")
         consumer_holder.append(consumer)
 
     return property(protocol_property), bind

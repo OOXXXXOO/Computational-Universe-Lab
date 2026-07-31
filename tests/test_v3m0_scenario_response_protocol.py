@@ -8,6 +8,7 @@ must fail closed while the latter two authorities do not exist.
 from __future__ import annotations
 
 import copy
+import dis
 import inspect
 import math
 from dataclasses import fields, replace
@@ -1277,6 +1278,153 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         ):
             with self.assertRaises((TypeError, ValueError, AttributeError)):
                 _ = forged.protocol
+
+    def test_public_authority_never_reimports_mutated_upstream_modules(
+        self,
+    ) -> None:
+        import rulespace_v3.application_authority_v2 as authority_module
+        import rulespace_v3.application_materialization_v2 as materialization_module
+        import rulespace_v3.parent_authority as parent_authority_module
+        import rulespace_v3.parent_v2_contracts as parent_contracts_module
+        from rulespace_v3.scenario_response_protocol import (
+            ScenarioResponseProtocolUpstreamUnavailable,
+            VerifiedApplicationScenarioResponseProtocolV2,
+            _replay_from_live_upstream,
+            issue_v3m0_scenario_response_protocol,
+            verify_v3m0_scenario_response_protocol,
+        )
+
+        class MutatedParentCapability:
+            pass
+
+        class MutatedParentBody:
+            pass
+
+        class MutatedPermitCapability:
+            pass
+
+        class MutatedPermitBody:
+            pass
+
+        class MutatedMaterializationCapability:
+            pass
+
+        class MutatedMaterializationBody:
+            pass
+
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned_reverifier(*_):
+                poisoned_calls.append(label)
+                raise AssertionError(f"mutated upstream {label} was called")
+
+            return poisoned_reverifier
+
+        with (
+            patch.object(
+                parent_authority_module,
+                "VerifiedParentFreezeV2",
+                MutatedParentCapability,
+            ),
+            patch.object(
+                parent_authority_module,
+                "require_current_parent",
+                poison("Parent reverifier"),
+            ),
+            patch.object(
+                parent_contracts_module,
+                "ParentFreezeV2Manifest",
+                MutatedParentBody,
+            ),
+            patch.object(
+                authority_module,
+                "VerifiedCalibrationApplicationPermitV2",
+                MutatedPermitCapability,
+            ),
+            patch.object(
+                authority_module,
+                "CalibrationApplicationPermitV2",
+                MutatedPermitBody,
+            ),
+            patch.object(
+                authority_module,
+                "require_calibration_application_permit_v2",
+                poison("permit reverifier"),
+            ),
+            patch.object(
+                materialization_module,
+                "VerifiedV3M0ApplicationScenarioMaterializationV2",
+                MutatedMaterializationCapability,
+            ),
+            patch.object(
+                materialization_module,
+                "ApplicationScenarioMaterializationV2",
+                MutatedMaterializationBody,
+            ),
+            patch.object(
+                materialization_module,
+                "verify_v3m0_application_scenario_materialization_v2",
+                poison("materialization reverifier"),
+            ),
+        ):
+            with self.assertRaises(
+                (
+                    TypeError,
+                    ValueError,
+                    RuntimeError,
+                    ScenarioResponseProtocolUpstreamUnavailable,
+                )
+            ):
+                issue_v3m0_scenario_response_protocol(
+                    MutatedParentCapability(),
+                    MutatedPermitCapability(),
+                    MutatedMaterializationCapability(),
+                )
+
+            forged = object.__new__(
+                VerifiedApplicationScenarioResponseProtocolV2
+            )
+            with self.assertRaises((TypeError, ValueError, AttributeError)):
+                verify_v3m0_scenario_response_protocol(forged)
+
+        self.assertEqual(poisoned_calls, [])
+        self.assertNotIn(
+            "IMPORT_NAME",
+            {item.opname for item in dis.get_instructions(_replay_from_live_upstream)},
+        )
+
+    def test_protocol_property_captures_builtin_guards(self) -> None:
+        import rulespace_v3.scenario_response_protocol as protocol_module
+        from rulespace_v3.scenario_response_protocol import (
+            VerifiedApplicationScenarioResponseProtocolV2,
+        )
+
+        poisoned_calls = []
+
+        def poisoned_len(*_):
+            poisoned_calls.append("len")
+            return 0
+
+        def poisoned_runtime_error(*_):
+            poisoned_calls.append("RuntimeError")
+            return AssertionError("mutated RuntimeError was called")
+
+        forged = object.__new__(
+            VerifiedApplicationScenarioResponseProtocolV2
+        )
+        with (
+            patch.object(protocol_module, "len", poisoned_len, create=True),
+            patch.object(
+                protocol_module,
+                "RuntimeError",
+                poisoned_runtime_error,
+                create=True,
+            ),
+        ):
+            with self.assertRaises((TypeError, ValueError, AttributeError)):
+                _ = forged.protocol
+        self.assertEqual(poisoned_calls, [])
 
 
 if __name__ == "__main__":
