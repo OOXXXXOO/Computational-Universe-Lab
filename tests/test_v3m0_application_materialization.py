@@ -119,7 +119,7 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
                     atol=2.0e-15,
                 )
 
-    def test_pi_over_12_gain_orientation_is_a_high_t_ratio_no_go(
+    def test_pi_over_12_projector_respects_frozen_y0_y1_gain_ratio(
         self,
     ) -> None:
         for order in (256, 512, 1024, 2048, 4096, 8192):
@@ -137,10 +137,7 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
                     1.0e-12,
                 )
                 self.assertGreater(abs(y1_actual), 0.24)
-                if order <= 2048:
-                    self.assertLessEqual(ratio_error, 1.0e-12)
-                else:
-                    self.assertGreater(ratio_error, 1.0e-12)
+                self.assertLessEqual(ratio_error, 1.0e-12)
 
 
 class ApplicationScenarioMaterializationTests(unittest.TestCase):
