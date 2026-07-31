@@ -26,6 +26,7 @@ from rulespace_v3.geometry_application_recipes import (
     C15_GEOMETRY_SCENARIO_IDS,
     C16_GEOMETRY_SCENARIO_IDS,
     C17_GEOMETRY_SCENARIO_IDS,
+    C18_GEOMETRY_SCENARIO_IDS,
     GEOMETRY_APPLICATION_SCENARIO_IDS,
     C15_EXPECTED_SPECTRA,
     _build_c15_preflight_bundle,
@@ -86,8 +87,14 @@ class GeometryApplicationRecipeTests(unittest.TestCase):
                 self.assertEqual(recipe.scenario_sha, scenario.scenario_sha)
                 self.assertEqual(recipe.recipe_id, scenario.execution_recipe_id)
                 self.assertEqual(recipe.channel_order, ("q0", "p0", "q1", "p1"))
-                self.assertEqual(recipe.primitive_support_radius, 1)
-                self.assertEqual(recipe.expected_shell_rank, 2)
+                expected_rank = (
+                    1 if scenario_id in C18_GEOMETRY_SCENARIO_IDS else 2
+                )
+                expected_radius = (
+                    0 if scenario_id in C18_GEOMETRY_SCENARIO_IDS else 1
+                )
+                self.assertEqual(recipe.primitive_support_radius, expected_radius)
+                self.assertEqual(recipe.expected_shell_rank, expected_rank)
                 self.assertEqual(
                     recipe.integration_state,
                     "PENDING_PARENT_REFREEZE_AND_LIVE_PERMIT_T_BINDING",
@@ -236,6 +243,511 @@ class GeometryApplicationRecipeTests(unittest.TestCase):
                         ),
                         1.0e-12,
                     )
+
+    def test_c18_recipe_is_the_frozen_on_site_rank1_rank2_pair(self) -> None:
+        scenario_id = C18_GEOMETRY_SCENARIO_IDS[0]
+        recipe = self.recipes[scenario_id]
+        application = next(
+            item
+            for item in self.parent.manifest.synthetic_control_application_specs
+            if item.control_case_id == "C18_ABLATED_INDEPENDENT_UNARY"
+        )
+        self.assertEqual(application.grid_protocol.expected_shell_rank, 1)
+        self.assertEqual(recipe.expected_shell_rank, 1)
+        self.assertEqual(recipe.primitive_support_radius, 0)
+        self.assertEqual(
+            recipe.construction_rule_id,
+            "c18-on-site-actual-rank1-matched-rank2-v1",
+        )
+        self.assertEqual(
+            recipe.semantic_sector_names,
+            ("actual-source-q0", "matched-new-source-q1"),
+        )
+        np.testing.assert_array_equal(
+            frozen_tensor_array(recipe.source_injection),
+            np.eye(4, dtype=np.complex128)[:, (0, 2)],
+        )
+        np.testing.assert_array_equal(
+            frozen_tensor_array(recipe.readout),
+            np.eye(4, dtype=np.complex128)[(1, 3), :],
+        )
+        self.assertTrue(all(step.offset == (0,) for step in recipe.actual_steps))
+        self.assertEqual(len(recipe.actual_steps), 9)
+        self.assertEqual(len(recipe.matched_ablated_steps), 6)
+        self.assertTrue(
+            all(not step.target_conditioned for step in recipe.actual_steps[:6])
+        )
+        self.assertTrue(
+            all(step.target_conditioned for step in recipe.actual_steps[6:])
+        )
+        self.assertEqual(
+            {
+                channel
+                for step in recipe.actual_steps[6:]
+                for channel in (step.source_channel, step.destination_channel)
+            },
+            {"q1", "p1"},
+        )
+
+        quarter_turn = np.asarray(
+            ((0.0, -1.0), (1.0, 0.0)),
+            dtype=np.complex128,
+        )
+        expected_actual = np.eye(4, dtype=np.complex128)
+        expected_actual[:2, :2] = quarter_turn
+        expected_matched = np.zeros((4, 4), dtype=np.complex128)
+        expected_matched[:2, :2] = quarter_turn
+        expected_matched[2:, 2:] = quarter_turn
+        for momentum in (math.pi / 4.0, math.pi / 2.0):
+            np.testing.assert_allclose(
+                geometry_application_recipe_symbol(recipe, momentum, "actual"),
+                expected_actual,
+                rtol=0.0,
+                atol=4.0e-16,
+            )
+            np.testing.assert_allclose(
+                geometry_application_recipe_symbol(
+                    recipe,
+                    momentum,
+                    "matched_ablated",
+                ),
+                expected_matched,
+                rtol=0.0,
+                atol=4.0e-16,
+            )
+
+    def test_c18_actual_endpoint_rank1_has_half_participation(self) -> None:
+        recipe = self.recipes[C18_GEOMETRY_SCENARIO_IDS[0]]
+        source = frozen_tensor_array(recipe.source_injection)
+        readout = frozen_tensor_array(recipe.readout)
+        for momentum in (math.pi / 4.0, math.pi / 2.0):
+            matrix = geometry_application_recipe_symbol(
+                recipe,
+                momentum,
+                "actual",
+            )
+            candidates = _extract_projector_candidates(
+                matrix,
+                np.eye(4, dtype=np.complex128),
+                recipe.reference_phase_bands,
+                256,
+                source,
+                readout,
+            )
+            self.assertEqual(len(candidates), 1)
+            candidate = candidates[0]
+            self.assertEqual(candidate.rank, 1)
+            self.assertLessEqual(abs(candidate.participation - 0.5), 1.0e-12)
+            self.assertLessEqual(abs(candidate.phase - math.pi / 2.0), 1.0e-12)
+            quarter_turn = np.asarray(
+                ((0.0, -1.0), (1.0, 0.0)),
+                dtype=np.complex128,
+            )
+            expected_projector = np.zeros((4, 4), dtype=np.complex128)
+            expected_projector[:2, :2] = (
+                np.eye(2, dtype=np.complex128) - 1.0j * quarter_turn
+            ) / 2.0
+            np.testing.assert_allclose(
+                candidate.projector,
+                expected_projector,
+                rtol=0.0,
+                atol=1.0e-12,
+            )
+            source_projector = source @ source.conj().T
+            readout_projector = readout.conj().T @ readout
+            self.assertLessEqual(
+                abs(
+                    float(np.trace(expected_projector @ source_projector).real)
+                    - 0.5
+                ),
+                1.0e-12,
+            )
+            self.assertLessEqual(
+                abs(
+                    float(np.trace(expected_projector @ readout_projector).real)
+                    - 0.5
+                ),
+                1.0e-12,
+            )
+            self.assertLessEqual(
+                max(
+                    candidate.hermitian_residual,
+                    candidate.idempotent_residual,
+                    candidate.g_invariance_residual,
+                    candidate.eigenphase_residual,
+                ),
+                1.0e-12,
+            )
+
+    def test_c18_finite_responses_detect_new_direction_in_both_unary_chains(
+        self,
+    ) -> None:
+        recipe = self.recipes[C18_GEOMETRY_SCENARIO_IDS[0]]
+        thresholds = GeometryNumericalThresholds(
+            signal_threshold=0.001,
+            geometry_threshold=0.05,
+            geometry_ambiguity_half_width=0.01,
+            coverage_threshold=0.5,
+            coverage_ambiguity_half_width=0.1,
+        )
+        actual_direction = np.asarray(
+            (1.0, 0.0, 1.0, 0.0),
+            dtype=np.complex128,
+        )[:, None] / math.sqrt(2.0)
+        new_direction = np.asarray(
+            (0.0, 1.0, 0.0, 1.0),
+            dtype=np.complex128,
+        )[:, None] / math.sqrt(2.0)
+        kernel = actual_direction
+        quotient = np.eye(4, dtype=np.complex128)
+        metric = np.eye(4, dtype=np.complex128)
+        targets = np.column_stack((actual_direction[:, 0], new_direction[:, 0]))
+
+        for order in (256, 512, 1024, 2048, 4096, 8192):
+            with self.subTest(order=order):
+                actual = _finite_response(recipe, "actual", order)
+                matched = _finite_response(recipe, "matched_ablated", order)
+                self.assertEqual(actual.shape, (4, 2))
+                self.assertEqual(matched.shape, (4, 2))
+                self.assertEqual(float(np.linalg.norm(actual[:, 1])), 0.0)
+
+                actual_left, actual_sigma, _ = np.linalg.svd(
+                    actual,
+                    full_matrices=False,
+                )
+                matched_left, matched_sigma, _ = np.linalg.svd(
+                    matched,
+                    full_matrices=False,
+                )
+                actual_active = actual_sigma > thresholds.signal_threshold
+                matched_active = matched_sigma > thresholds.signal_threshold
+                self.assertEqual(tuple(actual_active), (True, False))
+                self.assertEqual(tuple(matched_active), (True, True))
+                expected_new_sigma = order / (order + 1.0) / math.sqrt(2.0)
+                expected_single_k_sigma = order / (order + 1.0) / 2.0
+                self.assertGreaterEqual(expected_new_sigma, 0.704)
+                self.assertLessEqual(expected_new_sigma, 0.708)
+                self.assertGreater(
+                    matched_sigma[1] / thresholds.signal_threshold,
+                    700.0,
+                )
+                np.testing.assert_allclose(
+                    actual_sigma,
+                    (expected_new_sigma, 0.0),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+                for momentum in (math.pi / 4.0, math.pi / 2.0):
+                    actual_symbol = geometry_application_recipe_symbol(
+                        recipe,
+                        momentum,
+                        "actual",
+                    )
+                    endpoint = _extract_projector_candidates(
+                        actual_symbol,
+                        np.eye(4, dtype=np.complex128),
+                        recipe.reference_phase_bands,
+                        order,
+                        frozen_tensor_array(recipe.source_injection),
+                        frozen_tensor_array(recipe.readout),
+                    )[0]
+                    for branch, expected_rank in (
+                        ("actual", 1),
+                        ("matched_ablated", 2),
+                    ):
+                        response = compute_fejer_filtered_response(
+                            geometry_application_recipe_symbol(
+                                recipe,
+                                momentum,
+                                branch,
+                            ),
+                            np.eye(4, dtype=np.complex128),
+                            endpoint.phase,
+                            order,
+                            frozen_tensor_array(recipe.source_injection),
+                            frozen_tensor_array(recipe.readout),
+                        )
+                        singular_values = np.linalg.svd(
+                            response,
+                            compute_uv=False,
+                        )
+                        self.assertEqual(
+                            int(
+                                np.count_nonzero(
+                                    singular_values > thresholds.signal_threshold
+                                )
+                            ),
+                            expected_rank,
+                        )
+                        expected = (
+                            (expected_single_k_sigma, 0.0)
+                            if branch == "actual"
+                            else (
+                                expected_single_k_sigma,
+                                expected_single_k_sigma,
+                            )
+                        )
+                        np.testing.assert_allclose(
+                            singular_values,
+                            expected,
+                            rtol=0.0,
+                            atol=1.0e-12,
+                        )
+                        if branch == "actual":
+                            self.assertEqual(
+                                float(np.linalg.norm(response[:, 1])),
+                                0.0,
+                            )
+                np.testing.assert_allclose(
+                    matched_sigma,
+                    (expected_new_sigma, expected_new_sigma),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+                self.assertLessEqual(
+                    abs(
+                        float(np.linalg.norm(matched[:, 1], ord=2))
+                        - expected_new_sigma
+                    ),
+                    1.0e-12,
+                )
+
+                actual_geometry = _compute_geometry_spectrum_from_matrices(
+                    np.asarray(actual_left[:, actual_active], dtype=np.complex128),
+                    kernel,
+                    quotient,
+                    metric,
+                    targets,
+                    thresholds=thresholds,
+                )
+                matched_geometry = _compute_geometry_spectrum_from_matrices(
+                    np.asarray(matched_left[:, matched_active], dtype=np.complex128),
+                    kernel,
+                    quotient,
+                    metric,
+                    targets,
+                    thresholds=thresholds,
+                )
+                np.testing.assert_allclose(
+                    actual_geometry.g_spectrum,
+                    (0.0,),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+                np.testing.assert_allclose(
+                    matched_geometry.g_spectrum,
+                    (1.0, 0.0),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+                np.testing.assert_allclose(
+                    actual_geometry.c_spectrum,
+                    (0.0, 1.0),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+                np.testing.assert_allclose(
+                    matched_geometry.c_spectrum,
+                    (1.0, 1.0),
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+
+    def test_c18_both_full_steps_are_fp64_unitary_symplectic_and_real(
+        self,
+    ) -> None:
+        recipe = self.recipes[C18_GEOMETRY_SCENARIO_IDS[0]]
+        self.assertEqual(
+            geometry_recipes._CANDIDATE_FEJER_ORDERS,
+            (256, 512, 1024, 2048, 4096, 8192),
+        )
+        for momentum in (math.pi / 4.0, math.pi / 2.0):
+            for branch in ("actual", "matched_ablated"):
+                with self.subTest(momentum=momentum, branch=branch):
+                    matrix = geometry_application_recipe_symbol(
+                        recipe,
+                        momentum,
+                        branch,
+                    )
+                    negative = geometry_application_recipe_symbol(
+                        recipe,
+                        -momentum,
+                        branch,
+                    )
+                    self.assertLessEqual(
+                        np.linalg.norm(
+                            matrix.conj().T @ matrix - np.eye(4),
+                            ord=2,
+                        ),
+                        1.0e-12,
+                    )
+                    self.assertLessEqual(
+                        np.linalg.norm(negative.T @ _J @ matrix - _J, ord=2),
+                        1.0e-12,
+                    )
+                    self.assertLessEqual(
+                        np.linalg.norm(negative - matrix.conj(), ord=2),
+                        1.0e-12,
+                    )
+
+    def test_c18_recipe_rejects_unknown_resigned_and_spliced_bodies(self) -> None:
+        verifier = geometry_recipes.verify_geometry_application_recipe
+
+        def resign(recipe: object) -> object:
+            provisional = replace(recipe, recipe_sha="0" * 64)
+            return replace(
+                provisional,
+                recipe_sha=canonical_sha(
+                    geometry_recipes.geometry_application_recipe_payload(
+                        provisional
+                    )
+                ),
+            )
+
+        unknown = build_geometry_application_recipe(
+            self.parent,
+            C18_GEOMETRY_SCENARIO_IDS[0],
+        )
+        object.__setattr__(unknown, "caller_unknown", "injected")
+        with self.assertRaisesRegex(ValueError, "unknown|field|record"):
+            verifier(self.parent, unknown)
+
+        nested_unknown = build_geometry_application_recipe(
+            self.parent,
+            C18_GEOMETRY_SCENARIO_IDS[0],
+        )
+        object.__setattr__(
+            nested_unknown.actual_steps[-1],
+            "caller_unknown",
+            "injected",
+        )
+        with self.assertRaisesRegex(ValueError, "unknown|field|record"):
+            verifier(self.parent, nested_unknown)
+
+        recipe = build_geometry_application_recipe(
+            self.parent,
+            C18_GEOMETRY_SCENARIO_IDS[0],
+        )
+        source = frozen_tensor_array(recipe.source_injection)[:, ::-1]
+        resigned_source = resign(
+            replace(recipe, source_injection=freeze_complex_tensor(source))
+        )
+        with self.assertRaisesRegex(ValueError, "differs from|live parent"):
+            verifier(self.parent, resigned_source)
+
+        readout = frozen_tensor_array(recipe.readout)[::-1, :]
+        resigned_readout = resign(
+            replace(recipe, readout=freeze_complex_tensor(readout))
+        )
+        with self.assertRaisesRegex(ValueError, "differs from|live parent"):
+            verifier(self.parent, resigned_readout)
+
+        control_splice = resign(
+            replace(
+                recipe,
+                control_case_id="C19_FULL_POSITIVE_OBSERVER_COLLAPSE",
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "differs from|live parent"):
+            verifier(self.parent, control_splice)
+
+    def test_c18_factory_bridge_is_on_site_and_exact_at_l8_l16(self) -> None:
+        recipe = self.recipes[C18_GEOMETRY_SCENARIO_IDS[0]]
+        target = _window_controls()[0].target
+        vector = np.asarray(
+            (0.3 + 0.8j, -0.7 + 0.2j, 1.1 - 0.4j, -0.2 - 0.6j),
+            dtype=np.complex128,
+        )
+        observed_support = []
+        for length, modes in ((8, (1, 2)), (16, (2, 4))):
+            interface = PrimitiveInterface(
+                interface_id=f"interface.test.c18.geometry.{length}.v1",
+                state_schema_id=recipe.state_schema_id,
+                spatial_ndim=1,
+                channel_order=recipe.channel_order,
+                dtype="complex128",
+                backend="numpy",
+            )
+            trace, operators = build_geometry_recipe_trace_and_operators(
+                self.parent,
+                recipe,
+                target_spec_id=target.target_spec_id,
+                interface=interface,
+            )
+            self.assertTrue(all(item.depends_on == () for item in trace.primitives))
+            self.assertEqual(
+                tuple(item.kind for item in trace.primitives),
+                tuple(
+                    MechanismKind.TARGET_CONDITIONED
+                    if step.target_conditioned
+                    else MechanismKind.TARGET_BLIND
+                    for step in recipe.actual_steps
+                ),
+            )
+            identity = np.eye(4, dtype=np.complex128)
+            source = build_basis_manifest(
+                role="source",
+                state_schema_id=interface.state_schema_id,
+                channel_order=interface.channel_order,
+                vectors=identity,
+            )
+            readout = build_basis_manifest(
+                role="readout",
+                state_schema_id=interface.state_schema_id,
+                channel_order=interface.channel_order,
+                vectors=identity,
+            )
+            actual = build_factory_from_trace(
+                trace,
+                target,
+                factory_id=f"factory.test.c18.geometry.{length}.v1",
+                interface=interface,
+                state_shape=(4, length),
+                dt=0.25,
+                target_blind_parameters=(("c18-geometry-recipe-test", 1.0),),
+                layer_slot_ids=tuple(item.layer_slot_id for item in operators),
+                operator_payload=operators,
+                source_manifest_id=source.manifest_id,
+                readout_basis=readout,
+                boundary_manifest_id="periodic-v1",
+            )
+            outcome = matched_ablation(actual)
+            self.assertTrue(outcome.status.defined)
+            self.assertIsNotNone(outcome.pair)
+            pair = outcome.pair
+            branch_support = (
+                factory_support_offsets(pair.actual, 1),
+                factory_support_offsets(pair.ablated, 1),
+            )
+            self.assertEqual(branch_support, (((0,),), ((0,),)))
+            observed_support.append(branch_support)
+            for mode in modes:
+                momentum = 2.0 * math.pi * mode / length
+                sites = np.arange(length, dtype=np.float64)
+                plane_wave = np.exp(1.0j * momentum * sites)
+                state = (vector[:, None] * plane_wave[None, :]).astype(
+                    np.complex128
+                )
+                for branch, factory in (
+                    ("actual", pair.actual),
+                    ("matched_ablated", pair.ablated),
+                ):
+                    observed = apply_factory_step(factory, state)
+                    expected = (
+                        geometry_application_recipe_symbol(
+                            recipe,
+                            momentum,
+                            branch,
+                        )
+                        @ vector
+                    )[:, None] * plane_wave[None, :]
+                    np.testing.assert_allclose(
+                        observed,
+                        expected,
+                        rtol=0.0,
+                        atol=2.0e-12,
+                    )
+        self.assertEqual(observed_support[0], observed_support[1])
 
     def test_c15_finite_fejer_responses_reproduce_semantic_geometry(self) -> None:
         thresholds = GeometryNumericalThresholds(

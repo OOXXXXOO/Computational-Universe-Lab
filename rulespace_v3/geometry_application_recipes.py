@@ -11,8 +11,13 @@ selected Fejer order.
 C15--C17 share the four-channel state schema and rank-two shell contract.
 C15/C16 use a momentum-dependent positive-frequency carrier; C17 uses a
 dedicated on-site ``diag(J,-J)`` carrier and a canonical graph conjugation.
-Every elementary operation is a radius-one real-space shear and the matched
+Every elementary operation has real-space radius at most one and the matched
 branch is obtained only by deleting the target-conditioned shear slots.
+
+C18 deliberately has a different endpoint contract.  Its actual branch is
+``diag(J,I)`` and therefore has the Parent-frozen rank-one positive shell;
+its matched ablation is ``diag(J,J)`` and exposes a second response direction
+to the same full two-axis source/readout pair.  Both composites are on-site.
 """
 
 from __future__ import annotations
@@ -292,9 +297,15 @@ class GeometryApplicationRecipeArtifact:
             or len(self.reference_phase_bands) != 1
         ):
             raise ValueError("geometry recipe phase band is not unique")
-        if self.expected_shell_rank != 2:
-            raise ValueError("geometry recipe requires the corrected rank-two shell")
-        if self.primitive_support_radius != 1:
+        expected_shell_rank = (
+            1 if self.scenario_id in C18_GEOMETRY_SCENARIO_IDS else 2
+        )
+        if self.expected_shell_rank != expected_shell_rank:
+            raise ValueError("geometry recipe shell rank is not scenario-frozen")
+        expected_support_radius = (
+            0 if self.scenario_id in C18_GEOMETRY_SCENARIO_IDS else 1
+        )
+        if self.primitive_support_radius != expected_support_radius:
             raise ValueError("geometry primitive support radius is not frozen")
         if (
             type(self.semantic_sector_names) is not tuple
@@ -323,10 +334,21 @@ class GeometryApplicationRecipeArtifact:
         for field in ("source_injection", "readout"):
             if type(getattr(self, field)) is not FrozenComplexTensor:
                 raise TypeError(f"{field} has the wrong strict type")
-        if frozen_tensor_array(self.source_injection).shape[0] != 4:
+        source_shape = frozen_tensor_array(self.source_injection).shape
+        if source_shape[0] != 4:
             raise ValueError("geometry source state axis is not frozen")
-        if frozen_tensor_array(self.readout).shape != (4, 4):
+        expected_readout_shape = (
+            (2, 4)
+            if self.scenario_id in C18_GEOMETRY_SCENARIO_IDS
+            else (4, 4)
+        )
+        if frozen_tensor_array(self.readout).shape != expected_readout_shape:
             raise ValueError("geometry readout shape is not frozen")
+        if (
+            self.scenario_id in C18_GEOMETRY_SCENARIO_IDS
+            and source_shape != (4, 2)
+        ):
+            raise ValueError("C18 full source selector shape is not frozen")
         for field in ("coverage_control", "gauge_amplitude"):
             value = getattr(self, field)
             if value is not None and (
@@ -1085,6 +1107,38 @@ def _fp64_parameter(
     return struct.unpack(">d", struct.pack(">Q", wire.fp64_bits_value))[0]
 
 
+def _integer_parameter(
+    operation: SyntheticApplicationOperation,
+    name: str,
+) -> int:
+    wire = _parameter(operation, name)
+    if wire.value_kind != "integer" or wire.integer_value is None:
+        raise TypeError(f"{name} must be an integer wire")
+    return wire.integer_value
+
+
+def _validate_c18_source_axes(
+    application: V3M0SyntheticControlApplicationSpec,
+) -> None:
+    def unique_operation(suffix: str) -> SyntheticApplicationOperation:
+        matches = tuple(
+            operation
+            for operation in application.operations
+            if operation.operation_instance_id.endswith(f".{suffix}")
+        )
+        if len(matches) != 1:
+            raise ValueError("C18 source-axis operation is not Parent-unique")
+        return matches[0]
+
+    actual_domain = unique_operation("00-actual-source-domain")
+    independent_axis = unique_operation("01-ablated-new-source-axis")
+    if (
+        _integer_parameter(actual_domain, "source-axis") != 0
+        or _integer_parameter(independent_axis, "independent-source-axis") != 1
+    ):
+        raise ValueError("C18 source axes differ from the frozen q0/q1 selectors")
+
+
 def _common_blind_steps(
     derivation_digest: str,
 ) -> tuple[ApplicationLocalShearStep, ...]:
@@ -1208,34 +1262,26 @@ def _c18_steps(
         *_canonical_pair_rotation_steps(
             0,
             math.pi / 2.0,
-            "blind.c18.mode0-positive",
+            "blind.c18.mode0-quarter-turn",
             target_conditioned=False,
             derivation_effect_digest=derivation_digest,
         ),
         *_canonical_pair_rotation_steps(
             1,
-            -math.pi / 2.0,
-            "blind.c18.mode1-negative",
+            math.pi / 2.0,
+            "blind.c18.mode1-quarter-turn",
             target_conditioned=False,
             derivation_effect_digest=derivation_digest,
         ),
     )
-    conditioned = _two_mode_rotation_steps(
-        math.pi / 2.0,
-        "conditioned.c18.source-axis-swap",
+    conditioned = _canonical_pair_rotation_steps(
+        1,
+        -math.pi / 2.0,
+        "conditioned.c18.mode1-cancel-quarter-turn",
         target_conditioned=True,
         derivation_effect_digest=derivation_digest,
     )
-    actual = (
-        *_inverse_steps(
-            conditioned,
-            "conditioned.c18.source-axis-swap-inverse",
-            target_conditioned=True,
-        ),
-        *blind,
-        *conditioned,
-    )
-    return actual, blind
+    return (*blind, *conditioned), blind
 
 
 def _c19_steps(
@@ -1391,17 +1437,9 @@ def _source_and_sectors(
             return semantic[:, :1], ("coverage-probe",)
         raise AssertionError("unreachable C15/C16 geometry source scenario")
     if scenario_id in C18_GEOMETRY_SCENARIO_IDS:
-        actual_positive = _canonical_projector_columns(
-            _positive_projector(_symbol_from_steps(actual_steps, 0.0)),
-            2,
-        )
-        ablated_positive = _canonical_projector_columns(
-            _positive_projector(_symbol_from_steps(blind_steps, 0.0)),
-            2,
-        )
         return (
-            np.column_stack((actual_positive[:, 0], ablated_positive[:, 0])),
-            ("actual-source-axis", "ablated-new-source-axis"),
+            np.eye(4, dtype=np.complex128)[:, (0, 2)],
+            ("actual-source-q0", "matched-new-source-q1"),
         )
     # C19 shifts the two positive phases by the same tiny amount.  The
     # eigenspace is unchanged, while ``(I-iM)/2`` is a projector only at the
@@ -1450,8 +1488,9 @@ def build_geometry_application_recipe(
         scenario,
     )
     if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS:
+        _validate_c18_source_axes(application)
         actual_steps, blind_steps = _c18_steps(dag_sha)
-        rule_id = "rank-two-unary-independent-axis-carrier-v1"
+        rule_id = "c18-on-site-actual-rank1-matched-rank2-v1"
     elif scenario.scenario_id in C19_GEOMETRY_SCENARIO_IDS:
         actual_steps, blind_steps = _c19_steps(dag_sha)
         rule_id = "rank-two-full-positive-observer-collapse-v1"
@@ -1486,6 +1525,11 @@ def build_geometry_application_recipe(
         or len(grid.preregistered_phase_bands) != 1
     ):
         raise ValueError("geometry application grid differs from its recipe")
+    if (
+        scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS
+        and grid.expected_shell_rank != 1
+    ):
+        raise ValueError("C18 Parent expected shell rank is not one")
     ablated_steps = tuple(
         step for step in actual_steps if not step.target_conditioned
     )
@@ -1506,13 +1550,21 @@ def build_geometry_application_recipe(
         response_torus_denominator=8,
         response_reciprocal_indices=((1,), (2,)),
         reference_phase_bands=grid.preregistered_phase_bands,
-        expected_shell_rank=2,
-        primitive_support_radius=1,
+        expected_shell_rank=(
+            1 if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS else 2
+        ),
+        primitive_support_radius=(
+            0 if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS else 1
+        ),
         semantic_sector_names=semantic_sectors,
         actual_steps=actual_steps,
         matched_ablated_steps=ablated_steps,
         source_injection=freeze_complex_tensor(source_values),
-        readout=freeze_complex_tensor(np.eye(4, dtype=np.complex128)),
+        readout=freeze_complex_tensor(
+            np.eye(4, dtype=np.complex128)[(1, 3), :]
+            if scenario.scenario_id in C18_GEOMETRY_SCENARIO_IDS
+            else np.eye(4, dtype=np.complex128)
+        ),
         coverage_control=coverage_control,
         gauge_amplitude=gauge_amplitude,
         observer_collapse_expected=(
@@ -2193,7 +2245,7 @@ def _finite_response(
             )
         )
         if len(selected) != recipe.expected_shell_rank:
-            raise ValueError("preflight actual shell rank is not two")
+            raise ValueError("preflight actual shell rank differs from the recipe")
         phase_vector = sum(selected, 0.0 + 0.0j)
         shell_phase = math.atan2(
             float(phase_vector.imag),
