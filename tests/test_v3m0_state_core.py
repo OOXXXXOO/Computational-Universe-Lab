@@ -28,8 +28,12 @@ class V3M0StateCoreTests(unittest.TestCase):
             "exact_all_pass": True,
             "identifiability_all_pass": True,
             "required_blocks": _report(),
+            "all_block_success_artifacts_verified": True,
             "all_required_controls_pass": True,
             "representation_invariants_pass": True,
+            "all_expected_terminations_verified": True,
+            "all_analysis_controls_verified": True,
+            "no_unexpected_downstream_capability": True,
             "no_physical_anchor_run": True,
         }
         inputs.update(overrides)
@@ -76,8 +80,12 @@ class V3M0StateCoreTests(unittest.TestCase):
 
     def test_any_control_invariant_or_scope_violation_halts_control(self):
         for overrides in (
+            {"all_block_success_artifacts_verified": False},
             {"all_required_controls_pass": False},
             {"representation_invariants_pass": False},
+            {"all_expected_terminations_verified": False},
+            {"all_analysis_controls_verified": False},
+            {"no_unexpected_downstream_capability": False},
             {"no_physical_anchor_run": False},
         ):
             with self.subTest(overrides=overrides):

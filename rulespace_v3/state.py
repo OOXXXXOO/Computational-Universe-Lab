@@ -64,8 +64,12 @@ def resolve_v3m0_state(
     exact_all_pass: bool,
     identifiability_all_pass: bool,
     required_blocks: RequiredBlockReport,
+    all_block_success_artifacts_verified: bool,
     all_required_controls_pass: bool,
     representation_invariants_pass: bool,
+    all_expected_terminations_verified: bool,
+    all_analysis_controls_verified: bool,
+    no_unexpected_downstream_capability: bool,
     no_physical_anchor_run: bool,
 ) -> V3M0StateDecision:
     """Resolve the V3-M0 state without weakening or relabelling failures."""
@@ -80,9 +84,25 @@ def resolve_v3m0_state(
         all_required_controls_pass,
         "all_required_controls_pass",
     )
+    block_artifacts = _exact_bool(
+        all_block_success_artifacts_verified,
+        "all_block_success_artifacts_verified",
+    )
     invariants = _exact_bool(
         representation_invariants_pass,
         "representation_invariants_pass",
+    )
+    terminations = _exact_bool(
+        all_expected_terminations_verified,
+        "all_expected_terminations_verified",
+    )
+    analysis_controls = _exact_bool(
+        all_analysis_controls_verified,
+        "all_analysis_controls_verified",
+    )
+    downstream_clean = _exact_bool(
+        no_unexpected_downstream_capability,
+        "no_unexpected_downstream_capability",
     )
     scope_clean = _exact_bool(
         no_physical_anchor_run,
@@ -102,7 +122,15 @@ def resolve_v3m0_state(
             if undefined[0][1] is UndefinedReason.WINDOW_UNRESOLVED
             else V3M0State.HALT_CONTROL
         )
-    elif not controls or not invariants or not scope_clean:
+    elif (
+        not block_artifacts
+        or not controls
+        or not invariants
+        or not terminations
+        or not analysis_controls
+        or not downstream_clean
+        or not scope_clean
+    ):
         state = V3M0State.HALT_CONTROL
     else:
         state = V3M0State.READY_V3_M1_ANCHOR_CERTIFICATION
