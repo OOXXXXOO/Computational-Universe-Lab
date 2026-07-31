@@ -48,7 +48,14 @@ class V3M0ImportDagTests(unittest.TestCase):
                 f"mods={order!r}\n"
                 "loaded=[importlib.import_module(name) for name in mods]\n"
                 "q=importlib.import_module('rulespace_v3.qualification')\n"
-                "assert not hasattr(q, 'qualify_ablation_from_certificate')\n"
+                "a=importlib.import_module('rulespace_v3.ablation')\n"
+                "d=importlib.import_module('rulespace_v3.dynamics')\n"
+                "assert callable(q.qualify_ablation_from_certificate)\n"
+                "assert callable(q.verify_qualified_ablation_from_certificate)\n"
+                "assert not hasattr(a, 'qualify_ablation_from_certificate')\n"
+                "assert not hasattr(d, 'qualify_ablation_from_certificate')\n"
+                "assert not hasattr(q, 'register_qualification_callback')\n"
+                "assert not hasattr(q, 'test_success_issuer')\n"
             )
             result = subprocess.run(
                 (sys.executable, "-c", script),

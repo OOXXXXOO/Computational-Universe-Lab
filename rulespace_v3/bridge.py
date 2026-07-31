@@ -48,12 +48,12 @@ BRIDGE_TOLERANCE = 1e-12
 TRIAL_GENERATION_ID: Literal["canonical-or-sha256-dense-v1"] = (
     "canonical-or-sha256-dense-v1"
 )
-TRIAL_DOMAIN_SEPARATOR: Literal[
+TRIAL_DOMAIN_SEPARATOR: Literal["v3m0-full-state-bridge-trials-v1"] = (
     "v3m0-full-state-bridge-trials-v1"
-] = "v3m0-full-state-bridge-trials-v1"
-TRIAL_GRAM_GATE_METHOD_ID: Literal[
+)
+TRIAL_GRAM_GATE_METHOD_ID: Literal["outward-frobenius-dominates-spectral-v1"] = (
     "outward-frobenius-dominates-spectral-v1"
-] = "outward-frobenius-dominates-spectral-v1"
+)
 BRIDGE_MAX_K_POINTS = 64
 BRIDGE_MAX_COMPLEX_ENTRIES = 16_777_216
 BRIDGE_MAX_EXECUTOR_WORK = 2_000_000_000
@@ -119,13 +119,9 @@ class FullStateBridgeSpec:
     state_trial_vectors: FrozenComplexTensor
     trial_generation_id: Literal["canonical-or-sha256-dense-v1"]
     trial_seed_sha: str
-    trial_domain_separator: Literal[
-        "v3m0-full-state-bridge-trials-v1"
-    ]
+    trial_domain_separator: Literal["v3m0-full-state-bridge-trials-v1"]
     trial_gram_frobenius_upper: float
-    trial_gram_gate_method_id: Literal[
-        "outward-frobenius-dominates-spectral-v1"
-    ]
+    trial_gram_gate_method_id: Literal["outward-frobenius-dominates-spectral-v1"]
     bridge_tolerance: float
     bridge_spec_sha: str
 
@@ -156,9 +152,7 @@ class FullStateBridgeSpec:
         if self.macro_steps != BRIDGE_MACRO_STEPS:
             raise ValueError("bridge macro_steps are not frozen")
         if not isinstance(self.state_trial_vectors, FrozenComplexTensor):
-            raise TypeError(
-                "state_trial_vectors must be a FrozenComplexTensor"
-            )
+            raise TypeError("state_trial_vectors must be a FrozenComplexTensor")
         if self.trial_generation_id != TRIAL_GENERATION_ID:
             raise ValueError("trial_generation_id is not frozen")
         if self.trial_domain_separator != TRIAL_DOMAIN_SEPARATOR:
@@ -261,9 +255,7 @@ def full_state_bridge_spec_payload(
         "trial_generation_id": spec.trial_generation_id,
         "trial_seed_sha": spec.trial_seed_sha,
         "trial_domain_separator": spec.trial_domain_separator,
-        "trial_gram_frobenius_upper": (
-            spec.trial_gram_frobenius_upper
-        ),
+        "trial_gram_frobenius_upper": (spec.trial_gram_frobenius_upper),
         "trial_gram_gate_method_id": spec.trial_gram_gate_method_id,
         "bridge_tolerance": spec.bridge_tolerance,
     }
@@ -315,12 +307,7 @@ def _signed_support(
 ) -> tuple[tuple[int, ...], ...]:
     stencil = factory_support_offsets(factory, 1)
     return tuple(
-        sorted(
-            {
-                tuple(-coordinate for coordinate in offset)
-                for offset in stencil
-            }
-        )
+        sorted({tuple(-coordinate for coordinate in offset) for offset in stencil})
     )
 
 
@@ -338,16 +325,23 @@ def _trial_seed(
     )
 
 
-def _odd_dyadic_component(seed: bytes, counter: int) -> float:
-    digest = hashlib.sha256(
-        seed
-        + TRIAL_DOMAIN_SEPARATOR.encode("ascii")
-        + counter.to_bytes(8, "big", signed=False)
+def _odd_dyadic_component(
+    seed: bytes,
+    counter: int,
+    *,
+    _sha256=hashlib.sha256,
+    _domain_bytes=TRIAL_DOMAIN_SEPARATOR.encode("ascii"),
+    _int_from_bytes=int.from_bytes,
+    _float=float,
+    _ldexp=math.ldexp,
+) -> float:
+    digest = _sha256(
+        seed + _domain_bytes + counter.to_bytes(8, "big", signed=False)
     ).digest()
-    word = int.from_bytes(digest[:8], "big", signed=False)
+    word = _int_from_bytes(digest[:8], "big", signed=False)
     sign = -1.0 if (word >> 63) else 1.0
     odd = (word & ((1 << 52) - 1)) | 1
-    return math.ldexp(sign * float(odd), -51)
+    return _ldexp(sign * _float(odd), -51)
 
 
 def _dense_seed_matrix(state_count: int, seed_sha: str) -> np.ndarray:
@@ -378,10 +372,9 @@ def _scalar_householder_thin_q(matrix: np.ndarray) -> np.ndarray:
         vector = transformed[column:, column].copy()
         norm_squared = 0.0
         for value in vector:
-            norm_squared += (
-                float(value.real) * float(value.real)
-                + float(value.imag) * float(value.imag)
-            )
+            norm_squared += float(value.real) * float(value.real) + float(
+                value.imag
+            ) * float(value.imag)
         norm = math.sqrt(norm_squared)
         if norm == 0.0:
             raise ValueError("SHA256 dense seed lost full column rank")
@@ -392,20 +385,22 @@ def _scalar_householder_thin_q(matrix: np.ndarray) -> np.ndarray:
         vector[0] -= alpha
         denominator = 0.0
         for value in vector:
-            denominator += (
-                float(value.real) * float(value.real)
-                + float(value.imag) * float(value.imag)
-            )
+            denominator += float(value.real) * float(value.real) + float(
+                value.imag
+            ) * float(value.imag)
         if denominator == 0.0:
             raise ValueError("Householder reflector is singular")
         beta = 2.0 / denominator
         for target_column in range(column, column_count):
             inner = 0.0 + 0.0j
             for row, value in enumerate(vector):
-                inner += value.conjugate() * transformed[
-                    column + row,
-                    target_column,
-                ]
+                inner += (
+                    value.conjugate()
+                    * transformed[
+                        column + row,
+                        target_column,
+                    ]
+                )
             factor = beta * inner
             for row, value in enumerate(vector):
                 transformed[column + row, target_column] -= value * factor
@@ -421,21 +416,20 @@ def _scalar_householder_thin_q(matrix: np.ndarray) -> np.ndarray:
         for target_column in range(column_count):
             inner = 0.0 + 0.0j
             for row, value in enumerate(vector):
-                inner += value.conjugate() * q_columns[
-                    column + row,
-                    target_column,
-                ]
+                inner += (
+                    value.conjugate()
+                    * q_columns[
+                        column + row,
+                        target_column,
+                    ]
+                )
             factor = beta * inner
             for row, value in enumerate(vector):
                 q_columns[column + row, target_column] -= value * factor
 
     for column in range(column_count):
         first_row = next(
-            (
-                row
-                for row in range(row_count)
-                if q_columns[row, column] != 0.0
-            ),
+            (row for row in range(row_count) if q_columns[row, column] != 0.0),
             None,
         )
         if first_row is None:
@@ -465,14 +459,8 @@ def _exact_trial_gram_upper(trials: np.ndarray) -> float:
                 left_imag = Fraction.from_float(float(left.imag))
                 right_real = Fraction.from_float(float(right.real))
                 right_imag = Fraction.from_float(float(right.imag))
-                real += (
-                    left_real * right_real
-                    + left_imag * right_imag
-                )
-                imaginary += (
-                    left_imag * right_real
-                    - left_real * right_imag
-                )
+                real += left_real * right_real + left_imag * right_imag
+                imaginary += left_imag * right_real - left_real * right_imag
             if first == second:
                 real -= 1
             total += real * real + imaginary * imaginary
@@ -512,13 +500,7 @@ def _preflight(
     if trial_count * state_count > BRIDGE_MAX_COMPLEX_ENTRIES:
         raise ValueError("bridge trial tensor entry cap exceeded")
     volume = math.prod(spatial_shape)
-    work = (
-        k_count
-        * trial_count
-        * max(BRIDGE_MACRO_STEPS)
-        * volume
-        * primitive_count
-    )
+    work = k_count * trial_count * max(BRIDGE_MACRO_STEPS) * volume * primitive_count
     if work > BRIDGE_MAX_EXECUTOR_WORK:
         raise ValueError("bridge executor work cap exceeded")
 
@@ -559,9 +541,7 @@ def _expected_spec(
         bridge_spec_schema_version=BRIDGE_SPEC_SCHEMA_VERSION,
         factory_sha=payload.factory_sha,
         parent_freeze_sha=parent_sha,
-        prestructure_authority_sha=(
-            authority_view.authority.authority_sha
-        ),
+        prestructure_authority_sha=(authority_view.authority.authority_sha),
         state_schema_id=payload.state_schema_id,
         channel_order=payload.channel_order,
         spatial_shape=payload.state_shape[1:],
@@ -578,9 +558,7 @@ def _expected_spec(
     )
     return replace(
         provisional,
-        bridge_spec_sha=canonical_sha(
-            full_state_bridge_spec_payload(provisional)
-        ),
+        bridge_spec_sha=canonical_sha(full_state_bridge_spec_payload(provisional)),
     )
 
 
@@ -602,9 +580,7 @@ def verify_full_state_bridge_spec(
         raise TypeError("spec must be a FullStateBridgeSpec")
     if spec.bridge_spec_schema_version != BRIDGE_SPEC_SCHEMA_VERSION:
         raise ValueError("unexpected bridge spec schema")
-    if spec.bridge_spec_sha != canonical_sha(
-        full_state_bridge_spec_payload(spec)
-    ):
+    if spec.bridge_spec_sha != canonical_sha(full_state_bridge_spec_payload(spec)):
         raise ValueError("bridge_spec_sha does not match complete body")
     verify_bridge_grid_manifest(
         spec.bridge_grid,
@@ -624,9 +600,7 @@ def _plane_wave(
 ) -> np.ndarray:
     volume = math.prod(spatial_shape)
     phase = np.ones(spatial_shape, dtype=np.complex128)
-    for axis, (index, length) in enumerate(
-        zip(reciprocal_index, spatial_shape)
-    ):
+    for axis, (index, length) in enumerate(zip(reciprocal_index, spatial_shape)):
         axis_argument = (
             2.0
             * np.pi
@@ -656,9 +630,7 @@ def _readback_plane_wave(
     if field.shape[1:] != spatial_shape:
         raise ValueError("readback field spatial shape mismatch")
     phase = np.ones(spatial_shape, dtype=np.complex128)
-    for axis, (index, length) in enumerate(
-        zip(reciprocal_index, spatial_shape)
-    ):
+    for axis, (index, length) in enumerate(zip(reciprocal_index, spatial_shape)):
         axis_argument = (
             -2.0
             * np.pi
@@ -674,8 +646,7 @@ def _readback_plane_wave(
     result = np.zeros(field.shape[0], dtype=np.complex128)
     for channel in range(field.shape[0]):
         result[channel] = (
-            np.sum(field[channel] * phase, dtype=np.complex128)
-            * normalization
+            np.sum(field[channel] * phase, dtype=np.complex128) * normalization
         )
     return result
 
@@ -732,9 +703,7 @@ def _expected_audit(
                     np.linalg.norm(initial_readback - vector)
                 )
                 if initial_readback_error > verified_spec.bridge_tolerance:
-                    raise ValueError(
-                        "bridge lift/readback convention is inconsistent"
-                    )
+                    raise ValueError("bridge lift/readback convention is inconsistent")
                 executor = initial.copy()
                 for _ in range(steps):
                     executor = apply_factory_step(factory, executor)
@@ -747,16 +716,10 @@ def _expected_audit(
                     verified_spec.spatial_shape,
                 )
                 raw = float(
-                    np.linalg.norm(
-                        (executor - symbolic).reshape(-1, order="C")
-                    )
+                    np.linalg.norm((executor - symbolic).reshape(-1, order="C"))
                 )
-                executor_norm = float(
-                    np.linalg.norm(executor.reshape(-1, order="C"))
-                )
-                symbolic_norm = float(
-                    np.linalg.norm(symbolic.reshape(-1, order="C"))
-                )
+                executor_norm = float(np.linalg.norm(executor.reshape(-1, order="C")))
+                symbolic_norm = float(np.linalg.norm(symbolic.reshape(-1, order="C")))
                 scale = float(max(1.0, executor_norm, symbolic_norm))
                 normalized = float(raw / scale)
                 readback = _readback_plane_wave(
@@ -764,9 +727,7 @@ def _expected_audit(
                     reciprocal_index,
                     verified_spec.spatial_shape,
                 )
-                readback_raw = float(
-                    np.linalg.norm(readback - symbolic_vector)
-                )
+                readback_raw = float(np.linalg.norm(readback - symbolic_vector))
                 readback_scale = float(
                     max(
                         1.0,
@@ -774,13 +735,10 @@ def _expected_audit(
                         np.linalg.norm(symbolic_vector),
                     )
                 )
-                if (
-                    readback_raw / readback_scale
-                    > max(normalized, verified_spec.bridge_tolerance)
+                if readback_raw / readback_scale > max(
+                    normalized, verified_spec.bridge_tolerance
                 ):
-                    raise ValueError(
-                        "bridge executor readback disagrees with symbol"
-                    )
+                    raise ValueError("bridge executor readback disagrees with symbol")
                 cases.append(
                     BridgeCaseAudit(
                         reciprocal_index=reciprocal_index,
@@ -792,9 +750,7 @@ def _expected_audit(
                     )
                 )
     raw_max = float(max(item.raw_abs_residual for item in cases))
-    normalized_max = float(
-        max(item.normalized_residual for item in cases)
-    )
+    normalized_max = float(max(item.normalized_residual for item in cases))
     provisional = BridgeAudit(
         bridge_schema_version=BRIDGE_AUDIT_SCHEMA_VERSION,
         bridge_kind=BRIDGE_KIND,

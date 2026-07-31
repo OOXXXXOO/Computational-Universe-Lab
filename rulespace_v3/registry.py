@@ -11,7 +11,6 @@ from __future__ import annotations
 import re
 import threading
 import weakref
-from copy import deepcopy
 from dataclasses import dataclass, replace
 from types import FunctionType
 from typing import Callable, Literal
@@ -19,7 +18,7 @@ from typing import Callable, Literal
 import numpy as np
 
 from .controls import SyntheticControlBundle
-from .evidence import canonical_sha
+from .evidence import _make_exact_wire_cloner, canonical_sha
 from .factory import (
     BasisManifest,
     FrozenComplexTensor,
@@ -39,9 +38,7 @@ from .trace import MechanismKind
 READOUT_SPEC_SCHEMA_VERSION = "v3m0.control-readout-calibration-spec.v1"
 CONTROL_ENTRY_SCHEMA_VERSION = "v3m0.control-registry-entry.v1"
 CONTROL_REGISTRY_SCHEMA_VERSION = "v3m0.closed-control-registry.v1"
-CURVATURE_NORMALIZER_ID: Literal["synthetic-identity-v1"] = (
-    "synthetic-identity-v1"
-)
+CURVATURE_NORMALIZER_ID: Literal["synthetic-identity-v1"] = "synthetic-identity-v1"
 CONTROL_ORDER = ("full", "zero", "direct_sum")
 _BUILDERS = {
     "full": "synthetic-control-full-v1",
@@ -146,9 +143,7 @@ class ControlRegistryEntry:
             self.readout_calibration_spec,
             ControlReadoutCalibrationSpec,
         ):
-            raise TypeError(
-                "readout_calibration_spec has the wrong record type"
-            )
+            raise TypeError("readout_calibration_spec has the wrong record type")
         if type(self.mode_count) is not int or self.mode_count <= 0:
             raise ValueError("mode_count must be a positive int")
         for field in (
@@ -188,6 +183,7 @@ _REGISTRY_WIRE_TYPES = (
     BasisManifest,
     FrozenComplexTensor,
 )
+_clone_registry_wire = _make_exact_wire_cloner(_REGISTRY_WIRE_TYPES)
 
 
 def _require_exact_registry_schema(
@@ -208,12 +204,8 @@ def _require_exact_registry_schema(
     """Reject subclasses and unknown fields throughout the raw registry."""
 
     if _type(registry) is not ClosedControlRegistry:
-        raise _type_error(
-            "registry must be an exact ClosedControlRegistry record"
-        )
-    pending: list[tuple[object, str]] = _list_type(
-        ((registry, "registry"),)
-    )
+        raise _type_error("registry must be an exact ClosedControlRegistry record")
+    pending: list[tuple[object, str]] = _list_type(((registry, "registry"),))
     while pending:
         value, field = pending.pop()
         value_type = _type(value)
@@ -222,9 +214,7 @@ def _require_exact_registry_schema(
             try:
                 observed = _frozenset(_vars(value))
             except _type_error as exc:
-                raise _type_error(
-                    f"{field} has no exact record body"
-                ) from exc
+                raise _type_error(f"{field} has no exact record body") from exc
             if observed != expected:
                 raise _value_error(
                     f"{field} fields are not exact: "
@@ -232,13 +222,9 @@ def _require_exact_registry_schema(
                     f"unknown={_sorted(observed - expected)!r}"
                 )
             for name in value_type.__dataclass_fields__:
-                pending.append(
-                    (_getattr(value, name), f"{field}.{name}")
-                )
+                pending.append((_getattr(value, name), f"{field}.{name}"))
         elif hasattr(value_type, "__dataclass_fields__"):
-            raise _type_error(
-                f"{field} has a non-exact registry record type"
-            )
+            raise _type_error(f"{field} has a non-exact registry record type")
         elif value_type is _tuple_type or value_type is _list_type:
             for index, item in enumerate(value):
                 pending.append((item, f"{field}[{index}]"))
@@ -255,16 +241,12 @@ def readout_calibration_spec_payload(
         raise TypeError("spec must be a ControlReadoutCalibrationSpec")
     return {
         "spec_schema_version": spec.spec_schema_version,
-        "source_metric_whitener": _tensor_record(
-            spec.source_metric_whitener
-        ),
+        "source_metric_whitener": _tensor_record(spec.source_metric_whitener),
         "h_metric_whitener": _tensor_record(spec.h_metric_whitener),
         "curvature_incidence_operator": _tensor_record(
             spec.curvature_incidence_operator
         ),
-        "curvature_metric_whitener": _tensor_record(
-            spec.curvature_metric_whitener
-        ),
+        "curvature_metric_whitener": _tensor_record(spec.curvature_metric_whitener),
         "curvature_normalizer_id": spec.curvature_normalizer_id,
     }
 
@@ -380,9 +362,7 @@ def _verify_bundle(
         derived_mode_count = channel_count // 2
     else:
         if channel_count % 4:
-            raise ValueError(
-                "direct_sum channel count must contain two equal sectors"
-            )
+            raise ValueError("direct_sum channel count must contain two equal sectors")
         derived_mode_count = channel_count // 4
     if bundle.mode_count != derived_mode_count:
         raise ValueError("control mode_count is not mechanically derived")
@@ -421,8 +401,7 @@ def _verify_closed_control_operator(
             for channel in (f"x.{mode:03d}", f"y.{mode:03d}")
         )
         sector_profiles = tuple(
-            (mode, control_id == "zero")
-            for mode in range(mode_count)
+            (mode, control_id == "zero") for mode in range(mode_count)
         )
     else:
         blind_channels = tuple(
@@ -436,11 +415,8 @@ def _verify_closed_control_operator(
             for channel in (f"x.c.{mode:03d}", f"y.c.{mode:03d}")
         )
         expected_channels = blind_channels + conditioned_channels
-        sector_profiles = tuple(
-            (mode, False) for mode in range(mode_count)
-        ) + tuple(
-            (mode, True)
-            for mode in range(mode_count, 2 * mode_count)
+        sector_profiles = tuple((mode, False) for mode in range(mode_count)) + tuple(
+            (mode, True) for mode in range(mode_count, 2 * mode_count)
         )
     if factory.channel_order != expected_channels:
         raise ValueError("control channel_order is not the closed builder order")
@@ -457,10 +433,8 @@ def _verify_closed_control_operator(
             primitive = factory.primitives[index]
             traced = view.trace.primitives[index]
             if (
-                primitive.mechanism_id
-                != f"pair.{global_pair:03d}.shear.{layer}"
-                or primitive.layer_slot_id
-                != f"layer.{global_pair:03d}.{layer}"
+                primitive.mechanism_id != f"pair.{global_pair:03d}.shear.{layer}"
+                or primitive.layer_slot_id != f"layer.{global_pair:03d}.{layer}"
                 or primitive.operation_id != "local_canonical_shear"
                 or primitive.source_channel != sources[layer]
                 or primitive.destination_channel != destinations[layer]
@@ -469,9 +443,7 @@ def _verify_closed_control_operator(
             ):
                 raise ValueError("control primitive is not the closed builder")
             expected_production = (
-                "target_operator"
-                if conditioned
-                else "local_canonical_shear"
+                "target_operator" if conditioned else "local_canonical_shear"
             )
             expected_kind = (
                 MechanismKind.TARGET_CONDITIONED
@@ -521,9 +493,7 @@ def _expected_registry(
         entries.append(
             replace(
                 provisional,
-                entry_sha=canonical_sha(
-                    control_registry_entry_payload(provisional)
-                ),
+                entry_sha=canonical_sha(control_registry_entry_payload(provisional)),
             )
         )
     provisional_registry = ClosedControlRegistry(
@@ -551,18 +521,12 @@ def _freeze_registry_authority_functions(
     module_name = __name__
 
     def freeze_value(value):
-        if (
-            type(value) is FunctionType
-            and value.__module__ == module_name
-        ):
+        if type(value) is FunctionType and value.__module__ == module_name:
             return freeze_function(value)
         if type(value) is tuple:
             return tuple(freeze_value(item) for item in value)
         if type(value) is dict:
-            return {
-                key: freeze_value(item)
-                for key, item in value.items()
-            }
+            return {key: freeze_value(item) for key, item in value.items()}
         return value
 
     def freeze_function(function):
@@ -579,10 +543,7 @@ def _freeze_registry_authority_functions(
         )
         cache[id(function)] = frozen
         for name, value in tuple(frozen_globals.items()):
-            if (
-                type(value) is FunctionType
-                and value.__module__ == module_name
-            ):
+            if type(value) is FunctionType and value.__module__ == module_name:
                 frozen_globals[name] = freeze_function(value)
         frozen.__defaults__ = freeze_value(function.__defaults__)
         frozen.__kwdefaults__ = freeze_value(function.__kwdefaults__)
@@ -623,9 +584,7 @@ class VerifiedControlRegistry:
         seal: str,
     ) -> None:
         if token is not _ISSUANCE_TOKEN:
-            raise TypeError(
-                "VerifiedControlRegistry can only be issued by this module"
-            )
+            raise TypeError("VerifiedControlRegistry can only be issued by this module")
         object.__setattr__(
             self,
             "_VerifiedControlRegistry__registry",
@@ -695,9 +654,7 @@ def _registry_seal(
                 factory_reverifier(item.factory).factory.factory_sha
                 for item in controls
             ],
-            "parent_freeze_sha": parent_reverifier(
-                parent
-            ).parent_freeze_sha,
+            "parent_freeze_sha": parent_reverifier(parent).parent_freeze_sha,
         }
     )
 
@@ -712,7 +669,7 @@ def _make_registry_authority(
     weak_reference=weakref.ref,
     lock_builder=threading.RLock,
     exact_schema=_require_exact_registry_schema,
-    clone=deepcopy,
+    clone=_clone_registry_wire,
     type_fn=type,
     id_fn=id,
     object_type=object,
@@ -771,15 +728,11 @@ def _make_registry_authority(
         wrapper: VerifiedControlRegistry,
     ) -> _VerifiedRegistryView:
         if type_fn(wrapper) is not wrapper_type:
-            raise type_error(
-                "runtime requires a module-issued VerifiedControlRegistry"
-            )
+            raise type_error("runtime requires a module-issued VerifiedControlRegistry")
         with lock:
             current = live.get(id_fn(wrapper))
             if current is None or current[0]() is not wrapper:
-                raise value_error(
-                    "VerifiedControlRegistry identity is not live"
-                )
+                raise value_error("VerifiedControlRegistry identity is not live")
             authority = current[1]
         try:
             token = object_type.__getattribute__(
@@ -814,9 +767,7 @@ def _make_registry_authority(
             or seal != authority.seal
             or seal != expected_seal
         ):
-            raise value_error(
-                "VerifiedControlRegistry immutable seal mismatch"
-            )
+            raise value_error("VerifiedControlRegistry immutable seal mismatch")
         return view_type(
             registry=authority.registry,
             controls=authority.controls,
@@ -863,21 +814,13 @@ def verify_closed_control_registry(
     """Hydrate a raw registry only by replaying all three live controls."""
 
     if _type(registry) is not _registry_type:
-        raise _type_error(
-            "registry must be an exact ClosedControlRegistry record"
-        )
+        raise _type_error("registry must be an exact ClosedControlRegistry record")
     _exact_schema(registry)
     expected = _expected_builder(controls, parent)
     if registry.registry_sha != expected.registry_sha:
-        raise _value_error(
-            "registry does not match closed reconstruction"
-        )
-    if registry.registry_sha != _canonical_hash(
-        _registry_payload(registry)
-    ):
-        raise _value_error(
-            "registry_sha does not match complete body"
-        )
+        raise _value_error("registry does not match closed reconstruction")
+    if registry.registry_sha != _canonical_hash(_registry_payload(registry)):
+        raise _value_error("registry_sha does not match complete body")
     return _issuer(registry, controls, parent)
 
 

@@ -8,8 +8,7 @@ consume it.
 
 from __future__ import annotations
 
-import copy
-import json
+import copy  # noqa: F401  # Compatibility probe; authority cloning is closed below.
 import math
 import re
 import struct
@@ -21,7 +20,11 @@ from typing import Callable, Literal, Optional
 
 import numpy as np
 
-from .evidence import canonical_sha
+from .evidence import (
+    _canonical_json_utf8_size,
+    _make_exact_wire_cloner,
+    canonical_sha,
+)
 from .factory import (
     BasisManifest,
     FrozenComplexTensor,
@@ -676,6 +679,7 @@ _PARENT_WIRE_TYPES = (
     BasisManifest,
     FrozenComplexTensor,
 )
+_clone_parent_wire = _make_exact_wire_cloner(_PARENT_WIRE_TYPES)
 
 
 def _require_exact_parent_schema(
@@ -1301,15 +1305,7 @@ def _verify_prediction_profile(
 
 
 def _serialized_size(payload: dict[str, object]) -> int:
-    return len(
-        json.dumps(
-            payload,
-            allow_nan=False,
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    )
+    return _canonical_json_utf8_size(payload)
 
 
 def verify_synthetic_control_application_spec(
@@ -1462,7 +1458,7 @@ def verify_synthetic_control_application_spec(
                 f"{field_name} body/SHA does not match canonical "
                 "control application spec"
             )
-    return copy.deepcopy(spec)
+    return _clone_parent_wire(spec)
 
 
 def _validate_parent_freeze_manifest(
@@ -1521,7 +1517,7 @@ def _validate_parent_freeze_manifest(
         raise ValueError(
             "parent freeze manifest parent_freeze_sha does not match complete body"
         )
-    snapshot = copy.deepcopy(manifest)
+    snapshot = _clone_parent_wire(manifest)
     if require_closed_body and snapshot != _CLOSED_PARENT_FREEZE:
         raise ValueError("closed parent freeze body mismatch")
     return snapshot
@@ -1802,9 +1798,7 @@ def _build_task8_anchor_grid_protocol(
         raise ValueError("control_case_id is not a Task 8 window anchor")
     provisional = replace(
         _build_grid_protocol(),
-        preregistered_phase_bands=(
-            (math.pi / 2.0 - 0.25, math.pi / 2.0 + 0.25),
-        ),
+        preregistered_phase_bands=((math.pi / 2.0 - 0.25, math.pi / 2.0 + 0.25),),
         expected_shell_rank=expected_shell_rank,
         protocol_sha="0" * 64,
     )
@@ -1826,9 +1820,7 @@ def _build_task8_anchor_readout_protocol(
     }.get(control_case_id)
     if dimension is None:
         raise ValueError("control_case_id is not a Task 8 window anchor")
-    identity = freeze_complex_tensor(
-        np.eye(dimension, dtype=np.complex128)
-    )
+    identity = freeze_complex_tensor(np.eye(dimension, dtype=np.complex128))
     provisional = SyntheticApplicationReadoutProtocol(
         protocol_schema_version=APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION,
         source_metric_whitener=identity,
@@ -2994,8 +2986,8 @@ def _build_canonical_application_spec(
 ) -> V3M0SyntheticControlApplicationSpec:
     """Rebuild one complete spec solely from its closed case ordinal."""
 
-    basis_protocol, grid_protocol, readout_protocol = (
-        _build_application_protocols(control_case_id)
+    basis_protocol, grid_protocol, readout_protocol = _build_application_protocols(
+        control_case_id
     )
     return _assemble_canonical_application_spec(
         control_case_id,
@@ -3011,8 +3003,8 @@ def _build_application_specs(
 ) -> tuple[V3M0SyntheticControlApplicationSpec, ...]:
     specs: list[V3M0SyntheticControlApplicationSpec] = []
     for control_case_id in APPLICATION_CONTROL_CASE_IDS:
-        basis_protocol, grid_protocol, readout_protocol = (
-            _build_application_protocols(control_case_id)
+        basis_protocol, grid_protocol, readout_protocol = _build_application_protocols(
+            control_case_id
         )
         specs.append(
             _assemble_canonical_application_spec(
@@ -3106,7 +3098,7 @@ def _freeze_parent_authority_functions(
     _manifest_record,
 )
 
-_CLOSED_PARENT_FREEZE_SNAPSHOT = copy.deepcopy(_CLOSED_PARENT_FREEZE)
+_CLOSED_PARENT_FREEZE_SNAPSHOT = _clone_parent_wire(_CLOSED_PARENT_FREEZE)
 
 
 class VerifiedParentFreeze:
@@ -3121,7 +3113,7 @@ class VerifiedParentFreeze:
         seal: str,
         *,
         _issuance_token=_ISSUANCE_TOKEN,
-        _clone=copy.deepcopy,
+        _clone=_clone_parent_wire,
         _object_setattr=object.__setattr__,
         _type_error=TypeError,
     ) -> None:
@@ -3175,7 +3167,7 @@ def _make_parent_freeze_registry(
     authority_type=_ParentFreezeAuthority,
     wrapper_type=VerifiedParentFreeze,
     issuance_token=_ISSUANCE_TOKEN,
-    clone=copy.deepcopy,
+    clone=_clone_parent_wire,
     weak_reference=weakref.ref,
     lock_builder=threading.RLock,
     type_fn=type,
@@ -3289,11 +3281,11 @@ _issue_verified_parent_freeze, _reverify_verified_parent_freeze = (
 
 def _make_parent_public_api(
     *,
-    closed_snapshot=copy.deepcopy(_CLOSED_PARENT_FREEZE_SNAPSHOT),
+    closed_snapshot=_clone_parent_wire(_CLOSED_PARENT_FREEZE_SNAPSHOT),
     manifest_validator=_validate_parent_freeze_manifest,
     issuer=_issue_verified_parent_freeze,
     reverifier=_reverify_verified_parent_freeze,
-    clone=copy.deepcopy,
+    clone=_clone_parent_wire,
 ):
     def issue_v3m0_parent_freeze() -> VerifiedParentFreeze:
         """Issue the one no-argument, module-closed V3-M0 parent."""

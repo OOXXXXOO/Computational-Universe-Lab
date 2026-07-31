@@ -7,6 +7,7 @@ from unittest import mock
 import mpmath as mp
 import numpy as np
 
+import rulespace_v3.bridge as bridge_module
 from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.bridge import (
     _preflight,
@@ -25,6 +26,26 @@ from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
 from rulespace_v3.prestructure import issue_synthetic_prestructure_authority
 from rulespace_v3.registry import build_closed_control_registry
 from tests.test_v3m0_dynamics import _quarter_turn_controls
+
+
+class BridgePrimitiveClosureTests(unittest.TestCase):
+    def test_dyadic_trials_ignore_shared_hashlib_and_math_rebinding(self):
+        seed = bytes.fromhex("a" * 64)
+        expected = bridge_module._odd_dyadic_component(seed, 17)
+        with (
+            mock.patch.object(
+                bridge_module.hashlib,
+                "sha256",
+                side_effect=AssertionError("shared hashlib was consulted"),
+            ),
+            mock.patch.object(
+                bridge_module.math,
+                "ldexp",
+                side_effect=AssertionError("shared math module was consulted"),
+            ),
+        ):
+            observed = bridge_module._odd_dyadic_component(seed, 17)
+        self.assertEqual(observed, expected)
 
 
 class FullStateBridgeTests(unittest.TestCase):
@@ -90,11 +111,7 @@ class FullStateBridgeTests(unittest.TestCase):
                 (case.reciprocal_index, case.macro_steps, case.trial_index)
                 for case in audit.cases
             ),
-            tuple(
-                ((0,), steps, trial)
-                for steps in (1, 2, 4)
-                for trial in range(2)
-            ),
+            tuple(((0,), steps, trial) for steps in (1, 2, 4) for trial in range(2)),
         )
         self.assertLessEqual(audit.normalized_max, 1e-12)
         self.assertEqual(
@@ -122,9 +139,7 @@ class FullStateBridgeTests(unittest.TestCase):
         )
         changed_spec = dataclasses.replace(
             changed_spec,
-            bridge_spec_sha=canonical_sha(
-                full_state_bridge_spec_payload(changed_spec)
-            ),
+            bridge_spec_sha=canonical_sha(full_state_bridge_spec_payload(changed_spec)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_full_state_bridge_spec(
@@ -153,9 +168,7 @@ class FullStateBridgeTests(unittest.TestCase):
         )
         changed_audit = dataclasses.replace(
             changed_audit,
-            bridge_sha=canonical_sha(
-                bridge_audit_payload(changed_audit)
-            ),
+            bridge_sha=canonical_sha(bridge_audit_payload(changed_audit)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_full_state_bridge_audit(
@@ -231,15 +244,19 @@ class FullStateBridgeTests(unittest.TestCase):
 
 class DenseBridgeTrialTests(unittest.TestCase):
     def test_sha256_dense_trials_use_scalar_householder_and_are_orthonormal(self):
-        with mock.patch(
-            "numpy.linalg.qr",
-            side_effect=AssertionError("LAPACK QR is forbidden"),
-        ), mock.patch(
-            "numpy.linalg.svd",
-            side_effect=AssertionError("LAPACK SVD is forbidden"),
-        ), mock.patch(
-            "numpy.linalg.eigh",
-            side_effect=AssertionError("LAPACK eigh is forbidden"),
+        with (
+            mock.patch(
+                "numpy.linalg.qr",
+                side_effect=AssertionError("LAPACK QR is forbidden"),
+            ),
+            mock.patch(
+                "numpy.linalg.svd",
+                side_effect=AssertionError("LAPACK SVD is forbidden"),
+            ),
+            mock.patch(
+                "numpy.linalg.eigh",
+                side_effect=AssertionError("LAPACK eigh is forbidden"),
+            ),
         ):
             tensor, upper = generate_bridge_trial_vectors(
                 36,

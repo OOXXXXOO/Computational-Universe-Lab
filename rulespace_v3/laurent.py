@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import re
-import json
+import json  # noqa: F401  # Compatibility probe; sizing is closure-captured.
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from typing import Literal
@@ -12,7 +12,7 @@ from typing import Literal
 import numpy as np
 
 from .dynamics import VerifiedTransition, _reverify_verified_transition
-from .evidence import canonical_sha
+from .evidence import _EXACT_JSON_UTF8_SIZE, canonical_sha
 from .factory import (
     TENSOR_SCHEMA_VERSION,
     FrozenComplexTensor,
@@ -41,13 +41,13 @@ from .structure import StructureManifest, verify_structure_manifest
 
 
 LAURENT_RESIDUAL_SCHEMA_VERSION = "v3m0.laurent-residual-certificate.v1"
-FOURIER_CONVENTION_ID: Literal[
+FOURIER_CONVENTION_ID: Literal["signed-displacement-exp-minus-i-k-dot-d-v1"] = (
     "signed-displacement-exp-minus-i-k-dot-d-v1"
-] = "signed-displacement-exp-minus-i-k-dot-d-v1"
+)
 MATRIX_NORM_ID: Literal["spectral-2-v1"] = "spectral-2-v1"
-MOMENTUM_SUPREMUM_METHOD_ID: Literal[
+MOMENTUM_SUPREMUM_METHOD_ID: Literal["sum-of-directed-outward-frobenius-upper-v1"] = (
     "sum-of-directed-outward-frobenius-upper-v1"
-] = "sum-of-directed-outward-frobenius-upper-v1"
+)
 LAURENT_MAX_PAIR_PRODUCT = 1_000_000
 LAURENT_MAX_SUPPORT = 100_000
 LAURENT_MAX_COEFFICIENT_ENTRIES = 16_777_216
@@ -112,13 +112,9 @@ class LaurentResidualCertificate:
     spatial_ndim: int
     n_state: int
     fp64_enclosure_protocol_sha: str
-    fourier_convention_id: Literal[
-        "signed-displacement-exp-minus-i-k-dot-d-v1"
-    ]
+    fourier_convention_id: Literal["signed-displacement-exp-minus-i-k-dot-d-v1"]
     matrix_norm_id: Literal["spectral-2-v1"]
-    momentum_supremum_method_id: Literal[
-        "sum-of-directed-outward-frobenius-upper-v1"
-    ]
+    momentum_supremum_method_id: Literal["sum-of-directed-outward-frobenius-upper-v1"]
     support_offsets: tuple[tuple[int, ...], ...]
     coefficients: FrozenComplexTensor
     convolution_pair_counts: tuple[int, ...]
@@ -148,10 +144,7 @@ class LaurentResidualCertificate:
             raise ValueError("Fourier convention is not frozen")
         if self.matrix_norm_id != MATRIX_NORM_ID:
             raise ValueError("matrix norm is not frozen")
-        if (
-            self.momentum_supremum_method_id
-            != MOMENTUM_SUPREMUM_METHOD_ID
-        ):
+        if self.momentum_supremum_method_id != MOMENTUM_SUPREMUM_METHOD_ID:
             raise ValueError("momentum supremum method is not frozen")
         if type(self.support_offsets) is not tuple or not self.support_offsets:
             raise ValueError("support_offsets must be non-empty")
@@ -170,9 +163,7 @@ class LaurentResidualCertificate:
         if self.support_offsets != tuple(sorted(set(self.support_offsets))):
             raise ValueError("support offsets must be unique and canonical")
         if type(self.coefficients) is not FrozenComplexTensor:
-            raise TypeError(
-                "coefficients must be an exact FrozenComplexTensor"
-            )
+            raise TypeError("coefficients must be an exact FrozenComplexTensor")
         if self.coefficients.shape != (
             len(self.support_offsets),
             state_count,
@@ -183,20 +174,14 @@ class LaurentResidualCertificate:
             type(self.convolution_pair_counts) is not tuple
             or len(self.convolution_pair_counts) != 2
         ):
-            raise ValueError(
-                "convolution_pair_counts must contain exactly two stages"
-            )
+            raise ValueError("convolution_pair_counts must contain exactly two stages")
         for index, value in enumerate(self.convolution_pair_counts):
             _positive_int(value, f"convolution_pair_counts[{index}]")
-        if (
-            type(self.coefficient_roundoff_frobenius_uppers) is not tuple
-            or len(self.coefficient_roundoff_frobenius_uppers)
-            != len(self.support_offsets)
-        ):
-            raise ValueError("coefficient roundoff upper count mismatch")
-        for index, value in enumerate(
+        if type(self.coefficient_roundoff_frobenius_uppers) is not tuple or len(
             self.coefficient_roundoff_frobenius_uppers
-        ):
+        ) != len(self.support_offsets):
+            raise ValueError("coefficient roundoff upper count mismatch")
+        for index, value in enumerate(self.coefficient_roundoff_frobenius_uppers):
             _finite_nonnegative(
                 value,
                 f"coefficient_roundoff_frobenius_uppers[{index}]",
@@ -216,30 +201,20 @@ def laurent_residual_payload(
     certificate: LaurentResidualCertificate,
 ) -> dict[str, object]:
     if type(certificate) is not LaurentResidualCertificate:
-        raise TypeError(
-            "certificate must be an exact LaurentResidualCertificate"
-        )
+        raise TypeError("certificate must be an exact LaurentResidualCertificate")
     return {
         "residual_schema_version": certificate.residual_schema_version,
         "residual_kind": certificate.residual_kind,
         "operand_shas": list(certificate.operand_shas),
         "spatial_ndim": certificate.spatial_ndim,
         "n_state": certificate.n_state,
-        "fp64_enclosure_protocol_sha": (
-            certificate.fp64_enclosure_protocol_sha
-        ),
+        "fp64_enclosure_protocol_sha": (certificate.fp64_enclosure_protocol_sha),
         "fourier_convention_id": certificate.fourier_convention_id,
         "matrix_norm_id": certificate.matrix_norm_id,
-        "momentum_supremum_method_id": (
-            certificate.momentum_supremum_method_id
-        ),
-        "support_offsets": [
-            list(item) for item in certificate.support_offsets
-        ],
+        "momentum_supremum_method_id": (certificate.momentum_supremum_method_id),
+        "support_offsets": [list(item) for item in certificate.support_offsets],
         "coefficients": _tensor_record(certificate.coefficients),
-        "convolution_pair_counts": list(
-            certificate.convolution_pair_counts
-        ),
+        "convolution_pair_counts": list(certificate.convolution_pair_counts),
         "coefficient_roundoff_frobenius_uppers": list(
             certificate.coefficient_roundoff_frobenius_uppers
         ),
@@ -253,15 +228,7 @@ def laurent_residual_payload(
 
 
 def _canonical_json_byte_count(payload: dict[str, object]) -> int:
-    return len(
-        json.dumps(
-            payload,
-            allow_nan=False,
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    )
+    return _EXACT_JSON_UTF8_SIZE(payload)
 
 
 def _preflight_laurent_evidence_body(
@@ -298,9 +265,7 @@ def _preflight_laurent_evidence_body(
         "support_offsets": [list(item) for item in support],
         "coefficients": coefficient_stub,
         "convolution_pair_counts": list(pair_counts),
-        "coefficient_roundoff_frobenius_uppers": list(
-            roundoff_uppers
-        ),
+        "coefficient_roundoff_frobenius_uppers": list(roundoff_uppers),
         "coefficient_frobenius_upper_sum": upper_sum,
         "raw_global_momentum_supremum_bound": upper_sum,
     }
@@ -312,23 +277,11 @@ def _preflight_laurent_evidence_body(
         for value in matrix.flat:
             real = require_hard_scalar(value.real, "coefficient real")
             imag = require_hard_scalar(value.imag, "coefficient imag")
-            wire_count = len(
-                json.dumps(
-                    [real, imag],
-                    allow_nan=False,
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                ).encode("utf-8")
-            )
+            wire_count = _EXACT_JSON_UTF8_SIZE([real, imag])
             value_list_count += wire_count + (0 if first else 1)
             first = False
-            if (
-                base_count - 2 + value_list_count
-                > LAURENT_MAX_EVIDENCE_BODY_BYTES
-            ):
-                raise ValueError(
-                    "Laurent canonical evidence body cap exceeded"
-                )
+            if base_count - 2 + value_list_count > LAURENT_MAX_EVIDENCE_BODY_BYTES:
+                raise ValueError("Laurent canonical evidence body cap exceeded")
     total = base_count - 2 + value_list_count
     if total > LAURENT_MAX_EVIDENCE_BODY_BYTES:
         raise ValueError("Laurent canonical evidence body cap exceeded")
@@ -340,9 +293,10 @@ def _preflight_raw_laurent_cardinality(
 ) -> None:
     """Apply constant-space schema caps before building any raw lists."""
 
-    if type(certificate.operand_shas) is not tuple or len(
-        certificate.operand_shas
-    ) != 3:
+    if (
+        type(certificate.operand_shas) is not tuple
+        or len(certificate.operand_shas) != 3
+    ):
         raise ValueError("operand_shas must contain exactly three SHAs")
     if type(certificate.support_offsets) is not tuple:
         raise TypeError("support_offsets must be a tuple")
@@ -350,22 +304,16 @@ def _preflight_raw_laurent_cardinality(
     if support_count <= 0 or support_count > LAURENT_MAX_SUPPORT:
         raise ValueError("Laurent result support cap exceeded")
     state_count = _positive_int(certificate.n_state, "n_state")
-    if (
-        support_count * state_count * state_count
-        > LAURENT_MAX_COEFFICIENT_ENTRIES
-    ):
+    if support_count * state_count * state_count > LAURENT_MAX_COEFFICIENT_ENTRIES:
         raise ValueError("Laurent coefficient-entry cap exceeded")
-    if type(certificate.convolution_pair_counts) is not tuple or len(
-        certificate.convolution_pair_counts
-    ) != 2:
-        raise ValueError(
-            "convolution_pair_counts must contain exactly two stages"
-        )
     if (
-        type(certificate.coefficient_roundoff_frobenius_uppers)
-        is not tuple
-        or len(certificate.coefficient_roundoff_frobenius_uppers)
-        != support_count
+        type(certificate.convolution_pair_counts) is not tuple
+        or len(certificate.convolution_pair_counts) != 2
+    ):
+        raise ValueError("convolution_pair_counts must contain exactly two stages")
+    if (
+        type(certificate.coefficient_roundoff_frobenius_uppers) is not tuple
+        or len(certificate.coefficient_roundoff_frobenius_uppers) != support_count
     ):
         raise ValueError("coefficient roundoff upper count mismatch")
     if type(certificate.coefficients) is not FrozenComplexTensor:
@@ -385,9 +333,7 @@ def _preflight_raw_laurent_evidence_body(
 
     _preflight_raw_laurent_cardinality(certificate)
     coefficient_stub = {
-        "tensor_schema_version": (
-            certificate.coefficients.tensor_schema_version
-        ),
+        "tensor_schema_version": (certificate.coefficients.tensor_schema_version),
         "shape": list(certificate.coefficients.shape),
         "values_wire": [],
         "tensor_sha": certificate.coefficients.tensor_sha,
@@ -398,21 +344,13 @@ def _preflight_raw_laurent_evidence_body(
         "operand_shas": list(certificate.operand_shas),
         "spatial_ndim": certificate.spatial_ndim,
         "n_state": certificate.n_state,
-        "fp64_enclosure_protocol_sha": (
-            certificate.fp64_enclosure_protocol_sha
-        ),
+        "fp64_enclosure_protocol_sha": (certificate.fp64_enclosure_protocol_sha),
         "fourier_convention_id": certificate.fourier_convention_id,
         "matrix_norm_id": certificate.matrix_norm_id,
-        "momentum_supremum_method_id": (
-            certificate.momentum_supremum_method_id
-        ),
-        "support_offsets": [
-            list(item) for item in certificate.support_offsets
-        ],
+        "momentum_supremum_method_id": (certificate.momentum_supremum_method_id),
+        "support_offsets": [list(item) for item in certificate.support_offsets],
         "coefficients": coefficient_stub,
-        "convolution_pair_counts": list(
-            certificate.convolution_pair_counts
-        ),
+        "convolution_pair_counts": list(certificate.convolution_pair_counts),
         "coefficient_roundoff_frobenius_uppers": list(
             certificate.coefficient_roundoff_frobenius_uppers
         ),
@@ -436,22 +374,10 @@ def _preflight_raw_laurent_evidence_body(
             wire[1],
             f"coefficients.values_wire[{index}].imag",
         )
-        wire_count = len(
-            json.dumps(
-                [real, imag],
-                allow_nan=False,
-                ensure_ascii=False,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
+        wire_count = _EXACT_JSON_UTF8_SIZE([real, imag])
         value_list_count += wire_count + (0 if index == 0 else 1)
-        if (
-            base_count - 2 + value_list_count
-            > LAURENT_MAX_EVIDENCE_BODY_BYTES
-        ):
-            raise ValueError(
-                "Laurent canonical evidence body cap exceeded"
-            )
+        if base_count - 2 + value_list_count > LAURENT_MAX_EVIDENCE_BODY_BYTES:
+            raise ValueError("Laurent canonical evidence body cap exceeded")
     total = base_count - 2 + value_list_count
     if total > LAURENT_MAX_EVIDENCE_BODY_BYTES:
         raise ValueError("Laurent canonical evidence body cap exceeded")
@@ -498,32 +424,22 @@ def _preflight_support_offsets(
                 or len(offset) != ndim
                 or not all(type(item) is int for item in offset)
             ):
-                raise ValueError(
-                    f"{stage} {label} support dimension mismatch"
-                )
+                raise ValueError(f"{stage} {label} support dimension mismatch")
     pair_count = len(left) * len(right)
     if pair_count > LAURENT_MAX_PAIR_PRODUCT:
-        raise ValueError(
-            f"{stage} Laurent convolution pair-product cap exceeded"
-        )
+        raise ValueError(f"{stage} Laurent convolution pair-product cap exceeded")
     state = _positive_int(n_state, "n_state")
     if pair_count * state**3 > LAURENT_MAX_ARITHMETIC_WORK:
-        raise ValueError(
-            f"{stage} Laurent convolution arithmetic work cap exceeded"
-        )
+        raise ValueError(f"{stage} Laurent convolution arithmetic work cap exceeded")
     support: set[Offset] = set()
     for first in left:
         for second in right:
             support.add(_offset_sum(first, second))
             if len(support) > LAURENT_MAX_SUPPORT:
-                raise ValueError(
-                    f"{stage} Laurent result support cap exceeded"
-                )
+                raise ValueError(f"{stage} Laurent result support cap exceeded")
     result = tuple(sorted(support))
     if len(result) * state * state > LAURENT_MAX_COEFFICIENT_ENTRIES:
-        raise ValueError(
-            f"{stage} Laurent coefficient-entry cap exceeded"
-        )
+        raise ValueError(f"{stage} Laurent coefficient-entry cap exceeded")
     return result
 
 
@@ -678,11 +594,7 @@ def _ordered_complex_dot_values(
     absolute_product_sum = +0.0
     for left_value, right_value in zip(left, right):
         term = _ordered_complex_multiply(left_value, right_value)
-        center = (
-            term
-            if center is None
-            else _ordered_complex_add(center, term)
-        )
+        center = term if center is None else _ordered_complex_add(center, term)
         absolute_product_sum = _absolute_product_sum_add(
             absolute_product_sum,
             left_value,
@@ -701,9 +613,7 @@ def _validate_center_map(
     if type(values) is not dict or not values:
         raise ValueError(f"{field} must be a non-empty dict")
     for offset, matrix in values.items():
-        if type(offset) is not tuple or not all(
-            type(item) is int for item in offset
-        ):
+        if type(offset) is not tuple or not all(type(item) is int for item in offset):
             raise TypeError(f"{field} offsets must be integer tuples")
         if type(matrix) is not np.ndarray:
             raise TypeError(f"{field} matrices must be NumPy arrays")
@@ -739,8 +649,7 @@ def _exact_mul(left: ExactComplex, right: ExactComplex) -> ExactComplex:
 
 def _exact_zero_matrix(n_state: int) -> ExactMatrix:
     return [
-        [(Fraction(0), Fraction(0)) for _ in range(n_state)]
-        for _ in range(n_state)
+        [(Fraction(0), Fraction(0)) for _ in range(n_state)] for _ in range(n_state)
     ]
 
 
@@ -748,8 +657,7 @@ def _exact_center_map(values: CenterMap) -> ExactMap:
     result: ExactMap = {}
     for offset, matrix in values.items():
         result[offset] = [
-            [_complex_exact(complex(item)) for item in row]
-            for row in matrix
+            [_complex_exact(complex(item)) for item in row] for row in matrix
         ]
     return result
 
@@ -790,18 +698,13 @@ def _zero_errors(
     n_state: int,
 ) -> ErrorMap:
     return {
-        offset: [
-            [Fraction(0) for _ in range(n_state)]
-            for _ in range(n_state)
-        ]
+        offset: [[Fraction(0) for _ in range(n_state)] for _ in range(n_state)]
         for offset in values
     }
 
 
 def _one_norm(value: complex) -> Fraction:
-    return abs(_fraction(float(value.real))) + abs(
-        _fraction(float(value.imag))
-    )
+    return abs(_fraction(float(value.real))) + abs(_fraction(float(value.imag)))
 
 
 def _addition_roundoff(
@@ -811,9 +714,8 @@ def _addition_roundoff(
 ) -> Fraction:
     exact_real = _fraction(float(left.real)) + _fraction(float(right.real))
     exact_imag = _fraction(float(left.imag)) + _fraction(float(right.imag))
-    return (
-        abs(_fraction(float(result.real)) - exact_real)
-        + abs(_fraction(float(result.imag)) - exact_imag)
+    return abs(_fraction(float(result.real)) - exact_real) + abs(
+        _fraction(float(result.imag)) - exact_imag
     )
 
 
@@ -829,14 +731,10 @@ def _scalar_convolve(
     support = _preflight_result_support(left, right, n_state)
     pair_count = len(left) * len(right)
     centers: CenterMap = {
-        offset: np.zeros((n_state, n_state), dtype=np.complex128)
-        for offset in support
+        offset: np.zeros((n_state, n_state), dtype=np.complex128) for offset in support
     }
     errors: ErrorMap = {
-        offset: [
-            [Fraction(0) for _ in range(n_state)]
-            for _ in range(n_state)
-        ]
+        offset: [[Fraction(0) for _ in range(n_state)] for _ in range(n_state)]
         for offset in support
     }
     for left_offset, left_matrix in left.items():
@@ -847,18 +745,15 @@ def _scalar_convolve(
                 dtype=np.complex128,
             )
             product_error = [
-                [Fraction(0) for _ in range(n_state)]
-                for _ in range(n_state)
+                [Fraction(0) for _ in range(n_state)] for _ in range(n_state)
             ]
             for row in range(n_state):
                 for column in range(n_state):
                     left_values = tuple(
-                        complex(left_matrix[row, inner])
-                        for inner in range(n_state)
+                        complex(left_matrix[row, inner]) for inner in range(n_state)
                     )
                     right_values = tuple(
-                        complex(right_matrix[inner, column])
-                        for inner in range(n_state)
+                        complex(right_matrix[inner, column]) for inner in range(n_state)
                     )
                     center, product_sum = _ordered_complex_dot_values(
                         left_values,
@@ -879,9 +774,8 @@ def _scalar_convolve(
                         absolute_product_sum=float(product_sum),
                     )
                     product[row, column] = center
-                    product_error[row][column] = (
-                        propagated
-                        + 2 * _fraction(dot.roundoff_upper)
+                    product_error[row][column] = propagated + 2 * _fraction(
+                        dot.roundoff_upper
                     )
             target = centers[offset]
             for row in range(n_state):
@@ -891,13 +785,12 @@ def _scalar_convolve(
                         before,
                         complex(product[row, column]),
                     )
-                    errors[offset][row][column] += (
-                        product_error[row][column]
-                        + _addition_roundoff(
-                            addition,
-                            before,
-                            complex(product[row, column]),
-                        )
+                    errors[offset][row][column] += product_error[row][
+                        column
+                    ] + _addition_roundoff(
+                        addition,
+                        before,
+                        complex(product[row, column]),
                     )
                     target[row, column] = addition
     return centers, errors, pair_count
@@ -926,10 +819,7 @@ def _subtract_map(
             np.zeros((n_state, n_state), dtype=np.complex128),
         )
         target = np.zeros((n_state, n_state), dtype=np.complex128)
-        target_errors = [
-            [Fraction(0) for _ in range(n_state)]
-            for _ in range(n_state)
-        ]
+        target_errors = [[Fraction(0) for _ in range(n_state)] for _ in range(n_state)]
         base_errors = errors.get(
             offset,
             target_errors,
@@ -943,21 +833,16 @@ def _subtract_map(
                     right_value,
                 )
                 target[row, column] = value
-                exact_real = (
-                    _fraction(float(left_value.real))
-                    - _fraction(float(right_value.real))
+                exact_real = _fraction(float(left_value.real)) - _fraction(
+                    float(right_value.real)
                 )
-                exact_imag = (
-                    _fraction(float(left_value.imag))
-                    - _fraction(float(right_value.imag))
+                exact_imag = _fraction(float(left_value.imag)) - _fraction(
+                    float(right_value.imag)
                 )
-                rounding = (
-                    abs(_fraction(float(value.real)) - exact_real)
-                    + abs(_fraction(float(value.imag)) - exact_imag)
+                rounding = abs(_fraction(float(value.real)) - exact_real) + abs(
+                    _fraction(float(value.imag)) - exact_imag
                 )
-                target_errors[row][column] = (
-                    base_errors[row][column] + rounding
-                )
+                target_errors[row][column] = base_errors[row][column] + rounding
         result[offset] = target
         result_errors[offset] = target_errors
     return result, result_errors
@@ -1016,9 +901,8 @@ def _coefficient_uppers(
             for column in range(n_state):
                 center = _complex_exact(complex(center_matrix[row, column]))
                 exact_value = exact_matrix[row][column]
-                actual_error = (
-                    abs(center[0] - exact_value[0])
-                    + abs(center[1] - exact_value[1])
+                actual_error = abs(center[0] - exact_value[0]) + abs(
+                    center[1] - exact_value[1]
                 )
                 entry_upper = max(
                     actual_error,
@@ -1156,13 +1040,11 @@ def _build_residual(
             verified_metric.witness_sha,
             verified_metric.metric_kernel.tensor_sha,
         )
-    planned_first_support, planned_second_support = (
-        _preflight_convolution_chain(
-            tuple(left),
-            tuple(middle),
-            tuple(transition_map),
-            n_state,
-        )
+    planned_first_support, planned_second_support = _preflight_convolution_chain(
+        tuple(left),
+        tuple(middle),
+        tuple(transition_map),
+        n_state,
     )
     first, first_errors, first_pairs = _scalar_convolve(
         left,
@@ -1298,9 +1180,7 @@ def verify_laurent_residual_certificate(
     if certificate.residual_schema_version != LAURENT_RESIDUAL_SCHEMA_VERSION:
         raise ValueError("unexpected Laurent residual schema")
     _preflight_raw_laurent_evidence_body(certificate)
-    if certificate.residual_sha != canonical_sha(
-        laurent_residual_payload(certificate)
-    ):
+    if certificate.residual_sha != canonical_sha(laurent_residual_payload(certificate)):
         raise ValueError("residual_sha does not match complete body")
     expected = _build_residual(
         kind=certificate.residual_kind,

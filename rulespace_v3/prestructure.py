@@ -36,9 +36,12 @@ from .factory import (
 )
 from .parent_freeze import (
     ParentFreezeManifest,
+    V3M0SyntheticControlApplicationSpec,
     VerifiedParentFreeze,
     _reverify_verified_parent_freeze,
     parent_freeze_manifest_payload,
+    synthetic_control_application_spec_payload,
+    verify_synthetic_control_application_spec,
 )
 from .registry import (
     ClosedControlRegistry,
@@ -49,19 +52,14 @@ from .registry import (
 
 
 PAIR_SNAPSHOT_SCHEMA_VERSION = "v3m0.ablation-pair-snapshot.v1"
-SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION = (
-    "v3m0.synthetic-structure-preregistration.v1"
-)
+SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION = "v3m0.synthetic-structure-preregistration.v1"
 PRESTRUCTURE_AUTHORITY_SCHEMA_VERSION = "v3m0.prestructure-authority.v1"
-SYNTHETIC_EVIDENCE_LANE: Literal["synthetic-classical"] = (
-    "synthetic-classical"
+SYNTHETIC_EVIDENCE_LANE: Literal["synthetic-classical"] = "synthetic-classical"
+SYNTHETIC_AUTHORITY_KIND: Literal["synthetic-registry-v1"] = "synthetic-registry-v1"
+SYNTHETIC_APPLICATION_AUTHORITY_KIND: Literal["synthetic-application-v1"] = (
+    "synthetic-application-v1"
 )
-SYNTHETIC_AUTHORITY_KIND: Literal["synthetic-registry-v1"] = (
-    "synthetic-registry-v1"
-)
-FOURIER_ADJOINT_CONVENTION_ID: Literal["minus-k-transpose-v1"] = (
-    "minus-k-transpose-v1"
-)
+FOURIER_ADJOINT_CONVENTION_ID: Literal["minus-k-transpose-v1"] = "minus-k-transpose-v1"
 REALITY_CONVENTION_ID: Literal["real-kernel-positive-zero-v1"] = (
     "real-kernel-positive-zero-v1"
 )
@@ -228,7 +226,7 @@ class PrestructureAuthority:
     synthetic_registry: Optional[ClosedControlRegistry]
     synthetic_registry_entry_sha: Optional[str]
     synthetic_preregistration: Optional[SyntheticStructurePreregistration]
-    synthetic_application_spec: Optional[object]
+    synthetic_application_spec: Optional[V3M0SyntheticControlApplicationSpec]
     synthetic_application_permit_sha: Optional[str]
     adapter_preregistration: Optional[object]
     authority_sha: str
@@ -277,6 +275,27 @@ class PrestructureAuthority:
                 or self.adapter_preregistration is not None
             ):
                 raise ValueError("synthetic registry authority is branch-mixed")
+        elif self.authority_kind == SYNTHETIC_APPLICATION_AUTHORITY_KIND:
+            if not presence[1]:
+                raise ValueError("synthetic application authority body is absent")
+            if (
+                type(self.synthetic_application_spec)
+                is not V3M0SyntheticControlApplicationSpec
+            ):
+                raise TypeError("synthetic application spec has the wrong record type")
+            if self.synthetic_application_permit_sha is None:
+                raise ValueError("synthetic application permit SHA is absent")
+            _sha(
+                self.synthetic_application_permit_sha,
+                "synthetic_application_permit_sha",
+            )
+            if (
+                self.synthetic_registry is not None
+                or self.synthetic_registry_entry_sha is not None
+                or self.synthetic_preregistration is not None
+                or self.adapter_preregistration is not None
+            ):
+                raise ValueError("synthetic application authority is branch-mixed")
         _sha(self.authority_sha, "authority_sha")
 
 
@@ -318,24 +337,18 @@ def synthetic_preregistration_payload(
         preregistration,
         SyntheticStructurePreregistration,
     ):
-        raise TypeError(
-            "preregistration must be a SyntheticStructurePreregistration"
-        )
+        raise TypeError("preregistration must be a SyntheticStructurePreregistration")
     return {
         "preregistration_schema_version": (
             preregistration.preregistration_schema_version
         ),
         "evidence_lane": preregistration.evidence_lane,
         "control_registry_sha": preregistration.control_registry_sha,
-        "control_registry_entry_sha": (
-            preregistration.control_registry_entry_sha
-        ),
+        "control_registry_entry_sha": (preregistration.control_registry_entry_sha),
         "factory_sha": preregistration.factory_sha,
         "factory_role": preregistration.factory_role,
         "ablation_manifest_sha": preregistration.ablation_manifest_sha,
-        "ablation_construction_sha": (
-            preregistration.ablation_construction_sha
-        ),
+        "ablation_construction_sha": (preregistration.ablation_construction_sha),
         "target_spec_sha": preregistration.target_spec_sha,
         "state_schema_id": preregistration.state_schema_id,
         "channel_order": list(preregistration.channel_order),
@@ -365,11 +378,10 @@ def prestructure_authority_payload(
 ) -> dict[str, object]:
     if not isinstance(authority, PrestructureAuthority):
         raise TypeError("authority must be a PrestructureAuthority")
-    application_spec: object = authority.synthetic_application_spec
     adapter: object = authority.adapter_preregistration
-    if application_spec is not None or adapter is not None:
+    if adapter is not None:
         raise ValueError(
-            "this implementation only serializes synthetic-registry authority"
+            "adapter preregistration authority is not implemented in V3-M0"
         )
     return {
         "authority_schema_version": authority.authority_schema_version,
@@ -378,9 +390,7 @@ def prestructure_authority_payload(
         "factory_sha": authority.factory_sha,
         "factory_role": authority.factory_role,
         "ablation_pair_snapshot": {
-            **ablation_pair_snapshot_payload(
-                authority.ablation_pair_snapshot
-            ),
+            **ablation_pair_snapshot_payload(authority.ablation_pair_snapshot),
             "snapshot_sha": authority.ablation_pair_snapshot.snapshot_sha,
         },
         "ablation_manifest_sha": authority.ablation_manifest_sha,
@@ -390,17 +400,24 @@ def prestructure_authority_payload(
             if authority.synthetic_registry is None
             else _registry_record(authority.synthetic_registry)
         ),
-        "synthetic_registry_entry_sha": (
-            authority.synthetic_registry_entry_sha
-        ),
+        "synthetic_registry_entry_sha": (authority.synthetic_registry_entry_sha),
         "synthetic_preregistration": (
             None
             if authority.synthetic_preregistration is None
-            else _preregistration_record(
-                authority.synthetic_preregistration
-            )
+            else _preregistration_record(authority.synthetic_preregistration)
         ),
-        "synthetic_application_spec": None,
+        "synthetic_application_spec": (
+            None
+            if authority.synthetic_application_spec is None
+            else {
+                **synthetic_control_application_spec_payload(
+                    authority.synthetic_application_spec
+                ),
+                "application_spec_sha": (
+                    authority.synthetic_application_spec.application_spec_sha
+                ),
+            }
+        ),
         "synthetic_application_permit_sha": (
             authority.synthetic_application_permit_sha
         ),
@@ -434,9 +451,7 @@ def _pair_snapshot(
     )
     snapshot = replace(
         provisional,
-        snapshot_sha=canonical_sha(
-            ablation_pair_snapshot_payload(provisional)
-        ),
+        snapshot_sha=canonical_sha(ablation_pair_snapshot_payload(provisional)),
     )
     return snapshot, verified.pair.actual, verified.pair.ablated
 
@@ -451,8 +466,7 @@ def _canonical_pairs(
     if len(set(channels)) != len(channels):
         raise ValueError("channel_order contains duplicates")
     return tuple(
-        (channels[index], channels[index + 1])
-        for index in range(0, len(channels), 2)
+        (channels[index], channels[index + 1]) for index in range(0, len(channels), 2)
     )
 
 
@@ -507,9 +521,7 @@ def _expected_authority(
     pairs = _canonical_pairs(channels)
     structure_form = _canonical_structure_form(channels)
     provisional_prereg = SyntheticStructurePreregistration(
-        preregistration_schema_version=(
-            SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION
-        ),
+        preregistration_schema_version=(SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION),
         evidence_lane=SYNTHETIC_EVIDENCE_LANE,
         control_registry_sha=registry_view.registry.registry_sha,
         control_registry_entry_sha=entry.entry_sha,
@@ -559,6 +571,81 @@ def _expected_authority(
     return authority, selected
 
 
+def _expected_application_authority(
+    parent: VerifiedParentFreeze,
+    application_spec: V3M0SyntheticControlApplicationSpec,
+    application_permit_sha: str,
+    construction: AblationConstructionOutcome,
+    factory_role: Literal["actual", "matched_ablated"],
+) -> tuple[PrestructureAuthority, VerifiedFactory]:
+    """Reconstruct the application branch from its parent-bound matched pair."""
+
+    parent_manifest = _reverify_verified_parent_freeze(parent)
+    if type(application_spec) is not V3M0SyntheticControlApplicationSpec:
+        raise TypeError(
+            "application_spec must be an exact V3M0SyntheticControlApplicationSpec"
+        )
+    application = verify_synthetic_control_application_spec(application_spec)
+    matches = tuple(
+        item
+        for item in parent_manifest.synthetic_control_application_specs
+        if item.application_instance_id == application.application_instance_id
+    )
+    if len(matches) != 1 or matches[0] != application:
+        raise ValueError("application spec is not the unique parent-frozen body")
+    permit_sha = _sha(
+        application_permit_sha,
+        "synthetic_application_permit_sha",
+    )
+    if factory_role not in ("actual", "matched_ablated"):
+        raise ValueError("factory_role is not frozen")
+    snapshot, actual, ablated = _pair_snapshot(construction)
+    selected = actual if factory_role == "actual" else ablated
+    selected_view = _reverify_verified_factory(selected)
+    if selected_view.role != factory_role:
+        raise ValueError("selected application factory role mismatch")
+    factory = selected_view.factory
+    source = application.basis_protocol.source_basis
+    readout = application.basis_protocol.readout_basis
+    if (
+        source.state_schema_id != readout.state_schema_id
+        or source.channel_order != readout.channel_order
+    ):
+        raise ValueError("application source/readout basis interface mismatch")
+    if (
+        factory.state_schema_id != source.state_schema_id
+        or factory.channel_order != source.channel_order
+        or factory.source_manifest_id != source.manifest_id
+        or factory.readout_basis != readout
+        or factory.state_shape[1:] != application.grid_protocol.spatial_shape
+    ):
+        raise ValueError(
+            "application matched pair does not implement the frozen interface"
+        )
+    provisional = PrestructureAuthority(
+        authority_schema_version=PRESTRUCTURE_AUTHORITY_SCHEMA_VERSION,
+        authority_kind=SYNTHETIC_APPLICATION_AUTHORITY_KIND,
+        parent_freeze=parent_manifest,
+        factory_sha=factory.factory_sha,
+        factory_role=factory_role,
+        ablation_pair_snapshot=snapshot,
+        ablation_manifest_sha=snapshot.ablation_manifest.manifest_sha,
+        ablation_construction_sha=snapshot.ablation_construction_sha,
+        synthetic_registry=None,
+        synthetic_registry_entry_sha=None,
+        synthetic_preregistration=None,
+        synthetic_application_spec=application,
+        synthetic_application_permit_sha=permit_sha,
+        adapter_preregistration=None,
+        authority_sha="0" * 64,
+    )
+    authority = replace(
+        provisional,
+        authority_sha=canonical_sha(prestructure_authority_payload(provisional)),
+    )
+    return authority, selected
+
+
 class VerifiedPrestructureAuthority:
     """Opaque live role-specific authority issued before measurement."""
 
@@ -572,9 +659,7 @@ class VerifiedPrestructureAuthority:
         seal: str,
     ) -> None:
         if token is not _ISSUANCE_TOKEN:
-            raise TypeError(
-                "VerifiedPrestructureAuthority can only be issued here"
-            )
+            raise TypeError("VerifiedPrestructureAuthority can only be issued here")
         object.__setattr__(
             self,
             "_VerifiedPrestructureAuthority__authority",
@@ -621,20 +706,24 @@ class VerifiedPrestructureAuthority:
 class _VerifiedPrestructureView:
     authority: PrestructureAuthority
     parent: VerifiedParentFreeze
-    registry: VerifiedControlRegistry
+    registry: Optional[VerifiedControlRegistry]
     construction: AblationConstructionOutcome
     factory: VerifiedFactory
-    control_id: Literal["full", "zero", "direct_sum"]
+    control_id: Optional[Literal["full", "zero", "direct_sum"]]
+    application_spec: Optional[V3M0SyntheticControlApplicationSpec]
+    application_permit_sha: Optional[str]
 
 
 @dataclass(frozen=True)
 class _PrestructureAuthorityRecord:
     authority: PrestructureAuthority
     parent: VerifiedParentFreeze
-    registry: VerifiedControlRegistry
+    registry: Optional[VerifiedControlRegistry]
     construction: AblationConstructionOutcome
     factory: VerifiedFactory
-    control_id: Literal["full", "zero", "direct_sum"]
+    control_id: Optional[Literal["full", "zero", "direct_sum"]]
+    application_spec: Optional[V3M0SyntheticControlApplicationSpec]
+    application_permit_sha: Optional[str]
     seal: str
 
 
@@ -664,6 +753,7 @@ def _authority_seal(
 
 def _make_prestructure_authority() -> tuple[
     Callable[..., VerifiedPrestructureAuthority],
+    Callable[..., VerifiedPrestructureAuthority],
     Callable[
         [VerifiedPrestructureAuthority],
         _VerifiedPrestructureView,
@@ -678,29 +768,17 @@ def _make_prestructure_authority() -> tuple[
     ] = {}
     lock = threading.RLock()
 
-    def issue(
+    def register(
+        authority: PrestructureAuthority,
         parent: VerifiedParentFreeze,
-        registry: VerifiedControlRegistry,
-        control_id: Literal["full", "zero", "direct_sum"],
         construction: AblationConstructionOutcome,
-        role: Literal["actual", "matched_ablated"],
-        raw: Optional[PrestructureAuthority] = None,
+        factory: VerifiedFactory,
+        *,
+        registry: Optional[VerifiedControlRegistry],
+        control_id: Optional[Literal["full", "zero", "direct_sum"]],
+        application_spec: Optional[V3M0SyntheticControlApplicationSpec],
+        application_permit_sha: Optional[str],
     ) -> VerifiedPrestructureAuthority:
-        expected, factory = _expected_authority(
-            parent,
-            registry,
-            control_id,
-            construction,
-            role,
-        )
-        if (
-            raw is not None
-            and raw.authority_sha != expected.authority_sha
-        ):
-            raise ValueError(
-                "raw prestructure authority does not match reconstruction"
-            )
-        authority = expected if raw is None else raw
         seal = _authority_seal(authority, factory)
         record = _PrestructureAuthorityRecord(
             authority=authority,
@@ -709,6 +787,8 @@ def _make_prestructure_authority() -> tuple[
             construction=construction,
             factory=factory,
             control_id=control_id,
+            application_spec=application_spec,
+            application_permit_sha=application_permit_sha,
             seal=seal,
         )
         wrapper = VerifiedPrestructureAuthority(
@@ -733,20 +813,71 @@ def _make_prestructure_authority() -> tuple[
             live[identity] = (reference, record)
         return wrapper
 
+    def issue_registry(
+        parent: VerifiedParentFreeze,
+        registry: VerifiedControlRegistry,
+        control_id: Literal["full", "zero", "direct_sum"],
+        construction: AblationConstructionOutcome,
+        role: Literal["actual", "matched_ablated"],
+        raw: Optional[PrestructureAuthority] = None,
+    ) -> VerifiedPrestructureAuthority:
+        expected, factory = _expected_authority(
+            parent,
+            registry,
+            control_id,
+            construction,
+            role,
+        )
+        if raw is not None and raw != expected:
+            raise ValueError("raw prestructure authority does not match reconstruction")
+        authority = expected if raw is None else raw
+        return register(
+            authority,
+            parent,
+            construction,
+            factory,
+            registry=registry,
+            control_id=control_id,
+            application_spec=None,
+            application_permit_sha=None,
+        )
+
+    def issue_application(
+        parent: VerifiedParentFreeze,
+        application_spec: V3M0SyntheticControlApplicationSpec,
+        application_permit_sha: str,
+        construction: AblationConstructionOutcome,
+        role: Literal["actual", "matched_ablated"],
+    ) -> VerifiedPrestructureAuthority:
+        expected, factory = _expected_application_authority(
+            parent,
+            application_spec,
+            application_permit_sha,
+            construction,
+            role,
+        )
+        return register(
+            expected,
+            parent,
+            construction,
+            factory,
+            registry=None,
+            control_id=None,
+            application_spec=application_spec,
+            application_permit_sha=application_permit_sha,
+        )
+
     def reverify(
         wrapper: VerifiedPrestructureAuthority,
     ) -> _VerifiedPrestructureView:
         if type(wrapper) is not VerifiedPrestructureAuthority:
             raise TypeError(
-                "runtime requires a module-issued "
-                "VerifiedPrestructureAuthority"
+                "runtime requires a module-issued VerifiedPrestructureAuthority"
             )
         with lock:
             current = live.get(id(wrapper))
             if current is None or current[0]() is not wrapper:
-                raise ValueError(
-                    "VerifiedPrestructureAuthority identity is not live"
-                )
+                raise ValueError("VerifiedPrestructureAuthority identity is not live")
             record = current[1]
         try:
             token = object.__getattribute__(
@@ -771,25 +902,40 @@ def _make_prestructure_authority() -> tuple[
             ) from exc
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedPrestructureAuthority token mismatch")
-        expected, factory = _expected_authority(
-            record.parent,
-            record.registry,
-            record.control_id,
-            record.construction,
-            record.authority.factory_role,
-        )
+        if record.authority.authority_kind == SYNTHETIC_AUTHORITY_KIND:
+            if record.registry is None or record.control_id is None:
+                raise ValueError("registry prestructure authority record is incomplete")
+            expected, factory = _expected_authority(
+                record.parent,
+                record.registry,
+                record.control_id,
+                record.construction,
+                record.authority.factory_role,
+            )
+        elif record.authority.authority_kind == SYNTHETIC_APPLICATION_AUTHORITY_KIND:
+            if record.application_spec is None or record.application_permit_sha is None:
+                raise ValueError(
+                    "application prestructure authority record is incomplete"
+                )
+            expected, factory = _expected_application_authority(
+                record.parent,
+                record.application_spec,
+                record.application_permit_sha,
+                record.construction,
+                record.authority.factory_role,
+            )
+        else:
+            raise ValueError("prestructure authority branch is not implemented")
         expected_seal = _authority_seal(expected, factory)
         if (
-            raw.authority_sha != record.authority.authority_sha
-            or raw.authority_sha != expected.authority_sha
+            raw != record.authority
+            or raw != expected
             or parent is not record.parent
             or factory is not record.factory
             or seal != record.seal
             or seal != expected_seal
         ):
-            raise ValueError(
-                "VerifiedPrestructureAuthority immutable seal mismatch"
-            )
+            raise ValueError("VerifiedPrestructureAuthority immutable seal mismatch")
         return _VerifiedPrestructureView(
             authority=record.authority,
             parent=record.parent,
@@ -797,13 +943,16 @@ def _make_prestructure_authority() -> tuple[
             construction=record.construction,
             factory=record.factory,
             control_id=record.control_id,
+            application_spec=record.application_spec,
+            application_permit_sha=record.application_permit_sha,
         )
 
-    return issue, reverify
+    return issue_registry, issue_application, reverify
 
 
 (
     _issue_verified_prestructure_authority,
+    _issue_verified_application_prestructure_authority,
     _reverify_verified_prestructure_authority,
 ) = _make_prestructure_authority()
 
@@ -821,6 +970,24 @@ def issue_synthetic_prestructure_authority(
         parent,
         registry,
         control_id,
+        construction,
+        factory_role,
+    )
+
+
+def _issue_synthetic_application_prestructure_authority(
+    parent: VerifiedParentFreeze,
+    application_spec: V3M0SyntheticControlApplicationSpec,
+    application_permit_sha: str,
+    construction: AblationConstructionOutcome,
+    factory_role: Literal["actual", "matched_ablated"],
+) -> VerifiedPrestructureAuthority:
+    """Internal Task-12-only application authority issuer."""
+
+    return _issue_verified_application_prestructure_authority(
+        parent,
+        application_spec,
+        application_permit_sha,
         construction,
         factory_role,
     )
@@ -857,6 +1024,7 @@ __all__ = [
     "PAIR_SNAPSHOT_SCHEMA_VERSION",
     "PRESTRUCTURE_AUTHORITY_SCHEMA_VERSION",
     "REALITY_CONVENTION_ID",
+    "SYNTHETIC_APPLICATION_AUTHORITY_KIND",
     "SYNTHETIC_AUTHORITY_KIND",
     "SYNTHETIC_EVIDENCE_LANE",
     "SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION",

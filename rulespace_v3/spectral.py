@@ -10,7 +10,7 @@ only by the normalized-residual issuer, never by spectral coverage.
 from __future__ import annotations
 
 import base64
-import json
+import json  # noqa: F401  # Compatibility probe; sizing is closure-captured.
 import math
 import re
 import struct
@@ -27,7 +27,7 @@ from .dynamics import (
     _reverify_verified_transition,
     measured_transition_payload,
 )
-from .evidence import canonical_sha
+from .evidence import _EXACT_JSON_UTF8_SIZE, canonical_sha
 from .factory import frozen_tensor_array
 from .fp64 import (
     MINIMUM_NORMAL,
@@ -87,24 +87,20 @@ SPECTRAL_COVERAGE_SCHEMA_VERSION = "v3m0.spectral-margin-coverage.v1"
 NORMALIZED_AUDIT_SCHEMA_VERSION = "v3m0.normalized-metric-residual-audit.v1"
 POWER_DRIFT_AUDIT_SCHEMA_VERSION = "v3m0.power-drift-audit.v1"
 COLUMN_DATA_SCHEMA_VERSION = "v3m0.spectral-column-data.v1"
-CANDIDATE_ALGORITHM_ID: Literal[
+CANDIDATE_ALGORITHM_ID: Literal["scalar-gauss-jordan-hermitian-cholesky-v1"] = (
     "scalar-gauss-jordan-hermitian-cholesky-v1"
-] = "scalar-gauss-jordan-hermitian-cholesky-v1"
-COLUMN_ENCODING_ID: Literal[
+)
+COLUMN_ENCODING_ID: Literal["strict-base64-big-endian-f64-columns-v1"] = (
     "strict-base64-big-endian-f64-columns-v1"
-] = "strict-base64-big-endian-f64-columns-v1"
-ROUNDING_METHOD_ID: Literal[
+)
+ROUNDING_METHOD_ID: Literal["fp64-operation-count-nextafter-columnar-v1"] = (
     "fp64-operation-count-nextafter-columnar-v1"
-] = "fp64-operation-count-nextafter-columnar-v1"
-TORUS_DOMAIN_ID: Literal[
-    "minus-pi-pi-periodic-v1"
-] = "minus-pi-pi-periodic-v1"
-DISTANCE_CONVENTION_ID: Literal[
-    "principal-linf-torus-v1"
-] = "principal-linf-torus-v1"
-DIVISION_METHOD_ID: Literal[
+)
+TORUS_DOMAIN_ID: Literal["minus-pi-pi-periodic-v1"] = "minus-pi-pi-periodic-v1"
+DISTANCE_CONVENTION_ID: Literal["principal-linf-torus-v1"] = "principal-linf-torus-v1"
+DIVISION_METHOD_ID: Literal["fp64-nextafter-outward-division-v1"] = (
     "fp64-nextafter-outward-division-v1"
-] = "fp64-nextafter-outward-division-v1"
+)
 
 SPECTRAL_MAX_GRID_POINTS = 262_144
 SPECTRAL_MAX_CUBIC_WORK = 2_000_000_000
@@ -157,8 +153,7 @@ def _require_exact_record_fields(
         unknown = sorted(actual - expected)
         missing = sorted(expected - actual)
         raise ValueError(
-            f"{field} record fields differ; "
-            f"unknown={unknown}, missing={missing}"
+            f"{field} record fields differ; unknown={unknown}, missing={missing}"
         )
 
 
@@ -262,9 +257,7 @@ class SpectralPointEnclosureColumnarSidecar:
     sidecar_schema_version: str
     qualification_grid_sha: str
     point_count: int
-    candidate_algorithm_id: Literal[
-        "scalar-gauss-jordan-hermitian-cholesky-v1"
-    ]
+    candidate_algorithm_id: Literal["scalar-gauss-jordan-hermitian-cholesky-v1"]
     encoding_id: Literal["strict-base64-big-endian-f64-columns-v1"]
     raw_diagnostic_status: Literal[
         "available-lapack-v1",
@@ -291,9 +284,7 @@ class SpectralPointEnclosureColumnarSidecar:
     g_lambda_max_upper_b64: str
     raw_byte_count: int
     column_data_sha: str
-    roundoff_enclosure_method_id: Literal[
-        "fp64-operation-count-nextafter-columnar-v1"
-    ]
+    roundoff_enclosure_method_id: Literal["fp64-operation-count-nextafter-columnar-v1"]
     sidecar_sha: str
 
     def __post_init__(self) -> None:
@@ -323,13 +314,9 @@ class SpectralPointEnclosureColumnarSidecar:
             encoded_names = HARD_COLUMN_NAMES
         else:
             if self.raw_diagnostic_unavailable_reason is not None:
-                raise ValueError(
-                    "available diagnostics require no unavailable reason"
-                )
+                raise ValueError("available diagnostics require no unavailable reason")
             if any(getattr(self, name) is None for name in RAW_COLUMN_NAMES):
-                raise ValueError(
-                    "available diagnostics require all raw columns"
-                )
+                raise ValueError("available diagnostics require all raw columns")
             encoded_names = RAW_COLUMN_NAMES + HARD_COLUMN_NAMES
         expected_bytes = points * 8 * len(encoded_names)
         count = _wire_int(self.raw_byte_count, "raw_byte_count")
@@ -349,9 +336,7 @@ def spectral_point_sidecar_payload(
     sidecar: SpectralPointEnclosureColumnarSidecar,
 ) -> dict[str, object]:
     if not isinstance(sidecar, SpectralPointEnclosureColumnarSidecar):
-        raise TypeError(
-            "sidecar must be a SpectralPointEnclosureColumnarSidecar"
-        )
+        raise TypeError("sidecar must be a SpectralPointEnclosureColumnarSidecar")
     return {
         "sidecar_schema_version": sidecar.sidecar_schema_version,
         "qualification_grid_sha": sidecar.qualification_grid_sha,
@@ -369,9 +354,7 @@ def spectral_point_sidecar_payload(
         **{name: getattr(sidecar, name) for name in HARD_COLUMN_NAMES},
         "raw_byte_count": sidecar.raw_byte_count,
         "column_data_sha": sidecar.column_data_sha,
-        "roundoff_enclosure_method_id": (
-            sidecar.roundoff_enclosure_method_id
-        ),
+        "roundoff_enclosure_method_id": (sidecar.roundoff_enclosure_method_id),
     }
 
 
@@ -472,14 +455,10 @@ class SpectralMarginCoverage:
                     "unavailable diagnostics require all raw arrays absent"
                 )
             if self.spectral_radius_drift_diagnostic is not None:
-                raise ValueError(
-                    "unavailable diagnostics require no radius diagnostic"
-                )
+                raise ValueError("unavailable diagnostics require no radius diagnostic")
         else:
             if self.raw_diagnostic_unavailable_reason is not None:
-                raise ValueError(
-                    "available diagnostics require no unavailable reason"
-                )
+                raise ValueError("available diagnostics require no unavailable reason")
             for index, value in enumerate(raw_arrays):
                 _float_tuple(
                     value,
@@ -502,9 +481,7 @@ class SpectralMarginCoverage:
             != self.qualification_grid.dynamics_grid_sha
         ):
             raise ValueError("point sidecar grid binding mismatch")
-        if self.point_enclosures.raw_diagnostic_status != (
-            self.raw_diagnostic_status
-        ):
+        if self.point_enclosures.raw_diagnostic_status != (self.raw_diagnostic_status):
             raise ValueError("point and coverage diagnostic status differ")
         _float_tuple(
             self.grid_m_sigma_min_lower,
@@ -561,10 +538,7 @@ class SpectralMarginCoverage:
             "covered_g_condition_number_upper",
         ):
             _positive_float(getattr(self, field), field)
-        if (
-            self.qualification_grid.qualification_profile
-            == "exact-offset-zero-v1"
-        ):
+        if self.qualification_grid.qualification_profile == "exact-offset-zero-v1":
             for field in derivative_fields:
                 for index, value in enumerate(getattr(self, field)):
                     require_semantic_zero(value, f"{field}[{index}]")
@@ -592,16 +566,10 @@ def spectral_margin_coverage_payload(
     return {
         "coverage_schema_version": coverage.coverage_schema_version,
         "transition_sha": coverage.transition_sha,
-        "stability_metric_witness_sha": (
-            coverage.stability_metric_witness_sha
-        ),
-        "fp64_enclosure_protocol": _protocol_record(
-            coverage.fp64_enclosure_protocol
-        ),
+        "stability_metric_witness_sha": (coverage.stability_metric_witness_sha),
+        "fp64_enclosure_protocol": _protocol_record(coverage.fp64_enclosure_protocol),
         "qualification_grid": _grid_record(coverage.qualification_grid),
-        "spectral_diagnostic_grid": _grid_record(
-            coverage.spectral_diagnostic_grid
-        ),
+        "spectral_diagnostic_grid": _grid_record(coverage.spectral_diagnostic_grid),
         "torus_domain_id": coverage.torus_domain_id,
         "distance_convention_id": coverage.distance_convention_id,
         "fill_distance": coverage.fill_distance,
@@ -610,14 +578,10 @@ def spectral_margin_coverage_payload(
             coverage.raw_diagnostic_unavailable_reason
         ),
         "raw_m_sigma_min": (
-            None
-            if coverage.raw_m_sigma_min is None
-            else list(coverage.raw_m_sigma_min)
+            None if coverage.raw_m_sigma_min is None else list(coverage.raw_m_sigma_min)
         ),
         "raw_m_sigma_max": (
-            None
-            if coverage.raw_m_sigma_max is None
-            else list(coverage.raw_m_sigma_max)
+            None if coverage.raw_m_sigma_max is None else list(coverage.raw_m_sigma_max)
         ),
         "raw_g_lambda_min": (
             None
@@ -630,18 +594,10 @@ def spectral_margin_coverage_payload(
             else list(coverage.raw_g_lambda_max)
         ),
         "point_enclosures": _sidecar_record(coverage.point_enclosures),
-        "grid_m_sigma_min_lower": list(
-            coverage.grid_m_sigma_min_lower
-        ),
-        "grid_m_sigma_max_upper": list(
-            coverage.grid_m_sigma_max_upper
-        ),
-        "grid_g_lambda_min_lower": list(
-            coverage.grid_g_lambda_min_lower
-        ),
-        "grid_g_lambda_max_upper": list(
-            coverage.grid_g_lambda_max_upper
-        ),
+        "grid_m_sigma_min_lower": list(coverage.grid_m_sigma_min_lower),
+        "grid_m_sigma_max_upper": list(coverage.grid_m_sigma_max_upper),
+        "grid_g_lambda_min_lower": list(coverage.grid_g_lambda_min_lower),
+        "grid_g_lambda_max_upper": list(coverage.grid_g_lambda_max_upper),
         "m_sigma_min_axis_derivative_bounds": list(
             coverage.m_sigma_min_axis_derivative_bounds
         ),
@@ -654,39 +610,17 @@ def spectral_margin_coverage_payload(
         "g_lambda_max_axis_derivative_bounds": list(
             coverage.g_lambda_max_axis_derivative_bounds
         ),
-        "m_sigma_min_coverage_increment": (
-            coverage.m_sigma_min_coverage_increment
-        ),
-        "m_sigma_max_coverage_increment": (
-            coverage.m_sigma_max_coverage_increment
-        ),
-        "g_lambda_min_coverage_increment": (
-            coverage.g_lambda_min_coverage_increment
-        ),
-        "g_lambda_max_coverage_increment": (
-            coverage.g_lambda_max_coverage_increment
-        ),
-        "covered_m_sigma_min_lower": (
-            coverage.covered_m_sigma_min_lower
-        ),
-        "covered_m_sigma_max_upper": (
-            coverage.covered_m_sigma_max_upper
-        ),
-        "covered_g_lambda_min_lower": (
-            coverage.covered_g_lambda_min_lower
-        ),
-        "covered_g_lambda_max_upper": (
-            coverage.covered_g_lambda_max_upper
-        ),
-        "covered_m_condition_number_upper": (
-            coverage.covered_m_condition_number_upper
-        ),
-        "covered_g_condition_number_upper": (
-            coverage.covered_g_condition_number_upper
-        ),
-        "spectral_radius_drift_diagnostic": (
-            coverage.spectral_radius_drift_diagnostic
-        ),
+        "m_sigma_min_coverage_increment": (coverage.m_sigma_min_coverage_increment),
+        "m_sigma_max_coverage_increment": (coverage.m_sigma_max_coverage_increment),
+        "g_lambda_min_coverage_increment": (coverage.g_lambda_min_coverage_increment),
+        "g_lambda_max_coverage_increment": (coverage.g_lambda_max_coverage_increment),
+        "covered_m_sigma_min_lower": (coverage.covered_m_sigma_min_lower),
+        "covered_m_sigma_max_upper": (coverage.covered_m_sigma_max_upper),
+        "covered_g_lambda_min_lower": (coverage.covered_g_lambda_min_lower),
+        "covered_g_lambda_max_upper": (coverage.covered_g_lambda_max_upper),
+        "covered_m_condition_number_upper": (coverage.covered_m_condition_number_upper),
+        "covered_g_condition_number_upper": (coverage.covered_g_condition_number_upper),
+        "spectral_radius_drift_diagnostic": (coverage.spectral_radius_drift_diagnostic),
     }
 
 
@@ -803,9 +737,7 @@ def _preflight_root64_protocol(
             raise ValueError("Root64 entries are not canonically ordered")
         if entry.dyadic_exponent != DYADIC_EXPONENT:
             raise ValueError("Root64 entry dyadic exponent mismatch")
-        if entry.center_distance_squared_upper_power_of_two != (
-            -2 * DYADIC_EXPONENT
-        ):
+        if entry.center_distance_squared_upper_power_of_two != (-2 * DYADIC_EXPONENT):
             raise ValueError("Root64 distance-square exponent mismatch")
         for field in (
             "real_center_f64_bits",
@@ -838,9 +770,7 @@ def _preflight_exact_zero_coverage_record(
     if type(coverage.fp64_enclosure_protocol) is not Fp64EnclosureProtocol:
         raise TypeError("fp64_enclosure_protocol has the wrong exact type")
     _preflight_root64_protocol(coverage.fp64_enclosure_protocol)
-    if type(coverage.point_enclosures) is not (
-        SpectralPointEnclosureColumnarSidecar
-    ):
+    if type(coverage.point_enclosures) is not (SpectralPointEnclosureColumnarSidecar):
         raise TypeError("point_enclosures has the wrong exact type")
     try:
         raw_transition = transition.transition
@@ -860,9 +790,7 @@ def _preflight_exact_zero_coverage_record(
         if grid.grid_schema_version != DYNAMICS_GRID_SCHEMA_VERSION:
             raise ValueError(f"{field} has an unexpected schema")
         if grid.qualification_profile != "exact-offset-zero-v1":
-            raise ValueError(
-                f"{field} is outside the exact-zero coverage lane"
-            )
+            raise ValueError(f"{field} is outside the exact-zero coverage lane")
         if type(grid.spatial_ndim) is not int:
             raise TypeError(f"{field}.spatial_ndim must be an int")
         if grid.spatial_ndim != expected_ndim:
@@ -891,18 +819,14 @@ def _preflight_exact_zero_coverage_record(
         raise ValueError("unexpected spectral sidecar schema")
     if type(sidecar.point_count) is not int or sidecar.point_count != 1:
         raise ValueError("exact-zero sidecar point_count must equal one")
-    if sidecar.point_count != len(
-        coverage.qualification_grid.reciprocal_indices
-    ):
+    if sidecar.point_count != len(coverage.qualification_grid.reciprocal_indices):
         raise ValueError("sidecar point count does not match grid")
     if sidecar.raw_diagnostic_status == "available-lapack-v1":
         encoded_names = RAW_COLUMN_NAMES + HARD_COLUMN_NAMES
     elif sidecar.raw_diagnostic_status == "unavailable-v1":
         encoded_names = HARD_COLUMN_NAMES
         if any(getattr(sidecar, name) is not None for name in RAW_COLUMN_NAMES):
-            raise ValueError(
-                "unavailable diagnostics require all raw columns absent"
-            )
+            raise ValueError("unavailable diagnostics require all raw columns absent")
     else:
         raise ValueError("sidecar raw diagnostic status is not closed")
     _preflight_spectral_resources(
@@ -973,19 +897,15 @@ def _require_coverage_body_within_cap(
 ) -> None:
     """Stream canonical JSON sizing without joining a giant byte string."""
 
-    encoder = json.JSONEncoder(
-        allow_nan=False,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-    total = 0
-    for chunk in encoder.iterencode(
-        spectral_margin_coverage_payload(coverage)
-    ):
-        total += len(chunk.encode("utf-8"))
-        if total > SPECTRAL_MAX_CANONICAL_BODY_BYTES:
-            raise ValueError("spectral canonical body exceeds the 96 MiB cap")
+    try:
+        _EXACT_JSON_UTF8_SIZE(
+            spectral_margin_coverage_payload(coverage),
+            maximum_bytes=SPECTRAL_MAX_CANONICAL_BODY_BYTES,
+        )
+    except ValueError as exc:
+        if "resource cap" not in str(exc):
+            raise
+        raise ValueError("spectral canonical body exceeds the 96 MiB cap") from exc
 
 
 def _decode_f64_column(
@@ -1037,8 +957,7 @@ def _column_data_payload(
     return {
         "column_data_schema_version": COLUMN_DATA_SCHEMA_VERSION,
         "ordered_columns": [
-            [name, getattr(sidecar, name)]
-            for name in _ordered_column_names(sidecar)
+            [name, getattr(sidecar, name)] for name in _ordered_column_names(sidecar)
         ],
     }
 
@@ -1053,13 +972,9 @@ def _verify_sidecar(
     )
     if sidecar.sidecar_schema_version != SPECTRAL_SIDECAR_SCHEMA_VERSION:
         raise ValueError("unexpected spectral sidecar schema")
-    if sidecar.column_data_sha != canonical_sha(
-        _column_data_payload(sidecar)
-    ):
+    if sidecar.column_data_sha != canonical_sha(_column_data_payload(sidecar)):
         raise ValueError("column_data_sha does not match ordered columns")
-    if sidecar.sidecar_sha != canonical_sha(
-        spectral_point_sidecar_payload(sidecar)
-    ):
+    if sidecar.sidecar_sha != canonical_sha(spectral_point_sidecar_payload(sidecar)):
         raise ValueError("sidecar_sha does not match complete body")
     return sidecar
 
@@ -1086,14 +1001,10 @@ def _require_signed_permutation(values: np.ndarray) -> None:
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("constant transition must be square")
     if not _all_positive_zero_imaginary(matrix):
-        raise ValueError(
-            "exact-zero synthetic transition requires +0.0 imaginary bits"
-        )
+        raise ValueError("exact-zero synthetic transition requires +0.0 imaginary bits")
     real = matrix.real
     if not np.isin(real, np.asarray((-1.0, 0.0, 1.0))).all():
-        raise ValueError(
-            "exact-zero synthetic transition is not a signed permutation"
-        )
+        raise ValueError("exact-zero synthetic transition is not a signed permutation")
     if not np.all(np.count_nonzero(real, axis=0) == 1):
         raise ValueError("signed permutation columns are not one-hot")
     if not np.all(np.count_nonzero(real, axis=1) == 1):
@@ -1105,9 +1016,7 @@ def _require_identity_metric(values: np.ndarray, n_state: int) -> None:
     if matrix.shape != (n_state, n_state):
         raise ValueError("constant metric shape mismatch")
     if not _all_positive_zero_imaginary(matrix):
-        raise ValueError(
-            "exact-zero synthetic metric requires +0.0 imaginary bits"
-        )
+        raise ValueError("exact-zero synthetic metric requires +0.0 imaginary bits")
     if not np.array_equal(matrix.real, np.eye(n_state, dtype=np.float64)):
         raise ValueError("exact-zero synthetic metric must be identity")
 
@@ -1152,12 +1061,8 @@ def _scalar_gauss_jordan_inverse(values: np.ndarray) -> np.ndarray:
                 continue
             factor = left[row][column]
             for index in range(n_state):
-                left[row][index] = (
-                    left[row][index] - factor * left[column][index]
-                )
-                right[row][index] = (
-                    right[row][index] - factor * right[column][index]
-                )
+                left[row][index] = left[row][index] - factor * left[column][index]
+                right[row][index] = right[row][index] - factor * right[column][index]
     result = np.zeros((n_state, n_state), dtype=np.complex128)
     for row in range(n_state):
         for column in range(n_state):
@@ -1178,10 +1083,8 @@ def _scalar_hermitian_cholesky(values: np.ndarray) -> np.ndarray:
         for column in range(row + 1):
             accumulated = +0.0
             for inner in range(column):
-                accumulated = (
-                    accumulated
-                    + float(result[row, inner].real)
-                    * float(result[column, inner].real)
+                accumulated = accumulated + float(result[row, inner].real) * float(
+                    result[column, inner].real
                 )
             remainder = float(matrix[row, column].real) - accumulated
             if row == column:
@@ -1217,10 +1120,8 @@ def _scalar_lower_triangular_inverse(values: np.ndarray) -> np.ndarray:
                 continue
             accumulated = +0.0
             for inner in range(row):
-                accumulated = (
-                    accumulated
-                    + float(matrix[row, inner].real)
-                    * float(result[inner, column].real)
+                accumulated = accumulated + float(matrix[row, inner].real) * float(
+                    result[inner, column].real
                 )
             target = 1.0 if row == column else +0.0
             diagonal = float(matrix[row, row].real)
@@ -1325,11 +1226,7 @@ def _spectral_ordered_complex_dot_values(
             left_value,
             right_value,
         )
-        center = (
-            term
-            if center is None
-            else _spectral_ordered_complex_add(center, term)
-        )
+        center = term if center is None else _spectral_ordered_complex_add(center, term)
         factors = (
             ("real", abs(left_value.real), abs(right_value.real)),
             ("real", abs(left_value.imag), abs(right_value.imag)),
@@ -1371,14 +1268,8 @@ def _require_scalar_product_identity(
     for row in range(n_state):
         for column in range(n_state):
             center, _, _ = _spectral_ordered_complex_dot_values(
-                tuple(
-                    complex(first[row, inner])
-                    for inner in range(n_state)
-                ),
-                tuple(
-                    complex(second[inner, column])
-                    for inner in range(n_state)
-                ),
+                tuple(complex(first[row, inner]) for inner in range(n_state)),
+                tuple(complex(second[inner, column]) for inner in range(n_state)),
             )
             expected = 1.0 if row == column else 0.0
             if center.real != expected or center.imag != 0.0:
@@ -1393,11 +1284,7 @@ def _matrix_product_subtraction_roundoff_upper(
 
     first = np.asarray(left, dtype=np.complex128)
     second = np.asarray(right, dtype=np.complex128)
-    if (
-        first.ndim != 2
-        or second.ndim != 2
-        or first.shape[1] != second.shape[0]
-    ):
+    if first.ndim != 2 or second.ndim != 2 or first.shape[1] != second.shape[0]:
         raise ValueError("matrix product roundoff shapes do not align")
     dot_length = first.shape[1]
     subtraction_additive = Fraction(*MINIMUM_NORMAL.as_integer_ratio())
@@ -1406,13 +1293,9 @@ def _matrix_product_subtraction_roundoff_upper(
         for column in range(second.shape[1]):
             _, real_product_sum, imaginary_product_sum = (
                 _spectral_ordered_complex_dot_values(
+                    tuple(complex(first[row, inner]) for inner in range(dot_length)),
                     tuple(
-                        complex(first[row, inner])
-                        for inner in range(dot_length)
-                    ),
-                    tuple(
-                        complex(second[inner, column])
-                        for inner in range(dot_length)
+                        complex(second[inner, column]) for inner in range(dot_length)
                     ),
                 )
             )
@@ -1425,16 +1308,13 @@ def _matrix_product_subtraction_roundoff_upper(
                 absolute_product_sum=imaginary_product_sum,
             ).roundoff_upper
             real_fraction = (
-                Fraction(*real_bound.as_integer_ratio())
-                + subtraction_additive
+                Fraction(*real_bound.as_integer_ratio()) + subtraction_additive
             )
             imaginary_fraction = (
-                Fraction(*imaginary_bound.as_integer_ratio())
-                + subtraction_additive
+                Fraction(*imaginary_bound.as_integer_ratio()) + subtraction_additive
             )
             sum_squares += (
-                real_fraction * real_fraction
-                + imaginary_fraction * imaginary_fraction
+                real_fraction * real_fraction + imaginary_fraction * imaginary_fraction
             )
     return frobenius_sqrt_upper(sum_squares)
 
@@ -1444,10 +1324,7 @@ def _build_unavailable_sidecar(
     grid: DynamicsKGridManifest,
     values: dict[str, float],
 ) -> SpectralPointEnclosureColumnarSidecar:
-    columns = {
-        name: _encode_f64_column((values[name],))
-        for name in HARD_COLUMN_NAMES
-    }
+    columns = {name: _encode_f64_column((values[name],)) for name in HARD_COLUMN_NAMES}
     provisional = SpectralPointEnclosureColumnarSidecar(
         sidecar_schema_version=SPECTRAL_SIDECAR_SCHEMA_VERSION,
         qualification_grid_sha=grid.dynamics_grid_sha,
@@ -1455,9 +1332,7 @@ def _build_unavailable_sidecar(
         candidate_algorithm_id=CANDIDATE_ALGORITHM_ID,
         encoding_id=COLUMN_ENCODING_ID,
         raw_diagnostic_status="unavailable-v1",
-        raw_diagnostic_unavailable_reason=(
-            "not-required-exact-offset-zero-v1"
-        ),
+        raw_diagnostic_unavailable_reason=("not-required-exact-offset-zero-v1"),
         raw_m_sigma_min_b64=None,
         raw_m_sigma_max_b64=None,
         raw_g_lambda_min_b64=None,
@@ -1474,9 +1349,7 @@ def _build_unavailable_sidecar(
     )
     result = replace(
         with_column_sha,
-        sidecar_sha=canonical_sha(
-            spectral_point_sidecar_payload(with_column_sha)
-        ),
+        sidecar_sha=canonical_sha(spectral_point_sidecar_payload(with_column_sha)),
     )
     return _verify_sidecar(result)
 
@@ -1488,13 +1361,9 @@ def _constant_transition_matrix(
     raw = transition_view.transition
     zero = (0,) * len(raw.spatial_shape)
     if raw.support_offsets != (zero,):
-        raise ValueError(
-            "this coverage slice requires exact zero transition support"
-        )
+        raise ValueError("this coverage slice requires exact zero transition support")
     kernel = frozen_tensor_array(raw.kernel)
-    matrix = kernel[
-        (slice(None), slice(None)) + (0,) * len(raw.spatial_shape)
-    ].copy()
+    matrix = kernel[(slice(None), slice(None)) + (0,) * len(raw.spatial_shape)].copy()
     return matrix, len(raw.channel_order)
 
 
@@ -1503,9 +1372,7 @@ def _constant_metric_matrix(
     ndim: int,
 ) -> np.ndarray:
     if witness.metric_support_offsets != ((0,) * ndim,):
-        raise ValueError(
-            "this coverage slice requires exact zero metric support"
-        )
+        raise ValueError("this coverage slice requires exact zero metric support")
     values = frozen_tensor_array(witness.metric_kernel)
     if values.shape[0] != 1:
         raise ValueError("constant metric kernel must have one coefficient")
@@ -1550,9 +1417,7 @@ def _expected_exact_zero_coverage(
         encoded_column_count=SPECTRAL_HARD_COLUMN_COUNT,
     )
 
-    transition_matrix, measured_state = _constant_transition_matrix(
-        transition
-    )
+    transition_matrix, measured_state = _constant_transition_matrix(transition)
     if measured_state != n_state:
         raise ValueError("transition state dimension changed during replay")
     metric_matrix = _constant_metric_matrix(metric, grid.spatial_ndim)
@@ -1585,11 +1450,9 @@ def _expected_exact_zero_coverage(
         cholesky,
         cholesky.conj().T,
     )
-    cholesky_inverse_residual = (
-        _matrix_product_subtraction_roundoff_upper(
-            cholesky_inverse,
-            cholesky,
-        )
+    cholesky_inverse_residual = _matrix_product_subtraction_roundoff_upper(
+        cholesky_inverse,
+        cholesky,
     )
     frobenius = frobenius_sqrt_upper(Fraction(n_state, 1))
     zero = +0.0
@@ -1597,9 +1460,7 @@ def _expected_exact_zero_coverage(
     m_sigma_min = directed_div_lower(one_minus_error, frobenius)
     m_sigma_max = directed_add_upper(frobenius, zero)
     if cholesky_inverse_residual >= 1.0:
-        raise ValueError(
-            "Cholesky inverse residual must be below one"
-        )
+        raise ValueError("Cholesky inverse residual must be below one")
     ell = directed_div_lower(
         directed_sub_lower(1.0, cholesky_inverse_residual),
         frobenius,
@@ -1625,13 +1486,9 @@ def _expected_exact_zero_coverage(
         "m_sigma_min_lower_b64": m_sigma_min,
         "m_sigma_max_upper_b64": m_sigma_max,
         "metric_frobenius_upper_b64": frobenius,
-        "cholesky_factorization_residual_frobenius_upper_b64": (
-            cholesky_residual
-        ),
+        "cholesky_factorization_residual_frobenius_upper_b64": (cholesky_residual),
         "cholesky_inverse_frobenius_upper_b64": frobenius,
-        "cholesky_inverse_residual_frobenius_upper_b64": (
-            cholesky_inverse_residual
-        ),
+        "cholesky_inverse_residual_frobenius_upper_b64": (cholesky_inverse_residual),
         "ell_lower_b64": ell,
         "g_lambda_min_lower_b64": g_lambda_min,
         "g_lambda_max_upper_b64": g_lambda_max,
@@ -1657,9 +1514,7 @@ def _expected_exact_zero_coverage(
         distance_convention_id=DISTANCE_CONVENTION_ID,
         fill_distance=fill,
         raw_diagnostic_status="unavailable-v1",
-        raw_diagnostic_unavailable_reason=(
-            "not-required-exact-offset-zero-v1"
-        ),
+        raw_diagnostic_unavailable_reason=("not-required-exact-offset-zero-v1"),
         raw_m_sigma_min=None,
         raw_m_sigma_max=None,
         raw_g_lambda_min=None,
@@ -1688,9 +1543,7 @@ def _expected_exact_zero_coverage(
     )
     result = replace(
         provisional,
-        coverage_sha=canonical_sha(
-            spectral_margin_coverage_payload(provisional)
-        ),
+        coverage_sha=canonical_sha(spectral_margin_coverage_payload(provisional)),
     )
     _require_coverage_body_within_cap(result)
     if result.covered_m_sigma_min_lower < SPECTRAL_M_SIGMA_MIN_GATE:
@@ -1778,9 +1631,7 @@ class NormalizedMetricResidualAudit:
     spectral_margin_coverage_sha: str
     raw_metric_residual_upper: float
     covered_g_lambda_min_lower: float
-    division_method_id: Literal[
-        "fp64-nextafter-outward-division-v1"
-    ]
+    division_method_id: Literal["fp64-nextafter-outward-division-v1"]
     normalized_metric_residual_upper: float
     audit_sha: str
 
@@ -1812,23 +1663,15 @@ def normalized_metric_residual_audit_payload(
     audit: NormalizedMetricResidualAudit,
 ) -> dict[str, object]:
     if not isinstance(audit, NormalizedMetricResidualAudit):
-        raise TypeError(
-            "audit must be a NormalizedMetricResidualAudit"
-        )
+        raise TypeError("audit must be a NormalizedMetricResidualAudit")
     return {
         "audit_schema_version": audit.audit_schema_version,
         "metric_residual_sha": audit.metric_residual_sha,
-        "spectral_margin_coverage_sha": (
-            audit.spectral_margin_coverage_sha
-        ),
+        "spectral_margin_coverage_sha": (audit.spectral_margin_coverage_sha),
         "raw_metric_residual_upper": audit.raw_metric_residual_upper,
-        "covered_g_lambda_min_lower": (
-            audit.covered_g_lambda_min_lower
-        ),
+        "covered_g_lambda_min_lower": (audit.covered_g_lambda_min_lower),
         "division_method_id": audit.division_method_id,
-        "normalized_metric_residual_upper": (
-            audit.normalized_metric_residual_upper
-        ),
+        "normalized_metric_residual_upper": (audit.normalized_metric_residual_upper),
     }
 
 
@@ -1862,9 +1705,7 @@ def _expected_normalized_audit(
         coverage.fp64_enclosure_protocol,
     )
     if residual.residual_kind != "stability-metric":
-        raise ValueError(
-            "normalized audit requires the metric Laurent residual"
-        )
+        raise ValueError("normalized audit requires the metric Laurent residual")
     if (
         residual.fp64_enclosure_protocol_sha
         != coverage.fp64_enclosure_protocol.protocol_sha
@@ -1874,9 +1715,7 @@ def _expected_normalized_audit(
     denominator = coverage.covered_g_lambda_min_lower
     normalized = directed_div_upper(raw_upper, denominator)
     if normalized > NORMALIZED_METRIC_RESIDUAL_GATE:
-        raise ValueError(
-            "normalized metric residual exceeds the 1e-12 hard gate"
-        )
+        raise ValueError("normalized metric residual exceeds the 1e-12 hard gate")
     provisional = NormalizedMetricResidualAudit(
         audit_schema_version=NORMALIZED_AUDIT_SCHEMA_VERSION,
         metric_residual_sha=residual.residual_sha,
@@ -1889,9 +1728,7 @@ def _expected_normalized_audit(
     )
     return replace(
         provisional,
-        audit_sha=canonical_sha(
-            normalized_metric_residual_audit_payload(provisional)
-        ),
+        audit_sha=canonical_sha(normalized_metric_residual_audit_payload(provisional)),
     )
 
 
@@ -1907,9 +1744,7 @@ class VerifiedNormalizedMetricResidualAudit:
         seal: str,
     ) -> None:
         if token is not _ISSUANCE_TOKEN:
-            raise TypeError(
-                "VerifiedNormalizedMetricResidualAudit is module-issued"
-            )
+            raise TypeError("VerifiedNormalizedMetricResidualAudit is module-issued")
         object.__setattr__(
             self,
             "_VerifiedNormalizedMetricResidualAudit__audit",
@@ -1928,9 +1763,7 @@ class VerifiedNormalizedMetricResidualAudit:
 
     def __setattr__(self, name: str, value: object) -> None:
         del name, value
-        raise AttributeError(
-            "VerifiedNormalizedMetricResidualAudit is immutable"
-        )
+        raise AttributeError("VerifiedNormalizedMetricResidualAudit is immutable")
 
     @property
     def audit(self) -> NormalizedMetricResidualAudit:
@@ -1970,12 +1803,8 @@ def _normalized_seal(
                 "coverage_sha": coverage.coverage_sha,
             },
             "transition": {
-                **measured_transition_payload(
-                    transition_view.transition
-                ),
-                "transition_sha": (
-                    transition_view.transition.transition_sha
-                ),
+                **measured_transition_payload(transition_view.transition),
+                "transition_sha": (transition_view.transition.transition_sha),
             },
             "stability_metric": _metric_record(stability_metric),
         }
@@ -2024,9 +1853,7 @@ def _make_normalized_authority() -> tuple[
         ):
             raise ValueError("audit_sha does not match complete body")
         if audit != expected:
-            raise ValueError(
-                "normalized audit does not match complete reconstruction"
-            )
+            raise ValueError("normalized audit does not match complete reconstruction")
         authority_audit = replace(expected)
         exposed_audit = replace(expected)
         seal = _normalized_seal(
@@ -2052,9 +1879,7 @@ def _make_normalized_authority() -> tuple[
         identity = id(wrapper)
 
         def remove(
-            reference: weakref.ReferenceType[
-                VerifiedNormalizedMetricResidualAudit
-            ],
+            reference: weakref.ReferenceType[VerifiedNormalizedMetricResidualAudit],
             wrapper_id: int = identity,
         ) -> None:
             with lock:
@@ -2077,9 +1902,7 @@ def _make_normalized_authority() -> tuple[
         with lock:
             current = live.get(id(wrapper))
             if current is None or current[0]() is not wrapper:
-                raise ValueError(
-                    "normalized metric residual identity is not live"
-                )
+                raise ValueError("normalized metric residual identity is not live")
             authority = current[1]
         try:
             token = object.__getattribute__(
@@ -2129,9 +1952,7 @@ def _make_normalized_authority() -> tuple[
             or seal != authority.seal
             or seal != expected_seal
         ):
-            raise ValueError(
-                "normalized metric residual immutable seal mismatch"
-            )
+            raise ValueError("normalized metric residual immutable seal mismatch")
         return authority
 
     return issue, reverify
@@ -2196,9 +2017,7 @@ def verify_normalized_metric_residual_audit(
         stability_metric,
     )
     if audit.audit_sha != expected.audit_sha:
-        raise ValueError(
-            "normalized audit does not match complete source bodies"
-        )
+        raise ValueError("normalized audit does not match complete source bodies")
     return _issue_verified_normalized_audit(
         audit,
         metric_residual,
@@ -2231,10 +2050,7 @@ class PowerDriftAudit:
             self.normalized_metric_residual_audit_sha,
             "normalized_metric_residual_audit_sha",
         )
-        if (
-            _wire_int(self.macro_step, "macro_step")
-            != POWER_DRIFT_MACRO_STEP
-        ):
+        if _wire_int(self.macro_step, "macro_step") != POWER_DRIFT_MACRO_STEP:
             raise ValueError("macro_step is not frozen")
         if (
             _wire_int(
@@ -2273,10 +2089,7 @@ class PowerDriftAudit:
                 "drift_upper",
             ):
                 require_semantic_zero(getattr(self, field), field)
-            if (
-                self.one_minus_delta_lower != 1.0
-                or self.one_plus_delta_upper != 1.0
-            ):
+            if self.one_minus_delta_lower != 1.0 or self.one_plus_delta_upper != 1.0:
                 raise ValueError("identity branch one±delta must equal one")
         else:
             if delta <= 0.0 or executed != POWER_DRIFT_SQUARING_COUNT:
@@ -2297,9 +2110,7 @@ def power_drift_audit_payload(
             audit.normalized_metric_residual_audit_sha
         ),
         "macro_step": audit.macro_step,
-        "nonzero_delta_squaring_count": (
-            audit.nonzero_delta_squaring_count
-        ),
+        "nonzero_delta_squaring_count": (audit.nonzero_delta_squaring_count),
         "executed_squaring_count": audit.executed_squaring_count,
         "identity_branch": audit.identity_branch,
         "method_id": audit.method_id,
@@ -2323,9 +2134,7 @@ def _expected_power_drift_audit(
         audit_schema_version=POWER_DRIFT_AUDIT_SCHEMA_VERSION,
         normalized_metric_residual_audit_sha=authority.audit.audit_sha,
         macro_step=bounds.macro_step,
-        nonzero_delta_squaring_count=(
-            bounds.nonzero_delta_squaring_count
-        ),
+        nonzero_delta_squaring_count=(bounds.nonzero_delta_squaring_count),
         executed_squaring_count=bounds.executed_squaring_count,
         identity_branch=bounds.identity_branch,
         method_id=bounds.method_id,
