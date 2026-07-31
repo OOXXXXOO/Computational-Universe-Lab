@@ -108,11 +108,23 @@ case permit 只提供校准、网格和公共最大 source/readout basis authori
 matched-ablated 必须共享同一冻结 run spec，branch-active selector 由各自 raw response
 独立产生，不得复用 actual selector。
 
+readout `BasisManifest` 保存的是 raw row `W`，执行约定仍按任务书取
+`B=conj(W)`。scenario selector `C_readout` 左乘可执行 coisometry，
+`P_readout=C_readout B`；若落盘 scenario basis，其 raw rows 必须为
+`conj(P_readout)`。raw rows、执行共轭、selector 与最终 `P_readout` 均须入 protocol
+SHA，不能利用实 identity fixture 省略共轭方向。
+
 ### 2.2 比例控制使用等谱 projector orientation
 
 phase/gain、干涉、缺模与 extra-mode 应由等谱 shell sector 的 projector/source/readout
 关系构造，使两支共享同一个 Fejér scalar，并让比例在逐 k、任意候选 T 上代数约掉。
 禁止用 eigenphase offset 或事后调整 T 制造目标比例。
+
+局域 recipe 中的 scalar runtime shear 只是完整 factory step 的有序 layer，不是独立
+物理时间步。结构门必须验证完整 layer composite 的酉性、辛性、reality 与谱；recipe
+必须以连续 step ID、有序 tuple 和自哈希冻结共同实现 rotation/swap 的 layer group。
+不得截取非辛的中间 scalar update 冒充合法 transition，也不得把 composite 证书写成
+逐 scalar-layer 辛性证书。
 
 C05 推荐使用 rank-two 等谱 sector：以固定权重和 target-conditioned orientation 产生
 代数可约掉共同 Fejér scalar 的 phase/gain。gain 的方向按任务书固定为
@@ -140,7 +152,41 @@ geometry bundle。最终 bundle 必须在响应运行前，由 Parent scenario +
 解析 semantic basis 先验机械派生，禁止从 `MeasuredTransition`、`ResponseBlock`、
 `S_curv`、`g/c` 或 candidate eigenvectors 反推。
 
-### 2.4 C12 与 geometry bundle
+### 2.4 C18 replacement：on-site direct-sum unary pair
+
+§1.3 记录的 `0.00550278` 结论仍是首个 C18 候选的有效 no-go，不得删除或改写。替代
+构造使用同一四通道状态空间与同一 source/readout：
+
+```text
+source J = [e_q0,e_q1]
+readout P = [e_p0^T,e_p1^T]
+actual M1 = diag(J2,I2)
+matched-ablated M0 = diag(J2,J2)
+```
+
+其中 blind 层由两个 on-site `+π/2` canonical pair rotations 组成，
+target-conditioned 层以 on-site `−π/2` rotation 精确抵消 mode 1；matched branch
+机械删除 conditioned 三个 scalar shear。两支 primitive support 均为 `{0}`，与 `L`
+无关。`new-axis-amplitude=1`、`observer=geometry-and-sigma`、两个 source axis、
+operation kind/dependency/output 必须从 Parent DAG 严格提取；参数只进入 digest 而不控制
+source/readout/tooth 的实现明确为失败。当前 closed form 只接受 exact amplitude `1`，
+其它即使完整重签也 fail-closed。
+
+对 `T=256…8192` 与 `k=π/4,π/2` 的真实 Fejér response：
+
+- actual endpoint rank 为 `1`，participation 为 `0.5`；
+- actual/matched active rank 始终为 `1/2`；
+- actual 的第二 source 方向逐位精确为零；
+- matched 两个 vertical-stack 奇异值从约 `0.704355` 收敛到 `0.707020`，远离
+  `τ_sig=0.001`；
+- actual unary `g≈(0)`、`c=(0,1)`，matched unary `g≈(1,0)`、`c=(1,1)`；
+- fp64 unitary、symplectic、reality residual 均 `≤1e-12`；
+- `L=8/16` real-space factory 与解析 on-site symbol 对拍 `≤2e-12`。
+
+这些只清除 C18 construction/finite-response 可达性阻断，不是
+`VerifiedResponseBlock`、unary geometry、`SigmaFit` 或 Task 14/15 authority。
+
+### 2.5 C12 与 geometry bundle
 
 C12 response spec 必须新增可重放的 per-k incidence/`ν_inc` wires（或完整解析 normalizer
 spec），block audit 保存 raw/normalized spectra、absolute margin 与 relative gap。
@@ -153,16 +199,45 @@ permit_sha / construction_sha
 kernel_basis
 physical_quotient_map / metric
 target representatives
-undressed representatives（C17 only）
+undressed response representatives / gauge basis / expected graph rank（C17 only）
+analytic graph spectrum / Fejér graph formula ID / selected-T expected raw spectrum
 derivation source ID / bundle SHA
 ```
 
-public evaluator 不接受 caller matrices。C17 的 dressed target 只能由 Parent 的
-gauge amplitude/sector 机械生成，且 quotient 前后 `c` 谱漂移 `≤1e-12`。
+public evaluator 不接受 caller matrices。C17 的两支必须共享同一
+`target_physical_representatives`；dressed response graph 只能由 Parent 的 gauge
+amplitude/sector 与解析局域 recipe 机械生成，且 quotient 前后 `c` 谱漂移 `≤1e-12`。
+这里的 `a=8` 是 response subspace 相对冻结 physical/gauge decomposition 的
+basis-invariant graph slope：actual 局域 canonical graph rotation 使用
+`θ=atan(a)`（或解析等价参数），matched-ablated 给 undressed graph。解析 positive-shell
+graph 的两条 slope 必须逐位为 `8`。它不是 raw
+absolute difference `Y_actual-Y_ablated=8g`；后者与两 k unitary Fejér contraction 的
+`||ΔY||₂≤2√2` 上界矛盾。只改 target representative 或只保存 amplitude metadata 均不算
+C17 通过。
+
+本次 C17 `expected_graph_rank=2`：预响应冻结
+`T,G∈ℂ^{8×2}`，验证两者各自正交、`T†G=0`、`Π_phys G=0`，并验证解析
+`U_shell=(T+8G)/√65`。同一 source/readout/run spec 必须用于 endpoint 与两支 response；
+C17 共同 source 冻结为 actual analytic shell `J=U_shell`，所以 actual endpoint
+participation 为 `1`。当前 Fejér 窗的负频带系数为 `r_T=1/(T+1)`，因此 actual raw
+graph slope 保持 `(8,8)`，matched-ablated raw slope 为
+`(8/(T+1),8/(T+1))`；matched analytic shell graph rank 仍为 `0`，不得把两者混写。
+formula ID 与 selected-T 两支 expected wire 必须在 response 前冻结。对两支实测 active
+frame `U_b,T`，必须先保存并通过
+`max_i|σ_i(T†U_b,T)-1/√(1+a_b,T²)|≤1e-12`，再以
+`A_b,T=(G†U_b,T)(T†U_b,T)⁻¹` 重算
+`max_i|sv_i(A_b,T)-a_b,T|≤1e-12`。C17 `kernel_basis=orth([T,G])`，其中
+`T=TT`、`G=gauge`；
+`Π_phys` 只杀 `G` 并保留 `T`。旧 Parent
+logical effect 的 rank-1 `3×2` gauge row 与该合同不一致，必须在唯一 Parent candidate
+中显式 refreeze 为 rank-2 graph，不能只由 recipe 偷换。解析
+`(T+8G)/√65` 与 physical-normalized `T+8G` 必须和 raw response 分字段保存；measured
+active frame 不得反向进入预响应 bundle。
 
 ## 3. 预定迁移
 
-签发版至少需要：
+本文件只在阶段 B 签发；此前 Parent 修改必须显式标成
+`PROVISIONAL_NOT_ISSUED`，不得被 permit issuer 接受。签发版至少需要：
 
 1. Parent refreeze C05、C07、C08、C10、C12、C15–C19 的 scenario response 合同；
 2. C07 拆为 constructive/destructive 两个成功 scenario；destructive 两支都必须为
@@ -175,6 +250,10 @@ gauge amplitude/sector 机械生成，且 quotient 前后 `c` 谱漂移 `≤1e-1
 6. 重新运行所有候选 T 的 endpoint、bridge、raw/gap、finite response 与 C15–C19
    geometry/unary/collapse 预飞；
 7. 独立复审 raw 表、勘误正文、Parent diff 与 verifier negative tests 后，才允许签发。
+
+签发动作与 Parent root refreeze 必须位于同一个原子提交：先以 provisional candidate
+完成第 7 项复审，再把本文件最终 `SIGNED` SHA 写入 Parent 并只生成一个最终 root；禁止
+在仓库历史中发布引用 DRAFT SHA 的中间 authority root。
 
 ## 4. 当前状态
 
