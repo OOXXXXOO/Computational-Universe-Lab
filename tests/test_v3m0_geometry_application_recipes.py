@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 import unittest
+from unittest.mock import patch
 
 import numpy as np
+import rulespace_v3.geometry_application_recipes as geometry_recipes
 
 from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.factory import (
@@ -12,6 +15,7 @@ from rulespace_v3.factory import (
     build_basis_manifest,
     build_factory_from_trace,
     factory_support_offsets,
+    freeze_complex_tensor,
     frozen_tensor_array,
 )
 from rulespace_v3.geometry import (
@@ -23,10 +27,13 @@ from rulespace_v3.geometry_application_recipes import (
     GEOMETRY_APPLICATION_SCENARIO_IDS,
     C15_EXPECTED_SPECTRA,
     _build_c15_preflight_bundle,
+    _finite_response,
     build_geometry_application_recipe,
     build_geometry_recipe_trace_and_operators,
     geometry_application_recipe_symbol,
+    geometry_operator_bundle_template_payload,
 )
+from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
 from rulespace_v3.response import (
     _extract_projector_candidates,
@@ -215,6 +222,182 @@ class GeometryApplicationRecipeTests(unittest.TestCase):
                         rtol=0.0,
                         atol=2.0e-12,
                     )
+
+    def test_c15_analytic_bundle_build_does_not_read_finite_response(self) -> None:
+        builder = getattr(
+            geometry_recipes,
+            "build_c15_analytic_geometry_bundle",
+            None,
+        )
+        verifier = getattr(
+            geometry_recipes,
+            "verify_c15_analytic_geometry_bundle",
+            None,
+        )
+        self.assertTrue(callable(builder))
+        self.assertTrue(callable(verifier))
+        with patch(
+            "rulespace_v3.geometry_application_recipes._finite_response",
+            side_effect=AssertionError("finite response is forbidden"),
+        ):
+            bundle = builder(self.parent, 256)
+            verified = verifier(
+                self.parent,
+                bundle,
+            )
+        self.assertIs(verified, bundle)
+        self.assertEqual(
+            bundle.construction_rule_id,
+            "c15-analytic-shell-semantic-bundle-v1",
+        )
+
+    def test_c15_analytic_bundle_measures_finite_t_sides_with_margin(self) -> None:
+        builder = getattr(
+            geometry_recipes,
+            "build_c15_analytic_geometry_bundle",
+            None,
+        )
+        self.assertTrue(callable(builder))
+        expected_ranks = dict(
+            zip(C15_GEOMETRY_SCENARIO_IDS, (4, 1, 2, 3))
+        )
+        expected_g_sides = {
+            C15_GEOMETRY_SCENARIO_IDS[0]: ("above", "below", "below", "below"),
+            C15_GEOMETRY_SCENARIO_IDS[1]: ("below",),
+            C15_GEOMETRY_SCENARIO_IDS[2]: ("below", "below"),
+            C15_GEOMETRY_SCENARIO_IDS[3]: ("above", "below", "below"),
+        }
+        expected_c_sides = {
+            C15_GEOMETRY_SCENARIO_IDS[0]: ("above", "above"),
+            C15_GEOMETRY_SCENARIO_IDS[1]: ("below", "above"),
+            C15_GEOMETRY_SCENARIO_IDS[2]: ("above", "above"),
+            C15_GEOMETRY_SCENARIO_IDS[3]: ("above", "above"),
+        }
+        thresholds = GeometryNumericalThresholds(
+            signal_threshold=0.001,
+            geometry_threshold=0.05,
+            geometry_ambiguity_half_width=0.01,
+            coverage_threshold=0.5,
+            coverage_ambiguity_half_width=0.1,
+        )
+
+        def side(value: float, threshold: float, half_width: float) -> str:
+            if abs(value - threshold) < half_width:
+                return "grey"
+            return "below" if value < threshold else "above"
+
+        for order in (256, 512, 1024, 2048, 4096, 8192):
+            bundle = builder(self.parent, order)
+            kernel = frozen_tensor_array(bundle.kernel_basis)
+            quotient = frozen_tensor_array(bundle.physical_quotient_map)
+            metric = frozen_tensor_array(bundle.physical_quotient_metric)
+            targets = frozen_tensor_array(bundle.target_physical_representatives)
+            for scenario_id in C15_GEOMETRY_SCENARIO_IDS:
+                with self.subTest(order=order, scenario_id=scenario_id):
+                    response = _finite_response(
+                        self.recipes[scenario_id],
+                        "actual",
+                        order,
+                    )
+                    left, singular_values, _ = np.linalg.svd(
+                        response,
+                        full_matrices=False,
+                    )
+                    active = singular_values > thresholds.signal_threshold
+                    self.assertEqual(
+                        int(np.count_nonzero(active)),
+                        expected_ranks[scenario_id],
+                    )
+                    result = _compute_geometry_spectrum_from_matrices(
+                        np.asarray(left[:, active], dtype=np.complex128),
+                        kernel,
+                        quotient,
+                        metric,
+                        targets,
+                        thresholds=thresholds,
+                    )
+                    self.assertEqual(
+                        tuple(
+                            side(
+                                value,
+                                thresholds.geometry_threshold,
+                                thresholds.geometry_ambiguity_half_width,
+                            )
+                            for value in result.g_spectrum
+                        ),
+                        expected_g_sides[scenario_id],
+                    )
+                    self.assertEqual(
+                        tuple(
+                            side(
+                                value,
+                                thresholds.coverage_threshold,
+                                thresholds.coverage_ambiguity_half_width,
+                            )
+                            for value in result.c_spectrum
+                        ),
+                        expected_c_sides[scenario_id],
+                    )
+                    self.assertGreater(
+                        min(
+                            abs(value - thresholds.geometry_threshold)
+                            for value in result.g_spectrum
+                        ),
+                        thresholds.geometry_ambiguity_half_width,
+                    )
+                    self.assertGreater(
+                        min(
+                            abs(value - thresholds.coverage_threshold)
+                            for value in result.c_spectrum
+                        ),
+                        thresholds.coverage_ambiguity_half_width,
+                    )
+
+    def test_c15_analytic_bundle_rejects_resigned_tensor_and_scenario_splice(
+        self,
+    ) -> None:
+        builder = getattr(
+            geometry_recipes,
+            "build_c15_analytic_geometry_bundle",
+            None,
+        )
+        verifier = getattr(
+            geometry_recipes,
+            "verify_c15_analytic_geometry_bundle",
+            None,
+        )
+        self.assertTrue(callable(builder))
+        self.assertTrue(callable(verifier))
+        bundle = builder(self.parent, 256)
+        changed_kernel = frozen_tensor_array(bundle.kernel_basis)
+        changed_kernel[0, 0] += 0.125
+        tampered_tensor = replace(
+            bundle,
+            kernel_basis=freeze_complex_tensor(changed_kernel),
+            bundle_sha="0" * 64,
+        )
+        tampered_tensor = replace(
+            tampered_tensor,
+            bundle_sha=canonical_sha(
+                geometry_operator_bundle_template_payload(tampered_tensor)
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "differs from|analytic"):
+            verifier(self.parent, tampered_tensor)
+
+        spliced = replace(
+            bundle,
+            scenario_recipe_shas=tuple(reversed(bundle.scenario_recipe_shas)),
+            bundle_sha="0" * 64,
+        )
+        spliced = replace(
+            spliced,
+            bundle_sha=canonical_sha(
+                geometry_operator_bundle_template_payload(spliced)
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "differs from|analytic"):
+            verifier(self.parent, spliced)
 
     def test_actual_and_matched_ablated_are_resolved_at_finite_order(self) -> None:
         for scenario_id in C15_GEOMETRY_SCENARIO_IDS:

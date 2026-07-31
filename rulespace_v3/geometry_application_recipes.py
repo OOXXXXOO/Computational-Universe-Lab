@@ -42,6 +42,7 @@ from .factory import (
     PrimitiveOperatorWire,
     freeze_complex_tensor,
     frozen_tensor_array,
+    verify_frozen_tensor,
 )
 from .parent_freeze import (
     ApplicationScenarioExecutionSpec,
@@ -447,6 +448,26 @@ def geometry_operator_bundle_template_payload(
         ),
         "integration_state": bundle.integration_state,
     }
+
+
+def _validate_geometry_operator_bundle_template(
+    bundle: GeometryOperatorBundleTemplate,
+) -> None:
+    if type(bundle) is not GeometryOperatorBundleTemplate:
+        raise TypeError(
+            "bundle must be an exact GeometryOperatorBundleTemplate"
+        )
+    for tensor in (
+        bundle.kernel_basis,
+        bundle.physical_quotient_map,
+        bundle.physical_quotient_metric,
+        bundle.target_physical_representatives,
+    ):
+        verify_frozen_tensor(tensor)
+    if bundle.bundle_sha != canonical_sha(
+        geometry_operator_bundle_template_payload(bundle)
+    ):
+        raise ValueError("geometry operator bundle SHA does not match its body")
 
 
 def _find_application_and_scenario(
@@ -1079,6 +1100,166 @@ def build_geometry_recipe_trace_and_operators(
     return trace, tuple(operators)
 
 
+def _analytic_orthonormal_columns(
+    matrix: np.ndarray,
+    *,
+    expected_rank: int,
+) -> np.ndarray:
+    """Canonical Gram--Schmidt for an analytic pre-response column family."""
+
+    values = np.asarray(matrix, dtype=np.complex128)
+    if values.ndim != 2 or expected_rank <= 0:
+        raise ValueError("analytic semantic family has an invalid shape or rank")
+    columns: list[np.ndarray] = []
+    for source in values.T:
+        vector = source.copy()
+        # Re-orthogonalize once so the frozen fp64 residual is insensitive to
+        # the ordering of nearly aligned analytic semantic representatives.
+        for _ in range(2):
+            for prior in columns:
+                vector -= prior * np.vdot(prior, vector)
+        norm = float(np.linalg.norm(vector))
+        if norm <= 1.0e-10:
+            continue
+        vector /= norm
+        pivot = int(np.argmax(np.abs(vector)))
+        vector *= np.exp(-1.0j * np.angle(vector[pivot]))
+        columns.append(vector)
+        if len(columns) == expected_rank:
+            break
+    if len(columns) != expected_rank:
+        raise ValueError("analytic semantic family has the wrong rank")
+    result = np.column_stack(columns)
+    if (
+        np.linalg.norm(
+            result.conj().T @ result - np.eye(expected_rank),
+            ord=2,
+        )
+        > 2.0e-12
+    ):
+        raise ValueError("analytic semantic basis is not orthonormal")
+    return np.asarray(result, dtype=np.complex128)
+
+
+def build_c15_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    selected_fejer_order: int,
+) -> GeometryOperatorBundleTemplate:
+    """Build the C15 comparison geometry before any finite response exists.
+
+    The builder consumes only the live ParentFreeze, its exact four C15
+    scenario DAGs, and the replayed analytic local-shear recipes.  In
+    particular it never calls the finite-Fejer response path and never reads a
+    transition, response block, candidate response SVD, or measured geometry.
+    The returned object remains a pending pre-permit template, not authority.
+    """
+
+    if selected_fejer_order not in _CANDIDATE_FEJER_ORDERS:
+        raise ValueError("analytic bundle Fejer order is not preregistered")
+    recipes = {
+        scenario_id: build_geometry_application_recipe(parent, scenario_id)
+        for scenario_id in C15_GEOMETRY_SCENARIO_IDS
+    }
+    full_recipe = recipes[C15_GEOMETRY_SCENARIO_IDS[0]]
+    semantic = frozen_tensor_array(full_recipe.source_injection)
+    if semantic.shape != (4, 4) or full_recipe.semantic_sector_names != (
+        "TT0",
+        "TT1",
+        "Gauge",
+        "Row",
+    ):
+        raise ValueError("C15 analytic semantic source frame is not frozen")
+
+    expected_source_columns = {
+        C15_GEOMETRY_SCENARIO_IDS[0]: (0, 1, 2, 3),
+        C15_GEOMETRY_SCENARIO_IDS[1]: (0,),
+        C15_GEOMETRY_SCENARIO_IDS[2]: (0, 1),
+        C15_GEOMETRY_SCENARIO_IDS[3]: (0, 1, 3),
+    }
+    for scenario_id, indices in expected_source_columns.items():
+        observed = frozen_tensor_array(recipes[scenario_id].source_injection)
+        expected = semantic[:, indices]
+        if not np.array_equal(observed, expected):
+            raise ValueError("C15 scenario source is not its frozen semantic slice")
+
+    # ``(I-iM(k))/2`` is the exact rank-two positive-shell projector of this
+    # analytic quarter-turn carrier.  Stacking its action on the frozen
+    # semantic source frame defines observer representatives without invoking
+    # finite-T filtering or decomposing a measured candidate response.
+    analytic_shell_representatives = np.vstack(
+        tuple(
+            _positive_projector(
+                _symbol_from_steps(full_recipe.actual_steps, momentum)
+            )
+            @ semantic
+            for momentum in _COMMON_MOMENTA
+        )
+    )
+    tt = _analytic_orthonormal_columns(
+        analytic_shell_representatives[:, :2],
+        expected_rank=2,
+    )
+    row_residual = analytic_shell_representatives[:, 3:4] - tt @ (
+        tt.conj().T @ analytic_shell_representatives[:, 3:4]
+    )
+    row = _analytic_orthonormal_columns(row_residual, expected_rank=1)
+    tt_row = np.column_stack((tt, row))
+    gauge_residual = analytic_shell_representatives[:, 2:3] - tt_row @ (
+        tt_row.conj().T @ analytic_shell_representatives[:, 2:3]
+    )
+    gauge = _analytic_orthonormal_columns(gauge_residual, expected_rank=1)
+
+    manifest = _reverify_verified_parent_freeze(parent)
+    provisional = GeometryOperatorBundleTemplate(
+        bundle_schema_version=(
+            GEOMETRY_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION
+        ),
+        parent_freeze_sha=manifest.parent_freeze_sha,
+        application_spec_sha=full_recipe.application_spec_sha,
+        scenario_recipe_shas=tuple(
+            recipes[scenario_id].recipe_sha
+            for scenario_id in C15_GEOMETRY_SCENARIO_IDS
+        ),
+        construction_rule_id="c15-analytic-shell-semantic-bundle-v1",
+        selected_fejer_order=selected_fejer_order,
+        observer_dimension=8,
+        kernel_basis=freeze_complex_tensor(np.column_stack((tt, gauge))),
+        physical_quotient_map=freeze_complex_tensor(tt_row.conj().T),
+        physical_quotient_metric=freeze_complex_tensor(
+            np.eye(3, dtype=np.complex128)
+        ),
+        target_physical_representatives=freeze_complex_tensor(tt),
+        integration_state=GEOMETRY_APPLICATION_INTEGRATION_STATE,
+        bundle_sha="0" * 64,
+    )
+    bundle = replace(
+        provisional,
+        bundle_sha=canonical_sha(
+            geometry_operator_bundle_template_payload(provisional)
+        ),
+    )
+    _validate_geometry_operator_bundle_template(bundle)
+    return bundle
+
+
+def verify_c15_analytic_geometry_bundle(
+    parent: VerifiedParentFreeze,
+    bundle: GeometryOperatorBundleTemplate,
+) -> GeometryOperatorBundleTemplate:
+    """Replay a pending analytic C15 bundle against the live ParentFreeze."""
+
+    _validate_geometry_operator_bundle_template(bundle)
+    if bundle.construction_rule_id != "c15-analytic-shell-semantic-bundle-v1":
+        raise ValueError("bundle is not a C15 analytic geometry template")
+    expected = build_c15_analytic_geometry_bundle(
+        parent,
+        bundle.selected_fejer_order,
+    )
+    if bundle != expected:
+        raise ValueError("analytic geometry bundle differs from live replay")
+    return bundle
+
+
 def _finite_response(
     recipe: GeometryApplicationRecipeArtifact,
     branch: Literal["actual", "matched_ablated"],
@@ -1230,10 +1411,12 @@ __all__ = [
     "GEOMETRY_OPERATOR_BUNDLE_TEMPLATE_SCHEMA_VERSION",
     "GeometryApplicationRecipeArtifact",
     "GeometryOperatorBundleTemplate",
+    "build_c15_analytic_geometry_bundle",
     "build_geometry_application_recipe",
     "build_geometry_recipe_trace_and_operators",
     "geometry_application_recipe_payload",
     "geometry_application_recipe_symbol",
     "geometry_operator_bundle_template_payload",
+    "verify_c15_analytic_geometry_bundle",
     "verify_geometry_application_recipe",
 ]
