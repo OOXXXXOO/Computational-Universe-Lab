@@ -6,8 +6,8 @@ source/readout maps, construction trace and both factory bindings.  Only an
 opaque capability produced by a closed replay of a live Parent-v2 and live
 permit-v2 may be consumed downstream.
 
-Permit-v2 and the formal DAG/recipe-to-factory compiler are not yet complete.
-The public issuer therefore fails closed; it never falls back to the v1
+The formal Parent-v2 and DAG/recipe-to-factory compiler are not yet live.  The
+public issuer therefore fails closed; it never falls back to the v1
 materializer, a candidate DAG, a raw permit, or caller-supplied construction
 data.
 """
@@ -65,7 +65,7 @@ UPSTREAM_V2_WIRING_POINTS = (
     "rulespace_v3.parent_authority.VerifiedParentFreezeV2",
     "rulespace_v3.parent_authority.require_current_parent",
     "rulespace_v3.application_authority_v2.VerifiedCalibrationApplicationPermitV2",
-    "rulespace_v3.application_authority_v2.require_current_calibration_application_permit_v2",
+    "rulespace_v3.application_authority_v2.require_calibration_application_permit_v2",
     "formal Parent-v2 scenario DAG/recipe-to-factory compiler",
 )
 
@@ -1089,7 +1089,7 @@ def _require_exact_live_upstream(
     try:
         from .application_authority_v2 import (
             VerifiedCalibrationApplicationPermitV2,
-            require_current_calibration_application_permit_v2,
+            require_calibration_application_permit_v2,
         )
     except (ImportError, AttributeError) as exc:
         raise ApplicationMaterializationV2UpstreamUnavailable(
@@ -1099,7 +1099,7 @@ def _require_exact_live_upstream(
     if type(permit_v2) is not VerifiedCalibrationApplicationPermitV2:
         raise TypeError("permit_v2 must be an exact live permit-v2")
     parent_manifest = require_current_parent(formal_parent_v2)
-    permit_body = require_current_calibration_application_permit_v2(permit_v2)
+    permit_body = require_calibration_application_permit_v2(permit_v2)
     return parent_manifest, permit_body
 
 

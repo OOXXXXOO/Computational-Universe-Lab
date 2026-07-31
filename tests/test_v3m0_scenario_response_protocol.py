@@ -302,6 +302,43 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             ("value",),
         )
 
+    def test_delayed_upstream_wiring_uses_exact_v2_public_consumers(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            VerifiedCalibrationApplicationPermitV2,
+            require_calibration_application_permit_v2,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            VerifiedV3M0ApplicationScenarioMaterializationV2,
+            verify_v3m0_application_scenario_materialization_v2,
+        )
+        from rulespace_v3.scenario_response_protocol import (
+            UPSTREAM_V2_WIRING_POINTS,
+            _load_exact_v2_upstream,
+        )
+
+        self.assertEqual(
+            UPSTREAM_V2_WIRING_POINTS,
+            (
+                "rulespace_v3.application_authority_v2."
+                "VerifiedCalibrationApplicationPermitV2",
+                "rulespace_v3.application_authority_v2."
+                "require_calibration_application_permit_v2",
+                "rulespace_v3.application_materialization_v2."
+                "VerifiedV3M0ApplicationScenarioMaterializationV2",
+                "rulespace_v3.application_materialization_v2."
+                "verify_v3m0_application_scenario_materialization_v2",
+            ),
+        )
+        self.assertEqual(
+            _load_exact_v2_upstream(),
+            (
+                VerifiedCalibrationApplicationPermitV2,
+                require_calibration_application_permit_v2,
+                VerifiedV3M0ApplicationScenarioMaterializationV2,
+                verify_v3m0_application_scenario_materialization_v2,
+            ),
+        )
+
     def test_raw_body_replays_basis_direction_and_self_hash(self) -> None:
         from rulespace_v3.scenario_response_protocol import (
             verify_application_scenario_response_protocol_v2_body,
@@ -393,11 +430,17 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             )
 
     def test_raw_candidate_v1_draft_and_forged_capabilities_never_issue(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            VerifiedCalibrationApplicationPermitV2,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            VerifiedV3M0ApplicationScenarioMaterializationV2,
+        )
+        from rulespace_v3.parent_authority import VerifiedParentFreezeV2
         from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
         from rulespace_v3.parent_candidate_v2 import ParentFreezeCandidateV2Manifest
         from rulespace_v3.parent_v2_contracts import ParentFreezeV2Manifest
         from rulespace_v3.scenario_response_protocol import (
-            ScenarioResponseProtocolUpstreamUnavailable,
             VerifiedApplicationScenarioResponseProtocolV2,
             issue_v3m0_scenario_response_protocol,
             verify_v3m0_scenario_response_protocol,
@@ -421,16 +464,13 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         forged = object.__new__(VerifiedApplicationScenarioResponseProtocolV2)
         with self.assertRaises(ValueError):
             verify_v3m0_scenario_response_protocol(forged)
-        with self.assertRaises(ScenarioResponseProtocolUpstreamUnavailable):
+        with self.assertRaisesRegex(ValueError, "live registry"):
             issue_v3m0_scenario_response_protocol(
+                object.__new__(VerifiedParentFreezeV2),
+                object.__new__(VerifiedCalibrationApplicationPermitV2),
                 object.__new__(
-                    __import__(
-                        "rulespace_v3.parent_authority",
-                        fromlist=["VerifiedParentFreezeV2"],
-                    ).VerifiedParentFreezeV2
+                    VerifiedV3M0ApplicationScenarioMaterializationV2
                 ),
-                object(),
-                object(),
             )
 
     def test_public_issuer_has_no_caller_injection_surface(self) -> None:

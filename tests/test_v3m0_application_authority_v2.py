@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import replace
+from types import SimpleNamespace
 import unittest
+
+import numpy as np
 
 
 SHA0 = "0" * 64
@@ -93,10 +96,14 @@ def _application_authority(
     ),
 ):
     from rulespace_v3.evidence import canonical_sha
+    from rulespace_v3.factory import freeze_complex_tensor
     from rulespace_v3.parent_freeze import (
         APPLICATION_SCENARIO_SCHEMA_VERSION,
+        SCENARIO_BASIS_SELECTOR_SCHEMA_VERSION,
         ApplicationScenarioExecutionSpec,
+        ScenarioBasisSelectorSpec,
         application_scenario_execution_spec_payload,
+        scenario_basis_selector_spec_payload,
     )
     from rulespace_v3.parent_v2_contracts import (
         CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION,
@@ -129,19 +136,56 @@ def _application_authority(
             application_scenario_execution_spec_payload(execution0)
         ),
     )
+    source_injection = freeze_complex_tensor(
+        np.asarray(((1.0,), (0.0,)), dtype=np.complex128)
+    )
+    readout_coisometry = freeze_complex_tensor(
+        np.asarray(((1.0, 0.0),), dtype=np.complex128)
+    )
+    selector0 = ScenarioBasisSelectorSpec(
+        selector_schema_version=SCENARIO_BASIS_SELECTOR_SCHEMA_VERSION,
+        scenario_id=scenario_id,
+        public_source_basis_manifest_id=SHA1,
+        public_readout_basis_manifest_id=SHA2,
+        source_selector_derivation_id="test-source-selector-v1",
+        readout_selector_derivation_id="test-readout-selector-v1",
+        source_selector=source_injection,
+        readout_selector=readout_coisometry,
+        source_injection=source_injection,
+        readout_coisometry=readout_coisometry,
+        selector_sha=SHA0,
+    )
+    selector = replace(
+        selector0,
+        selector_sha=canonical_sha(
+            scenario_basis_selector_spec_payload(selector0)
+        ),
+    )
     response0 = CurrentScenarioResponseContractV2(
         response_contract_schema_version=(
             CURRENT_SCENARIO_RESPONSE_CONTRACT_SCHEMA_VERSION
         ),
         contract_state="CURRENT_REVIEWED_RESPONSE_CONTRACT",
         scenario_id=scenario_id,
-        selector_sha=SHA1,
+        selector_sha=selector.selector_sha,
+        selector_spec=selector,
+        source_trial_vectors=freeze_complex_tensor(
+            np.eye(1, dtype=np.complex128)
+        ),
+        response_torus_denominators=(8, 8),
+        response_reciprocal_indices=((1, 0),),
+        source_readout_bridge_reciprocal_indices=((1, 0),),
+        source_readout_bridge_steps=(4,),
+        reference_reciprocal_index=(1, 0),
+        preregistered_phase_bands=((0.2, 0.4),),
         operation_dag_sha=SHA1,
         compiled_contract_sha=SHA1,
         construction_rule_id="test-target-slot-deletion-v1",
         construction_family_id="test-local-shear-v1",
         expected_actual_shell_rank=1,
         expected_matched_shell_rank=1,
+        actual_step_count=1,
+        matched_ablated_step_count=1,
         actual_program_sha=SHA1,
         matched_ablated_program_sha=SHA2,
         preflight_derivation_or_recipe_sha=SHA3,
@@ -201,6 +245,26 @@ def _application_authority(
     )
 
 
+def _parent_manifest(*application_stages):
+    applications = tuple(item[0] for item in application_stages)
+    specifications = tuple(
+        SimpleNamespace(
+            control_case_id=application.control_case_id,
+            application_instance_id=application.application_instance_id,
+            application_spec_sha=application.based_on_application_spec_sha,
+            required_pipeline_stages=(pipeline_stage,),
+        )
+        for application, pipeline_stage in application_stages
+    )
+    return SimpleNamespace(
+        parent_freeze_v2_sha=SHA1,
+        current_application_authorities=applications,
+        historical_parent_v1=SimpleNamespace(
+            synthetic_control_application_specs=specifications,
+        ),
+    )
+
+
 class ApplicationAuthorityV2PublicSurfaceTests(unittest.TestCase):
     def test_public_issuers_accept_no_threshold_or_scenario_template_inputs(self) -> None:
         from rulespace_v3.application_authority_v2 import (
@@ -222,7 +286,7 @@ class ApplicationAuthorityV2PublicSurfaceTests(unittest.TestCase):
                     issue_v3m0_calibration_application_permit_v2
                 ).parameters
             ),
-            ("parent", "calibration", "control_case_id"),
+            ("parent", "calibration", "application_instance_id"),
         )
 
     def test_calibration_issuer_rejects_v1_candidate_and_untyped_parents(
@@ -271,7 +335,7 @@ class ApplicationAuthorityV2PublicSurfaceTests(unittest.TestCase):
                     issue_v3m0_calibration_application_permit_v2(
                         object(),
                         value,
-                        "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE",
+                        "v3m0.synthetic-control.c07.v1",
                     )
 
     def test_parent_seam_still_fails_closed_without_v2_task11_replay(self) -> None:
@@ -433,23 +497,22 @@ class WindowThresholdCalibrationV2CapabilityTests(unittest.TestCase):
 
 
 class CalibrationApplicationPermitV2WireTests(unittest.TestCase):
-    def test_expected_permit_selects_all_scenarios_by_control_case_only(self) -> None:
-        from types import SimpleNamespace
-
+    def test_expected_permit_selects_all_scenarios_by_application_instance(
+        self,
+    ) -> None:
         from rulespace_v3.application_authority_v2 import (
             _expected_calibration_application_permit_v2,
         )
 
         application = _application_authority()
-        parent = SimpleNamespace(
-            parent_freeze_v2_sha=SHA1,
-            current_application_authorities=(application,),
+        parent = _parent_manifest(
+            (application, "control-application-evidence"),
         )
 
         permit = _expected_calibration_application_permit_v2(
             parent,
             _calibration(),
-            application.control_case_id,
+            application.application_instance_id,
         )
         self.assertEqual(permit.application_authority, application)
         self.assertEqual(
@@ -463,8 +526,86 @@ class CalibrationApplicationPermitV2WireTests(unittest.TestCase):
             _expected_calibration_application_permit_v2(
                 parent,
                 _calibration(),
-                "C99_CALLER_INVENTED_CASE",
+                "v3m0.synthetic-control.c99.caller-invented.v1",
             )
+
+    def test_selected_calibration_case_and_instance_ids_never_get_permits(
+        self,
+    ) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+
+        selected = (
+            (
+                "C01_BLIND_HOLDOUT_FULL",
+                "v3m0.synthetic-control.c01.v1",
+                "holdout-span",
+            ),
+            (
+                "C02_CONDITIONED_ZERO",
+                "v3m0.synthetic-control.c02.v1",
+                "conditioned-zero",
+            ),
+            (
+                "C03_EQUAL_RANK_DIRECT_SUM",
+                "v3m0.synthetic-control.c03.v1",
+                "equal-rank-direct-sum",
+            ),
+        )
+        for control_case_id, application_instance_id, scenario_slug in selected:
+            application = _application_authority(
+                control_case_id=control_case_id,
+                application_instance_id=application_instance_id,
+                scenario_id=(
+                    f"{application_instance_id}.scenario.{scenario_slug}.v1"
+                ),
+            )
+            parent = _parent_manifest((application, "window-calibration"))
+            for caller_identifier in (
+                control_case_id,
+                application_instance_id,
+            ):
+                with self.subTest(
+                    control_case_id=control_case_id,
+                    caller_identifier=caller_identifier,
+                ):
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        "application instance|selected calibration",
+                    ):
+                        _expected_calibration_application_permit_v2(
+                            parent,
+                            _calibration(),
+                            caller_identifier,
+                        )
+
+    def test_c20_analysis_application_is_not_removed_by_case_filter(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            _expected_calibration_application_permit_v2,
+        )
+
+        application = _application_authority(
+            control_case_id="C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
+            application_instance_id="v3m0.synthetic-control.c20.v1",
+            scenario_id=(
+                "v3m0.synthetic-control.c20.v1.scenario.clean-zero.v1"
+            ),
+        )
+        parent = _parent_manifest(
+            (application, "control-application-evidence"),
+        )
+
+        permit = _expected_calibration_application_permit_v2(
+            parent,
+            _calibration(),
+            application.application_instance_id,
+        )
+        self.assertEqual(permit.control_case_id, application.control_case_id)
+        self.assertEqual(
+            permit.application_authority.application_instance_id,
+            application.application_instance_id,
+        )
 
     def test_exact_permit_binds_parent_calibration_application_and_scenarios(
         self,

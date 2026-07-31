@@ -385,6 +385,21 @@ class ApplicationMaterializationV2ContractTests(unittest.TestCase):
         )
         self.assertFalse(hasattr(VerifiedV3M0ApplicationScenarioMaterializationV2, "hydrate"))
 
+    def test_delayed_permit_wiring_uses_v2_public_consumer(self) -> None:
+        from rulespace_v3.application_authority_v2 import (
+            VerifiedCalibrationApplicationPermitV2,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            _require_exact_live_upstream,
+        )
+        from rulespace_v3.parent_authority import VerifiedParentFreezeV2
+
+        with self.assertRaisesRegex(ValueError, "live registry"):
+            _require_exact_live_upstream(
+                object.__new__(VerifiedParentFreezeV2),
+                object.__new__(VerifiedCalibrationApplicationPermitV2),
+            )
+
     def test_exact_body_replays_scenario_selectors_and_factories(self) -> None:
         from rulespace_v3.application_materialization_v2 import (
             verify_application_scenario_materialization_v2_body,

@@ -583,29 +583,56 @@ def _permit_seal(permit: CalibrationApplicationPermitV2) -> str:
     )
 
 
-def _current_application_for_control_case(
+def _current_application_for_instance(
     parent_manifest,
-    control_case_id: str,
+    application_instance_id: str,
 ) -> CurrentApplicationAuthorityV2:
-    identifier = _text(control_case_id, "control_case_id")
+    identifier = _text(application_instance_id, "application_instance_id")
     matches = tuple(
         item
         for item in parent_manifest.current_application_authorities
-        if item.control_case_id == identifier
+        if item.application_instance_id == identifier
     )
     if len(matches) != 1:
         raise ValueError(
-            "control case does not resolve to one current application authority"
+            "application instance ID does not resolve to one current "
+            "application authority"
         )
     application = matches[0]
     _verify_current_application_authority(application)
+
+    source_matches = tuple(
+        item
+        for item in (
+            parent_manifest.historical_parent_v1.synthetic_control_application_specs
+        )
+        if item.application_instance_id == identifier
+    )
+    if len(source_matches) != 1:
+        raise ValueError(
+            "application instance ID does not resolve to one Parent application spec"
+        )
+    source = source_matches[0]
+    if (
+        source.control_case_id != application.control_case_id
+        or source.application_spec_sha != application.based_on_application_spec_sha
+    ):
+        raise ValueError("current application authority is spliced from its Parent spec")
+    if (
+        "control-application-evidence" not in source.required_pipeline_stages
+        or "window-calibration" in source.required_pipeline_stages
+    ):
+        raise ValueError(
+            "selected calibration applications C01-C03 cannot receive "
+            "application permits"
+        )
     return copy.deepcopy(application)
 
 
 def _expected_calibration_application_permit_v2(
     parent_manifest,
     calibration: WindowThresholdCalibrationV2,
-    control_case_id: str,
+    application_instance_id: str,
 ) -> CalibrationApplicationPermitV2:
     verified_calibration = verify_window_threshold_calibration_v2_wire(
         calibration
@@ -615,9 +642,9 @@ def _expected_calibration_application_permit_v2(
         != parent_manifest.parent_freeze_v2_sha
     ):
         raise ValueError("Task-11-v2 calibration is bound to another Parent-v2")
-    application = _current_application_for_control_case(
+    application = _current_application_for_instance(
         parent_manifest,
-        control_case_id,
+        application_instance_id,
     )
     scenario_shas = tuple(
         item.scenario_authority_sha
@@ -722,7 +749,7 @@ def require_calibration_application_permit_v2(
     expected = _expected_calibration_application_permit_v2(
         parent_manifest,
         calibration_body,
-        authority.permit.control_case_id,
+        authority.permit.application_authority.application_instance_id,
     )
     expected_seal = _permit_seal(expected)
     if (
@@ -779,7 +806,7 @@ def _make_public_issuers(
     def issue_v3m0_calibration_application_permit_v2(
         parent,
         calibration,
-        control_case_id,
+        application_instance_id,
     ):
         if type(calibration) is not calibration_type:
             raise TypeError(
@@ -792,7 +819,7 @@ def _make_public_issuers(
         expected = permit_builder(
             parent_manifest,
             calibration_body,
-            control_case_id,
+            application_instance_id,
         )
         return permit_issuer(expected, parent, calibration)
 

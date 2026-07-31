@@ -4,8 +4,8 @@ This module intentionally separates an authority-neutral, self-hashing wire
 format from the opaque live capability.  Raw or re-signed records can be
 audited with :func:`verify_application_scenario_response_protocol_v2_body`,
 but they cannot be promoted.  Issuance is closed over the exact live
-Parent-v2, permit-v2 and materialization-v2 replayers.  The latter two are not
-yet present, so the public issuer currently fails closed.
+Parent-v2, permit-v2 and materialization-v2 replayers.  The final protocol-body
+compiler is not yet present, so the public issuer currently fails closed.
 
 No measured response, singular value, verdict, threshold override or caller
 supplied numerical construction enters the issuer API.
@@ -61,11 +61,10 @@ _LAPLACIAN_DERIVATION = "periodic-forward-difference-symbol-v1"
 # deliberate: a v1 permit/materialization, a provisional candidate or a
 # duck-typed replacement must never become an accidental fallback authority.
 UPSTREAM_V2_WIRING_POINTS = (
-    "rulespace_v3.calibration_authority.VerifiedCalibrationApplicationPermitV2",
-    "rulespace_v3.calibration_authority.require_current_calibration_application_permit_v2",
-    "rulespace_v3.application_materialization.VerifiedV3M0ApplicationScenarioMaterializationV2",
-    "rulespace_v3.application_materialization.require_current_application_scenario_materialization_v2",
-    "rulespace_v3.application_materialization.build_application_scenario_response_protocol_v2_body",
+    "rulespace_v3.application_authority_v2.VerifiedCalibrationApplicationPermitV2",
+    "rulespace_v3.application_authority_v2.require_calibration_application_permit_v2",
+    "rulespace_v3.application_materialization_v2.VerifiedV3M0ApplicationScenarioMaterializationV2",
+    "rulespace_v3.application_materialization_v2.verify_v3m0_application_scenario_materialization_v2",
 )
 
 
@@ -1030,14 +1029,13 @@ class VerifiedApplicationScenarioResponseProtocolV2:
 
 def _load_exact_v2_upstream() -> tuple[object, ...]:
     try:
-        from .calibration_authority import (
+        from .application_authority_v2 import (
             VerifiedCalibrationApplicationPermitV2,
-            require_current_calibration_application_permit_v2,
+            require_calibration_application_permit_v2,
         )
-        from .application_materialization import (
+        from .application_materialization_v2 import (
             VerifiedV3M0ApplicationScenarioMaterializationV2,
-            build_application_scenario_response_protocol_v2_body,
-            require_current_application_scenario_materialization_v2,
+            verify_v3m0_application_scenario_materialization_v2,
         )
     except (ImportError, AttributeError) as exc:
         missing = ", ".join(UPSTREAM_V2_WIRING_POINTS)
@@ -1046,10 +1044,9 @@ def _load_exact_v2_upstream() -> tuple[object, ...]:
         ) from exc
     return (
         VerifiedCalibrationApplicationPermitV2,
-        require_current_calibration_application_permit_v2,
+        require_calibration_application_permit_v2,
         VerifiedV3M0ApplicationScenarioMaterializationV2,
-        require_current_application_scenario_materialization_v2,
-        build_application_scenario_response_protocol_v2_body,
+        verify_v3m0_application_scenario_materialization_v2,
     )
 
 
@@ -1067,7 +1064,6 @@ def _replay_from_live_upstream(
         require_permit,
         materialization_type,
         require_materialization,
-        build_body,
     ) = _load_exact_v2_upstream()
     if type(permit_v2) is not permit_type:
         raise TypeError("permit_v2 must be an exact live permit-v2")
@@ -1076,8 +1072,9 @@ def _replay_from_live_upstream(
     require_current_parent(formal_parent_v2)
     require_permit(permit_v2)
     require_materialization(materialization_v2)
-    protocol = build_body(formal_parent_v2, permit_v2, materialization_v2)
-    return verify_application_scenario_response_protocol_v2_body(protocol)
+    raise ScenarioResponseProtocolUpstreamUnavailable(
+        "exact scenario response protocol body compiler is not connected"
+    )
 
 
 def _make_closed_protocol_api():
