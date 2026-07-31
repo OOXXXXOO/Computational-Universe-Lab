@@ -62,6 +62,32 @@ from rulespace_v3.structure import (
 from tests.test_v3m0_dynamics import _quarter_turn_controls
 
 
+class CertificateSpectralDispatchBindingTests(unittest.TestCase):
+    def test_build_and_hydrate_core_bind_only_generic_spectral_dispatch(self):
+        build_names = set(
+            certificate_module._certify_transition_dynamics_core.__code__.co_names
+        )
+        replay_names = set(
+            certificate_module._verify_failure_evidence.__code__.co_names
+        )
+        hydrate_names = set(certificate_module._validate_certificate.__code__.co_names)
+        spectral_verify_names = set(
+            spectral_module.verify_spectral_margin_coverage.__code__.co_names
+        )
+
+        self.assertIn("build_spectral_margin_coverage", build_names)
+        self.assertIn("build_spectral_margin_coverage", replay_names)
+        self.assertIn("verify_spectral_margin_coverage", hydrate_names)
+        self.assertIn(
+            "build_spectral_margin_coverage",
+            spectral_verify_names,
+        )
+        self.assertNotIn(
+            "build_exact_zero_spectral_margin_coverage",
+            build_names | replay_names | hydrate_names | spectral_verify_names,
+        )
+
+
 class DynamicsCertificateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -208,7 +234,7 @@ class DynamicsCertificateTests(unittest.TestCase):
             "build_spectral_margin_coverage",
             wraps=spectral_module.build_spectral_margin_coverage,
         ) as dispatch:
-            hydrated = verify_dynamics_certificate(
+            hydrated = certificate_module._verify_dynamics_certificate_core(
                 certificate,
                 self.factory,
                 self.authority,
@@ -631,7 +657,7 @@ class DynamicsCertificateTests(unittest.TestCase):
             "rulespace_v3.certificate.build_spectral_margin_coverage",
             side_effect=ValueError("candidate inverse unresolved"),
         ):
-            outcome = self._certify().outcome
+            outcome = self._certify(core=True).outcome
         self.assertEqual(
             outcome.failure,
             DynamicsCertificationFailure.SPECTRAL_COVERAGE_UNRESOLVED,
