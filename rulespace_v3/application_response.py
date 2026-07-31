@@ -1119,19 +1119,19 @@ def _make_closed_response_v2_api(
 ):
     reference_live: WeakKeyDictionary[
         VerifiedApplicationEndpointReferenceV2,
-        ApplicationEndpointReferenceV2,
+        tuple[tuple[object, ...], ApplicationEndpointReferenceV2],
     ] = WeakKeyDictionary()
     shell_live: WeakKeyDictionary[
         VerifiedApplicationEndpointShellV2,
-        ApplicationEndpointShellV2,
+        tuple[tuple[object, ...], ApplicationEndpointShellV2],
     ] = WeakKeyDictionary()
     branch_response_live: WeakKeyDictionary[
         VerifiedApplicationBranchSourceReadoutResponseV2,
-        ApplicationBranchSourceReadoutResponseV2,
+        tuple[tuple[object, ...], ApplicationBranchSourceReadoutResponseV2],
     ] = WeakKeyDictionary()
     pair_live: WeakKeyDictionary[
         VerifiedApplicationPairedResponseOutcomeV2,
-        ApplicationPairedResponseOutcomeV2,
+        tuple[tuple[object, ...], ApplicationPairedResponseOutcomeV2],
     ] = WeakKeyDictionary()
     authority_seal = object()
 
@@ -1140,6 +1140,7 @@ def _make_closed_response_v2_api(
         wrapper_type: type,
         registry: WeakKeyDictionary,
         verifier,
+        replayer,
         field: str,
     ):
         if type(value) is not wrapper_type:
@@ -1148,14 +1149,38 @@ def _make_closed_response_v2_api(
             )
         try:
             seal = value._authority_seal
-            raw = registry[value]
+            replay_inputs, expected_raw = registry[value]
         except (AttributeError, KeyError) as exc:
             raise ValueError(
                 f"{field} capability identity is not live"
             ) from exc
         if seal is not authority_seal:
             raise ValueError(f"{field} capability seal is forged")
-        return verifier(raw)
+        if type(replay_inputs) is not tuple or not replay_inputs:
+            raise ValueError(f"{field} live replay inputs are not complete")
+        replayed = verifier(replayer(*replay_inputs))
+        expected = verifier(expected_raw)
+        if replayed != expected:
+            raise ValueError(f"{field} live replay differs from issued body")
+        return replayed
+
+    def _unwired_shell_replayer(reference):
+        del reference
+        raise ApplicationResponseV2UpstreamUnavailable(
+            "actual-only endpoint shell numerical replay is not connected"
+        )
+
+    def _unwired_branch_replayer(*inputs):
+        del inputs
+        raise ApplicationResponseV2UpstreamUnavailable(
+            "branch source/readout numerical replay is not connected"
+        )
+
+    def _unwired_pair_replayer(shell):
+        del shell
+        raise ApplicationResponseV2UpstreamUnavailable(
+            "atomic actual/matched response numerical replay is not connected"
+        )
 
     def require_application_endpoint_reference_v2(
         value: VerifiedApplicationEndpointReferenceV2,
@@ -1165,6 +1190,7 @@ def _make_closed_response_v2_api(
             VerifiedApplicationEndpointReferenceV2,
             reference_live,
             verify_application_endpoint_reference_v2_body,
+            reference_replayer,
             "application endpoint reference v2",
         )
 
@@ -1176,6 +1202,7 @@ def _make_closed_response_v2_api(
             VerifiedApplicationEndpointShellV2,
             shell_live,
             verify_application_endpoint_shell_v2_body,
+            _unwired_shell_replayer,
             "application endpoint shell v2",
         )
 
@@ -1187,6 +1214,7 @@ def _make_closed_response_v2_api(
             VerifiedApplicationBranchSourceReadoutResponseV2,
             branch_response_live,
             verify_application_branch_source_readout_response_v2_body,
+            _unwired_branch_replayer,
             "application branch response v2",
         )
 
@@ -1198,6 +1226,7 @@ def _make_closed_response_v2_api(
             VerifiedApplicationPairedResponseOutcomeV2,
             pair_live,
             verify_application_paired_response_outcome_v2_body,
+            _unwired_pair_replayer,
             "application paired response v2",
         )
 
@@ -1232,11 +1261,38 @@ def _make_closed_response_v2_api(
         _outcome_property
     )
 
-    def _issue_live_body(raw, wrapper_type, registry, verifier):
-        verified = verifier(raw)
-        capability = object.__new__(wrapper_type)
+    def _issue_endpoint_reference_from_live_upstream(
+        formal_parent_v2,
+        permit_v2,
+        materialization_v2,
+        protocol_v2,
+        actual_prestructure_v2,
+        matched_ablated_prestructure_v2,
+        actual_transition_v2,
+        matched_ablated_transition_v2,
+        actual_certificate_v2,
+        matched_ablated_certificate_v2,
+        qualification_v2,
+    ):
+        replay_inputs = (
+            formal_parent_v2,
+            permit_v2,
+            materialization_v2,
+            protocol_v2,
+            actual_prestructure_v2,
+            matched_ablated_prestructure_v2,
+            actual_transition_v2,
+            matched_ablated_transition_v2,
+            actual_certificate_v2,
+            matched_ablated_certificate_v2,
+            qualification_v2,
+        )
+        verified = verify_application_endpoint_reference_v2_body(
+            reference_replayer(*replay_inputs)
+        )
+        capability = object.__new__(VerifiedApplicationEndpointReferenceV2)
         object.__setattr__(capability, "_authority_seal", authority_seal)
-        registry[capability] = verified
+        reference_live[capability] = (replay_inputs, verified)
         return capability
 
     def issue_v3m0_application_endpoint_reference_v2(
@@ -1252,7 +1308,7 @@ def _make_closed_response_v2_api(
         matched_ablated_certificate_v2,
         qualification_v2,
     ):
-        raw = reference_replayer(
+        return _issue_endpoint_reference_from_live_upstream(
             formal_parent_v2,
             permit_v2,
             materialization_v2,
@@ -1264,12 +1320,6 @@ def _make_closed_response_v2_api(
             actual_certificate_v2,
             matched_ablated_certificate_v2,
             qualification_v2,
-        )
-        return _issue_live_body(
-            raw,
-            VerifiedApplicationEndpointReferenceV2,
-            reference_live,
-            verify_application_endpoint_reference_v2_body,
         )
 
     def issue_v3m0_application_endpoint_shell_v2(reference):

@@ -731,6 +731,94 @@ class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
 
 
 class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
+    def test_public_endpoint_issuer_direct_dependencies_are_capability_safe(
+        self,
+    ) -> None:
+        """Issuer 直达依赖不得暴露 raw-only registrar 或 live registry。"""
+        from weakref import WeakKeyDictionary
+
+        from rulespace_v3.application_response import (
+            ApplicationResponseV2UpstreamUnavailable,
+            issue_v3m0_application_endpoint_reference_v2,
+        )
+
+        issuer = issue_v3m0_application_endpoint_reference_v2
+        upstream_parameter_names = tuple(inspect.signature(issuer).parameters)
+        direct_dependencies = []
+        if issuer.__closure__ is not None:
+            direct_dependencies.extend(
+                cell.cell_contents for cell in issuer.__closure__
+            )
+        direct_dependencies.extend(issuer.__defaults__ or ())
+        direct_dependencies.extend((issuer.__kwdefaults__ or {}).values())
+
+        violations = []
+        for dependency in direct_dependencies:
+            if isinstance(dependency, WeakKeyDictionary):
+                violations.append("direct live registry")
+            if inspect.isfunction(dependency):
+                parameter_names = tuple(inspect.signature(dependency).parameters)
+                if parameter_names != upstream_parameter_names:
+                    violations.append(
+                        f"raw-only or partial registrar {dependency.__name__}"
+                    )
+                    continue
+                with self.assertRaises(ApplicationResponseV2UpstreamUnavailable):
+                    dependency(*(object(),) * len(upstream_parameter_names))
+
+        self.assertTrue(
+            any(inspect.isfunction(item) for item in direct_dependencies),
+            "public issuer must delegate through a full-upstream replay gate",
+        )
+        self.assertEqual(violations, [])
+
+    def test_reference_capability_replays_full_upstream_on_every_require(
+        self,
+    ) -> None:
+        """Live entry 只存完整 upstream；读取必须重放并对拍签发体。"""
+        from rulespace_v3.application_response import (
+            issue_v3m0_application_endpoint_reference_v2,
+            require_application_endpoint_reference_v2,
+        )
+
+        issuer = issue_v3m0_application_endpoint_reference_v2
+        gate = next(
+            cell.cell_contents
+            for cell in issuer.__closure__ or ()
+            if inspect.isfunction(cell.cell_contents)
+        )
+        gate_cells = dict(
+            zip(gate.__code__.co_freevars, gate.__closure__ or ())
+        )
+        replayer_cell = gate_cells["reference_replayer"]
+        original_replayer = replayer_cell.cell_contents
+
+        issued_raw = self._reference()
+        drifted_raw = self._resign_reference(
+            replace(issued_raw, participation=0.75)
+        )
+        replay_outputs = [issued_raw, issued_raw, drifted_raw]
+        replay_calls = []
+
+        def reference_replayer(*live_upstream):
+            replay_calls.append(live_upstream)
+            return replay_outputs.pop(0)
+
+        live_inputs = tuple(object() for _ in inspect.signature(issuer).parameters)
+        replayer_cell.cell_contents = reference_replayer
+        try:
+            capability = issuer(*live_inputs)
+            self.assertEqual(
+                require_application_endpoint_reference_v2(capability),
+                issued_raw,
+            )
+            with self.assertRaisesRegex(ValueError, "replay differs"):
+                require_application_endpoint_reference_v2(capability)
+        finally:
+            replayer_cell.cell_contents = original_replayer
+
+        self.assertEqual(replay_calls, [live_inputs, live_inputs, live_inputs])
+
     def test_exact_wrapper_data_integrity_resists_registry_and_global_redirects(
         self,
     ) -> None:
