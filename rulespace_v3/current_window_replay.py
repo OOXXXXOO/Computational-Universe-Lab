@@ -532,15 +532,19 @@ def _make_current_window_calibration_protocol_v2_api(
 
 def _make_current_window_property_binding():
     consumer_holder = []
+    builtin_len = len
+    runtime_error = RuntimeError
 
     def current_window_property(self):
-        if len(consumer_holder) != 1:
-            raise RuntimeError("current window property is not bound exactly once")
+        if builtin_len(consumer_holder) != 1:
+            raise runtime_error(
+                "current window property is not bound exactly once"
+            )
         return consumer_holder[0](self)
 
     def bind(consumer):
         if consumer_holder:
-            raise RuntimeError("current window property is already bound")
+            raise runtime_error("current window property is already bound")
         consumer_holder.append(consumer)
 
     return property(current_window_property), bind

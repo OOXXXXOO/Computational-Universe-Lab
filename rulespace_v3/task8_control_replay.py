@@ -942,15 +942,19 @@ from .parent_authority import (  # noqa: E402
 
 def _make_current_registry_property_binding():
     consumer_holder = []
+    builtin_len = len
+    runtime_error = RuntimeError
 
     def current_registry_property(self):
-        if len(consumer_holder) != 1:
-            raise RuntimeError("current registry property is not bound exactly once")
+        if builtin_len(consumer_holder) != 1:
+            raise runtime_error(
+                "current registry property is not bound exactly once"
+            )
         return consumer_holder[0](self)
 
     def bind(consumer):
         if consumer_holder:
-            raise RuntimeError("current registry property is already bound")
+            raise runtime_error("current registry property is already bound")
         consumer_holder.append(consumer)
 
     return property(current_registry_property), bind

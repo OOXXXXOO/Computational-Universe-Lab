@@ -196,6 +196,7 @@ def freeze_rulespace_call_graph(
     frozen_root = freeze_function(root)
     snapshots = tuple(class_snapshots.values())
     missing = object()
+    builtin_any = any
     builtin_vars = vars
     runtime_error = RuntimeError
 
@@ -205,10 +206,10 @@ def freeze_rulespace_call_graph(
             # ``copyreg`` may add a benign ``__slotnames__`` cache after the
             # graph is frozen.  Preserve every captured dependency exactly,
             # while allowing only that cache attribute to appear later.
-            if any(
+            if builtin_any(
                 name not in expected_names and name != "__slotnames__"
                 for name in current
-            ) or any(
+            ) or builtin_any(
                 current.get(name, missing) is not expected
                 for name, expected in expected_items
             ):
