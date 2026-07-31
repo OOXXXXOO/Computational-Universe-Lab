@@ -11,8 +11,8 @@ import numpy as np
 from rulespace_v3.geometry import (
     DEGENERATE_ROTATION_SEEDS,
     GeometryNumericalThresholds,
-    audit_degenerate_rotations,
-    compute_geometry_spectrum,
+    _audit_degenerate_rotations_from_matrices,
+    _compute_geometry_spectrum_from_matrices,
 )
 
 
@@ -42,7 +42,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
         )
 
     def measure(self, response):
-        return compute_geometry_spectrum(
+        return _compute_geometry_spectrum_from_matrices(
             response,
             self.kernel,
             self.quotient,
@@ -84,7 +84,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
         )
 
         plain = self.measure(response)
-        dressed = compute_geometry_spectrum(
+        dressed = _compute_geometry_spectrum_from_matrices(
             response,
             self.kernel,
             self.quotient,
@@ -142,7 +142,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
         metric = (raw_metric.conj().T @ raw_metric + np.eye(4)).astype(np.complex128)
         targets = qr_columns(5, 2)
 
-        result = compute_geometry_spectrum(
+        result = _compute_geometry_spectrum_from_matrices(
             response,
             kernel,
             quotient,
@@ -158,7 +158,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
             self.assertLessEqual(value, 1.0)
 
     def test_three_frozen_rotation_audit_reports_hard_drift_bound(self):
-        audit = audit_degenerate_rotations(
+        audit = _audit_degenerate_rotations_from_matrices(
             self.targets,
             self.kernel,
             self.quotient,
@@ -183,7 +183,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
             ],
             dtype=np.complex128,
         )
-        audit = audit_degenerate_rotations(
+        audit = _audit_degenerate_rotations_from_matrices(
             response,
             np.asarray([[0.0], [0.0], [1.0]], dtype=np.complex128),
             np.eye(3, dtype=np.complex128),
@@ -214,7 +214,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
             dtype=np.complex128,
         )
         one_target = self.targets[:, :1]
-        coverage_grey = compute_geometry_spectrum(
+        coverage_grey = _compute_geometry_spectrum_from_matrices(
             coverage_response,
             self.kernel,
             self.quotient,
@@ -238,7 +238,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
             side_effect=AssertionError("SVD ran before metric validation"),
         ) as svd:
             with self.assertRaisesRegex(ValueError, "Hermitian"):
-                compute_geometry_spectrum(
+                _compute_geometry_spectrum_from_matrices(
                     self.targets,
                     self.kernel,
                     self.quotient,
@@ -279,7 +279,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
                 side_effect=AssertionError("SVD ran before geometry work cap"),
             ) as svd:
                 with self.assertRaisesRegex(ValueError, "work cap"):
-                    compute_geometry_spectrum(
+                    _compute_geometry_spectrum_from_matrices(
                         response,
                         kernel,
                         quotient,
@@ -321,7 +321,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
                 side_effect=AssertionError("SVD ran before audit aggregate work cap"),
             ) as svd:
                 with self.assertRaisesRegex(ValueError, "aggregate.*work cap"):
-                    audit_degenerate_rotations(
+                    _audit_degenerate_rotations_from_matrices(
                         response,
                         kernel,
                         quotient,
@@ -363,7 +363,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
                 side_effect=AssertionError("finite scan ran before work preflight"),
             ) as all_values:
                 with self.assertRaisesRegex(ValueError, "work cap"):
-                    compute_geometry_spectrum(
+                    _compute_geometry_spectrum_from_matrices(
                         response,
                         kernel,
                         quotient,
@@ -406,7 +406,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
             ),
         ) as materialize:
             with self.assertRaisesRegex(ValueError, "work cap"):
-                compute_geometry_spectrum(
+                _compute_geometry_spectrum_from_matrices(
                     response,
                     kernel,
                     quotient,
@@ -423,7 +423,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
         targets = np.asarray([[0.0], [1.0]], dtype=np.complex128)
 
         with self.assertRaisesRegex(ValueError, "numerical rank"):
-            compute_geometry_spectrum(
+            _compute_geometry_spectrum_from_matrices(
                 response,
                 kernel,
                 quotient,
@@ -447,7 +447,7 @@ class V3M0GeometryNumericalKernelTests(unittest.TestCase):
         )
 
         baseline = self.measure(response)
-        changed = compute_geometry_spectrum(
+        changed = _compute_geometry_spectrum_from_matrices(
             response,
             self.kernel,
             self.quotient,
