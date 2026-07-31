@@ -167,17 +167,33 @@ def _exact_dataclass_tree(value: object, field: str) -> None:
             identity = id(item)
             if identity in active:
                 raise ValueError(f"{path} contains a cyclic dataclass")
+            expected = frozenset(fields)
+            declared_slots: set[str] = set()
+            for record_type in item_type.__mro__:
+                slots = vars(record_type).get("__slots__", ())
+                if type(slots) is str:
+                    declared_slots.add(slots)
+                else:
+                    declared_slots.update(slots)
+            unknown_slots = declared_slots.difference(
+                expected,
+                {"__dict__", "__weakref__"},
+            )
+            if unknown_slots:
+                raise ValueError(f"{path} contains missing or unknown fields")
             try:
                 body = vars(item)
-            except TypeError as exc:
-                raise TypeError(f"{path} has no exact dataclass body") from exc
-            expected = frozenset(fields)
-            observed = frozenset(body)
-            if observed != expected:
+            except TypeError:
+                body = None
+            if body is not None and frozenset(body) != expected:
                 raise ValueError(f"{path} contains missing or unknown fields")
             active.add(identity)
             for name in reversed(tuple(fields)):
-                stack.append((body[name], f"{path}.{name}"))
+                try:
+                    nested = object.__getattribute__(item, name)
+                except AttributeError as exc:
+                    raise ValueError(f"{path} contains a missing field: {name}") from exc
+                stack.append((nested, f"{path}.{name}"))
             active.remove(identity)
             continue
         if item_type is tuple:
