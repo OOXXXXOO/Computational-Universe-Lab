@@ -14,24 +14,24 @@ import threading
 import weakref
 from copy import deepcopy
 from dataclasses import dataclass, replace
+from types import FunctionType
 from typing import Callable, Literal, Optional
 
 import numpy as np
 
 from .ablation import (
     AblationConstructionOutcome,
-    AblationManifest,
     _verify_construction_outcome,
-    ablation_manifest_payload,
 )
-from .contracts import BlockStatus
+from .calibration_authority import (
+    VerifiedCalibrationApplicationPermit,
+    VerifiedV3M0ScenarioConstruction,
+)
 from .evidence import canonical_sha
 from .factory import (
     FrozenComplexTensor,
-    LinearRealspaceFactory,
     VerifiedFactory,
     _reverify_verified_factory,
-    factory_payload,
     freeze_complex_tensor,
     frozen_tensor_payload,
 )
@@ -46,6 +46,13 @@ from .parent_freeze import (
     synthetic_control_application_spec_payload,
     verify_synthetic_control_application_spec,
 )
+from .pair_snapshot import (
+    PAIR_SNAPSHOT_SCHEMA_VERSION,
+    AblationPairSnapshot,
+    _pair_snapshot,
+    ablation_construction_payload,
+    ablation_pair_snapshot_payload,
+)
 from .registry import (
     ClosedControlRegistry,
     VerifiedControlRegistry,
@@ -58,7 +65,6 @@ from .replay_scope import (
 )
 
 
-PAIR_SNAPSHOT_SCHEMA_VERSION = "v3m0.ablation-pair-snapshot.v1"
 SYNTHETIC_PREREGISTRATION_SCHEMA_VERSION = "v3m0.synthetic-structure-preregistration.v1"
 PRESTRUCTURE_AUTHORITY_SCHEMA_VERSION = "v3m0.prestructure-authority.v1"
 SYNTHETIC_EVIDENCE_LANE: Literal["synthetic-classical"] = "synthetic-classical"
@@ -74,6 +80,36 @@ _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
 
 
+def _capture_prestructure_child_reverifier(
+    wrapper_type: type,
+    expected_name: str,
+) -> Callable[[object], object]:
+    reverifier = wrapper_type.__dict__.get("_prestructure_reverify")
+    if (
+        type(reverifier) is not FunctionType
+        or reverifier.__module__ != "rulespace_v3.calibration_authority"
+        or reverifier.__name__ != expected_name
+    ):
+        raise RuntimeError("prestructure child reverifier anchor is invalid")
+    return reverifier
+
+
+# These descriptors are captured once from the exact upstream wrapper classes.
+# Later module/class rebinding cannot alter this authority closure. Mutation
+# before the consumer's first import is the process-integrity boundary shared
+# by the repository's other import-time authority anchors.
+_APPLICATION_PERMIT_REVERIFIER = _capture_prestructure_child_reverifier(
+    VerifiedCalibrationApplicationPermit,
+    "_prestructure_reverify_calibration_application_permit",
+)
+_APPLICATION_CONSTRUCTION_REVERIFIER = (
+    _capture_prestructure_child_reverifier(
+        VerifiedV3M0ScenarioConstruction,
+        "_prestructure_reverify_scenario_construction",
+    )
+)
+
+
 def _text(value: object, field: str) -> str:
     if type(value) is not str:
         raise TypeError(f"{field} must be a string")
@@ -87,35 +123,6 @@ def _sha(value: object, field: str) -> str:
     if _LOWER_SHA.fullmatch(result) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256")
     return result
-
-
-def _status_payload(status: BlockStatus) -> dict[str, object]:
-    if not isinstance(status, BlockStatus):
-        raise TypeError("status must be a BlockStatus")
-    return {
-        "defined": status.defined,
-        "reason": None if status.reason is None else status.reason.value,
-    }
-
-
-def _factory_record(
-    factory: LinearRealspaceFactory,
-) -> dict[str, object]:
-    if not isinstance(factory, LinearRealspaceFactory):
-        raise TypeError("factory must be a LinearRealspaceFactory")
-    return {
-        **factory_payload(factory),
-        "factory_sha": factory.factory_sha,
-    }
-
-
-def _manifest_record(manifest: AblationManifest) -> dict[str, object]:
-    if not isinstance(manifest, AblationManifest):
-        raise TypeError("manifest must be an AblationManifest")
-    return {
-        **ablation_manifest_payload(manifest),
-        "manifest_sha": manifest.manifest_sha,
-    }
 
 
 def _tensor_record(tensor: FrozenComplexTensor) -> dict[str, object]:
@@ -137,30 +144,6 @@ def _registry_record(registry: ClosedControlRegistry) -> dict[str, object]:
         **closed_control_registry_payload(registry),
         "registry_sha": registry.registry_sha,
     }
-
-
-@dataclass(frozen=True)
-class AblationPairSnapshot:
-    snapshot_schema_version: str
-    construction_status: BlockStatus
-    actual_factory: LinearRealspaceFactory
-    ablated_factory: LinearRealspaceFactory
-    ablation_manifest: AblationManifest
-    ablation_construction_sha: str
-    snapshot_sha: str
-
-    def __post_init__(self) -> None:
-        _text(self.snapshot_schema_version, "snapshot_schema_version")
-        if not isinstance(self.construction_status, BlockStatus):
-            raise TypeError("construction_status must be a BlockStatus")
-        if not isinstance(self.actual_factory, LinearRealspaceFactory):
-            raise TypeError("actual_factory has the wrong record type")
-        if not isinstance(self.ablated_factory, LinearRealspaceFactory):
-            raise TypeError("ablated_factory has the wrong record type")
-        if not isinstance(self.ablation_manifest, AblationManifest):
-            raise TypeError("ablation_manifest has the wrong record type")
-        _sha(self.ablation_construction_sha, "ablation_construction_sha")
-        _sha(self.snapshot_sha, "snapshot_sha")
 
 
 @dataclass(frozen=True)
@@ -321,37 +304,6 @@ class PrestructureAuthority:
         _sha(self.authority_sha, "authority_sha")
 
 
-def ablation_construction_payload(
-    construction_status: BlockStatus,
-    actual_factory: LinearRealspaceFactory,
-    ablated_factory: LinearRealspaceFactory,
-    ablation_manifest: AblationManifest,
-) -> dict[str, object]:
-    return {
-        "construction_status": _status_payload(construction_status),
-        "actual_factory": _factory_record(actual_factory),
-        "ablated_factory": _factory_record(ablated_factory),
-        "ablation_manifest": _manifest_record(ablation_manifest),
-    }
-
-
-def ablation_pair_snapshot_payload(
-    snapshot: AblationPairSnapshot,
-) -> dict[str, object]:
-    if not isinstance(snapshot, AblationPairSnapshot):
-        raise TypeError("snapshot must be an AblationPairSnapshot")
-    return {
-        "snapshot_schema_version": snapshot.snapshot_schema_version,
-        **ablation_construction_payload(
-            snapshot.construction_status,
-            snapshot.actual_factory,
-            snapshot.ablated_factory,
-            snapshot.ablation_manifest,
-        ),
-        "ablation_construction_sha": snapshot.ablation_construction_sha,
-    }
-
-
 def synthetic_preregistration_payload(
     preregistration: SyntheticStructurePreregistration,
 ) -> dict[str, object]:
@@ -460,37 +412,6 @@ def prestructure_authority_payload(
         ),
         "adapter_preregistration": None,
     }
-
-
-def _pair_snapshot(
-    construction: AblationConstructionOutcome,
-) -> tuple[AblationPairSnapshot, VerifiedFactory, VerifiedFactory]:
-    verified = _verify_construction_outcome(construction)
-    if not verified.status.defined or verified.pair is None:
-        raise ValueError("prestructure authority requires a defined pair")
-    actual_view = _reverify_verified_factory(verified.pair.actual)
-    ablated_view = _reverify_verified_factory(verified.pair.ablated)
-    construction_body = ablation_construction_payload(
-        verified.status,
-        actual_view.factory,
-        ablated_view.factory,
-        verified.pair.manifest,
-    )
-    construction_sha = canonical_sha(construction_body)
-    provisional = AblationPairSnapshot(
-        snapshot_schema_version=PAIR_SNAPSHOT_SCHEMA_VERSION,
-        construction_status=verified.status,
-        actual_factory=actual_view.factory,
-        ablated_factory=ablated_view.factory,
-        ablation_manifest=verified.pair.manifest,
-        ablation_construction_sha=construction_sha,
-        snapshot_sha="0" * 64,
-    )
-    snapshot = replace(
-        provisional,
-        snapshot_sha=canonical_sha(ablation_pair_snapshot_payload(provisional)),
-    )
-    return snapshot, verified.pair.actual, verified.pair.ablated
 
 
 def _canonical_pairs(
@@ -792,6 +713,8 @@ class _PrestructureAuthorityRecord:
     scenario_construction_sha: Optional[str]
     application_permit: Optional[object]
     application_construction: Optional[object]
+    application_permit_reverifier: Optional[Callable[[object], object]]
+    application_construction_reverifier: Optional[Callable[[object], object]]
     seal: str
 
 
@@ -822,6 +745,22 @@ def _authority_seal(
 def _make_prestructure_authority(
     cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
     record_successful_replay: Callable[..., None] = _record_successful_replay,
+    parent_reverifier: Callable[..., object] = _reverify_verified_parent_freeze,
+    registry_reverifier: Callable[..., object] = (
+        _reverify_verified_control_registry
+    ),
+    construction_reverifier: Callable[..., object] = (
+        _verify_construction_outcome
+    ),
+    factory_reverifier: Callable[..., object] = _reverify_verified_factory,
+    application_permit_type: type = VerifiedCalibrationApplicationPermit,
+    application_construction_type: type = VerifiedV3M0ScenarioConstruction,
+    application_permit_reverifier: Callable[..., object] = (
+        _APPLICATION_PERMIT_REVERIFIER
+    ),
+    application_construction_reverifier: Callable[..., object] = (
+        _APPLICATION_CONSTRUCTION_REVERIFIER
+    ),
 ) -> tuple[
     Callable[..., VerifiedPrestructureAuthority],
     Callable[..., VerifiedPrestructureAuthority],
@@ -853,6 +792,10 @@ def _make_prestructure_authority(
         scenario_construction_sha: Optional[str],
         application_permit: Optional[object],
         application_construction: Optional[object],
+        application_permit_reverifier: Optional[Callable[[object], object]],
+        application_construction_reverifier: Optional[
+            Callable[[object], object]
+        ],
     ) -> VerifiedPrestructureAuthority:
         seal = _authority_seal(authority, factory)
         record = _PrestructureAuthorityRecord(
@@ -868,6 +811,10 @@ def _make_prestructure_authority(
             scenario_construction_sha=scenario_construction_sha,
             application_permit=application_permit,
             application_construction=application_construction,
+            application_permit_reverifier=application_permit_reverifier,
+            application_construction_reverifier=(
+                application_construction_reverifier
+            ),
             seal=seal,
         )
         wrapper = VerifiedPrestructureAuthority(
@@ -923,6 +870,8 @@ def _make_prestructure_authority(
             scenario_construction_sha=None,
             application_permit=None,
             application_construction=None,
+            application_permit_reverifier=None,
+            application_construction_reverifier=None,
         )
 
     def issue_application(
@@ -930,26 +879,14 @@ def _make_prestructure_authority(
         application_construction: object,
         role: Literal["actual", "matched_ablated"],
     ) -> VerifiedPrestructureAuthority:
-        # This import is intentionally deferred: prestructure is upstream of
-        # Task 12 at module-import time, while the application-only boundary
-        # must consume Task 12's two live opaque capabilities at runtime.
-        from .calibration_authority import (
-            VerifiedCalibrationApplicationPermit,
-            VerifiedV3M0ScenarioConstruction,
-            _reverify_verified_calibration_application_permit,
-            _reverify_verified_scenario_construction,
-        )
-
-        if type(application_permit) is not VerifiedCalibrationApplicationPermit:
+        if type(application_permit) is not application_permit_type:
             raise TypeError("application authority requires a live calibration permit")
-        if type(application_construction) is not VerifiedV3M0ScenarioConstruction:
+        if type(application_construction) is not application_construction_type:
             raise TypeError(
                 "application authority requires a live scenario construction"
             )
-        permit_view = _reverify_verified_calibration_application_permit(
-            application_permit
-        )
-        construction_view = _reverify_verified_scenario_construction(
+        permit_view = application_permit_reverifier(application_permit)
+        construction_view = application_construction_reverifier(
             application_construction
         )
         if construction_view.permit is not application_permit:
@@ -976,6 +913,10 @@ def _make_prestructure_authority(
             scenario_construction_sha=(construction_view.construction.construction_sha),
             application_permit=application_permit,
             application_construction=application_construction,
+            application_permit_reverifier=application_permit_reverifier,
+            application_construction_reverifier=(
+                application_construction_reverifier
+            ),
         )
 
     def reverify(
@@ -1045,6 +986,106 @@ def _make_prestructure_authority(
                     "VerifiedPrestructureAuthority cached immutable guard "
                     "mismatch"
                 )
+            parent_manifest = parent_reverifier(record.parent)
+            if (
+                parent_manifest.parent_freeze_sha
+                != record.authority.parent_freeze.parent_freeze_sha
+            ):
+                raise ValueError(
+                    "VerifiedPrestructureAuthority cached dependency "
+                    "binding mismatch"
+                )
+            if record.authority.authority_kind == SYNTHETIC_AUTHORITY_KIND:
+                if record.registry is None or record.control_id is None:
+                    raise ValueError(
+                        "registry prestructure authority record is incomplete"
+                    )
+                verified_construction = construction_reverifier(
+                    record.construction
+                )
+                factory_view = factory_reverifier(record.factory)
+                registry_view = registry_reverifier(record.registry)
+                if (
+                    registry_view.parent is not record.parent
+                    or registry_view.registry
+                    != record.authority.synthetic_registry
+                    or factory_view.factory.factory_sha
+                    != record.authority.factory_sha
+                    or factory_view.role != record.authority.factory_role
+                ):
+                    raise ValueError(
+                        "registry prestructure dependency binding mismatch"
+                    )
+                pair = verified_construction.pair
+                if pair is None:
+                    raise ValueError(
+                        "registry prestructure construction lost its pair"
+                    )
+                selected = (
+                    pair.actual
+                    if record.authority.factory_role == "actual"
+                    else pair.ablated
+                )
+                if selected is not record.factory:
+                    raise ValueError(
+                        "registry prestructure selected factory binding mismatch"
+                    )
+            elif (
+                record.authority.authority_kind
+                == SYNTHETIC_APPLICATION_AUTHORITY_KIND
+            ):
+                if (
+                    record.application_spec is None
+                    or record.application_scenario_spec is None
+                    or record.application_permit_sha is None
+                    or record.scenario_construction_sha is None
+                    or record.application_permit is None
+                    or record.application_construction is None
+                    or record.application_permit_reverifier is None
+                    or record.application_construction_reverifier is None
+                ):
+                    raise ValueError(
+                        "application prestructure authority record is incomplete"
+                    )
+                permit_view = record.application_permit_reverifier(
+                    record.application_permit
+                )
+                construction_view = record.application_construction_reverifier(
+                    record.application_construction
+                )
+                verified_construction = construction_reverifier(
+                    record.construction
+                )
+                factory_view = factory_reverifier(record.factory)
+                selected = (
+                    construction_view.actual
+                    if record.authority.factory_role == "actual"
+                    else construction_view.ablated
+                )
+                if (
+                    construction_view.permit is not record.application_permit
+                    or permit_view.parent is not record.parent
+                    or permit_view.permit.application_spec
+                    != record.application_spec
+                    or construction_view.construction.scenario_spec
+                    != record.application_scenario_spec
+                    or permit_view.permit.permit_sha
+                    != record.application_permit_sha
+                    or construction_view.construction.construction_sha
+                    != record.scenario_construction_sha
+                    or construction_view.outcome is not verified_construction
+                    or selected is not record.factory
+                    or factory_view.factory.factory_sha
+                    != record.authority.factory_sha
+                    or factory_view.role != record.authority.factory_role
+                ):
+                    raise ValueError(
+                        "application prestructure dependency binding mismatch"
+                    )
+            else:
+                raise ValueError(
+                    "prestructure authority branch is not implemented"
+                )
 
         if cached_replay_is_valid(
             namespace=namespace,
@@ -1078,19 +1119,16 @@ def _make_prestructure_authority(
                 or record.scenario_construction_sha is None
                 or record.application_permit is None
                 or record.application_construction is None
+                or record.application_permit_reverifier is None
+                or record.application_construction_reverifier is None
             ):
                 raise ValueError(
                     "application prestructure authority record is incomplete"
                 )
-            from .calibration_authority import (
-                _reverify_verified_calibration_application_permit,
-                _reverify_verified_scenario_construction,
-            )
-
-            permit_view = _reverify_verified_calibration_application_permit(
+            permit_view = record.application_permit_reverifier(
                 record.application_permit
             )
-            construction_view = _reverify_verified_scenario_construction(
+            construction_view = record.application_construction_reverifier(
                 record.application_construction
             )
             if (
@@ -1140,12 +1178,22 @@ def _make_prestructure_authority(
         )
         return verified_view()
 
-    return issue_registry, issue_application, reverify
+    issue_application.__name__ = (
+        "issue_v3m0_application_prestructure_authority"
+    )
+    issue_application.__qualname__ = (
+        "issue_v3m0_application_prestructure_authority"
+    )
+    return (
+        issue_registry,
+        issue_application,
+        reverify,
+    )
 
 
 (
     _issue_verified_prestructure_authority,
-    _issue_verified_application_prestructure_authority,
+    issue_v3m0_application_prestructure_authority,
     _reverify_verified_prestructure_authority,
 ) = _make_prestructure_authority()
 
@@ -1164,20 +1212,6 @@ def issue_synthetic_prestructure_authority(
         registry,
         control_id,
         construction,
-        factory_role,
-    )
-
-
-def _issue_synthetic_application_prestructure_authority(
-    application_permit: object,
-    application_construction: object,
-    factory_role: Literal["actual", "matched_ablated"],
-) -> VerifiedPrestructureAuthority:
-    """Issue only from Task 12's live permit and closed construction."""
-
-    return _issue_verified_application_prestructure_authority(
-        application_permit,
-        application_construction,
         factory_role,
     )
 
@@ -1223,6 +1257,7 @@ __all__ = [
     "VerifiedPrestructureAuthority",
     "ablation_construction_payload",
     "ablation_pair_snapshot_payload",
+    "issue_v3m0_application_prestructure_authority",
     "issue_synthetic_prestructure_authority",
     "prestructure_authority_payload",
     "synthetic_preregistration_payload",

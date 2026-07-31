@@ -64,10 +64,8 @@ from .parent_freeze import (
     synthetic_application_operation_payload,
     verify_synthetic_control_application_spec,
 )
-from .prestructure import (
+from .pair_snapshot import (
     AblationPairSnapshot,
-    VerifiedPrestructureAuthority,
-    _issue_synthetic_application_prestructure_authority,
     _pair_snapshot,
 )
 from .registry import (
@@ -1742,7 +1740,9 @@ def _reverify_verified_calibration_application_permit(
         }
     )
     if (
-        raw_digest != authority.digest
+        raw != authority.permit
+        or raw.permit_sha != authority.permit.permit_sha
+        or raw_digest != authority.digest
         or expected_digest != authority.digest
         or expected != authority.permit
         or seal != authority.seal
@@ -1754,6 +1754,30 @@ def _reverify_verified_calibration_application_permit(
         parent=authority.parent,
         calibration=authority.calibration,
     )
+
+
+def _make_prestructure_child_reverifier(
+    wrapper_type: type,
+    reverifier,
+    name: str,
+):
+    def reverify(wrapper):
+        if type(wrapper) is not wrapper_type:
+            raise TypeError("prestructure child has the wrong exact type")
+        return reverifier(wrapper)
+
+    reverify.__name__ = name
+    reverify.__qualname__ = name
+    return reverify
+
+
+VerifiedCalibrationApplicationPermit._prestructure_reverify = (  # type: ignore[attr-defined]
+    _make_prestructure_child_reverifier(
+        VerifiedCalibrationApplicationPermit,
+        _reverify_verified_calibration_application_permit,
+        "_prestructure_reverify_calibration_application_permit",
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -1872,8 +1896,10 @@ _RUN_SPEC_LOCK = threading.RLock()
 
 def _expected_run_spec(
     permit: VerifiedCalibrationApplicationPermit,
+    *,
+    _permit_reverifier=_reverify_verified_calibration_application_permit,
 ) -> V3M0ApplicationResponseRunSpec:
-    permit_view = _reverify_verified_calibration_application_permit(permit)
+    permit_view = _permit_reverifier(permit)
     raw = permit_view.permit
     source_count = len(raw.source_basis.vectors_wire)
     provisional = V3M0ApplicationResponseRunSpec(
@@ -2613,13 +2639,15 @@ def _clone_scenario_construction(
 def _expected_scenario_construction(
     permit: VerifiedCalibrationApplicationPermit,
     scenario_id: str,
+    *,
+    _permit_reverifier=_reverify_verified_calibration_application_permit,
 ) -> tuple[
     V3M0ScenarioConstruction,
     AblationConstructionOutcome,
     VerifiedFactory,
     VerifiedFactory,
 ]:
-    permit_view = _reverify_verified_calibration_application_permit(permit)
+    permit_view = _permit_reverifier(permit)
     application = permit_view.permit.application_spec
     scenario = _scenario_spec(application, scenario_id)
     if application.control_case_id != "C04_CANONICAL_ANGLE_025_075":
@@ -2884,6 +2912,8 @@ def verify_v3m0_scenario_construction(
 
 def _reverify_verified_scenario_construction(
     wrapper: VerifiedV3M0ScenarioConstruction,
+    *,
+    _expected_builder=_expected_scenario_construction,
 ) -> _ScenarioConstructionView:
     if type(wrapper) is not VerifiedV3M0ScenarioConstruction:
         raise TypeError("Task 12 requires a live scenario construction")
@@ -2909,7 +2939,7 @@ def _reverify_verified_scenario_construction(
         raise ValueError("scenario construction record is incomplete") from exc
     if token is not _ISSUANCE_TOKEN:
         raise ValueError("scenario construction token mismatch")
-    expected, _, _, _ = _expected_scenario_construction(
+    expected, _, _, _ = _expected_builder(
         authority.permit,
         authority.scenario_id,
     )
@@ -2944,6 +2974,15 @@ def _reverify_verified_scenario_construction(
         actual=authority.actual,
         ablated=authority.ablated,
     )
+
+
+VerifiedV3M0ScenarioConstruction._prestructure_reverify = (  # type: ignore[attr-defined]
+    _make_prestructure_child_reverifier(
+        VerifiedV3M0ScenarioConstruction,
+        _reverify_verified_scenario_construction,
+        "_prestructure_reverify_scenario_construction",
+    )
+)
 
 
 _ATTEMPT_ACTIVATION_LABELS = ("null", "grey", "signal")
@@ -3741,28 +3780,6 @@ def reverify_verified_response_block_attempt_outcome(
     return _reverify_verified_response_block_attempt_outcome(wrapper).outcome
 
 
-def issue_v3m0_application_prestructure_authority(
-    permit: VerifiedCalibrationApplicationPermit,
-    construction: VerifiedV3M0ScenarioConstruction,
-    factory_role: Literal["actual", "matched_ablated"],
-) -> VerifiedPrestructureAuthority:
-    """Issue a role authority from one exact live permit/scenario pair."""
-
-    permit_view = _reverify_verified_calibration_application_permit(permit)
-    view = _reverify_verified_scenario_construction(construction)
-    if view.permit is not permit:
-        raise ValueError(
-            "scenario construction is not bound to the supplied live permit"
-        )
-    if view.construction.permit != permit_view.permit:
-        raise ValueError("scenario construction permit body mismatch")
-    return _issue_synthetic_application_prestructure_authority(
-        permit,
-        construction,
-        factory_role,
-    )
-
-
 __all__ = [
     "APPLICATION_EXPECTED_RANK_SOURCE_ID",
     "APPLICATION_READOUT_DERIVATION_ID",
@@ -3801,7 +3818,6 @@ __all__ = [
     "c04_reciprocal_swap_symbol",
     "calibration_application_permit_payload",
     "issue_v3m0_calibration_application_permit",
-    "issue_v3m0_application_prestructure_authority",
     "issue_v3m0_response_block_attempt",
     "materialize_v3m0_scenario_construction",
     "response_block_attempt_outcome_payload",

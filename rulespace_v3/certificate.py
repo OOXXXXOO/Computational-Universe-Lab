@@ -1086,6 +1086,10 @@ def _validate_certificate(
 def _make_certificate_authority(
     cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
     record_successful_replay: Callable[..., None] = _record_successful_replay,
+    factory_reverifier: Callable[..., object] = _reverify_verified_factory,
+    prestructure_reverifier: Callable[..., object] = (
+        _reverify_verified_prestructure_authority
+    ),
 ) -> tuple[
     Callable[..., VerifiedDynamicsCertificate],
     Callable[
@@ -1192,6 +1196,22 @@ def _make_certificate_authority(
             if body_mismatch or seal != record.seal:
                 raise ValueError(
                     "VerifiedDynamicsCertificate cached immutable guard mismatch"
+                )
+            factory_view = factory_reverifier(record.factory)
+            authority_view = prestructure_reverifier(record.authority)
+            if (
+                record.factory is not authority_view.factory
+                or certificate.prestructure_authority
+                != authority_view.authority
+                or certificate.transition.factory_sha
+                != factory_view.factory.factory_sha
+                or certificate.transition.factory_role != factory_view.role
+                or certificate.transition.prestructure_authority_sha
+                != authority_view.authority.authority_sha
+            ):
+                raise ValueError(
+                    "VerifiedDynamicsCertificate cached dependency binding "
+                    "mismatch"
                 )
 
         if cached_replay_is_valid(
@@ -1316,6 +1336,13 @@ def _outcome_seal(outcome: DynamicsCertificationOutcome) -> str:
 def _make_outcome_authority(
     cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
     record_successful_replay: Callable[..., None] = _record_successful_replay,
+    certificate_reverifier: Callable[..., object] = (
+        _reverify_verified_dynamics_certificate
+    ),
+    factory_reverifier: Callable[..., object] = _reverify_verified_factory,
+    prestructure_reverifier: Callable[..., object] = (
+        _reverify_verified_prestructure_authority
+    ),
 ) -> tuple[
     Callable[
         [
@@ -1467,6 +1494,31 @@ def _make_outcome_authority(
                     "VerifiedDynamicsCertificationOutcome cached immutable "
                     "guard mismatch"
                 )
+            if certificate is not None:
+                certificate_record = certificate_reverifier(certificate)
+                if (
+                    outcome.certificate != certificate_record.certificate
+                    or certificate_record.factory is not record.factory
+                    or certificate_record.authority is not record.authority
+                ):
+                    raise ValueError(
+                        "VerifiedDynamicsCertificationOutcome cached "
+                        "certificate binding mismatch"
+                    )
+            else:
+                factory_view = factory_reverifier(record.factory)
+                authority_view = prestructure_reverifier(record.authority)
+                if (
+                    record.factory is not authority_view.factory
+                    or outcome.attempt_audit.factory_sha
+                    not in (_ZERO_SHA, factory_view.factory.factory_sha)
+                    or outcome.attempt_audit.prestructure_authority_sha
+                    not in (_ZERO_SHA, authority_view.authority.authority_sha)
+                ):
+                    raise ValueError(
+                        "VerifiedDynamicsCertificationOutcome cached failure "
+                        "context mismatch"
+                    )
 
         exposed_bodies = (
             (outcome,)

@@ -60,7 +60,7 @@ from .grids import BridgeKGridManifest, ResponseKGridManifest
 from .parent_freeze import (
     ApplicationScenarioExecutionSpec,
 )
-from .prestructure import AblationPairSnapshot, _pair_snapshot
+from .pair_snapshot import AblationPairSnapshot, _pair_snapshot
 from .registry import _reverify_verified_control_registry
 from .thresholds import BRIDGE_TOLERANCE, T_CANDIDATES
 from .trace import (

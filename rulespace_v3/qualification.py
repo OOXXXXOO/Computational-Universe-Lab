@@ -41,11 +41,13 @@ from .factory import (
     Primitive,
     PrimitiveInterface,
 )
-from .prestructure import (
+from .pair_snapshot import (
     AblationPairSnapshot,
     _pair_snapshot,
-    _reverify_verified_prestructure_authority,
     ablation_pair_snapshot_payload,
+)
+from .prestructure import (
+    _reverify_verified_prestructure_authority,
 )
 
 

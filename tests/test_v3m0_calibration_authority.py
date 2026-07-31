@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
+import subprocess
+import sys
+import textwrap
 import unittest
 from dataclasses import dataclass
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -25,10 +29,17 @@ from rulespace_v3.grids import (
 )
 from rulespace_v3.metric import build_stability_metric_witness
 from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
+from rulespace_v3.prestructure import (
+    issue_v3m0_application_prestructure_authority,
+)
 from rulespace_v3.registry import (
     ControlReadoutCalibrationSpec,
     build_closed_control_registry,
     readout_calibration_spec_payload,
+)
+from rulespace_v3.replay_scope import (
+    _replay_scope_statistics,
+    _scoped_replay_context,
 )
 from rulespace_v3.window import (
     build_control_window_protocol_entries,
@@ -54,7 +65,6 @@ from rulespace_v3.calibration_authority import (
     c04_canonical_angle_recipe_symbol,
     calibration_application_permit_payload,
     issue_v3m0_calibration_application_permit,
-    issue_v3m0_application_prestructure_authority,
     issue_v3m0_response_block_attempt,
     materialize_v3m0_scenario_construction,
     response_block_attempt_outcome_payload,
@@ -709,7 +719,7 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
         )
 
         with self.assertRaises((TypeError, ValueError)):
-            prestructure_module._issue_synthetic_application_prestructure_authority(
+            issue_v3m0_application_prestructure_authority(
                 self.parent,
                 spec,
                 "f" * 64,
@@ -736,6 +746,370 @@ class CalibrationApplicationPermitTests(unittest.TestCase):
                 construction,
                 "actual",
             )
+
+    def test_application_prestructure_hit_revalidates_all_live_dependencies(
+        self,
+    ) -> None:
+        _, spec, permit = self._application_permit(4)
+        construction = materialize_v3m0_scenario_construction(
+            permit,
+            self._scenario_id(spec),
+        )
+        construction_view = (
+            authority_module._reverify_verified_scenario_construction(
+                construction
+            )
+        )
+        prestructure = issue_v3m0_application_prestructure_authority(
+            permit,
+            construction,
+            "actual",
+        )
+        namespace = (
+            "rulespace_v3.prestructure.VerifiedPrestructureAuthority"
+        )
+        parent_manifest = object.__getattribute__(
+            self.parent,
+            "_VerifiedParentFreeze__manifest",
+        )
+        permit_body = object.__getattribute__(
+            permit,
+            "_VerifiedCalibrationApplicationPermit__permit",
+        )
+        construction_body = object.__getattribute__(
+            construction,
+            "_VerifiedV3M0ScenarioConstruction__construction",
+        )
+        assert construction_view.outcome.pair is not None
+        construction_outcome_manifest = construction_view.outcome.pair.manifest
+        factory_primitive = construction_view.actual.factory.primitives[0]
+        cases = (
+            (
+                "parent",
+                parent_manifest,
+                "parent_freeze_sha",
+                "f" * 64,
+            ),
+            (
+                "permit",
+                permit_body,
+                "permit_sha",
+                "f" * 64,
+            ),
+            (
+                "scenario-construction",
+                construction_body,
+                "construction_sha",
+                "f" * 64,
+            ),
+            (
+                "construction-outcome",
+                construction_outcome_manifest,
+                "manifest_sha",
+                "f" * 64,
+            ),
+            (
+                "selected-factory",
+                factory_primitive,
+                "coefficient_wire",
+                (
+                    factory_primitive.coefficient_wire[0] + 1.0,
+                    factory_primitive.coefficient_wire[1],
+                ),
+            ),
+        )
+        with _scoped_replay_context():
+            prestructure_module._reverify_verified_prestructure_authority(
+                prestructure
+            )
+            for label, target, field, changed in cases:
+                with self.subTest(dependency=label):
+                    original = getattr(target, field)
+                    hits_before = dict(_replay_scope_statistics().hits).get(
+                        namespace,
+                        0,
+                    )
+                    try:
+                        object.__setattr__(target, field, changed)
+                        with self.assertRaises((TypeError, ValueError)):
+                            prestructure_module._reverify_verified_prestructure_authority(
+                                prestructure
+                            )
+                    finally:
+                        object.__setattr__(target, field, original)
+                    hits_after = dict(_replay_scope_statistics().hits).get(
+                        namespace,
+                        0,
+                    )
+                    self.assertEqual(hits_after, hits_before)
+            with (
+                mock.patch.object(
+                    authority_module,
+                    "_reverify_verified_calibration_application_permit",
+                    side_effect=AssertionError(
+                        "live permit reverifier rebinding was consulted"
+                    ),
+                ) as rebound_permit,
+                mock.patch.object(
+                    authority_module,
+                    "_reverify_verified_scenario_construction",
+                    side_effect=AssertionError(
+                        "live construction reverifier rebinding was consulted"
+                    ),
+                ) as rebound_construction,
+            ):
+                prestructure_module._reverify_verified_prestructure_authority(
+                    prestructure
+                )
+            rebound_permit.assert_not_called()
+            rebound_construction.assert_not_called()
+
+    def test_application_prestructure_issuance_ignores_prebound_rebinding(
+        self,
+    ) -> None:
+        _, spec, permit = self._application_permit(4)
+        construction = materialize_v3m0_scenario_construction(
+            permit,
+            self._scenario_id(spec),
+        )
+        with (
+            mock.patch.object(
+                authority_module,
+                "_reverify_verified_calibration_application_permit",
+                side_effect=AssertionError(
+                    "pre-issuance permit rebinding was consulted"
+                ),
+            ) as rebound_permit,
+            mock.patch.object(
+                authority_module,
+                "_reverify_verified_scenario_construction",
+                side_effect=AssertionError(
+                    "pre-issuance construction rebinding was consulted"
+                ),
+            ) as rebound_construction,
+            mock.patch.object(
+                prestructure_module,
+                "issue_v3m0_application_prestructure_authority",
+                side_effect=AssertionError(
+                    "pre-issuance issuer rebinding was consulted"
+                ),
+            ) as rebound_issuer,
+        ):
+            prestructure = issue_v3m0_application_prestructure_authority(
+                permit,
+                construction,
+                "actual",
+            )
+        rebound_permit.assert_not_called()
+        rebound_construction.assert_not_called()
+        rebound_issuer.assert_not_called()
+        verified = prestructure_module._reverify_verified_prestructure_authority(
+            prestructure
+        )
+        self.assertIs(verified.application_permit, permit)
+        self.assertIs(verified.application_construction, construction)
+
+    def test_fresh_prestructure_capture_is_import_order_stable_and_rebind_safe(
+        self,
+    ) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for first, second in (
+            ("rulespace_v3.prestructure", "rulespace_v3.calibration_authority"),
+            ("rulespace_v3.calibration_authority", "rulespace_v3.prestructure"),
+        ):
+            with self.subTest(first=first):
+                probe = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        (
+                            f"import {first}; import {second}; "
+                            "print('IMPORT_ORDER_OK')"
+                        ),
+                    ],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(
+                    probe.returncode,
+                    0,
+                    msg=f"stdout={probe.stdout}\nstderr={probe.stderr}",
+                )
+                self.assertIn("IMPORT_ORDER_OK", probe.stdout)
+        script = textwrap.dedent(
+            """
+            from unittest import mock
+
+            import rulespace_v3.calibration_authority as calibration
+            with (
+                mock.patch.object(
+                    calibration,
+                    "_reverify_verified_calibration_application_permit",
+                    side_effect=AssertionError("rebound permit consulted"),
+                ) as rebound_permit,
+                mock.patch.object(
+                    calibration,
+                    "_reverify_verified_scenario_construction",
+                    side_effect=AssertionError("rebound construction consulted"),
+                ) as rebound_construction,
+            ):
+                import rulespace_v3.prestructure as prestructure
+
+                assert not hasattr(
+                    prestructure,
+                    "_install_application_prestructure_dependencies",
+                )
+                assert not hasattr(
+                    prestructure,
+                    "_bootstrap_application_prestructure_dependencies",
+                )
+                assert not hasattr(
+                    calibration,
+                    "issue_v3m0_application_prestructure_authority",
+                )
+                genuine_issuer = (
+                    prestructure.issue_v3m0_application_prestructure_authority
+                )
+
+                from tests.test_v3m0_calibration_authority import (
+                    CalibrationApplicationPermitTests,
+                )
+
+                case_type = CalibrationApplicationPermitTests
+                case_type.setUpClass()
+                case = case_type(methodName="runTest")
+                _, spec, permit = case._application_permit(4)
+                construction = (
+                    calibration.materialize_v3m0_scenario_construction(
+                        permit,
+                        case._scenario_id(spec),
+                    )
+                )
+                with (
+                    mock.patch.object(
+                        calibration.VerifiedCalibrationApplicationPermit,
+                        "_prestructure_reverify",
+                        side_effect=AssertionError(
+                            "rebound permit descriptor consulted"
+                        ),
+                    ) as rebound_permit_descriptor,
+                    mock.patch.object(
+                        calibration.VerifiedV3M0ScenarioConstruction,
+                        "_prestructure_reverify",
+                        side_effect=AssertionError(
+                            "rebound construction descriptor consulted"
+                        ),
+                    ) as rebound_construction_descriptor,
+                    mock.patch.object(
+                        prestructure,
+                        "issue_v3m0_application_prestructure_authority",
+                        side_effect=AssertionError("rebound issuer consulted"),
+                    ) as rebound_issuer,
+                ):
+                    authority = genuine_issuer(
+                        permit,
+                        construction,
+                        "actual",
+                    )
+                rebound_permit_descriptor.assert_not_called()
+                rebound_construction_descriptor.assert_not_called()
+                rebound_issuer.assert_not_called()
+                view = prestructure._reverify_verified_prestructure_authority(
+                    authority
+                )
+                assert view.application_permit is permit
+                assert view.application_construction is construction
+            rebound_permit.assert_not_called()
+            rebound_construction.assert_not_called()
+            print("FRESH_CAPTURE_OK")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(
+            result.returncode,
+            0,
+            msg=f"stdout={result.stdout}\nstderr={result.stderr}",
+        )
+        self.assertIn("FRESH_CAPTURE_OK", result.stdout)
+
+    def test_application_prestructure_rejects_slot_copy_and_expired_children(
+        self,
+    ) -> None:
+        _, spec, permit = self._application_permit(4)
+        construction = materialize_v3m0_scenario_construction(
+            permit,
+            self._scenario_id(spec),
+        )
+
+        copied_permit = object.__new__(VerifiedCalibrationApplicationPermit)
+        for field in ("permit", "token", "seal"):
+            attribute = f"_VerifiedCalibrationApplicationPermit__{field}"
+            object.__setattr__(
+                copied_permit,
+                attribute,
+                object.__getattribute__(permit, attribute),
+            )
+        with self.assertRaises((TypeError, ValueError)):
+            issue_v3m0_application_prestructure_authority(
+                copied_permit,
+                construction,
+                "actual",
+            )
+
+        copied_construction = object.__new__(VerifiedV3M0ScenarioConstruction)
+        for field in ("construction", "token", "seal"):
+            attribute = f"_VerifiedV3M0ScenarioConstruction__{field}"
+            object.__setattr__(
+                copied_construction,
+                attribute,
+                object.__getattribute__(construction, attribute),
+            )
+        with self.assertRaises((TypeError, ValueError)):
+            issue_v3m0_application_prestructure_authority(
+                permit,
+                copied_construction,
+                "actual",
+            )
+
+        with authority_module._PERMIT_LOCK:
+            permit_record = authority_module._PERMIT_LIVE.pop(id(permit))
+        try:
+            with self.assertRaises((TypeError, ValueError)):
+                issue_v3m0_application_prestructure_authority(
+                    permit,
+                    construction,
+                    "actual",
+                )
+        finally:
+            with authority_module._PERMIT_LOCK:
+                authority_module._PERMIT_LIVE[id(permit)] = permit_record
+
+        with authority_module._SCENARIO_CONSTRUCTION_LOCK:
+            construction_record = (
+                authority_module._SCENARIO_CONSTRUCTION_LIVE.pop(
+                    id(construction)
+                )
+            )
+        try:
+            with self.assertRaises((TypeError, ValueError)):
+                issue_v3m0_application_prestructure_authority(
+                    permit,
+                    construction,
+                    "actual",
+                )
+        finally:
+            with authority_module._SCENARIO_CONSTRUCTION_LOCK:
+                authority_module._SCENARIO_CONSTRUCTION_LIVE[
+                    id(construction)
+                ] = construction_record
 
     def test_operation_parameters_change_scenario_effect_digest(self) -> None:
         _, spec, permit = self._application_permit(4)

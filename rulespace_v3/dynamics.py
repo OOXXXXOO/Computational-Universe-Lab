@@ -421,6 +421,10 @@ def _transition_seal(transition: MeasuredTransition) -> str:
 def _make_transition_authority(
     cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
     record_successful_replay: Callable[..., None] = _record_successful_replay,
+    factory_reverifier: Callable[..., object] = _reverify_verified_factory,
+    prestructure_reverifier: Callable[..., object] = (
+        _reverify_verified_prestructure_authority
+    ),
 ) -> tuple[
     Callable[..., VerifiedTransition],
     Callable[..., VerifiedTransition],
@@ -515,6 +519,22 @@ def _make_transition_authority(
             if body_mismatch or seal != authority.seal:
                 raise ValueError(
                     "VerifiedTransition cached immutable guard mismatch"
+                )
+            factory_view = factory_reverifier(authority.factory)
+            prestructure_view = prestructure_reverifier(
+                authority.prestructure
+            )
+            if (
+                authority.factory is not prestructure_view.factory
+                or transition.factory_sha != factory_view.factory.factory_sha
+                or transition.factory_role != factory_view.role
+                or transition.prestructure_authority_sha
+                != prestructure_view.authority.authority_sha
+                or transition.parent_freeze_sha
+                != prestructure_view.authority.parent_freeze.parent_freeze_sha
+            ):
+                raise ValueError(
+                    "VerifiedTransition cached dependency binding mismatch"
                 )
 
         if cached_replay_is_valid(

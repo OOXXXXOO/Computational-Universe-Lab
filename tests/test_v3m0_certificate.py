@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import contextlib
 import functools
 import inspect
 import sys
@@ -45,6 +46,10 @@ from rulespace_v3.metric import build_stability_metric_witness
 from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
 from rulespace_v3.prestructure import issue_synthetic_prestructure_authority
 from rulespace_v3.registry import build_closed_control_registry
+from rulespace_v3.replay_scope import (
+    _replay_scope_statistics,
+    _scoped_replay_context,
+)
 from rulespace_v3.runtime import (
     RUNTIME_MAX_SOURCE_FILES,
     issue_runtime_evidence_manifest,
@@ -85,6 +90,20 @@ class CertificateSpectralDispatchBindingTests(unittest.TestCase):
         self.assertNotIn(
             "build_exact_zero_spectral_margin_coverage",
             build_names | replay_names | hydrate_names | spectral_verify_names,
+        )
+
+    def test_all_top_level_certificate_operations_open_public_replay_scopes(self):
+        self.assertIn(
+            "_scoped_replay_context",
+            certificate_module.certify_transition_dynamics.func.__code__.co_names,
+        )
+        self.assertIn(
+            "_scoped_replay_context",
+            certificate_module.verify_dynamics_certificate.func.__code__.co_names,
+        )
+        self.assertIn(
+            "_scoped_replay_context",
+            certificate_module.verify_dynamics_certification_outcome.func.__code__.co_names,
         )
 
 
@@ -153,6 +172,61 @@ class DynamicsCertificateTests(unittest.TestCase):
             self.grid,
             self.runtime,
         )
+
+    def _call_with_captured_public_scope(self, operation, *args):
+        root = operation.func
+        private_globals = root.__globals__
+        original_context = private_globals["_scoped_replay_context"]
+        observed = []
+
+        @contextlib.contextmanager
+        def observing_context():
+            with original_context():
+                yield
+                observed.append(_replay_scope_statistics())
+
+        private_globals["_scoped_replay_context"] = observing_context
+        try:
+            result = operation(*args)
+        finally:
+            private_globals["_scoped_replay_context"] = original_context
+        self.assertEqual(len(observed), 1)
+        return result, observed[0]
+
+    def test_build_and_outcome_hydrate_reuse_one_top_level_scope(self):
+        built, build_statistics = self._call_with_captured_public_scope(
+            certify_transition_dynamics,
+            self.factory,
+            self.transition,
+            self.authority,
+            self.structure,
+            self.metric,
+            self.bridge_spec,
+            self.grid,
+            self.runtime,
+        )
+        self.assertTrue(built.outcome.status.defined)
+        hydrated, hydrate_statistics = self._call_with_captured_public_scope(
+            verify_dynamics_certification_outcome,
+            built.outcome,
+            self.factory,
+            self.authority,
+        )
+        self.assertTrue(hydrated.outcome.status.defined)
+
+        certificate_namespace = (
+            "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+        )
+        outcome_namespace = (
+            "rulespace_v3.certificate."
+            "VerifiedDynamicsCertificationOutcome"
+        )
+        for statistics in (build_statistics, hydrate_statistics):
+            full_records = dict(statistics.full_records)
+            hits = dict(statistics.hits)
+            self.assertEqual(full_records.get(certificate_namespace), 1)
+            self.assertEqual(full_records.get(outcome_namespace), 1)
+            self.assertGreaterEqual(hits.get(certificate_namespace, 0), 1)
 
     def _jordan_witness(self):
         raw = self.transition.transition
@@ -225,6 +299,94 @@ class DynamicsCertificateTests(unittest.TestCase):
             VerifiedDynamicsCertificationOutcome,
         )
         self.assertIsNotNone(verified_outcome.certificate)
+
+    def test_certificate_hit_revalidates_factory_and_prestructure_dependencies(self):
+        certificate = self.result.certificate
+        assert certificate is not None
+        namespace = (
+            "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+        )
+        factory_primitive = self.factory.factory.primitives[0]
+        prestructure_snapshot = self.authority.authority.ablation_pair_snapshot
+        cases = (
+            (
+                "factory",
+                factory_primitive,
+                "coefficient_wire",
+                (
+                    factory_primitive.coefficient_wire[0] + 1.0,
+                    factory_primitive.coefficient_wire[1],
+                ),
+            ),
+            (
+                "prestructure",
+                prestructure_snapshot,
+                "snapshot_sha",
+                "f" * 64,
+            ),
+        )
+        with _scoped_replay_context():
+            certificate_module._reverify_verified_dynamics_certificate_core(
+                certificate
+            )
+            for label, target, field, changed in cases:
+                with self.subTest(dependency=label):
+                    original = getattr(target, field)
+                    hits_before = dict(_replay_scope_statistics().hits).get(
+                        namespace,
+                        0,
+                    )
+                    try:
+                        object.__setattr__(target, field, changed)
+                        with self.assertRaises((TypeError, ValueError)):
+                            certificate_module._reverify_verified_dynamics_certificate_core(
+                                certificate
+                            )
+                    finally:
+                        object.__setattr__(target, field, original)
+                    hits_after = dict(_replay_scope_statistics().hits).get(
+                        namespace,
+                        0,
+                    )
+                    self.assertEqual(hits_after, hits_before)
+            outcome_namespace = (
+                "rulespace_v3.certificate."
+                "VerifiedDynamicsCertificationOutcome"
+            )
+            child_body = object.__getattribute__(
+                certificate,
+                "_VerifiedDynamicsCertificate__certificate",
+            )
+            outcome_body = dataclasses.replace(
+                self.result.outcome,
+                certificate=dataclasses.replace(child_body),
+            )
+            outcome = (
+                certificate_module._issue_verified_dynamics_certification_outcome(
+                    outcome_body,
+                    certificate,
+                    self.factory,
+                    self.authority,
+                )
+            )
+            outcome_hits_before = dict(_replay_scope_statistics().hits).get(
+                outcome_namespace,
+                0,
+            )
+            original = child_body.certificate_sha
+            try:
+                object.__setattr__(child_body, "certificate_sha", "f" * 64)
+                with self.assertRaises((TypeError, ValueError)):
+                    certificate_module._reverify_verified_dynamics_certification_outcome_core(
+                        outcome
+                    )
+            finally:
+                object.__setattr__(child_body, "certificate_sha", original)
+            outcome_hits_after = dict(_replay_scope_statistics().hits).get(
+                outcome_namespace,
+                0,
+            )
+            self.assertEqual(outcome_hits_after, outcome_hits_before)
 
     def test_success_hydrate_dispatches_through_generic_spectral_builder(self):
         assert self.result.certificate is not None

@@ -32,8 +32,17 @@ class _Leaf:
 
 
 @dataclass(frozen=True)
-class _CertificateBody:
+class _TransitionBinding:
+    factory_sha: str
+    factory_role: str
+    prestructure_authority_sha: str
+
+
+@dataclass(frozen=True)
+class _CertificateDependencyBody:
     leaf: _Leaf
+    prestructure_authority: object
+    transition: _TransitionBinding
 
 
 @dataclass(frozen=True)
@@ -94,8 +103,38 @@ class ExactWireSnapshotTests(unittest.TestCase):
 
 
 class CertificateScopedReplayTests(unittest.TestCase):
-    def _issue(self) -> tuple[object, _CertificateBody]:
-        body = _CertificateBody(_Leaf(1))
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.parent = issue_v3m0_parent_freeze()
+        cls.controls = _quarter_turn_controls()
+        cls.registry = build_closed_control_registry(cls.controls, cls.parent)
+        cls.construction = matched_ablation(cls.controls[0].factory)
+        assert cls.construction.pair is not None
+        cls.factory = cls.construction.pair.actual
+        cls.authority = (
+            prestructure_module.issue_synthetic_prestructure_authority(
+                cls.parent,
+                cls.registry,
+                "full",
+                cls.construction,
+                "actual",
+            )
+        )
+
+    def _issue(self) -> tuple[object, _CertificateDependencyBody]:
+        body = _CertificateDependencyBody(
+            leaf=_Leaf(1),
+            prestructure_authority=certificate_module._snapshot_exact_wire(
+                self.authority.authority
+            ),
+            transition=_TransitionBinding(
+                factory_sha=self.factory.factory.factory_sha,
+                factory_role="actual",
+                prestructure_authority_sha=(
+                    self.authority.authority.authority_sha
+                ),
+            ),
+        )
         with (
             mock.patch.object(certificate_module, "_validate_certificate"),
             mock.patch.object(
@@ -107,13 +146,25 @@ class CertificateScopedReplayTests(unittest.TestCase):
             wrapper = certificate_module._issue_verified_dynamics_certificate(
                 certificate_module._VALIDATED_TOKEN,
                 body,
-                object(),
-                object(),
+                self.factory,
+                self.authority,
             )
         return wrapper, body
 
     def test_validated_issuance_records_proof_for_immediate_reverify(self):
-        body = _CertificateBody(_Leaf(1))
+        body = _CertificateDependencyBody(
+            leaf=_Leaf(1),
+            prestructure_authority=certificate_module._snapshot_exact_wire(
+                self.authority.authority
+            ),
+            transition=_TransitionBinding(
+                factory_sha=self.factory.factory.factory_sha,
+                factory_role="actual",
+                prestructure_authority_sha=(
+                    self.authority.authority.authority_sha
+                ),
+            ),
+        )
         with (
             mock.patch.object(
                 certificate_module,
@@ -129,8 +180,8 @@ class CertificateScopedReplayTests(unittest.TestCase):
             wrapper = certificate_module._issue_verified_dynamics_certificate(
                 certificate_module._VALIDATED_TOKEN,
                 body,
-                object(),
-                object(),
+                self.factory,
+                self.authority,
             )
             certificate_module._reverify_verified_dynamics_certificate_core(
                 wrapper
@@ -139,12 +190,16 @@ class CertificateScopedReplayTests(unittest.TestCase):
 
         full_validate.assert_called_once()
         self.assertEqual(
-            statistics.full_records,
-            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+            dict(statistics.full_records)[
+                "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+            ],
+            1,
         )
         self.assertEqual(
-            statistics.hits,
-            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+            dict(statistics.hits)[
+                "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+            ],
+            1,
         )
 
     def test_same_scope_runs_full_certificate_validation_once(self):
@@ -172,12 +227,16 @@ class CertificateScopedReplayTests(unittest.TestCase):
         self.assertEqual(first, second)
         full_validate.assert_called_once()
         self.assertEqual(
-            statistics.full_records,
-            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+            dict(statistics.full_records)[
+                "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+            ],
+            1,
         )
         self.assertEqual(
-            statistics.hits,
-            (("rulespace_v3.certificate.VerifiedDynamicsCertificate", 1),),
+            dict(statistics.hits)[
+                "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+            ],
+            1,
         )
 
     def test_in_place_deep_mutation_is_rejected_on_certificate_hit(self):
@@ -226,6 +285,35 @@ class AuthorityScopedReplayIntegrationTests(unittest.TestCase):
             cls.factory,
             cls.authority,
         )
+
+    def _assert_hit_revalidates_mutated_dependency(
+        self,
+        *,
+        namespace,
+        reverify,
+        wrapper,
+        target,
+        field,
+        changed,
+    ):
+        original = getattr(target, field)
+        try:
+            with _scoped_replay_context():
+                reverify(wrapper)
+                hits_before = dict(_replay_scope_statistics().hits).get(
+                    namespace,
+                    0,
+                )
+                object.__setattr__(target, field, changed)
+                with self.assertRaises((TypeError, ValueError)):
+                    reverify(wrapper)
+                hits_after = dict(_replay_scope_statistics().hits).get(
+                    namespace,
+                    0,
+                )
+        finally:
+            object.__setattr__(target, field, original)
+        self.assertEqual(hits_after, hits_before)
 
     def test_factory_prestructure_and_transition_replay_once_per_scope(self):
         with _scoped_replay_context():
@@ -314,6 +402,278 @@ class AuthorityScopedReplayIntegrationTests(unittest.TestCase):
                     )
         finally:
             object.__setattr__(kernel, "values_wire", original)
+
+    def test_transition_hit_revalidates_factory_and_prestructure_dependencies(self):
+        namespace = "rulespace_v3.dynamics.VerifiedTransition"
+        primitive = self.factory.factory.primitives[0]
+        prestructure_snapshot = self.authority.authority.ablation_pair_snapshot
+        cases = (
+            (
+                "factory",
+                primitive,
+                "coefficient_wire",
+                (
+                    primitive.coefficient_wire[0] + 1.0,
+                    primitive.coefficient_wire[1],
+                ),
+            ),
+            (
+                "prestructure",
+                prestructure_snapshot,
+                "snapshot_sha",
+                "f" * 64,
+            ),
+        )
+        with _scoped_replay_context():
+            dynamics_module._reverify_verified_transition(self.transition)
+            for label, target, field, changed in cases:
+                with self.subTest(dependency=label):
+                    original = getattr(target, field)
+                    try:
+                        hits_before = dict(_replay_scope_statistics().hits).get(
+                            namespace,
+                            0,
+                        )
+                        object.__setattr__(target, field, changed)
+                        with self.assertRaises((TypeError, ValueError)):
+                            dynamics_module._reverify_verified_transition(
+                                self.transition
+                            )
+                    finally:
+                        object.__setattr__(target, field, original)
+                    hits_after = dict(_replay_scope_statistics().hits).get(
+                        namespace,
+                        0,
+                    )
+                    self.assertEqual(hits_after, hits_before)
+
+    def test_prestructure_registry_hit_revalidates_all_direct_dependencies(self):
+        namespace = (
+            "rulespace_v3.prestructure.VerifiedPrestructureAuthority"
+        )
+        parent_manifest = object.__getattribute__(
+            self.parent,
+            "_VerifiedParentFreeze__manifest",
+        )
+        registry_body = object.__getattribute__(
+            self.registry,
+            "_VerifiedControlRegistry__registry",
+        )
+        assert self.construction.pair is not None
+        construction_manifest = self.construction.pair.manifest
+        factory_primitive = self.factory.factory.primitives[0]
+        cases = (
+            (
+                "parent",
+                parent_manifest,
+                "parent_freeze_sha",
+                "f" * 64,
+            ),
+            (
+                "registry",
+                registry_body,
+                "registry_sha",
+                "f" * 64,
+            ),
+            (
+                "construction-outcome",
+                construction_manifest,
+                "manifest_sha",
+                "f" * 64,
+            ),
+            (
+                "selected-factory",
+                factory_primitive,
+                "coefficient_wire",
+                (
+                    factory_primitive.coefficient_wire[0] + 1.0,
+                    factory_primitive.coefficient_wire[1],
+                ),
+            ),
+        )
+        for label, target, field, changed in cases:
+            with self.subTest(dependency=label):
+                self._assert_hit_revalidates_mutated_dependency(
+                    namespace=namespace,
+                    reverify=(
+                        prestructure_module._reverify_verified_prestructure_authority
+                    ),
+                    wrapper=self.authority,
+                    target=target,
+                    field=field,
+                    changed=changed,
+                )
+
+    def test_failure_outcome_hit_revalidates_factory_and_prestructure(self):
+        failure = certificate_module.DynamicsCertificationFailure.PRESTRUCTURE_INVALID
+        attempt = certificate_module._attempt(
+            factory_sha=self.factory.factory.factory_sha,
+            authority_sha=self.authority.authority.authority_sha,
+            transition_sha=None,
+            failure=failure,
+            reality=None,
+            structure_residual=None,
+            metric_residual=None,
+            spectral_margins=None,
+            normalized_metric_residual=None,
+            full_state_bridge_audit=None,
+            power_drift=None,
+            instability_counter_witness=None,
+        )
+        raw = certificate_module._raw_outcome(
+            failure=failure,
+            attempt=attempt,
+            certificate=None,
+        )
+        namespace = (
+            "rulespace_v3.certificate."
+            "VerifiedDynamicsCertificationOutcome"
+        )
+        factory_primitive = self.factory.factory.primitives[0]
+        prestructure_snapshot = self.authority.authority.ablation_pair_snapshot
+        cases = (
+            (
+                "factory",
+                factory_primitive,
+                "coefficient_wire",
+                (
+                    factory_primitive.coefficient_wire[0] + 1.0,
+                    factory_primitive.coefficient_wire[1],
+                ),
+            ),
+            (
+                "prestructure",
+                prestructure_snapshot,
+                "snapshot_sha",
+                "f" * 64,
+            ),
+        )
+        with mock.patch.object(
+            certificate_module,
+            "_verify_failure_evidence",
+        ):
+            outcome = (
+                certificate_module._issue_verified_dynamics_certification_outcome(
+                    raw,
+                    None,
+                    self.factory,
+                    self.authority,
+                )
+            )
+            with _scoped_replay_context():
+                certificate_module._reverify_verified_dynamics_certification_outcome_core(
+                    outcome
+                )
+                for label, target, field, changed in cases:
+                    with self.subTest(dependency=label):
+                        original = getattr(target, field)
+                        hits_before = dict(_replay_scope_statistics().hits).get(
+                            namespace,
+                            0,
+                        )
+                        try:
+                            object.__setattr__(target, field, changed)
+                            with self.assertRaises((TypeError, ValueError)):
+                                certificate_module._reverify_verified_dynamics_certification_outcome_core(
+                                    outcome
+                                )
+                        finally:
+                            object.__setattr__(target, field, original)
+                        hits_after = dict(_replay_scope_statistics().hits).get(
+                            namespace,
+                            0,
+                        )
+                        self.assertEqual(hits_after, hits_before)
+
+    def test_certificate_hit_revalidates_actual_factory_and_prestructure(self):
+        body = _CertificateDependencyBody(
+            leaf=_Leaf(1),
+            prestructure_authority=certificate_module._snapshot_exact_wire(
+                self.authority.authority
+            ),
+            transition=_TransitionBinding(
+                factory_sha=self.factory.factory.factory_sha,
+                factory_role="actual",
+                prestructure_authority_sha=(
+                    self.authority.authority.authority_sha
+                ),
+            ),
+        )
+
+        def validate(_body, factory, authority):
+            factory_module._reverify_verified_factory(factory)
+            prestructure_module._reverify_verified_prestructure_authority(
+                authority
+            )
+
+        with (
+            mock.patch.object(
+                certificate_module,
+                "_validate_certificate",
+                side_effect=validate,
+            ),
+            mock.patch.object(
+                certificate_module,
+                "_certificate_seal",
+                return_value=_SEAL,
+            ),
+        ):
+            certificate = (
+                certificate_module._issue_verified_dynamics_certificate(
+                    certificate_module._VALIDATED_TOKEN,
+                    body,
+                    self.factory,
+                    self.authority,
+                )
+            )
+            namespace = (
+                "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+            )
+            factory_primitive = self.factory.factory.primitives[0]
+            prestructure_snapshot = (
+                self.authority.authority.ablation_pair_snapshot
+            )
+            cases = (
+                (
+                    "factory",
+                    factory_primitive,
+                    "coefficient_wire",
+                    (
+                        factory_primitive.coefficient_wire[0] + 1.0,
+                        factory_primitive.coefficient_wire[1],
+                    ),
+                ),
+                (
+                    "prestructure",
+                    prestructure_snapshot,
+                    "snapshot_sha",
+                    "f" * 64,
+                ),
+            )
+            with _scoped_replay_context():
+                certificate_module._reverify_verified_dynamics_certificate_core(
+                    certificate
+                )
+                for label, target, field, changed in cases:
+                    with self.subTest(dependency=label):
+                        original = getattr(target, field)
+                        hits_before = dict(_replay_scope_statistics().hits).get(
+                            namespace,
+                            0,
+                        )
+                        try:
+                            object.__setattr__(target, field, changed)
+                            with self.assertRaises((TypeError, ValueError)):
+                                certificate_module._reverify_verified_dynamics_certificate_core(
+                                    certificate
+                                )
+                        finally:
+                            object.__setattr__(target, field, original)
+                        hits_after = dict(_replay_scope_statistics().hits).get(
+                            namespace,
+                            0,
+                        )
+                        self.assertEqual(hits_after, hits_before)
 
 
 if __name__ == "__main__":
