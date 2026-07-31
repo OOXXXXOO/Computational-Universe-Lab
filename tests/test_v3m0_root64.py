@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import cmath
+import inspect
 import math
 import struct
 import unittest
@@ -8,7 +10,14 @@ from dataclasses import replace
 from fractions import Fraction
 from unittest import mock
 
+import mpmath as mp
+
 from rulespace_v3.evidence import canonical_sha
+
+
+AUDITED_TABLE_SHA = (
+    "d54b51d9163589f405a859b494290248af69d680359f69b64d735d9a080570d8"
+)
 
 
 def _float_from_bits(bits: int) -> float:
@@ -56,6 +65,16 @@ def _assert_inside_rn_cell(
     )
 
 
+def _recursively_resign(table: object) -> object:
+    from rulespace_v3.root64 import root64_table_payload
+
+    provisional = replace(table, table_sha="0" * 64)
+    return replace(
+        provisional,
+        table_sha=canonical_sha(root64_table_payload(provisional)),
+    )
+
+
 class Root64IntervalTableTests(unittest.TestCase):
     def test_builds_complete_canonical_p192_table(self) -> None:
         from rulespace_v3.root64 import (
@@ -97,6 +116,80 @@ class Root64IntervalTableTests(unittest.TestCase):
             table.pi_upper_numerator - table.pi_lower_numerator,
             2,
         )
+
+    def test_audited_sha_matches_independent_full_root_oracle(self) -> None:
+        from rulespace_v3.root64 import build_root64_interval_table
+
+        table = build_root64_interval_table()
+        self.assertEqual(table.table_sha, AUDITED_TABLE_SHA)
+        scale_int = 1 << table.dyadic_exponent
+        axis_intervals = {
+            0: (scale_int, scale_int, 0, 0),
+            16: (0, 0, scale_int, scale_int),
+            32: (-scale_int, -scale_int, 0, 0),
+            48: (0, 0, -scale_int, -scale_int),
+        }
+        with mp.workdps(160):
+            scale = mp.mpf(2) ** table.dyadic_exponent
+            for entry in table.entries:
+                with self.subTest(root_index=entry.root_index):
+                    stored = (
+                        entry.real_lower_numerator,
+                        entry.real_upper_numerator,
+                        entry.imag_lower_numerator,
+                        entry.imag_upper_numerator,
+                    )
+                    if entry.root_index in axis_intervals:
+                        self.assertEqual(
+                            stored,
+                            axis_intervals[entry.root_index],
+                        )
+                        continue
+                    angle = 2 * mp.pi * entry.root_index / table.denominator
+                    real_oracle = mp.cos(angle)
+                    imag_oracle = mp.sin(angle)
+                    self.assertLessEqual(
+                        mp.mpf(entry.real_lower_numerator) / scale,
+                        real_oracle,
+                    )
+                    self.assertGreaterEqual(
+                        mp.mpf(entry.real_upper_numerator) / scale,
+                        real_oracle,
+                    )
+                    self.assertLessEqual(
+                        mp.mpf(entry.imag_lower_numerator) / scale,
+                        imag_oracle,
+                    )
+                    self.assertGreaterEqual(
+                        mp.mpf(entry.imag_upper_numerator) / scale,
+                        imag_oracle,
+                    )
+
+    def test_audited_sha_rejects_shared_builder_verifier_mapping_fault(
+        self,
+    ) -> None:
+        from rulespace_v3 import root64
+
+        original_root_interval = root64._root_interval
+
+        def shifted_root_interval(
+            root_index: int,
+            first_octant: object,
+        ) -> object:
+            return original_root_interval(
+                (root_index + 1) % 64,
+                first_octant,
+            )
+
+        with mock.patch.object(
+            root64,
+            "_root_interval",
+            side_effect=shifted_root_interval,
+        ):
+            wrong_table = root64.build_root64_interval_table()
+            self.assertNotEqual(wrong_table.table_sha, AUDITED_TABLE_SHA)
+            with self.assertRaisesRegex(ValueError, "audited|canonical"):
+                root64.verify_root64_interval_table(wrong_table)
 
     def test_every_interval_proves_binary64_center_rounding_cell(self) -> None:
         from rulespace_v3.root64 import build_root64_interval_table
@@ -213,7 +306,10 @@ class Root64IntervalTableTests(unittest.TestCase):
             provisional,
             table_sha=canonical_sha(root64_table_payload(provisional)),
         )
-        with self.assertRaisesRegex(ValueError, "canonical|containment|entry"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "audited|canonical|containment|entry",
+        ):
             verify_root64_interval_table(tampered)
 
         wrong_center = replace(
@@ -229,8 +325,93 @@ class Root64IntervalTableTests(unittest.TestCase):
             provisional,
             table_sha=canonical_sha(root64_table_payload(provisional)),
         )
-        with self.assertRaisesRegex(ValueError, "canonical|rounding|entry"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "audited|canonical|rounding|entry",
+        ):
             verify_root64_interval_table(tampered)
+
+    def test_all_interval_and_distance_fields_reject_recursive_resigning(
+        self,
+    ) -> None:
+        from rulespace_v3.root64 import (
+            build_root64_interval_table,
+            verify_root64_interval_table,
+        )
+
+        table = build_root64_interval_table()
+        endpoint_mutations = (
+            ("real_lower_numerator", 1, "real"),
+            ("real_upper_numerator", -1, "real"),
+            ("imag_lower_numerator", 1, "imag"),
+            ("imag_upper_numerator", -1, "imag"),
+        )
+        for field, delta, component in endpoint_mutations:
+            with self.subTest(field=field):
+                entry_index = next(
+                    index
+                    for index, entry in enumerate(table.entries)
+                    if (
+                        entry.real_upper_numerator
+                        - entry.real_lower_numerator
+                        >= 2
+                        if component == "real"
+                        else entry.imag_upper_numerator
+                        - entry.imag_lower_numerator
+                        >= 2
+                    )
+                )
+                entry = table.entries[entry_index]
+                changed = replace(
+                    entry,
+                    **{field: getattr(entry, field) + delta},
+                )
+                tampered = _recursively_resign(
+                    replace(
+                        table,
+                        entries=(
+                            *table.entries[:entry_index],
+                            changed,
+                            *table.entries[entry_index + 1 :],
+                        ),
+                    )
+                )
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "audited|canonical|containment",
+                ):
+                    verify_root64_interval_table(tampered)
+
+        entry_index = next(
+            index
+            for index, entry in enumerate(table.entries)
+            if entry.center_distance_squared_upper_numerator > 0
+        )
+        entry = table.entries[entry_index]
+        for field in (
+            "center_distance_squared_upper_numerator",
+            "center_distance_upper_f64_bits",
+        ):
+            with self.subTest(field=field):
+                changed = replace(
+                    entry,
+                    **{field: getattr(entry, field) - 1},
+                )
+                tampered = _recursively_resign(
+                    replace(
+                        table,
+                        entries=(
+                            *table.entries[:entry_index],
+                            changed,
+                            *table.entries[entry_index + 1 :],
+                        ),
+                    )
+                )
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "audited|canonical|containment",
+                ):
+                    verify_root64_interval_table(tampered)
 
     def test_strict_wire_types_and_order_are_enforced(self) -> None:
         from rulespace_v3.root64 import (
@@ -266,12 +447,17 @@ class Root64IntervalTableTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "canonical|root_index|order"):
             verify_root64_interval_table(reordered)
 
-    def test_hard_path_does_not_call_library_trigonometry(self) -> None:
+    def test_hard_path_does_not_call_library_trigonometry_or_sqrt(self) -> None:
         forbidden = mock.Mock(side_effect=AssertionError("libm trig called"))
+        forbidden_sqrt = mock.Mock(
+            side_effect=AssertionError("library sqrt called")
+        )
         with (
             mock.patch.object(math, "sin", forbidden),
             mock.patch.object(math, "cos", forbidden),
             mock.patch.object(cmath, "exp", forbidden),
+            mock.patch.object(math, "sqrt", forbidden_sqrt),
+            mock.patch.object(cmath, "sqrt", forbidden_sqrt),
         ):
             from rulespace_v3.root64 import (
                 build_root64_interval_table,
@@ -281,6 +467,25 @@ class Root64IntervalTableTests(unittest.TestCase):
             table = build_root64_interval_table()
             self.assertIs(verify_root64_interval_table(table), table)
         self.assertEqual(forbidden.call_count, 0)
+        self.assertEqual(forbidden_sqrt.call_count, 0)
+
+    def test_hard_path_ast_has_no_transcendental_or_sqrt_calls(self) -> None:
+        from rulespace_v3 import root64
+
+        forbidden_names = {"sin", "cos", "exp", "sqrt"}
+        tree = ast.parse(inspect.getsource(root64))
+        calls: list[str] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name) and node.func.id in forbidden_names:
+                calls.append(node.func.id)
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in forbidden_names
+            ):
+                calls.append(node.func.attr)
+        self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":

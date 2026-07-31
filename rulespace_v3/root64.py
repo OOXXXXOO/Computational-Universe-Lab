@@ -25,6 +25,9 @@ TABLE_SCHEMA_VERSION = "v3m0.fp64-root-of-unity-interval-table.v1"
 TABLE_ID = "root64-dyadic-machin-taylor-containment-v1"
 MACHIN_IDENTITY_ID = "pi-equals-16atan1over5-minus4atan1over239-v1"
 REMAINDER_METHOD_ID = "bigint-alternating-rational-remainder-v1"
+AUDITED_ROOT64_TABLE_SHA = (
+    "d54b51d9163589f405a859b494290248af69d680359f69b64d735d9a080570d8"
+)
 _SERIES_TOLERANCE = Fraction(1, 1 << (DYADIC_EXPONENT + 32))
 _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _POSITIVE_MAX_FINITE_BITS = 0x7FEFFFFFFFFFFFFF
@@ -518,6 +521,8 @@ def verify_root64_interval_table(
         raise ValueError("table_sha must be a lowercase SHA-256")
     if table.table_sha != canonical_sha(root64_table_payload(table)):
         raise ValueError("table_sha does not match the complete table body")
+    if table.table_sha != AUDITED_ROOT64_TABLE_SHA:
+        raise ValueError("table_sha does not match the audited root64 table")
     canonical = build_root64_interval_table()
     if table != canonical:
         raise ValueError(
@@ -531,6 +536,7 @@ verify_fp64_root_of_unity_interval_table = verify_root64_interval_table
 
 
 __all__ = [
+    "AUDITED_ROOT64_TABLE_SHA",
     "DYADIC_EXPONENT",
     "Fp64RootIntervalEntry",
     "Fp64RootOfUnityIntervalTable",
