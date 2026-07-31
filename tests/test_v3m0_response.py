@@ -18,12 +18,19 @@ import rulespace_v3.response as response_module
 from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.factory import freeze_complex_tensor
 from rulespace_v3.contracts import BlockStatus
-from rulespace_v3.certificate import VerifiedDynamicsCertificate
+from rulespace_v3.certificate import (
+    DynamicsCertificate,
+    VerifiedDynamicsCertificate,
+)
 from rulespace_v3.dynamics import VerifiedTransition, measure_transition
 from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.prestructure import issue_synthetic_prestructure_authority
 from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
 from rulespace_v3.registry import build_closed_control_registry
+from rulespace_v3.runtime import (
+    RuntimeEvidenceManifest,
+    issue_runtime_evidence_manifest,
+)
 from rulespace_v3.response import (
     ENDPOINT_REFERENCE_ATTEMPT_SCHEMA_VERSION,
     ENDPOINT_REFERENCE_OUTCOME_SCHEMA_VERSION,
@@ -109,6 +116,69 @@ from rulespace_v3.window import (
     build_window_calibration_protocol,
 )
 from tests.test_v3m0_window_thresholds import _window_controls
+
+
+class ResponseAuthorityStructuralCodecTests(unittest.TestCase):
+    @staticmethod
+    def _certificate_with_real_runtime() -> DynamicsCertificate:
+        runtime = issue_runtime_evidence_manifest()
+        certificate = object.__new__(DynamicsCertificate)
+        for field in dataclasses.fields(DynamicsCertificate):
+            object.__setattr__(
+                certificate,
+                field.name,
+                runtime if field.name == "runtime" else field.name,
+            )
+        return certificate
+
+    def test_digest_and_clone_traverse_real_slotted_certificate_runtime(
+        self,
+    ) -> None:
+        certificate = self._certificate_with_real_runtime()
+        self.assertIs(type(certificate.runtime), RuntimeEvidenceManifest)
+
+        digest = response_module._authority_structural_digest(certificate)
+        cloned = response_module._authority_structural_clone(certificate)
+
+        self.assertRegex(digest, r"\A[0-9a-f]{64}\Z")
+        self.assertIs(type(cloned), DynamicsCertificate)
+        self.assertIs(type(cloned.runtime), RuntimeEvidenceManifest)
+        self.assertEqual(cloned.runtime, certificate.runtime)
+        self.assertIsNot(cloned.runtime, certificate.runtime)
+
+        injected = self._certificate_with_real_runtime()
+        object.__setattr__(injected, "caller_unknown", "forbidden")
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            response_module._authority_structural_digest(injected)
+        with self.assertRaisesRegex(ValueError, "unknown"):
+            response_module._authority_structural_clone(injected)
+
+        incomplete = self._certificate_with_real_runtime()
+        object.__setattr__(
+            incomplete,
+            "runtime",
+            object.__new__(RuntimeEvidenceManifest),
+        )
+        with self.assertRaisesRegex(ValueError, "missing"):
+            response_module._authority_structural_digest(incomplete)
+        with self.assertRaisesRegex(ValueError, "missing"):
+            response_module._authority_structural_clone(incomplete)
+
+    def test_structural_digest_retains_cycle_and_resource_caps(self) -> None:
+        @dataclasses.dataclass(frozen=True)
+        class RecursiveRecord:
+            child: object
+
+        cyclic = RecursiveRecord(None)
+        object.__setattr__(cyclic, "child", cyclic)
+        with self.assertRaisesRegex(ValueError, "cyclic"):
+            response_module._authority_structural_digest(cyclic)
+        with self.assertRaisesRegex(ValueError, "cyclic"):
+            response_module._authority_structural_clone(cyclic)
+
+        oversized_text = RecursiveRecord("x" * 16_385)
+        with self.assertRaisesRegex(ValueError, "text exceeds resource cap"):
+            response_module._authority_structural_digest(oversized_text)
 
 
 class ResponseRunSpecTests(unittest.TestCase):

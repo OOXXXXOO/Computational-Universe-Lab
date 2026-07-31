@@ -6113,8 +6113,11 @@ def _freeze_response_call_graph(
 def _make_authority_structural_codec(
     *,
     canonical_hash: Callable = canonical_sha,
+    preflight: Callable = functools.partial(
+        _preflight_response_evidence_body
+    ),
+    dataclass_items: Callable = functools.partial(_exact_dataclass_items),
     type_fn: Callable = type,
-    vars_fn: Callable = vars,
     getattr_fn: Callable = getattr,
     isinstance_fn: Callable = isinstance,
     enum_type: type = Enum,
@@ -6137,17 +6140,10 @@ def _make_authority_structural_codec(
         value_type = type_fn(value)
         fields = getattr_fn(value_type, "__dataclass_fields__", None)
         if fields is not None:
-            try:
-                body = vars_fn(value)
-            except type_error as exc:
-                raise type_error("authority record has no exact body") from exc
-            expected = frozenset_type(fields)
-            observed = frozenset_type(body)
-            if observed != expected:
-                raise value_error("authority record contains missing or unknown fields")
+            items = dataclass_items(value, "authority record", fields)
             return {
                 "__record__": (f"{value_type.__module__}.{value_type.__qualname__}"),
-                "fields": [[name, normalize(body[name])] for name in fields],
+                "fields": [[name, normalize(item)] for name, item in items],
             }
         if isinstance_fn(value, enum_type):
             return {
@@ -6185,6 +6181,7 @@ def _make_authority_structural_codec(
         )
 
     def digest(value):
+        preflight(value, "authority_structural_body")
         return canonical_hash({"authority_structural_body": normalize(value)})
 
     def seal(kind, body_digest):
@@ -6200,8 +6197,8 @@ def _make_authority_structural_codec(
 
 def _make_authority_structural_clone(
     *,
+    dataclass_items: Callable = functools.partial(_exact_dataclass_items),
     type_fn: Callable = type,
-    vars_fn: Callable = vars,
     getattr_fn: Callable = getattr,
     isinstance_fn: Callable = isinstance,
     enum_type: type = Enum,
@@ -6254,29 +6251,16 @@ def _make_authority_structural_clone(
 
             fields = getattr_fn(current_type, "__dataclass_fields__", None)
             if fields is not None:
-                try:
-                    body = vars_fn(current)
-                except type_error as exc:
-                    raise type_error(
-                        f"{path} authority record has no exact body"
-                    ) from exc
-                expected = frozenset_type(fields)
-                observed = frozenset_type(body)
-                if observed != expected:
-                    raise value_error(
-                        f"{path} authority record fields differ; "
-                        f"unknown={sorted_fn(observed - expected)}, "
-                        f"missing={sorted_fn(expected - observed)}"
-                    )
+                items = dataclass_items(current, path, fields)
                 result = object_type.__new__(current_type)
                 memo[identity] = result
                 active.add(identity)
                 try:
-                    for name in fields:
+                    for name, item in items:
                         object_type.__setattr__(
                             result,
                             name,
-                            copy_value(body[name], f"{path}.{name}"),
+                            copy_value(item, f"{path}.{name}"),
                         )
                 finally:
                     active.remove(identity)
