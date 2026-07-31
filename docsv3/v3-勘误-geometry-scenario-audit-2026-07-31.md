@@ -24,10 +24,10 @@ g = sv((I-P_kerC)S_curv)
 kerC = TT ⊕ Gauge
 ```
 
-且 SVD 按标准非增序保存。以 `H=TT⊕Gauge⊕Row` 的四个 scenario 语义直接计算，正确
-预言必须是：
+且 SVD 按标准非增序保存。以 `H=TT⊕Gauge⊕Row` 的四个 scenario 语义直接计算，解析
+理想谱与阈值侧预言必须是：
 
-| scenario | source/curvature sector | `g`（非增序） | `c`（eigvalsh 非减序） |
+| scenario | source/curvature sector | ideal `g`（非增序） | ideal `c`（eigvalsh 非减序） |
 |---|---|---|---|
 | `full-h` | `TT₂⊕Gauge₁⊕Row₁` | `(1,0,0,0)` | `(1,1)` |
 | `low-rank-tt` | `TT₁` | `(0)` | `(0,1)` |
@@ -36,6 +36,11 @@ kerC = TT ⊕ Gauge
 
 旧 Parent 中的 `(1,1)`、`(0,1)`、`(1,1)`、`(1,1)` 不只是排序问题，而与
 `kerC=TT⊕Gauge` 的语义相反。禁止修改公式或阈值迎合旧 tuple。
+
+ideal `0/1` 只用于派生 below/above side label，不要求有限 `T` 的 measured spectrum
+逐位等于 ideal tuple。当前非循环解析 bundle 在 T=256 的预飞给出 full-h 次大
+`g≈0.009393`、TT 理想零 `g≈0.001647`；两者均远低于 geometry grey band 下沿
+`0.04`。最终证据必须保存实测谱、signed margin 与 side label。
 
 此外，两个 k 点上的 rank-one shell 最多给 direct-sum rank 2，不能承载 `full-h` rank 4。
 C15 必须冻结 rank-two shell，同时保留四通道和两个 k 点。
@@ -90,9 +95,11 @@ scenario ID/SHA
 + operator/geometry bundle（如适用）
 ```
 
-case permit 只提供校准与网格 authority；不得用 case-level identity source/readout 覆盖
-scenario 语义。actual 与 matched-ablated 必须共享同一冻结 run spec，branch-active
-selector 由各自 raw response 独立产生，不得复用 actual selector。
+case permit 只提供校准、网格和公共最大 source/readout basis authority。每个 scenario
+另冻结从公共 basis 机械派生的 source injection isometry/readout coisometry；不得另换
+一份未绑定 basis，也不得用 case-level identity 选择覆盖 scenario 语义。actual 与
+matched-ablated 必须共享同一冻结 run spec，branch-active selector 由各自 raw response
+独立产生，不得复用 actual selector。
 
 ### 2.2 比例控制使用等谱 projector orientation
 
@@ -100,8 +107,10 @@ phase/gain、干涉、缺模与 extra-mode 应由等谱 shell sector 的 project
 关系构造，使两支共享同一个 Fejér scalar，并让比例在逐 k、任意候选 T 上代数约掉。
 禁止用 eigenphase offset 或事后调整 T 制造目标比例。
 
-C05 推荐使用 rank-two 等谱 sector：以固定权重和 target-conditioned sign flip 产生
-`a+b` 与 `a-b`，从而代数得到 phase/×2；完整系数仍须由独立数值预飞与复审冻结。
+C05 推荐使用 rank-two 等谱 sector：以固定权重和 target-conditioned orientation 产生
+代数可约掉共同 Fejér scalar 的 phase/gain。gain 的方向按任务书固定为
+`gain_ratio=||Y₀||_F/||Y₁||_F=2`，其中 `Y₀=matched-ablated`、`Y₁=actual`；
+完整系数仍须由独立数值预飞与复审冻结。
 
 ### 2.3 C15 rank-two 局域 carrier
 
@@ -149,9 +158,11 @@ gauge amplitude/sector 机械生成，且 quotient 前后 `c` 谱漂移 `≤1e-1
 签发版至少需要：
 
 1. Parent refreeze C05、C07、C08、C10、C12、C15–C19 的 scenario response 合同；
-2. C07 拆为两个成功 scenario；
+2. C07 拆为 constructive/destructive 两个成功 scenario；destructive 两支都必须为
+   signal 且 observer 子空间正交，禁止以 null branch 代替；
 3. C15 shell rank 改为 2，并采用 §1.1 的 `g/c` tuple；
-4. C15–C17 阈值校准改为七项 scenario audit、三 permit `4/2/1` 复用；
+4. C15–C17 阈值校准改为七项 scenario audit：C15 四 unary、C16 两 unary、C17 一
+   paired；至少消费八个 branch blocks，三 permit 按 `4/2/1` 复用；
 5. ResponseBlock 绑定 permit、scenario、construction、application evidence 与 geometry
    bundle，paired branches 上述 authority 字段逐位相同；
 6. 重新运行所有候选 T 的 endpoint、bridge、raw/gap、finite response 与 C15–C19

@@ -53,7 +53,10 @@ typed termination 传播，不得生成 success block。
 
 - `permit_sha/application_spec_sha/scenario_id/scenario_sha/recipe_sha`；
 - `selected_fejer_order`、response grid、bridge grid、reference reciprocal index；
-- scenario-specific `source_injection` 与 `readout`，两者必须绑定共同 state schema；
+- permit 继续冻结 case-level 公共最大 source/readout basis；scenario protocol 只冻结
+  由该公共 basis 机械派生的 `source_injection_isometry` 与
+  `readout_coisometry`。两者必须逐列/逐行证明为公共 basis 的子选择或冻结线性组合，
+  并绑定共同 state schema；不得把 scenario-specific basis 偷换回 permit；
 - 每个 momentum 的 phase band 与 `expected_shell_rank`；
 - source、h、curvature metric whiteners；
 - `curvature_incidence_by_k`；
@@ -94,7 +97,10 @@ protocol 不得读取响应值、奇异值、审计 verdict 或 caller 数字。
 
 - phase scenario：两个 branch 的响应子空间相同，选择相反 orientation，使辅报响应比
   为 `-1`；
-- gain scenario：两个 orientation 的投影权重比为 `2`；
+- gain scenario：冻结 evaluator 约定
+  `gain_ratio=||Y₀||_F/||Y₁||_F`
+  （`Y₀=matched-ablated`、`Y₁=actual`），并令该比值为 `2`；不得只写一个无分子分母
+  方向的“投影权重比 2”；
 - 两者的主 survival 谱均为全 `1`。
 
 纯二维解析核
@@ -106,37 +112,51 @@ protocol 不得读取响应值、奇异值、审计 verdict 或 caller 数字。
 拆成两个 success scenario：
 
 - `constructive`：`survival=1`、`chi_extra=0`、`d_proc_sq=0`；
-- `destructive`：`survival=0`、`chi_extra=1`、`d_proc_sq=1`。
+- `destructive`：actual 与 matched-ablated 都必须越过 signal line，且两者 observer
+  子空间正交，从而 `survival=0`、`chi_extra=1`、`d_proc_sq=1`。不得用 ablated
+  null response 冒充 destructive；该情形会得到 `chi_extra=0` 且 Procrustes undefined。
 
-两个 scenario 各自拥有 source/readout/protocol/block，不得在 case-level scalar 中保存
-二元向量。
+两个 scenario 各自拥有从 permit 公共 basis 派生的 source injection/readout
+coisometry、protocol 与 block，不得另换一份未绑定 basis，也不得在 case-level scalar
+中保存二元向量。
 
 ### 5.3 C12
 
 scenario operation DAG 必须显式冻结：
 
 - response momentum 列表；
+- 每个 `k` 必须非零并在冻结的第一 Brillouin 域内；
 - `inc(k)` 的解析 family ID；
-- `ν_inc(k)>0` 的解析 formula ID；
+- 显式公式 `ν_inc(k)=4Σ_j sin²(k_j/2)>0`、解析 formula ID 与逐 `k` fp64 wire；
+- `k→0` 时 normalized operator 的 IR 极限证书；
 - 预期 curvature mode count；
-- raw-noise absolute threshold 与 relative-gap threshold 的既有冻结引用。
+- raw-noise absolute threshold 与 relative-gap threshold 的既有冻结引用；
+- 逐 `k` raw spectrum、raw bridge noise、absolute margin 与 relative-gap margin。
 
 不得用 `normalizer_id="synthetic-identity-v1"` 冒充逐 `k` 除法。
 
 ### 5.4 C15–C17
 
-C15 正确预言为：
+C15 的**解析理想谱与阈值侧预言**为：
 
-| scenario | active rank | `g` spectrum | `c` spectrum |
+| scenario | active rank | ideal `g` spectrum | ideal `c` spectrum |
 |---|---:|---|---|
 | full-h | 4 | `(1,0,0,0)` | `(1,1)` |
 | low-rank-tt | 1 | `(0)` | `(0,1)` |
 | tt | 2 | `(0,0)` | `(1,1)` |
 | tt-plus-row | 3 | `(1,0,0)` | `(1,1)` |
 
-C16 的 low/high 各是一份 scenario audit；C17 quotient-gauge 是一份 before/after
-scenario audit。Task 14 calibration 因而严格消费七份 live blocks/permits，不消费三个
-case-level 摘要。
+C16 的 low/high 各是一份 unary scenario audit；C17 quotient-gauge 是一份 paired
+before/after scenario audit。Task 14 calibration 因而严格消费七份 scenario audits：
+C15 四份 unary、C16 两份 unary、C17 一份 paired。它们至少消费八个 branch blocks
+（C15/C16 各一块，C17 两块）和三个 live case permits（按 `4/2/1` 复用），不消费三个
+case-level 数值摘要。每份 block 的 scenario protocol 必须给出自己的 basis
+子选择/coisometry。
+
+有限 `T` 下允许出现远离 grey band 的窗口泄漏；Parent 的 ideal `0/1` 只生成
+`below/above` side label，不能被当成 measured spectrum 的逐位相等断言。以当前非循环
+解析 bundle 做的 T=256 预飞中，full-h 次大 `g≈0.009393`、TT 的理想零
+`g≈0.001647`，均仍严格落在 `g<0.04` 的 below 安全侧。
 
 C15–C17 的 common carrier 使用 rank-2 positive-frequency shell；Parent 的
 `expected_shell_rank` 必须由旧值修正为 `2`。几何 target 与 quotient 在运行前冻结。
@@ -186,6 +206,11 @@ C18 的新方向若在冻结窗口下落入 off-band，则本 scenario 失败，
 
 - C05 有纯矩阵有限阶解析/数值回归，并有可编译的局域 real-space recipe；
 - C06–C12、C15–C19 的 transition-only recipes 全部明确不签 scientific evidence；
-- C15 rank-2 carrier 在所有冻结 `T` 上给出正确 response ranks 与正确 `g/c`；
+- C15 rank-2 carrier 在所有冻结 `T` 上给出正确 response ranks；非循环、预响应冻结的
+  解析 geometry bundle 在所有冻结 `T` 上给出正确 side labels 和正 margin；
+- C16 low/high 必须产生不同、可重放的 coverage 几何语义；C17 的 gauge amplitude
+  必须进入实际 dressed/undressed operator 与 response，而不是只写 metadata；
+- geometry recipe verifier 覆盖 resigned tensor、scenario/control 交叉拼接和
+  Parent/recipe 重签攻击；
 - 至少一名独立 reviewer 对 authority DAG、Parent 修正和无循环性给出 PASS；
 - `ruff`、定向单测、`compileall` 与 `git diff --check` 通过。
