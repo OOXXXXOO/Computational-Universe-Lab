@@ -4,8 +4,10 @@ This module intentionally separates an authority-neutral, self-hashing wire
 format from the opaque live capability.  Raw or re-signed records can be
 audited with :func:`verify_application_scenario_response_protocol_v2_body`,
 but they cannot be promoted.  Issuance is closed over the exact live
-Parent-v2, permit-v2 and materialization-v2 replayers.  The final protocol-body
-compiler is not yet present, so the public issuer currently fails closed.
+Parent-v2, permit-v2 and materialization-v2 replayers.  The exact compiler is
+dependency-injected and audits the complete upstream lineage before returning
+any body.  Public issuance still fails closed while the live materialization
+and repository-closed analytic input resolver are unavailable.
 
 No measured response, singular value, verdict, threshold override or caller
 supplied numerical construction enters the issuer API.
@@ -53,9 +55,12 @@ _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _IDENTITY_INCIDENCE_FAMILY = "identity-incidence-v1"
 _IDENTITY_NORMALIZER_FORMULA = "identity-positive-normalizer-v1"
 _IDENTITY_DERIVATION = "identity-incidence-derivation-v1"
-_LAPLACIAN_INCIDENCE_FAMILY = "discrete-laplacian-incidence-v1"
-_LAPLACIAN_NORMALIZER_FORMULA = "nu-inc-4-sum-sin2-half-k-v1"
-_LAPLACIAN_DERIVATION = "periodic-forward-difference-symbol-v1"
+_LAPLACIAN_INCIDENCE_FAMILY = "synthetic-lattice-laplacian-incidence-v1"
+_LAPLACIAN_NORMALIZER_FORMULA = "nu-inc-4-sum-sin2-half-v1"
+_LAPLACIAN_DERIVATION = (
+    "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
+)
+_C12_CONTROL_CASE_ID = "C12_NU_INC_IR_NORMALIZATION"
 
 # These exact names are the only delayed wiring points.  Keeping them here is
 # deliberate: a v1 permit/materialization, a provisional candidate or a
@@ -964,7 +969,7 @@ def _verify_grids_and_momenta(
     if tuple(observed_indices) != response_indices:
         raise ValueError("momentum wires are not in response-grid order")
 
-    if protocol.control_case_id == "C12" and any(
+    if protocol.control_case_id == _C12_CONTROL_CASE_ID and any(
         item.curvature_incidence_family_id != _LAPLACIAN_INCIDENCE_FAMILY
         for item in protocol.momentum_wires
     ):
@@ -1027,6 +1032,513 @@ class VerifiedApplicationScenarioResponseProtocolV2:
         return verify_v3m0_scenario_response_protocol(self)
 
 
+def _lineage_equal(observed: object, expected: object, field: str) -> None:
+    if observed != expected:
+        raise ValueError(f"scenario response protocol {field} lineage drifted")
+
+
+def _unique_by_identifier(
+    values: object,
+    identifier: str,
+    field: str,
+) -> object:
+    if type(values) is not tuple:
+        raise TypeError(f"{field} must be an exact tuple")
+    matches = tuple(
+        item for item in values if getattr(item, field, None) == identifier
+    )
+    if len(matches) != 1:
+        raise ValueError(f"{field} does not resolve to exactly one live body")
+    return matches[0]
+
+
+def _verify_exact_protocol_upstream_lineage(
+    protocol: ApplicationScenarioResponseProtocolV2,
+    parent_body: object,
+    permit_body: object,
+    materialization_body: object,
+    *,
+    unique_by_identifier=_unique_by_identifier,
+    lineage_equal=_lineage_equal,
+) -> None:
+    """Bind one verified protocol body to one complete live upstream tuple.
+
+    The upstream reverifiers remain responsible for recursively validating
+    their own exact wire types and hashes.  This function is the cross-object
+    compiler boundary: every field duplicated between Parent, permit,
+    materialization, recipe, trace, factory bindings and protocol must agree.
+    """
+
+    application = permit_body.application_authority
+    parent_application = unique_by_identifier(
+        parent_body.current_application_authorities,
+        application.application_instance_id,
+        "application_instance_id",
+    )
+    lineage_equal(
+        parent_application,
+        application,
+        "Parent/application authority",
+    )
+    lineage_equal(
+        permit_body.parent_freeze_v2_sha,
+        parent_body.parent_freeze_v2_sha,
+        "Parent/permit root",
+    )
+    lineage_equal(
+        permit_body.scenario_authority_shas,
+        tuple(item.scenario_authority_sha for item in application.scenario_authorities),
+        "permit scenario-authority tuple",
+    )
+
+    scenario = unique_by_identifier(
+        application.scenario_authorities,
+        materialization_body.scenario_id,
+        "scenario_id",
+    )
+    execution = scenario.scenario_execution_spec
+    response = scenario.response_contract
+    if execution.execution_lane != "BLOCK_SUCCESS":
+        raise ValueError("scenario response protocol requires a BLOCK_SUCCESS lane")
+
+    shared = (
+        (
+            protocol.formal_parent_v2_sha,
+            parent_body.parent_freeze_v2_sha,
+            "Parent root",
+        ),
+        (
+            materialization_body.formal_parent_v2_sha,
+            parent_body.parent_freeze_v2_sha,
+            "materialization Parent root",
+        ),
+        (protocol.permit_v2_sha, permit_body.permit_sha, "permit SHA"),
+        (
+            materialization_body.permit_v2_sha,
+            permit_body.permit_sha,
+            "materialization permit SHA",
+        ),
+        (
+            protocol.application_spec_sha,
+            application.based_on_application_spec_sha,
+            "application spec SHA",
+        ),
+        (
+            materialization_body.application_spec_sha,
+            application.based_on_application_spec_sha,
+            "materialization application spec SHA",
+        ),
+        (
+            materialization_body.application_authority_sha,
+            application.application_authority_sha,
+            "materialization application authority SHA",
+        ),
+        (
+            protocol.application_instance_id,
+            application.application_instance_id,
+            "application instance",
+        ),
+        (
+            materialization_body.application_instance_id,
+            application.application_instance_id,
+            "materialization application instance",
+        ),
+        (protocol.control_case_id, application.control_case_id, "control case"),
+        (permit_body.control_case_id, application.control_case_id, "permit control case"),
+        (
+            materialization_body.control_case_id,
+            application.control_case_id,
+            "materialization control case",
+        ),
+        (protocol.scenario_id, scenario.scenario_id, "scenario ID"),
+        (
+            materialization_body.scenario_id,
+            scenario.scenario_id,
+            "materialization scenario ID",
+        ),
+        (protocol.scenario_sha, execution.scenario_sha, "scenario SHA"),
+        (
+            materialization_body.scenario_sha,
+            execution.scenario_sha,
+            "materialization scenario SHA",
+        ),
+        (
+            materialization_body.scenario_authority_sha,
+            scenario.scenario_authority_sha,
+            "materialization scenario authority SHA",
+        ),
+        (
+            materialization_body.response_contract_sha,
+            response.response_contract_sha,
+            "materialization response contract SHA",
+        ),
+        (
+            protocol.selected_fejer_order,
+            permit_body.selected_fejer_order,
+            "selected Fejer order",
+        ),
+        (
+            materialization_body.selected_fejer_order,
+            permit_body.selected_fejer_order,
+            "materialization selected Fejer order",
+        ),
+        (
+            protocol.materialization_v2_sha,
+            materialization_body.materialization_v2_sha,
+            "materialization SHA",
+        ),
+    )
+    for observed, expected, field in shared:
+        lineage_equal(observed, expected, field)
+
+    recipe = materialization_body.scenario_recipe
+    recipe_lineage = (
+        (recipe.formal_parent_v2_sha, protocol.formal_parent_v2_sha, "recipe Parent"),
+        (recipe.permit_v2_sha, protocol.permit_v2_sha, "recipe permit"),
+        (
+            recipe.application_spec_sha,
+            protocol.application_spec_sha,
+            "recipe application spec",
+        ),
+        (
+            recipe.scenario_authority_sha,
+            scenario.scenario_authority_sha,
+            "recipe scenario authority",
+        ),
+        (
+            recipe.response_contract_sha,
+            response.response_contract_sha,
+            "recipe response contract",
+        ),
+        (recipe.control_case_id, protocol.control_case_id, "recipe control case"),
+        (
+            recipe.application_instance_id,
+            protocol.application_instance_id,
+            "recipe application instance",
+        ),
+        (recipe.scenario_id, protocol.scenario_id, "recipe scenario ID"),
+        (recipe.scenario_sha, protocol.scenario_sha, "recipe scenario SHA"),
+        (recipe.recipe_sha, protocol.recipe_sha, "recipe SHA"),
+        (
+            recipe.operation_dag_sha,
+            protocol.operation_dag_sha,
+            "recipe operation DAG",
+        ),
+        (
+            recipe.compiled_contract_sha,
+            protocol.compiled_contract_sha,
+            "recipe compiled contract",
+        ),
+        (
+            recipe.actual_effect.effect_digest,
+            protocol.actual_effect_digest,
+            "recipe actual effect",
+        ),
+        (
+            recipe.matched_ablated_effect.effect_digest,
+            protocol.matched_ablated_effect_digest,
+            "recipe matched effect",
+        ),
+        (recipe.source_selector, protocol.source_selector, "recipe source selector"),
+        (
+            recipe.readout_selector,
+            protocol.readout_selector,
+            "recipe readout selector",
+        ),
+    )
+    for observed, expected, field in recipe_lineage:
+        lineage_equal(observed, expected, field)
+
+    response_lineage = (
+        (response.scenario_id, protocol.scenario_id, "response scenario"),
+        (response.operation_dag_sha, protocol.operation_dag_sha, "response DAG"),
+        (
+            response.compiled_contract_sha,
+            protocol.compiled_contract_sha,
+            "response compiled contract",
+        ),
+        (
+            response.selector_spec.source_selector,
+            protocol.source_selector,
+            "response source selector",
+        ),
+        (
+            response.selector_spec.readout_selector,
+            protocol.readout_selector,
+            "response readout selector",
+        ),
+        (
+            response.selector_spec.source_injection,
+            protocol.source_injection_isometry,
+            "response source injection",
+        ),
+        (
+            response.selector_spec.readout_coisometry,
+            protocol.readout_coisometry,
+            "response readout coisometry",
+        ),
+        (
+            response.source_trial_vectors,
+            protocol.source_trial_vectors,
+            "response source trials",
+        ),
+        (
+            response.response_torus_denominators,
+            protocol.response_torus_denominators,
+            "response torus",
+        ),
+        (
+            response.response_reciprocal_indices,
+            protocol.response_reciprocal_indices,
+            "response grid",
+        ),
+        (
+            response.source_readout_bridge_reciprocal_indices,
+            protocol.source_bridge_reciprocal_indices,
+            "source bridge grid",
+        ),
+        (
+            response.source_readout_bridge_reciprocal_indices,
+            protocol.readout_bridge_reciprocal_indices,
+            "readout bridge grid",
+        ),
+        (
+            response.source_readout_bridge_steps,
+            protocol.source_readout_bridge_steps,
+            "bridge steps",
+        ),
+        (
+            response.reference_reciprocal_index,
+            protocol.reference_reciprocal_index,
+            "reference reciprocal index",
+        ),
+    )
+    for observed, expected, field in response_lineage:
+        lineage_equal(observed, expected, field)
+
+    bands = response.preregistered_phase_bands
+    if len(bands) == 1:
+        expected_bands = bands * len(protocol.momentum_wires)
+    elif len(bands) == len(protocol.momentum_wires):
+        expected_bands = bands
+    else:
+        raise ValueError("response phase bands do not cover momentum wires")
+    for wire, phase_band in zip(protocol.momentum_wires, expected_bands):
+        lineage_equal(wire.phase_band, phase_band, "momentum phase band")
+        lineage_equal(
+            wire.expected_actual_shell_rank,
+            response.expected_actual_shell_rank,
+            "actual shell rank",
+        )
+        lineage_equal(
+            wire.expected_matched_shell_rank,
+            response.expected_matched_shell_rank,
+            "matched shell rank",
+        )
+
+    lineage_equal(
+        materialization_body.common_source_basis,
+        protocol.common_source_basis,
+        "common source basis",
+    )
+    lineage_equal(
+        materialization_body.common_readout_basis,
+        protocol.common_readout_basis,
+        "common readout basis",
+    )
+    lineage_equal(
+        materialization_body.scenario_source_injection,
+        protocol.source_injection_isometry,
+        "materialization source injection",
+    )
+    lineage_equal(
+        materialization_body.scenario_readout_coisometry,
+        protocol.readout_coisometry,
+        "materialization readout coisometry",
+    )
+
+    trace = materialization_body.construction_trace
+    trace_lineage = (
+        (trace.scenario_id, protocol.scenario_id, "trace scenario ID"),
+        (trace.scenario_sha, protocol.scenario_sha, "trace scenario SHA"),
+        (trace.recipe_sha, protocol.recipe_sha, "trace recipe SHA"),
+        (trace.operation_dag_sha, protocol.operation_dag_sha, "trace DAG"),
+        (
+            trace.compiled_contract_sha,
+            protocol.compiled_contract_sha,
+            "trace compiled contract",
+        ),
+        (
+            trace.construction_trace_sha,
+            protocol.construction_trace_sha,
+            "construction trace SHA",
+        ),
+        (trace.state_schema_id, protocol.state_schema_id, "trace state schema"),
+        (trace.channel_order, protocol.channel_order, "trace channel order"),
+        (trace.state_shape[1:], protocol.spatial_shape, "trace spatial shape"),
+        (
+            trace.actual_effect_digest,
+            protocol.actual_effect_digest,
+            "trace actual effect",
+        ),
+        (
+            trace.matched_ablated_effect_digest,
+            protocol.matched_ablated_effect_digest,
+            "trace matched effect",
+        ),
+    )
+    if trace.state_shape[0] != len(protocol.channel_order):
+        raise ValueError("trace state shape channel axis drifted")
+    for observed, expected, field in trace_lineage:
+        lineage_equal(observed, expected, field)
+
+    bindings = (
+        (
+            materialization_body.actual_factory_binding,
+            "actual",
+            protocol.actual_factory_sha,
+            protocol.actual_effect_digest,
+        ),
+        (
+            materialization_body.matched_ablated_factory_binding,
+            "matched_ablated",
+            protocol.matched_ablated_factory_sha,
+            protocol.matched_ablated_effect_digest,
+        ),
+    )
+    for binding, branch, factory_sha, effect_digest in bindings:
+        for observed, expected, field in (
+            (binding.branch, branch, f"{branch} factory branch"),
+            (binding.scenario_id, protocol.scenario_id, f"{branch} scenario ID"),
+            (binding.scenario_sha, protocol.scenario_sha, f"{branch} scenario SHA"),
+            (binding.recipe_sha, protocol.recipe_sha, f"{branch} recipe SHA"),
+            (
+                binding.construction_trace_sha,
+                protocol.construction_trace_sha,
+                f"{branch} construction trace",
+            ),
+            (binding.factory_sha, factory_sha, f"{branch} factory SHA"),
+            (binding.effect_digest, effect_digest, f"{branch} effect digest"),
+        ):
+            lineage_equal(observed, expected, field)
+
+
+def _make_exact_scenario_response_protocol_compiler(
+    *,
+    parent_body_type: type,
+    permit_body_type: type,
+    materialization_body_type: type,
+    protocol_body_builder,
+    analytic_lineage_resolver,
+    protocol_body_verifier=verify_application_scenario_response_protocol_v2_body,
+    upstream_lineage_verifier=_verify_exact_protocol_upstream_lineage,
+    lineage_equal=_lineage_equal,
+):
+    """Create the private pure compiler used after all live reverifiers.
+
+    ``protocol_body_builder`` is deliberately private dependency injection.
+    Public issuance never exposes it, so tests can exercise a positive exact
+    compilation without creating a caller-controlled production hydration
+    path while the analytic resolver is still under construction.
+    """
+
+    for value, field in (
+        (parent_body_type, "parent_body_type"),
+        (permit_body_type, "permit_body_type"),
+        (materialization_body_type, "materialization_body_type"),
+    ):
+        if type(value) is not type:
+            raise TypeError(f"{field} must be an exact class")
+    if (
+        not callable(protocol_body_builder)
+        or not callable(analytic_lineage_resolver)
+        or not callable(protocol_body_verifier)
+        or not callable(upstream_lineage_verifier)
+        or not callable(lineage_equal)
+    ):
+        raise TypeError("protocol compiler dependencies must be callable")
+
+    def compile_exact(parent_body, permit_body, materialization_body):
+        if type(parent_body) is not parent_body_type:
+            raise TypeError("Parent replay returned the wrong exact body type")
+        if type(permit_body) is not permit_body_type:
+            raise TypeError("permit replay returned the wrong exact body type")
+        if type(materialization_body) is not materialization_body_type:
+            raise TypeError("materialization replay returned the wrong exact body type")
+        protocol = protocol_body_verifier(
+            protocol_body_builder(parent_body, permit_body, materialization_body)
+        )
+        upstream_lineage_verifier(
+            protocol,
+            parent_body,
+            permit_body,
+            materialization_body,
+        )
+        analytic_lineage = analytic_lineage_resolver(
+            parent_body,
+            permit_body,
+            materialization_body,
+        )
+        if type(analytic_lineage) is not tuple or len(analytic_lineage) != 2:
+            raise TypeError(
+                "analytic lineage resolver must return an exact wires/bundle pair"
+            )
+        expected_wires, expected_geometry = analytic_lineage
+        if type(expected_wires) is not tuple:
+            raise TypeError("analytic momentum lineage must be an exact tuple")
+        lineage_equal(
+            protocol.momentum_wires,
+            expected_wires,
+            "analytic momentum",
+        )
+        lineage_equal(
+            protocol.geometry_bundle,
+            expected_geometry,
+            "analytic geometry bundle",
+        )
+        return protocol
+
+    return compile_exact
+
+
+def _make_live_scenario_response_protocol_replayer(
+    *,
+    parent_capability_type: type,
+    permit_capability_type: type,
+    materialization_capability_type: type,
+    parent_reverifier,
+    permit_reverifier,
+    materialization_reverifier,
+    exact_compiler,
+):
+    """Close exact live identities over the pure protocol compiler."""
+
+    dependencies = (
+        parent_reverifier,
+        permit_reverifier,
+        materialization_reverifier,
+        exact_compiler,
+    )
+    if not all(callable(item) for item in dependencies):
+        raise TypeError("live protocol replay dependencies must be callable")
+
+    def replay(formal_parent_v2, permit_v2, materialization_v2):
+        if type(formal_parent_v2) is not parent_capability_type:
+            raise TypeError("formal_parent_v2 must be an exact live Parent-v2")
+        if type(permit_v2) is not permit_capability_type:
+            raise TypeError("permit_v2 must be an exact live permit-v2")
+        if type(materialization_v2) is not materialization_capability_type:
+            raise TypeError(
+                "materialization_v2 must be an exact live materialization-v2"
+            )
+        parent_body = parent_reverifier(formal_parent_v2)
+        permit_body = permit_reverifier(permit_v2)
+        materialization_body = materialization_reverifier(materialization_v2)
+        return exact_compiler(parent_body, permit_body, materialization_body)
+
+    return replay
+
+
 def _load_exact_v2_upstream() -> tuple[object, ...]:
     try:
         from .application_authority_v2 import (
@@ -1050,34 +1562,70 @@ def _load_exact_v2_upstream() -> tuple[object, ...]:
     )
 
 
+def _repository_closed_protocol_body_builder(
+    parent_body: object,
+    permit_body: object,
+    materialization_body: object,
+) -> ApplicationScenarioResponseProtocolV2:
+    del parent_body, permit_body, materialization_body
+    raise ScenarioResponseProtocolUpstreamUnavailable(
+        "repository-closed momentum/geometry protocol input resolver is not connected"
+    )
+
+
+def _repository_closed_protocol_analytic_lineage(
+    parent_body: object,
+    permit_body: object,
+    materialization_body: object,
+) -> tuple[tuple[ScenarioResponseMomentumWireV2, ...], object]:
+    del parent_body, permit_body, materialization_body
+    raise ScenarioResponseProtocolUpstreamUnavailable(
+        "repository-closed momentum/geometry analytic lineage is not connected"
+    )
+
+
 def _replay_from_live_upstream(
     formal_parent_v2: object,
     permit_v2: object,
     materialization_v2: object,
 ) -> ApplicationScenarioResponseProtocolV2:
+    from .application_authority_v2 import CalibrationApplicationPermitV2
+    from .application_materialization_v2 import (
+        ApplicationScenarioMaterializationV2,
+    )
     from .parent_authority import VerifiedParentFreezeV2, require_current_parent
+    from .parent_v2_contracts import ParentFreezeV2Manifest
 
-    if type(formal_parent_v2) is not VerifiedParentFreezeV2:
-        raise TypeError("formal_parent_v2 must be an exact live Parent-v2")
     (
         permit_type,
         require_permit,
         materialization_type,
         require_materialization,
     ) = _load_exact_v2_upstream()
-    if type(permit_v2) is not permit_type:
-        raise TypeError("permit_v2 must be an exact live permit-v2")
-    if type(materialization_v2) is not materialization_type:
-        raise TypeError("materialization_v2 must be an exact live materialization-v2")
-    require_current_parent(formal_parent_v2)
-    require_permit(permit_v2)
-    require_materialization(materialization_v2)
-    raise ScenarioResponseProtocolUpstreamUnavailable(
-        "exact scenario response protocol body compiler is not connected"
+    compiler = _make_exact_scenario_response_protocol_compiler(
+        parent_body_type=ParentFreezeV2Manifest,
+        permit_body_type=CalibrationApplicationPermitV2,
+        materialization_body_type=ApplicationScenarioMaterializationV2,
+        protocol_body_builder=_repository_closed_protocol_body_builder,
+        analytic_lineage_resolver=(
+            _repository_closed_protocol_analytic_lineage
+        ),
     )
+    replay = _make_live_scenario_response_protocol_replayer(
+        parent_capability_type=VerifiedParentFreezeV2,
+        permit_capability_type=permit_type,
+        materialization_capability_type=materialization_type,
+        parent_reverifier=require_current_parent,
+        permit_reverifier=require_permit,
+        materialization_reverifier=require_materialization,
+        exact_compiler=compiler,
+    )
+    return replay(formal_parent_v2, permit_v2, materialization_v2)
 
 
-def _make_closed_protocol_api():
+def _make_closed_protocol_api(
+    replay_from_live_upstream=_replay_from_live_upstream,
+):
     registry: WeakKeyDictionary[
         VerifiedApplicationScenarioResponseProtocolV2,
         _LiveProtocolBinding,
@@ -1089,7 +1637,7 @@ def _make_closed_protocol_api():
         permit_v2: object,
         materialization_v2: object,
     ) -> VerifiedApplicationScenarioResponseProtocolV2:
-        protocol = _replay_from_live_upstream(
+        protocol = replay_from_live_upstream(
             formal_parent_v2,
             permit_v2,
             materialization_v2,
@@ -1118,7 +1666,7 @@ def _make_closed_protocol_api():
             raise ValueError("scenario response protocol capability is not live") from exc
         if seal is not authority_seal:
             raise ValueError("scenario response protocol authority seal is forged")
-        replayed = _replay_from_live_upstream(
+        replayed = replay_from_live_upstream(
             binding.formal_parent_v2,
             binding.permit_v2,
             binding.materialization_v2,

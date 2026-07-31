@@ -11,7 +11,9 @@ import copy
 import inspect
 import math
 from dataclasses import fields, replace
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -20,6 +22,142 @@ SHA = "a" * 64
 
 
 class ScenarioResponseProtocolContractTests(unittest.TestCase):
+    def _upstream_bodies(self, protocol):
+        response_contract = SimpleNamespace(
+            scenario_id=protocol.scenario_id,
+            response_contract_sha="6" * 64,
+            operation_dag_sha=protocol.operation_dag_sha,
+            compiled_contract_sha=protocol.compiled_contract_sha,
+            selector_spec=SimpleNamespace(
+                source_selector=protocol.source_selector,
+                readout_selector=protocol.readout_selector,
+                source_injection=protocol.source_injection_isometry,
+                readout_coisometry=protocol.readout_coisometry,
+            ),
+            source_trial_vectors=protocol.source_trial_vectors,
+            response_torus_denominators=protocol.response_torus_denominators,
+            response_reciprocal_indices=protocol.response_reciprocal_indices,
+            source_readout_bridge_reciprocal_indices=(
+                protocol.source_bridge_reciprocal_indices
+            ),
+            source_readout_bridge_steps=protocol.source_readout_bridge_steps,
+            reference_reciprocal_index=protocol.reference_reciprocal_index,
+            preregistered_phase_bands=tuple(
+                item.phase_band for item in protocol.momentum_wires
+            ),
+            expected_actual_shell_rank=(
+                protocol.momentum_wires[0].expected_actual_shell_rank
+            ),
+            expected_matched_shell_rank=(
+                protocol.momentum_wires[0].expected_matched_shell_rank
+            ),
+        )
+        scenario_authority = SimpleNamespace(
+            scenario_id=protocol.scenario_id,
+            scenario_authority_sha="5" * 64,
+            scenario_execution_spec=SimpleNamespace(
+                scenario_id=protocol.scenario_id,
+                scenario_sha=protocol.scenario_sha,
+                execution_lane="BLOCK_SUCCESS",
+            ),
+            response_contract=response_contract,
+        )
+        application_authority = SimpleNamespace(
+            control_case_id=protocol.control_case_id,
+            application_instance_id=protocol.application_instance_id,
+            based_on_application_spec_sha=protocol.application_spec_sha,
+            application_authority_sha="4" * 64,
+            scenario_authorities=(scenario_authority,),
+        )
+        parent = SimpleNamespace(
+            parent_freeze_v2_sha=protocol.formal_parent_v2_sha,
+            current_application_authorities=(application_authority,),
+        )
+        permit = SimpleNamespace(
+            parent_freeze_v2_sha=protocol.formal_parent_v2_sha,
+            permit_sha=protocol.permit_v2_sha,
+            control_case_id=protocol.control_case_id,
+            application_authority=application_authority,
+            scenario_authority_shas=(scenario_authority.scenario_authority_sha,),
+            selected_fejer_order=protocol.selected_fejer_order,
+        )
+        recipe = SimpleNamespace(
+            formal_parent_v2_sha=protocol.formal_parent_v2_sha,
+            permit_v2_sha=protocol.permit_v2_sha,
+            application_spec_sha=protocol.application_spec_sha,
+            scenario_authority_sha=scenario_authority.scenario_authority_sha,
+            response_contract_sha=response_contract.response_contract_sha,
+            control_case_id=protocol.control_case_id,
+            application_instance_id=protocol.application_instance_id,
+            scenario_id=protocol.scenario_id,
+            scenario_sha=protocol.scenario_sha,
+            operation_dag_sha=protocol.operation_dag_sha,
+            compiled_contract_sha=protocol.compiled_contract_sha,
+            source_selector=protocol.source_selector,
+            readout_selector=protocol.readout_selector,
+            recipe_sha=protocol.recipe_sha,
+            actual_effect=SimpleNamespace(
+                effect_digest=protocol.actual_effect_digest,
+            ),
+            matched_ablated_effect=SimpleNamespace(
+                effect_digest=protocol.matched_ablated_effect_digest,
+            ),
+        )
+        trace = SimpleNamespace(
+            scenario_id=protocol.scenario_id,
+            scenario_sha=protocol.scenario_sha,
+            recipe_sha=protocol.recipe_sha,
+            operation_dag_sha=protocol.operation_dag_sha,
+            compiled_contract_sha=protocol.compiled_contract_sha,
+            state_schema_id=protocol.state_schema_id,
+            channel_order=protocol.channel_order,
+            state_shape=(len(protocol.channel_order), *protocol.spatial_shape),
+            construction_trace_sha=protocol.construction_trace_sha,
+            actual_effect_digest=protocol.actual_effect_digest,
+            matched_ablated_effect_digest=protocol.matched_ablated_effect_digest,
+        )
+        actual_binding = SimpleNamespace(
+            branch="actual",
+            scenario_id=protocol.scenario_id,
+            scenario_sha=protocol.scenario_sha,
+            recipe_sha=protocol.recipe_sha,
+            construction_trace_sha=protocol.construction_trace_sha,
+            effect_digest=protocol.actual_effect_digest,
+            factory_sha=protocol.actual_factory_sha,
+        )
+        matched_binding = SimpleNamespace(
+            branch="matched_ablated",
+            scenario_id=protocol.scenario_id,
+            scenario_sha=protocol.scenario_sha,
+            recipe_sha=protocol.recipe_sha,
+            construction_trace_sha=protocol.construction_trace_sha,
+            effect_digest=protocol.matched_ablated_effect_digest,
+            factory_sha=protocol.matched_ablated_factory_sha,
+        )
+        materialization = SimpleNamespace(
+            formal_parent_v2_sha=protocol.formal_parent_v2_sha,
+            permit_v2_sha=protocol.permit_v2_sha,
+            application_authority_sha=application_authority.application_authority_sha,
+            application_spec_sha=protocol.application_spec_sha,
+            control_case_id=protocol.control_case_id,
+            application_instance_id=protocol.application_instance_id,
+            scenario_authority_sha=scenario_authority.scenario_authority_sha,
+            response_contract_sha=response_contract.response_contract_sha,
+            scenario_id=protocol.scenario_id,
+            scenario_sha=protocol.scenario_sha,
+            selected_fejer_order=protocol.selected_fejer_order,
+            common_source_basis=protocol.common_source_basis,
+            common_readout_basis=protocol.common_readout_basis,
+            scenario_recipe=recipe,
+            scenario_source_injection=protocol.source_injection_isometry,
+            scenario_readout_coisometry=protocol.readout_coisometry,
+            construction_trace=trace,
+            actual_factory_binding=actual_binding,
+            matched_ablated_factory_binding=matched_binding,
+            materialization_v2_sha=protocol.materialization_v2_sha,
+        )
+        return parent, permit, materialization
+
     def _resign_momentum(self, momentum):
         from rulespace_v3.evidence import canonical_sha
         from rulespace_v3.scenario_response_protocol import (
@@ -79,7 +217,11 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             scenario_response_momentum_wire_v2_payload,
         )
 
-        control_case_id = "C12" if laplacian else ("C15" if geometry else "C04")
+        control_case_id = (
+            "C12_NU_INC_IR_NORMALIZATION"
+            if laplacian
+            else ("C15" if geometry else "C04")
+        )
         control_slug = control_case_id.lower()
         scenario_id = (
             f"v3m0.calibration.{control_slug}.application.main.scenario.response.v2"
@@ -118,9 +260,11 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
                     for value in momentum_values
                 )
             )
-            incidence_family = "discrete-laplacian-incidence-v1"
-            normalizer_formula = "nu-inc-4-sum-sin2-half-k-v1"
-            derivation = "periodic-forward-difference-symbol-v1"
+            incidence_family = "synthetic-lattice-laplacian-incidence-v1"
+            normalizer_formula = "nu-inc-4-sum-sin2-half-v1"
+            derivation = (
+                "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
+            )
             incidence_values = normalizer * np.eye(1, dtype=np.complex128)
         else:
             normalizer = 1.0
@@ -412,6 +556,205 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "normalizer"):
             verify_application_scenario_response_protocol_v2_body(hostile)
+
+    def test_full_c12_control_id_requires_momentum_local_laplacian(self) -> None:
+        from rulespace_v3.scenario_response_protocol import (
+            verify_application_scenario_response_protocol_v2_body,
+        )
+
+        protocol = self._resign_protocol(
+            replace(
+                self._protocol(geometry=False),
+                control_case_id="C12_NU_INC_IR_NORMALIZATION",
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "C12.*Laplacian"):
+            verify_application_scenario_response_protocol_v2_body(protocol)
+
+    def test_private_exact_compiler_accepts_only_one_complete_upstream_lineage(
+        self,
+    ) -> None:
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        parent, permit, materialization = self._upstream_bodies(protocol)
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: protocol,
+            analytic_lineage_resolver=lambda *_: (
+                protocol.momentum_wires,
+                protocol.geometry_bundle,
+            ),
+        )
+        self.assertIs(compiler(parent, permit, materialization), protocol)
+
+        hostile_materialization = copy.copy(materialization)
+        hostile_materialization.permit_v2_sha = "f" * 64
+        with self.assertRaisesRegex(ValueError, "permit"):
+            compiler(parent, permit, hostile_materialization)
+
+        hostile_protocol = self._resign_protocol(
+            replace(protocol, scenario_id="v3m0.hostile.scenario")
+        )
+        hostile_compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: hostile_protocol,
+            analytic_lineage_resolver=lambda *_: (
+                protocol.momentum_wires,
+                protocol.geometry_bundle,
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "scenario"):
+            hostile_compiler(parent, permit, materialization)
+
+        from rulespace_v3.factory import freeze_complex_tensor, frozen_tensor_array
+
+        wire = protocol.momentum_wires[0]
+        hostile_wire = self._resign_momentum(
+            replace(
+                wire,
+                curvature_incidence_operator=freeze_complex_tensor(
+                    2.0 * frozen_tensor_array(wire.curvature_incidence_operator)
+                ),
+                normalized_curvature_incidence_operator=freeze_complex_tensor(
+                    2.0
+                    * frozen_tensor_array(
+                        wire.normalized_curvature_incidence_operator
+                    )
+                ),
+            )
+        )
+        hostile_protocol = self._resign_protocol(
+            replace(protocol, momentum_wires=(hostile_wire,))
+        )
+        hostile_compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: hostile_protocol,
+            analytic_lineage_resolver=lambda *_: (
+                protocol.momentum_wires,
+                protocol.geometry_bundle,
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "analytic momentum"):
+            hostile_compiler(parent, permit, materialization)
+
+    def test_private_live_replayer_rejects_value_equal_fresh_capabilities(
+        self,
+    ) -> None:
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+            _make_live_scenario_response_protocol_replayer,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        parent_body, permit_body, materialization_body = self._upstream_bodies(
+            protocol
+        )
+
+        class ParentCapability:
+            pass
+
+        class PermitCapability:
+            pass
+
+        class MaterializationCapability:
+            pass
+
+        parent = ParentCapability()
+        permit = PermitCapability()
+        materialization = MaterializationCapability()
+
+        def identity_reverifier(expected, body, label):
+            def require(value):
+                if value is not expected:
+                    raise ValueError(f"{label} identity is not live")
+                return body
+
+            return require
+
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent_body),
+            permit_body_type=type(permit_body),
+            materialization_body_type=type(materialization_body),
+            protocol_body_builder=lambda *_: protocol,
+            analytic_lineage_resolver=lambda *_: (
+                protocol.momentum_wires,
+                protocol.geometry_bundle,
+            ),
+        )
+        replay = _make_live_scenario_response_protocol_replayer(
+            parent_capability_type=ParentCapability,
+            permit_capability_type=PermitCapability,
+            materialization_capability_type=MaterializationCapability,
+            parent_reverifier=identity_reverifier(
+                parent,
+                parent_body,
+                "Parent",
+            ),
+            permit_reverifier=identity_reverifier(
+                permit,
+                permit_body,
+                "permit",
+            ),
+            materialization_reverifier=identity_reverifier(
+                materialization,
+                materialization_body,
+                "materialization",
+            ),
+            exact_compiler=compiler,
+        )
+        self.assertIs(replay(parent, permit, materialization), protocol)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            replay(ParentCapability(), permit, materialization)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            replay(parent, PermitCapability(), materialization)
+        with self.assertRaisesRegex(ValueError, "identity is not live"):
+            replay(parent, permit, MaterializationCapability())
+
+    def test_exact_compiler_freezes_its_lineage_validation_call_graph(self) -> None:
+        import rulespace_v3.scenario_response_protocol as protocol_module
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+        )
+
+        protocol = self._protocol(laplacian=True, geometry=False)
+        parent, permit, materialization = self._upstream_bodies(protocol)
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=lambda *_: protocol,
+            analytic_lineage_resolver=lambda *_: (
+                protocol.momentum_wires,
+                protocol.geometry_bundle,
+            ),
+        )
+        hostile_materialization = copy.copy(materialization)
+        hostile_materialization.permit_v2_sha = "f" * 64
+
+        with patch.object(
+            protocol_module,
+            "_verify_exact_protocol_upstream_lineage",
+            lambda *_: None,
+        ):
+            with self.assertRaisesRegex(ValueError, "permit"):
+                compiler(parent, permit, hostile_materialization)
+
+        with patch.object(
+            protocol_module,
+            "_lineage_equal",
+            lambda *_: None,
+        ):
+            with self.assertRaisesRegex(ValueError, "permit"):
+                compiler(parent, permit, hostile_materialization)
 
     def test_unknown_caller_field_and_draft_state_are_rejected(self) -> None:
         from rulespace_v3.scenario_response_protocol import (
