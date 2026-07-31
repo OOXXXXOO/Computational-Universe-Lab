@@ -1,6 +1,6 @@
 {
   "artifact_kind": "formal_nogo_intermediate_evidence",
-  "certificate_sha": "2d6dcb09275e64f9cd80d5ca85e9fd8929519373e4b30b304ff48e817153c384",
+  "certificate_sha": "01fc27a26778058cb7567251d5fd2550408b11f30a119c7c08dfb9528f74962f",
   "claim_ceiling": "conditional_full_positive_observer_collapse",
   "environment": {
     "attribution_only": true,
@@ -519,17 +519,21 @@
       "V3M0/Common.lean",
       "V3M0/EpsilonComplement.lean",
       "V3M0/ExtensionalNoGo.lean",
+      "V3M0/JordanGrowth.lean",
       "V3M0/LocalSymplectic.lean",
+      "V3M0/MetricDrift.lean",
       "V3M0/ObserverCollapse.lean",
       "V3M0/SubspaceSurvival.lean",
       "V3M0.lean"
     ],
     "source_sha256": {
-      "formal/v3m0/V3M0.lean": "fd9cf930b069c00197422e960d5b93863320bd443a915e18d84fa29c24a9c59e",
+      "formal/v3m0/V3M0.lean": "17171f5f4a8420d054e0f462fb8729cedca45d7dbfdcebc657791e31b68fdcef",
       "formal/v3m0/V3M0/Common.lean": "cd9b53cf9e045299e7e07b5ba25b4df88e312dd20d3e6eefb8bcd1f6310782a9",
       "formal/v3m0/V3M0/EpsilonComplement.lean": "4f411e7d8e82ffcf71a9400e73faacc121589339c2fa070ca1dd532e728f5d99",
       "formal/v3m0/V3M0/ExtensionalNoGo.lean": "8b5e645ebafab992442515c2475bb3873e360494e8f2c319c14179b7ce529d44",
+      "formal/v3m0/V3M0/JordanGrowth.lean": "4f17d0f33e7f0d498a60c9dc3b60b66998233b93b311fa2c2b1a880b2931906d",
       "formal/v3m0/V3M0/LocalSymplectic.lean": "ae1aadcca0b4da7f667d2eeb02fb535652020fae8d6c6e76daa38e6477db488b",
+      "formal/v3m0/V3M0/MetricDrift.lean": "4b5fb50915d1c6b7f2e69d93d833f4b27369e86fe7218aecffb9be1439c89e63",
       "formal/v3m0/V3M0/ObserverCollapse.lean": "8ebb3f34ccf94f7823e5b14cb4bfd5f8098a759220a25dca3269aa4c17cfd265",
       "formal/v3m0/V3M0/SubspaceSurvival.lean": "d7f5ff43f98b1c61009bca0d88289ad48e0a6742856b16ba38d84718c55fef3e"
     },
@@ -843,7 +847,7 @@
     },
     "static_execution_closure": {
       "all_match": true,
-      "closure_sha256": "e0cffe54f4dbf1e3072ae15d9c40e5e1c85071f00ff985dc1d707a48c55478ff",
+      "closure_sha256": "7b6848288a60bf0c00cc2f5e7c4a6034425cd5393cc5c3bcec3ddd993d8f0196",
       "discovery": "python_ast_conservative_local_import_closure_v2_with_literal_importlib_import_module",
       "file_count": 40,
       "files": {
@@ -1336,9 +1340,9 @@
           "module": "rulespace_v3"
         },
         "rulespace_v3/contracts.py": {
-          "actual_sha256": "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+          "actual_sha256": "7f0f77fceeb19d1490b84096cda0679e2b1875fba4e3d4b3753242bd54598d71",
           "authority": "v3m0_task7_signed_execution_closure_freeze",
-          "expected_sha256": "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+          "expected_sha256": "7f0f77fceeb19d1490b84096cda0679e2b1875fba4e3d4b3753242bd54598d71",
           "imports": [],
           "literal_dynamic_imports": [],
           "match": true,
@@ -1369,7 +1373,7 @@
     },
     "v3_source_files": {
       "experiments/v3m0_formal_nogo.py": {
-        "sha256": "45400db833a46ae3e568a5b0d766831aeb7adc09439cd832c43dbe2fa29c89f2"
+        "sha256": "86e81bdbe8d6f1bc90b2ebc89d138dbc1ee664345379897a4a666b1add2852e0"
       },
       "rulespace_v3/evidence.py": {
         "sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004"

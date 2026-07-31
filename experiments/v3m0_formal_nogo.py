@@ -233,7 +233,7 @@ STATIC_CLOSURE_FREEZE = {
         "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
     "rulespace_v3/contracts.py": {
-        "sha256": "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+        "sha256": "7f0f77fceeb19d1490b84096cda0679e2b1875fba4e3d4b3753242bd54598d71",
         "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
     "rulespace_v3/evidence.py": {
@@ -933,7 +933,9 @@ def _formal_record_cached(
             "V3M0/Common.lean",
             "V3M0/EpsilonComplement.lean",
             "V3M0/ExtensionalNoGo.lean",
+            "V3M0/JordanGrowth.lean",
             "V3M0/LocalSymplectic.lean",
+            "V3M0/MetricDrift.lean",
             "V3M0/ObserverCollapse.lean",
             "V3M0/SubspaceSurvival.lean",
             "V3M0.lean",
