@@ -69,6 +69,22 @@ typed termination 传播，不得生成 success block。
 protocol 不得读取响应值、奇异值、审计 verdict 或 caller 数字。几何 bundle 必须先于
 响应冻结；允许从 Parent 参数和解析 recipe 公式派生，禁止从 measured response 反推。
 
+公共 basis 与 scenario selector 的矩阵方向固定为：
+
+```text
+B_source : (n_common_source, n_state)       # permit rows
+C_source : (n_common_source, n_scenario_source)
+J_source = B_sourceᵀ C_source               # state injection
+
+B_readout : (n_common_readout, n_state)      # permit rows
+C_readout : (n_scenario_readout, n_common_readout)
+P_readout = C_readout B_readout              # state coisometry
+```
+
+并逐次验证
+`C_source†C_source=I`、`C_readout C_readout†=I`，谱范数残差均 `≤1e-12`。
+selector 与派生后的 `J_source/P_readout` 都进入 protocol SHA。
+
 ## 4. `ResponseBlock` v2
 
 每个 block 仍只对应一个 branch，但新增不可省略的 authority binding：

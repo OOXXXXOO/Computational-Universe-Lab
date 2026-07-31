@@ -13,6 +13,13 @@
 或 GPU 禁行线；在独立复审和签发前，不得据此签 permit、block、threshold calibration 或
 READY。
 
+本文件是
+`v3-勘误-application-scenario与typed-termination-2026-07-31.md`
+（SHA-256
+`63bcda7cb83c7d725b546e18fda41bfccfc69f4a204ddd05056ed58b1499577b`）
+的增量勘误；除本文件明确修正的 success-scenario response 合同外，前件的 typed
+termination、C20 analysis lane 与 fail-closed 条款继续生效。
+
 ## 1. 已确认的空集与反例
 
 ### 1.1 C15 旧谱不满足 Task 14 公式
