@@ -9,7 +9,10 @@ import unittest
 import weakref
 from pathlib import Path
 
+import numpy as np
+
 from rulespace_v3.evidence import canonical_sha
+from rulespace_v3.factory import build_basis_manifest
 from rulespace_v3.parent_freeze import (
     APPLICATION_CONTROL_CASE_IDS,
     IMPLEMENTATION_PLAN_SOURCE_PATH,
@@ -18,9 +21,12 @@ from rulespace_v3.parent_freeze import (
     TASK9_COMMIT_SHA,
     TASKBOOK_SOURCE_PATH,
     ParentFreezeManifest,
+    SyntheticApplicationBasisProtocol,
+    SyntheticApplicationGridProtocol,
     SyntheticApplicationOperation,
     SyntheticApplicationPredictionProfile,
     SyntheticApplicationProtocolConstants,
+    SyntheticApplicationReadoutProtocol,
     TaggedScalarWire,
     V3M0SyntheticControlApplicationSpec,
     VerifiedParentFreeze,
@@ -49,6 +55,39 @@ def _resign_operation(
         operation,
         operation_sha=canonical_sha(
             synthetic_application_operation_payload(operation)
+        ),
+    )
+
+
+def _resign_basis_protocol(
+    protocol: SyntheticApplicationBasisProtocol,
+) -> SyntheticApplicationBasisProtocol:
+    return dataclasses.replace(
+        protocol,
+        protocol_sha=canonical_sha(
+            synthetic_application_basis_protocol_payload(protocol)
+        ),
+    )
+
+
+def _resign_grid_protocol(
+    protocol: SyntheticApplicationGridProtocol,
+) -> SyntheticApplicationGridProtocol:
+    return dataclasses.replace(
+        protocol,
+        protocol_sha=canonical_sha(
+            synthetic_application_grid_protocol_payload(protocol)
+        ),
+    )
+
+
+def _resign_readout_protocol(
+    protocol: SyntheticApplicationReadoutProtocol,
+) -> SyntheticApplicationReadoutProtocol:
+    return dataclasses.replace(
+        protocol,
+        protocol_sha=canonical_sha(
+            synthetic_application_readout_protocol_payload(protocol)
         ),
     )
 
@@ -729,6 +768,201 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "constant|operation.*cap"):
             verify_synthetic_control_application_spec(tiny_spec)
 
+    def test_single_spec_verifier_rejects_every_resigned_noncanonical_field(
+        self,
+    ) -> None:
+        spec = self.manifest.synthetic_control_application_specs[3]
+
+        renamed_instance_id = f"{spec.application_instance_id}.post-hoc"
+
+        def renamed_id(value: str) -> str:
+            self.assertTrue(value.startswith(spec.application_instance_id))
+            return renamed_instance_id + value[len(spec.application_instance_id) :]
+
+        renamed_operations = tuple(
+            _resign_operation(
+                dataclasses.replace(
+                    operation,
+                    operation_instance_id=renamed_id(
+                        operation.operation_instance_id
+                    ),
+                    input_operation_instance_ids=tuple(
+                        renamed_id(dependency)
+                        for dependency in operation.input_operation_instance_ids
+                    ),
+                )
+            )
+            for operation in spec.operations
+        )
+        renamed_application = _resign_spec(
+            dataclasses.replace(
+                spec,
+                application_instance_id=renamed_instance_id,
+                operations=renamed_operations,
+                output_operation_instance_ids=tuple(
+                    renamed_id(output)
+                    for output in spec.output_operation_instance_ids
+                ),
+            )
+        )
+
+        basis = spec.basis_protocol
+        rotated = np.array(
+            ((0.0, 1.0), (-1.0, 0.0)),
+            dtype=np.complex128,
+        )
+        changed_basis = _resign_basis_protocol(
+            dataclasses.replace(
+                basis,
+                source_basis=build_basis_manifest(
+                    role="source",
+                    state_schema_id=basis.source_basis.state_schema_id,
+                    channel_order=basis.source_basis.channel_order,
+                    vectors=rotated,
+                ),
+                readout_basis=build_basis_manifest(
+                    role="readout",
+                    state_schema_id=basis.readout_basis.state_schema_id,
+                    channel_order=basis.readout_basis.channel_order,
+                    vectors=rotated,
+                ),
+            )
+        )
+        changed_grid = _resign_grid_protocol(
+            dataclasses.replace(
+                spec.grid_protocol,
+                preregistered_phase_bands=((-0.125, 0.125),),
+            )
+        )
+        changed_readout = _resign_readout_protocol(
+            dataclasses.replace(
+                spec.readout_protocol,
+                curvature_normalizer_id="post-hoc-normalizer",
+            )
+        )
+        changed_constants = _resign_constants(
+            dataclasses.replace(
+                spec.protocol_constant_payload,
+                max_operation_count=(
+                    spec.protocol_constant_payload.max_operation_count + 1
+                ),
+            )
+        )
+
+        first_operation = spec.operations[0]
+        changed_operation = _resign_operation(
+            dataclasses.replace(
+                first_operation,
+                parameters=(
+                    (
+                        "response-rank",
+                        TaggedScalarWire("integer", 3, None, None, None),
+                    ),
+                ),
+            )
+        )
+        changed_operations = (
+            changed_operation,
+            *spec.operations[1:],
+        )
+        changed_outputs = tuple(
+            sorted(
+                (
+                    *spec.output_operation_instance_ids,
+                    first_operation.operation_instance_id,
+                )
+            )
+        )
+        changed_profile = _resign_prediction_profile(
+            dataclasses.replace(
+                spec.expected_prediction_profile,
+                prediction_profile_id="v3m0.synthetic-prediction.post-hoc",
+            )
+        )
+
+        mutations = {
+            "application-schema": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    application_schema_version="post-hoc-schema",
+                )
+            ),
+            "control-case": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    control_case_id=APPLICATION_CONTROL_CASE_IDS[4],
+                )
+            ),
+            "application-instance": renamed_application,
+            "builder": _resign_spec(
+                dataclasses.replace(spec, builder_id="post-hoc-builder")
+            ),
+            "basis-protocol": _resign_spec(
+                dataclasses.replace(spec, basis_protocol=changed_basis)
+            ),
+            "grid-protocol": _resign_spec(
+                dataclasses.replace(spec, grid_protocol=changed_grid)
+            ),
+            "readout-protocol": _resign_spec(
+                dataclasses.replace(spec, readout_protocol=changed_readout)
+            ),
+            "protocol-constants": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    protocol_constant_payload=changed_constants,
+                )
+            ),
+            "operations": _resign_spec(
+                dataclasses.replace(spec, operations=changed_operations)
+            ),
+            "outputs": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    output_operation_instance_ids=changed_outputs,
+                )
+            ),
+            "required-stages": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    required_pipeline_stages=(
+                        *spec.required_pipeline_stages,
+                        "post-hoc-stage",
+                    ),
+                )
+            ),
+            "prediction-profile": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    expected_prediction_profile_id=(
+                        changed_profile.prediction_profile_id
+                    ),
+                    expected_prediction_profile=changed_profile,
+                )
+            ),
+            "evidence-schema": _resign_spec(
+                dataclasses.replace(
+                    spec,
+                    expected_control_evidence_schema=(
+                        "post-hoc-control-evidence"
+                    ),
+                )
+            ),
+        }
+
+        for field, changed_spec in mutations.items():
+            with self.subTest(field=field):
+                self.assertEqual(
+                    changed_spec.application_spec_sha,
+                    canonical_sha(
+                        synthetic_control_application_spec_payload(changed_spec)
+                    ),
+                )
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "canonical|closed|match|unexpected",
+                ):
+                    verify_synthetic_control_application_spec(changed_spec)
+
     def test_operation_kind_dependencies_outputs_and_reachability_are_closed(
         self,
     ) -> None:
@@ -908,7 +1142,10 @@ class ClosedApplicationManifestTests(unittest.TestCase):
                 synthetic_control_application_specs=changed_specs,
             )
         )
-        with self.assertRaisesRegex(ValueError, "closed|freeze"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "canonical|closed|freeze|match",
+        ):
             verify_parent_freeze(changed_manifest)
 
         reversed_manifest = _resign_manifest(

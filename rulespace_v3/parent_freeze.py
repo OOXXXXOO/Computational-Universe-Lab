@@ -92,6 +92,24 @@ APPLICATION_CONTROL_CASE_IDS = (
     "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
 )
 
+_APPLICATION_SPEC_CANONICAL_FIELD_NAMES = (
+    "application_schema_version",
+    "control_case_id",
+    "application_instance_id",
+    "builder_id",
+    "basis_protocol",
+    "grid_protocol",
+    "readout_protocol",
+    "protocol_constant_payload",
+    "operations",
+    "output_operation_instance_ids",
+    "required_pipeline_stages",
+    "expected_prediction_profile_id",
+    "expected_prediction_profile",
+    "expected_control_evidence_schema",
+    "application_spec_sha",
+)
+
 ApplicationOperationKind = Literal[
     "identity-v1",
     "canonical-shear-v1",
@@ -1326,10 +1344,11 @@ def verify_synthetic_control_application_spec(
         )
     constants = spec.protocol_constant_payload
     _verify_protocol_constants(constants)
-    if spec.application_schema_version != APPLICATION_SPEC_SCHEMA_VERSION:
-        raise ValueError("unexpected application_schema_version")
     if spec.control_case_id not in APPLICATION_CONTROL_CASE_IDS:
         raise ValueError("control_case_id is outside the closed C01-C20 registry")
+    canonical_spec = _build_canonical_application_spec(spec.control_case_id)
+    if spec.application_schema_version != APPLICATION_SPEC_SCHEMA_VERSION:
+        raise ValueError("unexpected application_schema_version")
     _text(spec.application_instance_id, "application_instance_id")
     _text(spec.builder_id, "builder_id")
 
@@ -1461,28 +1480,19 @@ def verify_synthetic_control_application_spec(
     expected_spec_sha = canonical_sha(spec_payload)
     if spec.application_spec_sha != expected_spec_sha:
         raise ValueError("application_spec_sha does not match complete body")
-    expected_constants = _build_constants()
-    if constants != expected_constants:
-        raise ValueError(
-            "protocol constant payload does not match closed control body"
-        )
-    expected_operations, expected_outputs = _build_control_operation_graph(
-        spec.control_case_id,
-        spec.application_instance_id,
-        constants,
+    dataclass_field_names = tuple(
+        V3M0SyntheticControlApplicationSpec.__dataclass_fields__
     )
-    if operations != expected_operations or outputs != expected_outputs:
-        raise ValueError(
-            "operation DAG does not match closed replayable control body"
+    if dataclass_field_names != _APPLICATION_SPEC_CANONICAL_FIELD_NAMES:
+        raise RuntimeError(
+            "canonical application field registry is incomplete"
         )
-    expected_profile = _build_prediction_profile(
-        spec.control_case_id,
-        constants,
-    )
-    if spec.expected_prediction_profile != expected_profile:
-        raise ValueError(
-            "prediction profile does not match closed control body"
-        )
+    for field_name in _APPLICATION_SPEC_CANONICAL_FIELD_NAMES:
+        if getattr(spec, field_name) != getattr(canonical_spec, field_name):
+            raise ValueError(
+                f"{field_name} body/SHA does not match canonical "
+                "control application spec"
+            )
     return copy.deepcopy(spec)
 
 
@@ -2821,71 +2831,99 @@ def _build_prediction_profile(
     )
 
 
+def _assemble_canonical_application_spec(
+    control_case_id: str,
+    constants: SyntheticApplicationProtocolConstants,
+    basis_protocol: SyntheticApplicationBasisProtocol,
+    grid_protocol: SyntheticApplicationGridProtocol,
+    readout_protocol: SyntheticApplicationReadoutProtocol,
+) -> V3M0SyntheticControlApplicationSpec:
+    if control_case_id not in APPLICATION_CONTROL_CASE_IDS:
+        raise ValueError("control_case_id is outside the closed C01-C20 registry")
+    ordinal = APPLICATION_CONTROL_CASE_IDS.index(control_case_id) + 1
+    application_instance_id = f"v3m0.synthetic-control.c{ordinal:02d}.v1"
+    operations, outputs = _build_control_operation_graph(
+        control_case_id,
+        application_instance_id,
+        constants,
+    )
+    prediction_profile = _build_prediction_profile(
+        control_case_id,
+        constants,
+    )
+    stages = (
+        "construction",
+        "matched-ablation",
+        "dynamics",
+        "endpoint-shell",
+        "paired-response",
+        (
+            "window-calibration"
+            if ordinal <= 3
+            else "control-application-evidence"
+        ),
+    )
+    provisional = V3M0SyntheticControlApplicationSpec(
+        application_schema_version=APPLICATION_SPEC_SCHEMA_VERSION,
+        control_case_id=control_case_id,
+        application_instance_id=application_instance_id,
+        builder_id=f"v3m0.synthetic-control-builder.c{ordinal:02d}.v1",
+        basis_protocol=basis_protocol,
+        grid_protocol=grid_protocol,
+        readout_protocol=readout_protocol,
+        protocol_constant_payload=constants,
+        operations=operations,
+        output_operation_instance_ids=outputs,
+        required_pipeline_stages=stages,
+        expected_prediction_profile_id=(
+            prediction_profile.prediction_profile_id
+        ),
+        expected_prediction_profile=prediction_profile,
+        expected_control_evidence_schema=(
+            "v3m0.window-control-evidence.v1"
+            if ordinal <= 3
+            else "v3m0.control-application-evidence.v1"
+        ),
+        application_spec_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        application_spec_sha=canonical_sha(
+            synthetic_control_application_spec_payload(provisional)
+        ),
+    )
+
+
+def _build_canonical_application_spec(
+    control_case_id: str,
+) -> V3M0SyntheticControlApplicationSpec:
+    """Rebuild one complete spec solely from its closed case ordinal."""
+
+    return _assemble_canonical_application_spec(
+        control_case_id,
+        _build_constants(),
+        _build_basis_protocol(),
+        _build_grid_protocol(),
+        _build_readout_protocol(),
+    )
+
+
 def _build_application_specs(
     constants: SyntheticApplicationProtocolConstants,
 ) -> tuple[V3M0SyntheticControlApplicationSpec, ...]:
     basis_protocol = _build_basis_protocol()
     grid_protocol = _build_grid_protocol()
     readout_protocol = _build_readout_protocol()
-    result = []
-    for ordinal, control_case_id in enumerate(
-        APPLICATION_CONTROL_CASE_IDS,
-        start=1,
-    ):
-        application_instance_id = f"v3m0.synthetic-control.c{ordinal:02d}.v1"
-        operations, outputs = _build_control_operation_graph(
-            control_case_id,
-            application_instance_id,
-            constants,
-        )
-        prediction_profile = _build_prediction_profile(
+    return tuple(
+        _assemble_canonical_application_spec(
             control_case_id,
             constants,
+            basis_protocol,
+            grid_protocol,
+            readout_protocol,
         )
-        stages = (
-            "construction",
-            "matched-ablation",
-            "dynamics",
-            "endpoint-shell",
-            "paired-response",
-            (
-                "window-calibration"
-                if ordinal <= 3
-                else "control-application-evidence"
-            ),
-        )
-        provisional = V3M0SyntheticControlApplicationSpec(
-            application_schema_version=APPLICATION_SPEC_SCHEMA_VERSION,
-            control_case_id=control_case_id,
-            application_instance_id=application_instance_id,
-            builder_id=f"v3m0.synthetic-control-builder.c{ordinal:02d}.v1",
-            basis_protocol=basis_protocol,
-            grid_protocol=grid_protocol,
-            readout_protocol=readout_protocol,
-            protocol_constant_payload=constants,
-            operations=operations,
-            output_operation_instance_ids=outputs,
-            required_pipeline_stages=stages,
-            expected_prediction_profile_id=(
-                prediction_profile.prediction_profile_id
-            ),
-            expected_prediction_profile=prediction_profile,
-            expected_control_evidence_schema=(
-                "v3m0.window-control-evidence.v1"
-                if ordinal <= 3
-                else "v3m0.control-application-evidence.v1"
-            ),
-            application_spec_sha="0" * 64,
-        )
-        result.append(
-            replace(
-                provisional,
-                application_spec_sha=canonical_sha(
-                    synthetic_control_application_spec_payload(provisional)
-                ),
-            )
-        )
-    return tuple(result)
+        for control_case_id in APPLICATION_CONTROL_CASE_IDS
+    )
 
 
 def _build_closed_parent_freeze() -> ParentFreezeManifest:
