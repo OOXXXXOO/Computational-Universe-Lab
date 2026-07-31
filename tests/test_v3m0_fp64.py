@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import math
 import unittest
 from dataclasses import replace
@@ -8,15 +9,15 @@ from unittest import mock
 
 import numpy as np
 
+from rulespace_v3 import fp64 as fp64_module
 from rulespace_v3.fp64 import (
     FP64_PRIMITIVES_SCOPE_ID,
     MINIMUM_NORMAL,
     MINIMUM_SUBNORMAL,
-    NormalizedMetricResidualAuthority,
-    PowerDriftAudit,
+    PowerDriftBounds,
     build_complex_dot_roundoff_bound,
-    build_power_drift_audit,
     complex_dot_q,
+    compute_power_drift_bounds,
     directed_add_lower,
     directed_add_upper,
     directed_div_upper,
@@ -26,16 +27,33 @@ from rulespace_v3.fp64 import (
     directed_sub_upper,
     directed_sub_lower,
     frobenius_sqrt_upper,
-    issue_normalized_metric_residual_authority,
     is_positive_zero,
     require_hard_scalar,
     require_semantic_zero,
     verify_complex_dot_roundoff_bound,
     verify_frobenius_sqrt_upper,
     verify_gamma_q_upper,
-    verify_power_drift_audit,
     gamma_q_upper,
 )
+
+
+class PublicSurfaceTests(unittest.TestCase):
+    def test_fp64_primitives_expose_no_caller_self_signing_authority(self):
+        forbidden_names = (
+            "NormalizedMetricResidualAuthority",
+            "PowerDriftAudit",
+            "issue_normalized_metric_residual_authority",
+            "build_power_drift_audit",
+            "verify_power_drift_audit",
+        )
+        for name in forbidden_names:
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(fp64_module, name))
+                self.assertNotIn(name, fp64_module.__all__)
+        self.assertEqual(
+            tuple(inspect.signature(compute_power_drift_bounds).parameters),
+            ("delta_upper",),
+        )
 
 
 class HardScalarPolicyTests(unittest.TestCase):
@@ -231,106 +249,75 @@ class FrobeniusContainmentTests(unittest.TestCase):
 
 
 class PowerDriftTests(unittest.TestCase):
-    @staticmethod
-    def authority(
-        delta: float,
-        character: str,
-    ) -> NormalizedMetricResidualAuthority:
-        return issue_normalized_metric_residual_authority(
-            audit_sha=character * 64,
-            delta_upper=delta,
-        )
-
     def test_zero_delta_is_exact_identity_without_squaring(self):
-        authority = self.authority(+0.0, "a")
-        audit = build_power_drift_audit(authority)
-        self.assertIsInstance(audit, PowerDriftAudit)
-        self.assertTrue(audit.identity_branch)
-        self.assertEqual(audit.executed_squaring_count, 0)
-        self.assertEqual(audit.one_minus_delta_lower, 1.0)
-        self.assertEqual(audit.one_plus_delta_upper, 1.0)
+        with (
+            mock.patch(
+                "rulespace_v3.fp64.directed_mul_lower",
+                side_effect=AssertionError("lower square"),
+            ),
+            mock.patch(
+                "rulespace_v3.fp64.directed_mul_upper",
+                side_effect=AssertionError("upper square"),
+            ),
+        ):
+            bounds = compute_power_drift_bounds(-0.0)
+        self.assertIsInstance(bounds, PowerDriftBounds)
+        self.assertTrue(bounds.identity_branch)
+        self.assertEqual(bounds.executed_squaring_count, 0)
+        self.assertEqual(bounds.one_minus_delta_lower, 1.0)
+        self.assertEqual(bounds.one_plus_delta_upper, 1.0)
         for value in (
-            audit.delta_upper,
-            audit.growth_upper,
-            audit.contraction_upper,
-            audit.drift_upper,
+            bounds.delta_upper,
+            bounds.growth_upper,
+            bounds.contraction_upper,
+            bounds.drift_upper,
         ):
             self.assertTrue(is_positive_zero(value))
-        self.assertIs(verify_power_drift_audit(audit, authority), audit)
 
     def test_nonzero_delta_executes_exactly_fourteen_directed_squarings(self):
-        authority = self.authority(2.0 ** -50, "b")
+        delta = 2.0 ** -50
         with (
             mock.patch("builtins.pow", side_effect=AssertionError("pow")),
             mock.patch("math.exp", side_effect=AssertionError("exp")),
         ):
-            audit = build_power_drift_audit(authority)
-        self.assertFalse(audit.identity_branch)
-        self.assertEqual(audit.nonzero_delta_squaring_count, 14)
-        self.assertEqual(audit.executed_squaring_count, 14)
-        self.assertGreater(audit.growth_upper, 0.0)
-        self.assertGreater(audit.contraction_upper, 0.0)
+            bounds = compute_power_drift_bounds(delta)
+        self.assertFalse(bounds.identity_branch)
+        self.assertEqual(bounds.nonzero_delta_squaring_count, 14)
+        self.assertEqual(bounds.executed_squaring_count, 14)
+        self.assertGreater(bounds.growth_upper, 0.0)
+        self.assertGreater(bounds.contraction_upper, 0.0)
         self.assertEqual(
-            audit.drift_upper,
-            max(audit.growth_upper, audit.contraction_upper),
+            bounds.drift_upper,
+            max(bounds.growth_upper, bounds.contraction_upper),
         )
-        self.assertIs(verify_power_drift_audit(audit, authority), audit)
 
-        for bad_count in (13, 15):
-            with self.subTest(bad_count=bad_count):
-                with self.assertRaisesRegex(ValueError, "squaring"):
-                    verify_power_drift_audit(
-                        replace(audit, executed_squaring_count=bad_count),
-                        authority,
-                    )
-
-    def test_power_audit_rejects_an_inward_one_ulp_bound(self):
-        authority = self.authority(2.0 ** -50, "c")
-        audit = build_power_drift_audit(authority)
-        with self.assertRaisesRegex(ValueError, "power drift"):
-            verify_power_drift_audit(
-                replace(
-                    audit,
-                    growth_upper=math.nextafter(
-                        audit.growth_upper,
-                        -math.inf,
-                    ),
-                ),
-                authority,
-            )
+        exact_delta = Fraction(*delta.as_integer_ratio())
+        exact_growth = (1 + exact_delta) ** bounds.macro_step - 1
+        exact_contraction = 1 - (1 - exact_delta) ** bounds.macro_step
+        self.assertGreaterEqual(
+            Fraction(*bounds.growth_upper.as_integer_ratio()),
+            exact_growth,
+        )
+        self.assertGreaterEqual(
+            Fraction(*bounds.contraction_upper.as_integer_ratio()),
+            exact_contraction,
+        )
 
     def test_delta_one_e_minus_twelve_fails_the_drift_hard_gate(self):
-        authority = self.authority(1.0e-12, "d")
         with self.assertRaisesRegex(ValueError, "1e-8 hard gate"):
-            build_power_drift_audit(authority)
+            compute_power_drift_bounds(1.0e-12)
 
-    def test_verifier_requires_the_exact_module_issued_authority(self):
-        authority = self.authority(2.0 ** -50, "e")
-        audit = build_power_drift_audit(authority)
-        for invalid in (None, 2.0 ** -50, object()):
+    def test_delta_accepts_only_hard_fp64_in_zero_to_one(self):
+        for invalid in (None, True, 0, Fraction(0, 1), object()):
             with self.subTest(invalid=invalid):
                 with self.assertRaises(TypeError):
-                    verify_power_drift_audit(audit, invalid)  # type: ignore[arg-type]
-
-        class Duck:
-            audit_sha = "e" * 64
-            delta_upper = 2.0 ** -50
-
-        with self.assertRaises(TypeError):
-            verify_power_drift_audit(audit, Duck())  # type: ignore[arg-type]
-
-        unissued = object.__new__(NormalizedMetricResidualAuthority)
-        object.__setattr__(unissued, "_audit_sha", "e" * 64)
-        object.__setattr__(unissued, "_delta_upper", 2.0 ** -50)
-        with self.assertRaisesRegex(ValueError, "unissued"):
-            verify_power_drift_audit(audit, unissued)
-
-        wrong_sha = self.authority(2.0 ** -50, "f")
-        with self.assertRaisesRegex(ValueError, "authority"):
-            verify_power_drift_audit(audit, wrong_sha)
+                    compute_power_drift_bounds(invalid)
+        for invalid in (-0.5, 1.0):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    compute_power_drift_bounds(invalid)
 
     def test_independent_instrumentation_observes_fourteen_squarings_per_branch(self):
-        authority = self.authority(2.0 ** -50, "1")
         lower_calls = 0
         upper_calls = 0
         real_lower = directed_mul_lower
@@ -350,20 +337,19 @@ class PowerDriftTests(unittest.TestCase):
             mock.patch("rulespace_v3.fp64.directed_mul_lower", instrument_lower),
             mock.patch("rulespace_v3.fp64.directed_mul_upper", instrument_upper),
         ):
-            audit = build_power_drift_audit(authority)
+            bounds = compute_power_drift_bounds(2.0 ** -50)
         self.assertEqual(lower_calls, 14)
         self.assertEqual(upper_calls, 14)
-        self.assertEqual(1 << lower_calls, audit.macro_step)
+        self.assertEqual(1 << lower_calls, bounds.macro_step)
 
 
 class StrictWireTests(unittest.TestCase):
     def test_wire_integer_fields_reject_bool_and_float_as_int(self):
-        authority = PowerDriftTests.authority(2.0 ** -50, "2")
-        audit = build_power_drift_audit(authority)
+        bounds = compute_power_drift_bounds(2.0 ** -50)
         with self.assertRaises(TypeError):
-            replace(audit, macro_step=True)
+            replace(bounds, macro_step=True)
         with self.assertRaises(TypeError):
-            replace(audit, executed_squaring_count=14.0)
+            replace(bounds, executed_squaring_count=14.0)
 
         bound = build_complex_dot_roundoff_bound(
             length=2,

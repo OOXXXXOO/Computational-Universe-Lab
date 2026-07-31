@@ -4,24 +4,20 @@ This module intentionally excludes the root-of-unity table.  It provides the
 small, reusable arithmetic slice needed by the later Task 10 certificate
 builders: scalar policy, directed elementary operations, exact-ratio gamma and
 Frobenius containment, complex-dot roundoff bounds, and the fixed T=16384
-power-drift audit.
+power-drift bounds.  Provenance binding and audit verification belong to the
+later normalized-metric module, which owns the complete source verifier.
 """
 
 from __future__ import annotations
 
 import math
-import re
 import struct
 import sys
-import weakref
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import Union
 
 import numpy as np
-
-from rulespace_v3.evidence import canonical_sha
-
 
 UNIT_ROUNDOFF_DENOMINATOR = 1 << 53
 MINIMUM_SUBNORMAL_POWER_OF_TWO = -1074
@@ -34,7 +30,6 @@ DOT_OPERATION_COUNT_ID = "complex-dot-real-component-q-equals-4n-minus-1-v1"
 DOT_ROUNDOFF_BOUND_ID = "gamma-q-times-absolute-product-sum-plus-minsub-v1"
 FROBENIUS_CONTAINMENT_ID = "exact-integer-ratio-square-containment-v1"
 POWER_DRIFT_METHOD_ID = "t16384-directed-repeated-squaring-v1"
-POWER_DRIFT_SCHEMA_VERSION = "v3m0-power-drift-audit-v1"
 POWER_DRIFT_MACRO_STEP = 16384
 POWER_DRIFT_SQUARING_COUNT = 14
 POWER_DRIFT_HARD_GATE = 1.0e-8
@@ -42,7 +37,6 @@ FP64_PRIMITIVES_SCOPE_ID = "directed-fp64-primitives-without-root64-v1"
 
 _MINIMUM_NORMAL_BITS = 0x0010000000000000
 _MAXIMUM_FINITE_BITS = 0x7FEFFFFFFFFFFFFF
-_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 Number = Union[int, float, Fraction]
@@ -409,9 +403,9 @@ def verify_frobenius_sqrt_upper(
 
 
 @dataclass(frozen=True)
-class PowerDriftAudit:
-    audit_schema_version: str
-    normalized_metric_residual_audit_sha: str
+class PowerDriftBounds:
+    """Immutable arithmetic output with no provenance or authority semantics."""
+
     macro_step: int
     nonzero_delta_squaring_count: int
     executed_squaring_count: int
@@ -423,18 +417,8 @@ class PowerDriftAudit:
     growth_upper: float
     contraction_upper: float
     drift_upper: float
-    audit_sha: str
 
     def __post_init__(self) -> None:
-        _wire_string(self.audit_schema_version, "audit_schema_version")
-        _wire_string(
-            self.normalized_metric_residual_audit_sha,
-            "normalized_metric_residual_audit_sha",
-        )
-        _require_sha(
-            self.normalized_metric_residual_audit_sha,
-            "normalized_metric_residual_audit_sha",
-        )
         for name in (
             "macro_step",
             "nonzero_delta_squaring_count",
@@ -453,84 +437,6 @@ class PowerDriftAudit:
             "drift_upper",
         ):
             _wire_float(getattr(self, name), name)
-        _require_sha(self.audit_sha, "audit_sha")
-
-
-def _require_sha(value: object, name: str) -> str:
-    if type(value) is not str:
-        raise TypeError(f"{name} must be a str")
-    if _SHA256.fullmatch(value) is None:
-        raise ValueError(f"{name} must be a lowercase SHA-256")
-    return value
-
-
-_AUTHORITY_ISSUER_TOKEN = object()
-_AUTHORITY_SEALS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
-
-
-class NormalizedMetricResidualAuthority:
-    """Opaque module-issued binding for a normalized residual SHA and delta."""
-
-    __slots__ = ("_audit_sha", "_delta_upper", "__weakref__")
-
-    def __init__(
-        self,
-        audit_sha: str,
-        delta_upper: float,
-        token: object,
-    ) -> None:
-        if token is not _AUTHORITY_ISSUER_TOKEN:
-            raise TypeError(
-                "NormalizedMetricResidualAuthority is module-issued only"
-            )
-        self._audit_sha = audit_sha
-        self._delta_upper = delta_upper
-
-    @property
-    def audit_sha(self) -> str:
-        return self._audit_sha
-
-    @property
-    def delta_upper(self) -> float:
-        return self._delta_upper
-
-
-def issue_normalized_metric_residual_authority(
-    *,
-    audit_sha: object,
-    delta_upper: object,
-) -> NormalizedMetricResidualAuthority:
-    source_sha = _require_sha(audit_sha, "audit_sha")
-    delta = require_hard_scalar(delta_upper, "delta_upper")
-    if delta < 0.0 or delta >= 1.0:
-        raise ValueError("delta_upper must satisfy 0 <= delta < 1")
-    if delta == 0.0:
-        delta = +0.0
-    authority = NormalizedMetricResidualAuthority(
-        source_sha,
-        delta,
-        _AUTHORITY_ISSUER_TOKEN,
-    )
-    _AUTHORITY_SEALS[authority] = (source_sha, _float_bits(delta))
-    return authority
-
-
-def _verify_normalized_metric_residual_authority(
-    authority: object,
-) -> NormalizedMetricResidualAuthority:
-    if type(authority) is not NormalizedMetricResidualAuthority:
-        raise TypeError(
-            "authority must be a module-issued "
-            "NormalizedMetricResidualAuthority"
-        )
-    seal = _AUTHORITY_SEALS.get(authority)
-    if seal is None:
-        raise ValueError("normalized metric residual authority is unissued")
-    source_sha = _require_sha(authority.audit_sha, "authority.audit_sha")
-    delta = require_hard_scalar(authority.delta_upper, "authority.delta_upper")
-    if seal != (source_sha, _float_bits(delta)):
-        raise ValueError("normalized metric residual authority seal mismatch")
-    return authority
 
 
 def _build_power_values(delta: float) -> tuple[float, float, float, float, float]:
@@ -546,15 +452,14 @@ def _build_power_values(delta: float) -> tuple[float, float, float, float, float
     return one_minus, one_plus, growth, contraction, max(growth, contraction)
 
 
-def build_power_drift_audit(
-    authority: NormalizedMetricResidualAuthority,
-) -> PowerDriftAudit:
-    """Build the fixed T=16384 directed repeated-squaring audit."""
+def compute_power_drift_bounds(delta_upper: object) -> PowerDriftBounds:
+    """Compute the fixed T=16384 bounds without signing provenance."""
 
-    verified_authority = _verify_normalized_metric_residual_authority(authority)
-    source_sha = verified_authority.audit_sha
-    delta = verified_authority.delta_upper
+    delta = require_hard_scalar(delta_upper, "delta_upper")
+    if delta < 0.0 or delta >= 1.0:
+        raise ValueError("delta_upper must satisfy 0 <= delta < 1")
     if delta == 0.0:
+        delta = +0.0
         values = {
             "executed_squaring_count": 0,
             "identity_branch": True,
@@ -579,68 +484,19 @@ def build_power_drift_audit(
         }
         if drift > POWER_DRIFT_HARD_GATE:
             raise ValueError("drift_upper exceeds the 1e-8 hard gate")
-    payload: dict[str, object] = {
-        "audit_schema_version": POWER_DRIFT_SCHEMA_VERSION,
-        "normalized_metric_residual_audit_sha": source_sha,
-        "macro_step": POWER_DRIFT_MACRO_STEP,
-        "nonzero_delta_squaring_count": POWER_DRIFT_SQUARING_COUNT,
-        "executed_squaring_count": values["executed_squaring_count"],
-        "identity_branch": values["identity_branch"],
-        "method_id": POWER_DRIFT_METHOD_ID,
-        "delta_upper": delta,
-        "one_minus_delta_lower": values["one_minus_delta_lower"],
-        "one_plus_delta_upper": values["one_plus_delta_upper"],
-        "growth_upper": values["growth_upper"],
-        "contraction_upper": values["contraction_upper"],
-        "drift_upper": values["drift_upper"],
-    }
-    return PowerDriftAudit(
-        **payload,
-        audit_sha=canonical_sha(payload),
+    return PowerDriftBounds(
+        macro_step=POWER_DRIFT_MACRO_STEP,
+        nonzero_delta_squaring_count=POWER_DRIFT_SQUARING_COUNT,
+        executed_squaring_count=values["executed_squaring_count"],
+        identity_branch=values["identity_branch"],
+        method_id=POWER_DRIFT_METHOD_ID,
+        delta_upper=delta,
+        one_minus_delta_lower=values["one_minus_delta_lower"],
+        one_plus_delta_upper=values["one_plus_delta_upper"],
+        growth_upper=values["growth_upper"],
+        contraction_upper=values["contraction_upper"],
+        drift_upper=values["drift_upper"],
     )
-
-
-def _same_fp64(left: float, right: float) -> bool:
-    return _float_bits(left) == _float_bits(right)
-
-
-def verify_power_drift_audit(
-    audit: object,
-    authority: NormalizedMetricResidualAuthority,
-) -> PowerDriftAudit:
-    """Recompute and strictly verify the fixed power-drift audit."""
-
-    if type(audit) is not PowerDriftAudit:
-        raise TypeError("audit must be a PowerDriftAudit")
-    if audit.nonzero_delta_squaring_count != POWER_DRIFT_SQUARING_COUNT:
-        raise ValueError("nonzero power drift squaring count must be 14")
-    expected_executed = 0 if audit.identity_branch else POWER_DRIFT_SQUARING_COUNT
-    if audit.executed_squaring_count != expected_executed:
-        raise ValueError("executed power drift squaring count is invalid")
-    verified_authority = _verify_normalized_metric_residual_authority(authority)
-    if (
-        audit.normalized_metric_residual_audit_sha
-        != verified_authority.audit_sha
-        or not _same_fp64(audit.delta_upper, verified_authority.delta_upper)
-    ):
-        raise ValueError("power drift audit authority binding mismatch")
-    expected = build_power_drift_audit(verified_authority)
-    for field_name in (
-        "delta_upper",
-        "one_minus_delta_lower",
-        "one_plus_delta_upper",
-        "growth_upper",
-        "contraction_upper",
-        "drift_upper",
-    ):
-        if not _same_fp64(
-            getattr(audit, field_name),
-            getattr(expected, field_name),
-        ):
-            raise ValueError("power drift audit has an inward or altered bound")
-    if audit != expected:
-        raise ValueError("power drift audit does not match the frozen method")
-    return audit
 
 
 __all__ = [
@@ -656,12 +512,11 @@ __all__ = [
     "POWER_DRIFT_HARD_GATE",
     "POWER_DRIFT_METHOD_ID",
     "POWER_DRIFT_SQUARING_COUNT",
-    "NormalizedMetricResidualAuthority",
-    "PowerDriftAudit",
+    "PowerDriftBounds",
     "UNIT_ROUNDOFF_DENOMINATOR",
     "build_complex_dot_roundoff_bound",
-    "build_power_drift_audit",
     "complex_dot_q",
+    "compute_power_drift_bounds",
     "directed_add_lower",
     "directed_add_upper",
     "directed_div_lower",
@@ -672,12 +527,10 @@ __all__ = [
     "directed_sub_upper",
     "frobenius_sqrt_upper",
     "gamma_q_upper",
-    "issue_normalized_metric_residual_authority",
     "is_positive_zero",
     "require_hard_scalar",
     "require_semantic_zero",
     "verify_complex_dot_roundoff_bound",
     "verify_frobenius_sqrt_upper",
     "verify_gamma_q_upper",
-    "verify_power_drift_audit",
 ]
