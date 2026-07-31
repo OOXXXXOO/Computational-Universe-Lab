@@ -20,6 +20,7 @@ from typing import Callable, Literal, Optional
 
 import numpy as np
 
+from .contracts import UndefinedReason
 from .evidence import (
     _canonical_json_utf8_size,
     _make_exact_wire_cloner,
@@ -52,15 +53,26 @@ APPLICATION_CONSTANTS_SCHEMA_VERSION = (
 APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION = (
     "v3m0.synthetic-application-prediction-profile.v1"
 )
+APPLICATION_SCENARIO_SCHEMA_VERSION = "v3m0.application-scenario-execution-spec.v1"
 APPLICATION_SPEC_SCHEMA_VERSION = "v3m0.synthetic-control-application-spec.v1"
+APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID: Literal[
+    "analytic-quarter-turn-positive-band-v1"
+] = "analytic-quarter-turn-positive-band-v1"
+DM26_DETERMINISTIC_CONTROL_SOURCE_ID: Literal[
+    "task15-dm26-deterministic-control-v1"
+] = "task15-dm26-deterministic-control-v1"
 PROGRAM_ID = "projective-rule-space-v3m0-v1"
 TASK9_COMMIT_SHA = "39d1c1427aefa38cd46e1272affb9a10dd46a073"
 TASKBOOK_SOURCE_PATH = "docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md"
 IMPLEMENTATION_PLAN_SOURCE_PATH = "docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md"
-TASKBOOK_SOURCE_SHA = "77137fac1cc88972a9227a67db5d67fbedb082aac4d0f860d2b248ac23e22a63"
-IMPLEMENTATION_PLAN_SOURCE_SHA = (
-    "908e888c98a008c3668155350de18be60be976d32ff69c7dd52b37b1a349b90f"
+ERRATUM_SOURCE_PATH = (
+    "docsv3/v3-勘误-application-scenario与typed-termination-2026-07-31.md"
 )
+TASKBOOK_SOURCE_SHA = "4177923fd674c963ac9232bcb2b24b802e7ab8510dd6d069118585690e0fdfbe"
+IMPLEMENTATION_PLAN_SOURCE_SHA = (
+    "32a9061bac1ac7bdfb0f0014de3dea55f8ca6113a806380906b594ff6a4b0f8f"
+)
+ERRATUM_SOURCE_SHA = "63bcda7cb83c7d725b546e18fda41bfccfc69f4a204ddd05056ed58b1499577b"
 PARENT_V2_SHA = "bf5668fe03c108624426c2a38c67413818db833f8d0c178455dc424ef96ff1af"
 EXPECTED_SHELL_RANK_SOURCE_ID = "parent-freeze-control-application-spec-v1"
 CURVATURE_NORMALIZER_ID = "synthetic-identity-v1"
@@ -99,6 +111,7 @@ _APPLICATION_SPEC_CANONICAL_FIELD_NAMES = (
     "protocol_constant_payload",
     "operations",
     "output_operation_instance_ids",
+    "scenario_execution_specs",
     "required_pipeline_stages",
     "expected_prediction_profile_id",
     "expected_prediction_profile",
@@ -116,6 +129,18 @@ ApplicationOperationKind = Literal[
     "geometry-subspace-v1",
     "coverage-subspace-v1",
     "deterministic-series-v1",
+]
+ApplicationExecutionLane = Literal[
+    "BLOCK_SUCCESS",
+    "EXPECTED_TYPED_TERMINATION",
+    "ANALYSIS_CONTROL",
+]
+ApplicationTerminalStage = Literal[
+    "activation",
+    "trace",
+    "stability",
+    "endpoint_shell",
+    "success",
 ]
 
 _APPLICATION_OPERATION_KINDS = (
@@ -404,6 +429,7 @@ class SyntheticApplicationGridProtocol:
     bridge_steps: tuple[int, ...]
     reference_reciprocal_index: tuple[int, ...]
     preregistered_phase_bands: tuple[tuple[float, float], ...]
+    reference_phase_band_source_id: Literal["analytic-quarter-turn-positive-band-v1"]
     expected_shell_rank: int
     expected_shell_rank_source_id: Literal["parent-freeze-control-application-spec-v1"]
     protocol_sha: str
@@ -426,6 +452,11 @@ class SyntheticApplicationGridProtocol:
         ):
             if type(getattr(self, field)) is not tuple:
                 raise TypeError(f"{field} must be a tuple")
+        if (
+            self.reference_phase_band_source_id
+            != APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID
+        ):
+            raise ValueError("reference phase-band source is not analytic")
         _string_tuple(self.direction_ids, "direction_ids")
         _string_tuple(self.path_ids, "path_ids")
         _positive_int(self.expected_shell_rank, "expected_shell_rank")
@@ -539,6 +570,98 @@ class SyntheticApplicationPredictionProfile:
 
 
 @dataclass(frozen=True)
+class ApplicationScenarioExecutionSpec:
+    scenario_schema_version: str
+    scenario_id: str
+    operation_output_ids: tuple[str, ...]
+    execution_lane: ApplicationExecutionLane
+    execution_recipe_id: str
+    recipe_parameter_wires: tuple[tuple[str, TaggedScalarWire], ...]
+    recipe_derivation_source_id: str
+    expected_terminal_stage: Optional[ApplicationTerminalStage]
+    expected_undefined_reason: Optional[UndefinedReason]
+    expected_artifact_type: str
+    scenario_sha: str
+
+    def __post_init__(self) -> None:
+        if self.scenario_schema_version != APPLICATION_SCENARIO_SCHEMA_VERSION:
+            raise ValueError("application scenario schema is not frozen")
+        _text(self.scenario_id, "scenario_id")
+        outputs = _string_tuple(
+            self.operation_output_ids,
+            "operation_output_ids",
+        )
+        if len(set(outputs)) != len(outputs):
+            raise ValueError("operation_output_ids contains duplicates")
+        if self.execution_lane not in (
+            "BLOCK_SUCCESS",
+            "EXPECTED_TYPED_TERMINATION",
+            "ANALYSIS_CONTROL",
+        ):
+            raise ValueError("execution_lane is outside the closed registry")
+        _text(self.execution_recipe_id, "execution_recipe_id")
+        if type(self.recipe_parameter_wires) is not tuple:
+            raise TypeError("recipe_parameter_wires must be a tuple")
+        parameter_names: list[str] = []
+        for index, entry in enumerate(self.recipe_parameter_wires):
+            if type(entry) is not tuple or len(entry) != 2:
+                raise TypeError(
+                    f"recipe_parameter_wires[{index}] must be a name/wire pair"
+                )
+            parameter_names.append(
+                _text(entry[0], f"recipe_parameter_wires[{index}][0]")
+            )
+            if type(entry[1]) is not TaggedScalarWire:
+                raise TypeError(
+                    f"recipe_parameter_wires[{index}][1] has the wrong wire type"
+                )
+        if len(set(parameter_names)) != len(parameter_names):
+            raise ValueError("recipe_parameter_wires contains duplicate names")
+        if tuple(parameter_names) != tuple(sorted(parameter_names)):
+            raise ValueError("recipe_parameter_wires must be canonical")
+        _text(
+            self.recipe_derivation_source_id,
+            "recipe_derivation_source_id",
+        )
+        _text(self.expected_artifact_type, "expected_artifact_type")
+        if self.expected_terminal_stage is not None and (
+            self.expected_terminal_stage
+            not in (
+                "activation",
+                "trace",
+                "stability",
+                "endpoint_shell",
+                "success",
+            )
+        ):
+            raise ValueError("expected terminal stage is outside the frozen registry")
+        if self.execution_lane == "BLOCK_SUCCESS":
+            if (
+                self.expected_terminal_stage != "success"
+                or self.expected_undefined_reason is not None
+                or self.expected_artifact_type != "VerifiedResponseBlock"
+            ):
+                raise ValueError("BLOCK_SUCCESS scenario contract is inconsistent")
+        elif self.execution_lane == "EXPECTED_TYPED_TERMINATION":
+            _text(self.expected_terminal_stage, "expected_terminal_stage")
+            if self.expected_terminal_stage == "success":
+                raise ValueError("typed termination cannot use success stage")
+            if type(self.expected_undefined_reason) is not UndefinedReason:
+                raise TypeError("typed termination requires an exact UndefinedReason")
+            if self.expected_artifact_type != "VerifiedResponseBlockAttemptOutcome":
+                raise ValueError("typed termination artifact type is not frozen")
+        else:
+            if (
+                self.expected_terminal_stage is not None
+                or self.expected_undefined_reason is not None
+                or self.expected_artifact_type
+                != "VerifiedDeterministicSeriesControlOutcome"
+            ):
+                raise ValueError("ANALYSIS_CONTROL scenario contract is inconsistent")
+        _sha(self.scenario_sha, "scenario_sha")
+
+
+@dataclass(frozen=True)
 class V3M0SyntheticControlApplicationSpec:
     application_schema_version: str
     control_case_id: str
@@ -550,6 +673,7 @@ class V3M0SyntheticControlApplicationSpec:
     protocol_constant_payload: SyntheticApplicationProtocolConstants
     operations: tuple[SyntheticApplicationOperation, ...]
     output_operation_instance_ids: tuple[str, ...]
+    scenario_execution_specs: tuple[ApplicationScenarioExecutionSpec, ...]
     required_pipeline_stages: tuple[str, ...]
     expected_prediction_profile_id: str
     expected_prediction_profile: SyntheticApplicationPredictionProfile
@@ -591,6 +715,15 @@ class V3M0SyntheticControlApplicationSpec:
             "output_operation_instance_ids",
             allow_empty=True,
         )
+        if type(self.scenario_execution_specs) is not tuple:
+            raise TypeError("scenario_execution_specs must be a tuple")
+        if not self.scenario_execution_specs:
+            raise ValueError("scenario_execution_specs must be non-empty")
+        if not all(
+            type(scenario) is ApplicationScenarioExecutionSpec
+            for scenario in self.scenario_execution_specs
+        ):
+            raise TypeError("scenario_execution_specs has the wrong record type")
         _string_tuple(
             self.required_pipeline_stages,
             "required_pipeline_stages",
@@ -623,6 +756,7 @@ class ParentFreezeManifest:
     task9_commit_sha: Literal["39d1c1427aefa38cd46e1272affb9a10dd46a073"]
     taskbook_source_sha: str
     implementation_plan_source_sha: str
+    erratum_source_sha: str
     synthetic_control_application_specs: tuple[V3M0SyntheticControlApplicationSpec, ...]
     protocol_constant_payload: SyntheticApplicationProtocolConstants
     source_closure: tuple[tuple[str, str], ...]
@@ -641,6 +775,7 @@ class ParentFreezeManifest:
             self.implementation_plan_source_sha,
             "implementation_plan_source_sha",
         )
+        _sha(self.erratum_source_sha, "erratum_source_sha")
         if type(self.synthetic_control_application_specs) is not tuple:
             raise TypeError("synthetic_control_application_specs must be a tuple")
         if not all(
@@ -668,6 +803,7 @@ class ParentFreezeManifest:
 _PARENT_WIRE_TYPES = (
     ParentFreezeManifest,
     V3M0SyntheticControlApplicationSpec,
+    ApplicationScenarioExecutionSpec,
     SyntheticApplicationPredictionProfile,
     SyntheticApplicationProtocolConstants,
     SyntheticApplicationReadoutProtocol,
@@ -679,7 +815,10 @@ _PARENT_WIRE_TYPES = (
     BasisManifest,
     FrozenComplexTensor,
 )
-_clone_parent_wire = _make_exact_wire_cloner(_PARENT_WIRE_TYPES)
+_clone_parent_wire = _make_exact_wire_cloner(
+    _PARENT_WIRE_TYPES,
+    atomic_types=(UndefinedReason,),
+)
 
 
 def _require_exact_parent_schema(
@@ -840,6 +979,7 @@ def synthetic_application_grid_protocol_payload(
         "preregistered_phase_bands": [
             list(band) for band in protocol.preregistered_phase_bands
         ],
+        "reference_phase_band_source_id": (protocol.reference_phase_band_source_id),
         "expected_shell_rank": protocol.expected_shell_rank,
         "expected_shell_rank_source_id": (protocol.expected_shell_rank_source_id),
     }
@@ -938,6 +1078,40 @@ def _prediction_profile_record(
     }
 
 
+def application_scenario_execution_spec_payload(
+    scenario: ApplicationScenarioExecutionSpec,
+) -> dict[str, object]:
+    _require_exact_parent_schema(scenario, "application scenario")
+    if type(scenario) is not ApplicationScenarioExecutionSpec:
+        raise TypeError("scenario must be an ApplicationScenarioExecutionSpec")
+    scenario.__post_init__()
+    reason = scenario.expected_undefined_reason
+    return {
+        "scenario_schema_version": scenario.scenario_schema_version,
+        "scenario_id": scenario.scenario_id,
+        "operation_output_ids": list(scenario.operation_output_ids),
+        "execution_lane": scenario.execution_lane,
+        "execution_recipe_id": scenario.execution_recipe_id,
+        "recipe_parameter_wires": [
+            [name, tagged_scalar_wire_payload(wire)]
+            for name, wire in scenario.recipe_parameter_wires
+        ],
+        "recipe_derivation_source_id": (scenario.recipe_derivation_source_id),
+        "expected_terminal_stage": scenario.expected_terminal_stage,
+        "expected_undefined_reason": None if reason is None else reason.value,
+        "expected_artifact_type": scenario.expected_artifact_type,
+    }
+
+
+def _scenario_record(
+    scenario: ApplicationScenarioExecutionSpec,
+) -> dict[str, object]:
+    return {
+        **application_scenario_execution_spec_payload(scenario),
+        "scenario_sha": scenario.scenario_sha,
+    }
+
+
 def synthetic_control_application_spec_payload(
     spec: V3M0SyntheticControlApplicationSpec,
 ) -> dict[str, object]:
@@ -954,6 +1128,9 @@ def synthetic_control_application_spec_payload(
         "protocol_constant_payload": _constants_record(spec.protocol_constant_payload),
         "operations": [_operation_record(operation) for operation in spec.operations],
         "output_operation_instance_ids": list(spec.output_operation_instance_ids),
+        "scenario_execution_specs": [
+            _scenario_record(scenario) for scenario in spec.scenario_execution_specs
+        ],
         "required_pipeline_stages": list(spec.required_pipeline_stages),
         "expected_prediction_profile_id": (spec.expected_prediction_profile_id),
         "expected_prediction_profile": _prediction_profile_record(
@@ -984,6 +1161,7 @@ def parent_freeze_manifest_payload(
         "task9_commit_sha": manifest.task9_commit_sha,
         "taskbook_source_sha": manifest.taskbook_source_sha,
         "implementation_plan_source_sha": (manifest.implementation_plan_source_sha),
+        "erratum_source_sha": manifest.erratum_source_sha,
         "synthetic_control_application_specs": [
             _application_spec_record(spec)
             for spec in manifest.synthetic_control_application_specs
@@ -1181,6 +1359,11 @@ def _verify_grid_protocol(
         bands.append((lower, upper))
     if tuple(bands) != tuple(sorted(bands)):
         raise ValueError("preregistered_phase_bands must be canonical")
+    if (
+        protocol.reference_phase_band_source_id
+        != APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID
+    ):
+        raise ValueError("reference phase-band source is not analytic")
     _positive_int(protocol.expected_shell_rank, "expected_shell_rank")
     if protocol.expected_shell_rank_source_id != EXPECTED_SHELL_RANK_SOURCE_ID:
         raise ValueError("unexpected expected_shell_rank_source_id")
@@ -1304,6 +1487,36 @@ def _verify_prediction_profile(
         )
 
 
+def verify_application_scenario_execution_spec(
+    scenario: ApplicationScenarioExecutionSpec,
+    operations: tuple[SyntheticApplicationOperation, ...],
+) -> ApplicationScenarioExecutionSpec:
+    """Verify one inert scenario against the exact enclosing operation DAG."""
+
+    _require_exact_parent_schema(scenario, "application scenario")
+    if type(scenario) is not ApplicationScenarioExecutionSpec:
+        raise TypeError("scenario must be an ApplicationScenarioExecutionSpec")
+    scenario.__post_init__()
+    if type(operations) is not tuple or not operations:
+        raise ValueError("operations must be a non-empty exact tuple")
+    if not all(
+        type(operation) is SyntheticApplicationOperation for operation in operations
+    ):
+        raise TypeError("operations has the wrong exact record type")
+    known_ids = {operation.operation_instance_id for operation in operations}
+    outputs = _string_tuple(
+        scenario.operation_output_ids,
+        "scenario.operation_output_ids",
+    )
+    missing = tuple(output for output in outputs if output not in known_ids)
+    if missing:
+        raise ValueError("scenario operation_output_ids references a missing operation")
+    expected_sha = canonical_sha(application_scenario_execution_spec_payload(scenario))
+    if scenario.scenario_sha != expected_sha:
+        raise ValueError("scenario_sha does not match complete scenario body")
+    return _clone_parent_wire(scenario)
+
+
 def _serialized_size(payload: dict[str, object]) -> int:
     return _canonical_json_utf8_size(payload)
 
@@ -1425,6 +1638,23 @@ def verify_synthetic_control_application_spec(
             "application graph contains dead nodes not reachable from outputs"
         )
 
+    scenarios = spec.scenario_execution_specs
+    if type(scenarios) is not tuple or not scenarios:
+        raise ValueError("scenario_execution_specs must be a non-empty tuple")
+    scenario_ids: list[str] = []
+    for scenario in scenarios:
+        verified_scenario = verify_application_scenario_execution_spec(
+            scenario,
+            operations,
+        )
+        if not verified_scenario.scenario_id.startswith(
+            f"{spec.application_instance_id}.scenario."
+        ):
+            raise ValueError("scenario_id is outside the application namespace")
+        scenario_ids.append(verified_scenario.scenario_id)
+    if len(set(scenario_ids)) != len(scenario_ids):
+        raise ValueError("scenario_execution_specs contains duplicate scenario_id")
+
     stages = _string_tuple(
         spec.required_pipeline_stages,
         "required_pipeline_stages",
@@ -1483,6 +1713,8 @@ def _validate_parent_freeze_manifest(
         raise ValueError(
             "implementation_plan_source_sha does not match the frozen plan"
         )
+    if manifest.erratum_source_sha != ERRATUM_SOURCE_SHA:
+        raise ValueError("erratum_source_sha does not match the frozen erratum")
     _verify_protocol_constants(manifest.protocol_constant_payload)
     specs = manifest.synthetic_control_application_specs
     case_ids = tuple(spec.control_case_id for spec in specs)
@@ -1578,6 +1810,34 @@ def _build_constants() -> SyntheticApplicationProtocolConstants:
                 _fp64_wire(1.0e-12),
             ),
             (
+                "c04-split-step-alpha-fp64-bits",
+                TaggedScalarWire(
+                    "fp64-bits",
+                    None,
+                    0xBFCD35CFF7CF27C0,
+                    None,
+                    None,
+                ),
+            ),
+            (
+                "c04-split-step-beta-fp64-bits",
+                TaggedScalarWire(
+                    "fp64-bits",
+                    None,
+                    0x3FF14AECC73EEB47,
+                    None,
+                    None,
+                ),
+            ),
+            (
+                "c04-split-step-residual-tolerance-fp64-bits",
+                _fp64_wire(1.0e-15),
+            ),
+            (
+                "c04-split-step-source-id",
+                _text_wire("c04-two-mode-split-step-analytic-v1"),
+            ),
+            (
                 "canonical-angle-high-squared-correlation-fp64-bits",
                 _fp64_wire(0.75),
             ),
@@ -1606,8 +1866,44 @@ def _build_constants() -> SyntheticApplicationProtocolConstants:
                 _integer_wire(2),
             ),
             (
-                "deterministic-true-floor-fp64-bits",
-                _fp64_wire(0.125),
+                "dm26-base-exponent",
+                _integer_wire(2),
+            ),
+            (
+                "dm26-floor-offset-fp64-bits",
+                _fp64_wire(1.2e-4),
+            ),
+            (
+                "dm26-high-order-4-coefficient-fp64-bits",
+                _fp64_wire(-0.05),
+            ),
+            (
+                "dm26-high-order-6-coefficient-fp64-bits",
+                _fp64_wire(0.01),
+            ),
+            (
+                "dm26-lattice-denominator-0",
+                _integer_wire(16),
+            ),
+            (
+                "dm26-lattice-denominator-1",
+                _integer_wire(24),
+            ),
+            (
+                "dm26-lattice-denominator-2",
+                _integer_wire(32),
+            ),
+            (
+                "dm26-lattice-denominator-3",
+                _integer_wire(48),
+            ),
+            (
+                "dm26-leading-coefficient-fp64-bits",
+                _fp64_wire(0.236),
+            ),
+            (
+                "dm26-series-source-id",
+                _text_wire(DM26_DETERMINISTIC_CONTROL_SOURCE_ID),
             ),
             (
                 "endpoint-extraction-protocol",
@@ -1616,6 +1912,18 @@ def _build_constants() -> SyntheticApplicationProtocolConstants:
             (
                 "phase-grid-denominator",
                 _integer_wire(16),
+            ),
+            (
+                "reference-phase-band-half-width-fp64-bits",
+                _fp64_wire(1.0 / 8.0),
+            ),
+            (
+                "reference-phase-band-source-id",
+                _text_wire(APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID),
+            ),
+            (
+                "reference-quarter-turn-phase-fp64-bits",
+                _fp64_wire(math.pi / 2.0),
             ),
             (
                 "survival-above-lower-fp64-bits",
@@ -1651,18 +1959,18 @@ def _build_constants() -> SyntheticApplicationProtocolConstants:
 
 
 def _build_basis_protocol() -> SyntheticApplicationBasisProtocol:
-    channel_order = ("q0", "p0")
+    channel_order = ("q0", "p0", "q1", "p1")
     source = build_basis_manifest(
         role="source",
         state_schema_id="state.v3m0.synthetic-control.v1",
         channel_order=channel_order,
-        vectors=np.eye(2, dtype=np.complex128),
+        vectors=np.eye(4, dtype=np.complex128),
     )
     readout = build_basis_manifest(
         role="readout",
         state_schema_id="state.v3m0.synthetic-control.v1",
         channel_order=channel_order,
-        vectors=np.eye(2, dtype=np.complex128),
+        vectors=np.eye(4, dtype=np.complex128),
     )
     provisional = SyntheticApplicationBasisProtocol(
         protocol_schema_version=APPLICATION_BASIS_PROTOCOL_SCHEMA_VERSION,
@@ -1678,7 +1986,26 @@ def _build_basis_protocol() -> SyntheticApplicationBasisProtocol:
     )
 
 
-def _build_grid_protocol() -> SyntheticApplicationGridProtocol:
+def _build_grid_protocol(
+    constants: SyntheticApplicationProtocolConstants,
+) -> SyntheticApplicationGridProtocol:
+    phase_center = _constant_float(
+        constants,
+        "reference-quarter-turn-phase-fp64-bits",
+    )
+    half_width = _constant_float(
+        constants,
+        "reference-phase-band-half-width-fp64-bits",
+    )
+    source_wire = _constant_wire(
+        constants,
+        "reference-phase-band-source-id",
+    )
+    if (
+        source_wire.value_kind != "text"
+        or source_wire.text_value != APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID
+    ):
+        raise ValueError("reference phase-band source constant is not frozen")
     provisional = SyntheticApplicationGridProtocol(
         protocol_schema_version=APPLICATION_GRID_PROTOCOL_SCHEMA_VERSION,
         spatial_ndim=1,
@@ -1693,7 +2020,10 @@ def _build_grid_protocol() -> SyntheticApplicationGridProtocol:
         bridge_reciprocal_indices=((0,), (1,), (7,)),
         bridge_steps=(1, 2, 4),
         reference_reciprocal_index=(1,),
-        preregistered_phase_bands=((-0.25, 0.25),),
+        preregistered_phase_bands=(
+            (phase_center - half_width, phase_center + half_width),
+        ),
+        reference_phase_band_source_id=(APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID),
         expected_shell_rank=1,
         expected_shell_rank_source_id=EXPECTED_SHELL_RANK_SOURCE_ID,
         protocol_sha="0" * 64,
@@ -1707,7 +2037,7 @@ def _build_grid_protocol() -> SyntheticApplicationGridProtocol:
 
 
 def _build_readout_protocol() -> SyntheticApplicationReadoutProtocol:
-    identity = freeze_complex_tensor(np.eye(2, dtype=np.complex128))
+    identity = freeze_complex_tensor(np.eye(4, dtype=np.complex128))
     provisional = SyntheticApplicationReadoutProtocol(
         protocol_schema_version=APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION,
         source_metric_whitener=identity,
@@ -1788,6 +2118,7 @@ def _build_task8_anchor_basis_protocol(
 
 def _build_task8_anchor_grid_protocol(
     control_case_id: str,
+    constants: SyntheticApplicationProtocolConstants,
 ) -> SyntheticApplicationGridProtocol:
     expected_shell_rank = {
         "C01_BLIND_HOLDOUT_FULL": 1,
@@ -1797,8 +2128,7 @@ def _build_task8_anchor_grid_protocol(
     if expected_shell_rank is None:
         raise ValueError("control_case_id is not a Task 8 window anchor")
     provisional = replace(
-        _build_grid_protocol(),
-        preregistered_phase_bands=((math.pi / 2.0 - 0.25, math.pi / 2.0 + 0.25),),
+        _build_grid_protocol(constants),
         expected_shell_rank=expected_shell_rank,
         protocol_sha="0" * 64,
     )
@@ -1840,6 +2170,7 @@ def _build_task8_anchor_readout_protocol(
 
 def _build_application_protocols(
     control_case_id: str,
+    constants: SyntheticApplicationProtocolConstants,
 ) -> tuple[
     SyntheticApplicationBasisProtocol,
     SyntheticApplicationGridProtocol,
@@ -1848,12 +2179,12 @@ def _build_application_protocols(
     if control_case_id in APPLICATION_CONTROL_CASE_IDS[:3]:
         return (
             _build_task8_anchor_basis_protocol(control_case_id),
-            _build_task8_anchor_grid_protocol(control_case_id),
+            _build_task8_anchor_grid_protocol(control_case_id, constants),
             _build_task8_anchor_readout_protocol(control_case_id),
         )
     return (
         _build_basis_protocol(),
-        _build_grid_protocol(),
+        _build_grid_protocol(constants),
         _build_readout_protocol(),
     )
 
@@ -1890,6 +2221,59 @@ def _constant_integer(
     if wire.value_kind != "integer" or wire.integer_value is None:
         raise TypeError(f"frozen constant {name!r} is not an integer")
     return wire.integer_value
+
+
+def _constant_text(
+    constants: SyntheticApplicationProtocolConstants,
+    name: str,
+) -> str:
+    wire = _constant_wire(constants, name)
+    if wire.value_kind != "text" or wire.text_value is None:
+        raise TypeError(f"frozen constant {name!r} is not text")
+    return wire.text_value
+
+
+def _build_dm26_deterministic_control_fixture(
+    constants: SyntheticApplicationProtocolConstants,
+) -> tuple[tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
+    """Mechanically derive the exact Task 15 four-point DM26 control pair."""
+
+    denominators = tuple(
+        _constant_integer(constants, f"dm26-lattice-denominator-{index}")
+        for index in range(4)
+    )
+    base_exponent = _constant_integer(constants, "dm26-base-exponent")
+    leading = _constant_float(
+        constants,
+        "dm26-leading-coefficient-fp64-bits",
+    )
+    high_order_4 = _constant_float(
+        constants,
+        "dm26-high-order-4-coefficient-fp64-bits",
+    )
+    high_order_6 = _constant_float(
+        constants,
+        "dm26-high-order-6-coefficient-fp64-bits",
+    )
+    floor_offset = _constant_float(
+        constants,
+        "dm26-floor-offset-fp64-bits",
+    )
+    k_values = np.asarray(
+        [2.0 * math.pi / denominator for denominator in denominators],
+        dtype=np.float64,
+    )
+    clean = (
+        leading * k_values**base_exponent
+        + high_order_4 * k_values ** (base_exponent + 2)
+        + high_order_6 * k_values ** (base_exponent + 4)
+    ).astype(np.float64)
+    floor = (clean + np.float64(floor_offset)).astype(np.float64)
+    return (
+        tuple(float(value) for value in k_values),
+        tuple(float(value) for value in clean),
+        tuple(float(value) for value in floor),
+    )
 
 
 def _make_operation(
@@ -2541,51 +2925,41 @@ def _build_control_operation_graph(
         )
         output_local_id = "01-observer-collapse-check"
     elif control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR":
+        k_values, clean_samples, floor_samples = (
+            _build_dm26_deterministic_control_fixture(constants)
+        )
+
+        def series_parameters(
+            series_class: str,
+            samples: tuple[float, ...],
+        ) -> tuple[tuple[str, TaggedScalarWire], ...]:
+            return (
+                *tuple(
+                    (f"k-{index}", _fp64_wire(value))
+                    for index, value in enumerate(k_values)
+                ),
+                *tuple(
+                    (f"sample-{index}", _fp64_wire(value))
+                    for index, value in enumerate(samples)
+                ),
+                ("series-class", _text_wire(series_class)),
+            )
+
         operations = (
             op(
                 "00-clean-zero-series",
                 "deterministic-series-v1",
-                parameters=(
-                    ("sample-0", zero),
-                    ("sample-1", zero),
-                    ("sample-2", zero),
-                    ("sample-3", zero),
-                    ("series-class", _text_wire("clean-zero")),
+                parameters=series_parameters(
+                    "clean-zero",
+                    clean_samples,
                 ),
             ),
             op(
                 "01-true-floor-series",
                 "deterministic-series-v1",
-                parameters=(
-                    (
-                        "sample-0",
-                        _constant_wire(
-                            constants,
-                            "deterministic-true-floor-fp64-bits",
-                        ),
-                    ),
-                    (
-                        "sample-1",
-                        _constant_wire(
-                            constants,
-                            "deterministic-true-floor-fp64-bits",
-                        ),
-                    ),
-                    (
-                        "sample-2",
-                        _constant_wire(
-                            constants,
-                            "deterministic-true-floor-fp64-bits",
-                        ),
-                    ),
-                    (
-                        "sample-3",
-                        _constant_wire(
-                            constants,
-                            "deterministic-true-floor-fp64-bits",
-                        ),
-                    ),
-                    ("series-class", _text_wire("true-floor")),
+                parameters=series_parameters(
+                    "true-floor",
+                    floor_samples,
                 ),
             ),
             op(
@@ -2606,6 +2980,374 @@ def _build_control_operation_graph(
         canonical_operations,
         (f"{application_instance_id}.{output_local_id}",),
     )
+
+
+def _make_scenario_execution_spec(
+    application_instance_id: str,
+    *,
+    slug: str,
+    output_local_id: str,
+    execution_lane: ApplicationExecutionLane,
+    execution_recipe_id: str,
+    recipe_parameter_wires: tuple[tuple[str, TaggedScalarWire], ...] = (),
+    recipe_derivation_source_id: str = "parent-frozen-operation-dag-v1",
+    expected_terminal_stage: Optional[ApplicationTerminalStage] = None,
+    expected_undefined_reason: Optional[UndefinedReason] = None,
+) -> ApplicationScenarioExecutionSpec:
+    artifact_type = {
+        "BLOCK_SUCCESS": "VerifiedResponseBlock",
+        "EXPECTED_TYPED_TERMINATION": ("VerifiedResponseBlockAttemptOutcome"),
+        "ANALYSIS_CONTROL": "VerifiedDeterministicSeriesControlOutcome",
+    }[execution_lane]
+    provisional = ApplicationScenarioExecutionSpec(
+        scenario_schema_version=APPLICATION_SCENARIO_SCHEMA_VERSION,
+        scenario_id=f"{application_instance_id}.scenario.{slug}.v1",
+        operation_output_ids=(f"{application_instance_id}.{output_local_id}",),
+        execution_lane=execution_lane,
+        execution_recipe_id=execution_recipe_id,
+        recipe_parameter_wires=recipe_parameter_wires,
+        recipe_derivation_source_id=recipe_derivation_source_id,
+        expected_terminal_stage=expected_terminal_stage,
+        expected_undefined_reason=expected_undefined_reason,
+        expected_artifact_type=artifact_type,
+        scenario_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        scenario_sha=canonical_sha(
+            application_scenario_execution_spec_payload(provisional)
+        ),
+    )
+
+
+def _build_scenario_execution_specs(
+    control_case_id: str,
+    application_instance_id: str,
+    constants: SyntheticApplicationProtocolConstants,
+) -> tuple[ApplicationScenarioExecutionSpec, ...]:
+    """Freeze the ordered terminal lane and execution recipe for every case."""
+
+    def block(
+        slug: str,
+        output: str,
+        recipe: str,
+        *,
+        parameters: tuple[tuple[str, TaggedScalarWire], ...] = (),
+        source: str = "parent-frozen-operation-dag-v1",
+    ) -> ApplicationScenarioExecutionSpec:
+        return _make_scenario_execution_spec(
+            application_instance_id,
+            slug=slug,
+            output_local_id=output,
+            execution_lane="BLOCK_SUCCESS",
+            execution_recipe_id=recipe,
+            recipe_parameter_wires=parameters,
+            recipe_derivation_source_id=source,
+            expected_terminal_stage="success",
+        )
+
+    def terminate(
+        slug: str,
+        output: str,
+        recipe: str,
+        stage: ApplicationTerminalStage,
+        reason: UndefinedReason,
+    ) -> ApplicationScenarioExecutionSpec:
+        return _make_scenario_execution_spec(
+            application_instance_id,
+            slug=slug,
+            output_local_id=output,
+            execution_lane="EXPECTED_TYPED_TERMINATION",
+            execution_recipe_id=recipe,
+            expected_terminal_stage=stage,
+            expected_undefined_reason=reason,
+        )
+
+    def analysis(
+        slug: str,
+        output: str,
+        recipe: str,
+        *,
+        parameters: tuple[tuple[str, TaggedScalarWire], ...] = (),
+        source: str = "parent-frozen-operation-dag-v1",
+    ) -> ApplicationScenarioExecutionSpec:
+        return _make_scenario_execution_spec(
+            application_instance_id,
+            slug=slug,
+            output_local_id=output,
+            execution_lane="ANALYSIS_CONTROL",
+            execution_recipe_id=recipe,
+            recipe_parameter_wires=parameters,
+            recipe_derivation_source_id=source,
+        )
+
+    if control_case_id == "C01_BLIND_HOLDOUT_FULL":
+        return (
+            block(
+                "holdout-span",
+                "03-holdout-span",
+                "task8-blind-holdout-v1",
+            ),
+        )
+    if control_case_id == "C02_CONDITIONED_ZERO":
+        return (
+            block(
+                "conditioned-zero",
+                "02-paired-output",
+                "task8-conditioned-zero-v1",
+            ),
+        )
+    if control_case_id == "C03_EQUAL_RANK_DIRECT_SUM":
+        return (
+            block(
+                "equal-rank-direct-sum",
+                "03-equal-rank-direct-sum",
+                "task8-equal-rank-direct-sum-v1",
+            ),
+        )
+    if control_case_id == "C04_CANONICAL_ANGLE_025_075":
+        source_wire = _constant_wire(constants, "c04-split-step-source-id")
+        if source_wire.value_kind != "text" or source_wire.text_value is None:
+            raise ValueError("C04 recipe source constant is not text")
+        return (
+            block(
+                "canonical-angle",
+                "02-survival-readout",
+                "two-mode-split-step-canonical-angle-v1",
+                parameters=(
+                    (
+                        "alpha",
+                        _constant_wire(
+                            constants,
+                            "c04-split-step-alpha-fp64-bits",
+                        ),
+                    ),
+                    (
+                        "analytic-residual-tolerance",
+                        _constant_wire(
+                            constants,
+                            ("c04-split-step-residual-tolerance-fp64-bits"),
+                        ),
+                    ),
+                    (
+                        "beta",
+                        _constant_wire(
+                            constants,
+                            "c04-split-step-beta-fp64-bits",
+                        ),
+                    ),
+                ),
+                source=source_wire.text_value,
+            ),
+        )
+    if control_case_id == "C05_PHASE_AND_SCALAR_GAIN":
+        return (
+            block("phase", "01-phase-flip", "two-mode-phase-rotation-v1"),
+            block("gain", "02-scalar-gain", "two-mode-scalar-gain-v1"),
+        )
+    if control_case_id == "C06_INTERNAL_NONSCALE_MIXING":
+        return (
+            block(
+                "nonscale-mixing",
+                "01-nonscalar-mix",
+                "two-mode-source-linear-mix-v1",
+            ),
+        )
+    if control_case_id == "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE":
+        return (
+            block(
+                "interference",
+                "04-interference-combiner",
+                "two-mode-coherent-interference-v1",
+            ),
+        )
+    if control_case_id == "C08_RANK_R_MISSING_MODES":
+        return (
+            block(
+                "rank-missing",
+                "01-rank-one-deletion",
+                "two-mode-rank-deletion-v1",
+            ),
+        )
+    if control_case_id == "C09_PURE_GAUGE_DRESSING":
+        return (
+            block(
+                "gauge-dressing",
+                "02-curvature-quotient",
+                "two-mode-pure-gauge-dressing-v1",
+            ),
+        )
+    if control_case_id == "C10_FULL_SOURCE_EXTRA_MODE":
+        return (
+            block(
+                "extra-mode",
+                "02-full-source-extra-readout",
+                "two-mode-full-source-extra-mode-v1",
+            ),
+        )
+    if control_case_id == "C11_NULL_GREY_SIGNAL_AMPLITUDE":
+        recipe = "two-mode-amplitude-activation-v1"
+        return (
+            terminate(
+                "null",
+                "01-null-amplitude",
+                recipe,
+                "activation",
+                UndefinedReason.RESPONSE_NULL,
+            ),
+            terminate(
+                "grey",
+                "02-grey-amplitude",
+                recipe,
+                "activation",
+                UndefinedReason.RESPONSE_GREY,
+            ),
+            block("signal", "03-signal-amplitude", recipe),
+        )
+    if control_case_id == "C12_NU_INC_IR_NORMALIZATION":
+        return (
+            block(
+                "ir-normalization",
+                "01-nu-inc-normalized",
+                "two-mode-ir-normalization-v1",
+            ),
+        )
+    if control_case_id == "C13_BOTH_ZERO_UNDEFINED":
+        return (
+            terminate(
+                "both-zero",
+                "03-zero-pair",
+                "two-mode-both-zero-v1",
+                "activation",
+                UndefinedReason.RESPONSE_NULL,
+            ),
+        )
+    if control_case_id == "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL":
+        return (
+            terminate(
+                "endpoint-ambiguous",
+                "00-endpoint-ambiguous",
+                "endpoint-shell-fault-injection-v1",
+                "endpoint_shell",
+                UndefinedReason.ENDPOINT_SHELL_AMBIGUOUS,
+            ),
+            terminate(
+                "response-null",
+                "01-response-null",
+                "response-null-fault-injection-v1",
+                "activation",
+                UndefinedReason.RESPONSE_NULL,
+            ),
+            terminate(
+                "trace-unclassified",
+                "02-trace-unclassified",
+                "trace-unclassified-fault-injection-v1",
+                "trace",
+                UndefinedReason.TRACE_UNCLASSIFIED,
+            ),
+            terminate(
+                "unstable",
+                "03-unstable",
+                "unstable-fault-injection-v1",
+                "stability",
+                UndefinedReason.UNSTABLE,
+            ),
+        )
+    if control_case_id == "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY":
+        return (
+            block("full-h", "00-full-h", "geometry-full-h-v1"),
+            block(
+                "low-rank-tt",
+                "01-low-rank-tt",
+                "geometry-low-rank-tt-v1",
+            ),
+            block("tt", "02-tt", "geometry-tt-v1"),
+            block(
+                "tt-plus-row",
+                "03-tt-plus-row",
+                "geometry-tt-plus-row-v1",
+            ),
+        )
+    if control_case_id == "C16_COVERAGE_025_075":
+        recipe = "coverage-canonical-angle-v1"
+        return (
+            block("coverage-low", "00-coverage-low", recipe),
+            block("coverage-high", "01-coverage-high", recipe),
+        )
+    if control_case_id == "C17_QUOTIENT_GAUGE_COVERAGE":
+        return (
+            block(
+                "quotient-gauge",
+                "02-dressed-quotient",
+                "quotient-gauge-coverage-v1",
+            ),
+        )
+    if control_case_id == "C18_ABLATED_INDEPENDENT_UNARY":
+        return (
+            block(
+                "independent-unary",
+                "02-unary-geometry-sigma",
+                "ablated-independent-unary-v1",
+            ),
+        )
+    if control_case_id == "C19_FULL_POSITIVE_OBSERVER_COLLAPSE":
+        return (
+            block(
+                "observer-collapse",
+                "01-observer-collapse-check",
+                "full-positive-observer-collapse-v1",
+            ),
+        )
+    if control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR":
+        recipe = "deterministic-series-dm26-v1"
+        source = _constant_text(constants, "dm26-series-source-id")
+        k_values, clean_samples, floor_samples = (
+            _build_dm26_deterministic_control_fixture(constants)
+        )
+
+        def scenario_parameters(
+            samples: tuple[float, ...],
+            *,
+            expected_both_pollution: bool,
+        ) -> tuple[tuple[str, TaggedScalarWire], ...]:
+            return (
+                (
+                    "expected-both-pollution",
+                    _integer_wire(1 if expected_both_pollution else 0),
+                ),
+                *tuple(
+                    (f"k-{index}", _fp64_wire(value))
+                    for index, value in enumerate(k_values)
+                ),
+                *tuple(
+                    (f"sample-{index}", _fp64_wire(value))
+                    for index, value in enumerate(samples)
+                ),
+            )
+
+        return (
+            analysis(
+                "clean-zero",
+                "00-clean-zero-series",
+                recipe,
+                parameters=scenario_parameters(
+                    clean_samples,
+                    expected_both_pollution=True,
+                ),
+                source=source,
+            ),
+            analysis(
+                "true-floor",
+                "01-true-floor-series",
+                recipe,
+                parameters=scenario_parameters(
+                    floor_samples,
+                    expected_both_pollution=False,
+                ),
+                source=source,
+            ),
+        )
+    raise ValueError("control_case_id is outside the closed C01-C20 registry")
 
 
 def _side_label(
@@ -2900,13 +3642,14 @@ def _build_prediction_profile(
         exact = {"full-positive-h-rank": integer(2)}
         labels = {"observer-collapse": ("triggered",)}
     elif control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR":
-        floor = _constant_float(
-            constants,
-            "deterministic-true-floor-fp64-bits",
+        k_values, clean_samples, floor_samples = (
+            _build_dm26_deterministic_control_fixture(constants)
         )
         exact = {
-            "clean-zero-series": fp(0.0, 0.0, 0.0, 0.0),
-            "true-floor-series": fp(floor, floor, floor, floor),
+            "clean-zero-series": fp(*clean_samples),
+            "dm26-both-pollution": integer(1, 0),
+            "dm26-k-values": fp(*k_values),
+            "true-floor-series": fp(*floor_samples),
         }
         labels = {
             "D-M2-6-decision": (
@@ -2940,6 +3683,11 @@ def _assemble_canonical_application_spec(
         application_instance_id,
         constants,
     )
+    scenarios = _build_scenario_execution_specs(
+        control_case_id,
+        application_instance_id,
+        constants,
+    )
     prediction_profile = _build_prediction_profile(
         control_case_id,
         constants,
@@ -2963,6 +3711,7 @@ def _assemble_canonical_application_spec(
         protocol_constant_payload=constants,
         operations=operations,
         output_operation_instance_ids=outputs,
+        scenario_execution_specs=scenarios,
         required_pipeline_stages=stages,
         expected_prediction_profile_id=(prediction_profile.prediction_profile_id),
         expected_prediction_profile=prediction_profile,
@@ -2986,12 +3735,14 @@ def _build_canonical_application_spec(
 ) -> V3M0SyntheticControlApplicationSpec:
     """Rebuild one complete spec solely from its closed case ordinal."""
 
+    constants = _build_constants()
     basis_protocol, grid_protocol, readout_protocol = _build_application_protocols(
-        control_case_id
+        control_case_id,
+        constants,
     )
     return _assemble_canonical_application_spec(
         control_case_id,
-        _build_constants(),
+        constants,
         basis_protocol,
         grid_protocol,
         readout_protocol,
@@ -3004,7 +3755,8 @@ def _build_application_specs(
     specs: list[V3M0SyntheticControlApplicationSpec] = []
     for control_case_id in APPLICATION_CONTROL_CASE_IDS:
         basis_protocol, grid_protocol, readout_protocol = _build_application_protocols(
-            control_case_id
+            control_case_id,
+            constants,
         )
         specs.append(
             _assemble_canonical_application_spec(
@@ -3027,6 +3779,7 @@ def _build_closed_parent_freeze() -> ParentFreezeManifest:
         task9_commit_sha=TASK9_COMMIT_SHA,
         taskbook_source_sha=TASKBOOK_SOURCE_SHA,
         implementation_plan_source_sha=IMPLEMENTATION_PLAN_SOURCE_SHA,
+        erratum_source_sha=ERRATUM_SOURCE_SHA,
         synthetic_control_application_specs=_build_application_specs(constants),
         protocol_constant_payload=constants,
         source_closure=_SOURCE_CLOSURE,
@@ -3331,12 +4084,19 @@ setattr(
 __all__ = [
     "APPLICATION_CONTROL_CASE_IDS",
     "APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION",
+    "APPLICATION_REFERENCE_PHASE_BAND_SOURCE_ID",
+    "APPLICATION_SCENARIO_SCHEMA_VERSION",
+    "DM26_DETERMINISTIC_CONTROL_SOURCE_ID",
+    "ERRATUM_SOURCE_PATH",
     "IMPLEMENTATION_PLAN_SOURCE_PATH",
     "PARENT_FREEZE_SCHEMA_VERSION",
     "PROGRAM_ID",
     "TASK9_COMMIT_SHA",
     "TASKBOOK_SOURCE_PATH",
+    "ApplicationExecutionLane",
     "ApplicationOperationKind",
+    "ApplicationScenarioExecutionSpec",
+    "ApplicationTerminalStage",
     "DirectionPathClosure",
     "ParentFreezeManifest",
     "SyntheticApplicationBasisProtocol",
@@ -3348,6 +4108,7 @@ __all__ = [
     "TaggedScalarWire",
     "V3M0SyntheticControlApplicationSpec",
     "VerifiedParentFreeze",
+    "application_scenario_execution_spec_payload",
     "issue_v3m0_parent_freeze",
     "parent_freeze_manifest_payload",
     "synthetic_application_basis_protocol_payload",
@@ -3359,5 +4120,6 @@ __all__ = [
     "synthetic_control_application_spec_payload",
     "tagged_scalar_wire_payload",
     "verify_parent_freeze",
+    "verify_application_scenario_execution_spec",
     "verify_synthetic_control_application_spec",
 ]
