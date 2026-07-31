@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 import unittest
+from dataclasses import fields, is_dataclass
+from unittest import mock
 
 import numpy as np
 
@@ -179,7 +181,7 @@ class V3M0PureSigmaFitTests(unittest.TestCase):
         self.assertFalse(result.zero_consistent)
         self.assertTrue(math.isfinite(result.A))
         self.assertEqual(result.fit_window, tuple(float(value) for value in x))
-        self.assertEqual(result.expanded_window, result.fit_window)
+        self.assertIsNone(result.expanded_window)
 
     def test_fit_sigma_deterministic_double_test_separates_zero_and_floor(self):
         x = np.asarray(
@@ -210,6 +212,53 @@ class V3M0PureSigmaFitTests(unittest.TestCase):
         self.assertTrue(all(control.matches_expected for control in zero.dm26_controls))
         self.assertIsNotNone(zero.dm26_decision)
         self.assertIsNotNone(floor.dm26_decision)
+
+    def test_exact_zero_is_excluded_without_nonfinite_json_values(self):
+        x = np.asarray(
+            [2.0 * math.pi / size for size in (16, 24, 32, 48)],
+            dtype=np.float64,
+        )
+        result = fit_sigma(
+            x,
+            np.zeros(4, dtype=np.float64),
+            "geometry-manifest-exact-zero-v1",
+            deterministic=True,
+        )
+
+        self.assertTrue(result.zero_consistent)
+        self.assertFalse(result.alpha_identifiable)
+        self.assertIsNone(result.alpha)
+
+        def assert_finite_tree(value):
+            if isinstance(value, float):
+                self.assertTrue(math.isfinite(value))
+            elif is_dataclass(value):
+                for field in fields(value):
+                    assert_finite_tree(getattr(value, field.name))
+            elif isinstance(value, (tuple, list)):
+                for item in value:
+                    assert_finite_tree(item)
+
+        assert_finite_tree(result)
+
+    def test_full_sigma_work_cap_precedes_any_least_squares(self):
+        # 126 main/LOO fits plus 27 deterministic DM26/control fits,
+        # each scanning the 396-point alpha grid.
+        x = np.linspace(0.01, 1.0, 124, dtype=np.float64)
+        y = np.square(x, dtype=np.float64)
+
+        with mock.patch(
+            "numpy.linalg.lstsq",
+            side_effect=AssertionError("lstsq ran before full-fit work cap"),
+        ) as lstsq:
+            with self.assertRaisesRegex(ValueError, "work cap"):
+                fit_sigma(
+                    x,
+                    y,
+                    "geometry-manifest-work-cap-v1",
+                    deterministic=True,
+                )
+        lstsq.assert_not_called()
 
     def test_fit_sigma_rejects_unbound_or_nonphysical_fit_payloads(self):
         x = np.asarray((0.1, 0.2, 0.3, 0.4), dtype=np.float64)

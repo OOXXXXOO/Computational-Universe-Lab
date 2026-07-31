@@ -16,6 +16,7 @@ import numpy as np
 
 ALPHA_GRID = tuple(float(value) for value in np.arange(0.05, 4.001, 0.01))
 SIGMA_MAX_POINTS = 2_048
+SIGMA_LSTSQ_CALL_CAP = 50_000
 SIGMA_MAX_K = math.sqrt(3.0) * math.pi
 SIGMA_MAX_GEOMETRY_SCALE = 1.0 + 1e-12
 DM26_DELTA_AIC_MIN = 2.0
@@ -37,11 +38,11 @@ class ConstantFit:
 @dataclass(frozen=True)
 class PowerFit:
     A: float
-    sigma_A: float
+    sigma_A: Optional[float]
     B: float
-    sigma_B: float
+    sigma_B: Optional[float]
     alpha: float
-    sigma_alpha: float
+    sigma_alpha: Optional[float]
     rss: float
     aic: float
     sample_count: int
@@ -99,12 +100,12 @@ class SigmaResult:
     high_order_fit: HighOrderFit
     A: float
     alpha: Optional[float]
-    sigma_A: float
+    sigma_A: Optional[float]
     sigma_alpha: Optional[float]
     delta_aic: float
     loo: tuple[LeaveOneOutPowerFit, ...]
     fit_window: tuple[float, ...]
-    expanded_window: tuple[float, ...]
+    expanded_window: Optional[tuple[float, ...]]
     direction: Literal["geometry-manifest-defined"]
     alpha_identifiable: bool
     zero_consistent: bool
@@ -206,13 +207,18 @@ def _fit_power(
     variance = rss / max(sample_count - 3, 1)
     try:
         covariance = variance * np.linalg.inv(jacobian.T @ jacobian)
-        sigma_A = float(math.sqrt(max(covariance[0, 0], 0.0)))
-        sigma_B = float(math.sqrt(max(covariance[1, 1], 0.0)))
-        sigma_alpha = float(math.sqrt(max(covariance[2, 2], 0.0)))
+        if not bool(np.all(np.isfinite(covariance))):
+            raise np.linalg.LinAlgError("covariance is non-finite")
+        diagonal = np.real(np.diag(covariance))
+        if bool(np.any(diagonal < 0.0)):
+            raise np.linalg.LinAlgError("covariance has a negative diagonal")
+        sigma_A = float(math.sqrt(diagonal[0]))
+        sigma_B = float(math.sqrt(diagonal[1]))
+        sigma_alpha = float(math.sqrt(diagonal[2]))
     except np.linalg.LinAlgError:
-        sigma_A = math.inf
-        sigma_B = math.inf
-        sigma_alpha = math.inf
+        sigma_A = None
+        sigma_B = None
+        sigma_alpha = None
     return PowerFit(
         A=intercept,
         sigma_A=sigma_A,
@@ -286,6 +292,8 @@ def leave_one_out_power(
     values: np.ndarray,
 ) -> tuple[LeaveOneOutPowerFit, ...]:
     x, y = _series(k_values, values, minimum_points=4)
+    if len(x) * len(ALPHA_GRID) > SIGMA_LSTSQ_CALL_CAP:
+        raise ValueError("leave-one-out fit exceeds the arithmetic work cap")
     return tuple(
         LeaveOneOutPowerFit(
             dropped_k=float(x[index]),
@@ -379,6 +387,8 @@ def _geometry_manifest_id(value: object) -> str:
 
 
 def _power_fit_is_finite(fit: PowerFit) -> bool:
+    if fit.sigma_A is None or fit.sigma_B is None or fit.sigma_alpha is None:
+        return False
     return all(
         math.isfinite(value)
         for value in (
@@ -412,6 +422,11 @@ def fit_sigma(
     if type(deterministic) is not bool:
         raise TypeError("deterministic must be an exact bool")
     x, y = _series(k_values, g_max, minimum_points=4)
+    # Main power/high-order (2), LOO power (n), and, on the
+    # deterministic branch, nine DM26 runs × three fits each.
+    fit_count = len(x) + 2 + (27 if deterministic else 0)
+    if fit_count * len(ALPHA_GRID) > SIGMA_LSTSQ_CALL_CAP:
+        raise ValueError("full sigma fit exceeds the arithmetic work cap")
     constant = fit_constant(x, y)
     power = _fit_power(x, y)
     high_order = _fit_high_order(x, y)
@@ -446,17 +461,21 @@ def fit_sigma(
         selected_A = constant.A
         selected_sigma_A = constant.sigma_A
 
+    exact_zero = bool(np.all(y == 0.0))
     if deterministic:
         controls = dm26_controls()
         controls_have_teeth = all(row.matches_expected for row in controls)
         decision = run_dm26(x, y)
-        zero_consistent = bool(controls_have_teeth and decision.both_pollution)
+        zero_consistent = bool(
+            controls_have_teeth and (exact_zero or decision.both_pollution)
+        )
         zero_test: Literal["dm26-double-test", "two-sigma"] = "dm26-double-test"
     else:
         controls = ()
         decision = None
         zero_consistent = bool(
-            math.isfinite(selected_sigma_A)
+            selected_sigma_A is not None
+            and math.isfinite(selected_sigma_A)
             and abs(selected_A) <= 2.0 * selected_sigma_A
         )
         zero_test = "two-sigma"
@@ -475,7 +494,7 @@ def fit_sigma(
         delta_aic=delta_aic,
         loo=loo,
         fit_window=tuple(float(value) for value in x),
-        expanded_window=tuple(float(value) for value in x),
+        expanded_window=None,
         direction="geometry-manifest-defined",
         alpha_identifiable=alpha_identifiable,
         zero_consistent=zero_consistent,
@@ -496,6 +515,7 @@ __all__ = [
     "LeaveOneOutPowerFit",
     "PowerFit",
     "SIGMA_MAX_POINTS",
+    "SIGMA_LSTSQ_CALL_CAP",
     "SIGMA_MAX_GEOMETRY_SCALE",
     "SIGMA_MAX_K",
     "SigmaResult",
