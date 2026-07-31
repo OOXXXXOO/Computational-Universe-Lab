@@ -40,10 +40,11 @@ v3 因而把单轴拆开：
 1. `v3-纲领-北极星-因果可识别涌现边界制图.md`
 2. `v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`
 3. `v3-勘误-observer-collapse-coisometry-2026-07-30.md`
-4. `v3-任务书-V3M0-因果响应与几何距离仪器.md`
-5. `v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
-6. v2 当前状态：`../docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
-7. v2 任务书：`../docsv2/v2-任务书-M3-涌现边界制图.md`
+4. `v3-勘误-application-scenario与typed-termination-2026-07-31.md`
+5. `v3-任务书-V3M0-因果响应与几何距离仪器.md`
+6. `v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
+7. v2 当前状态：`../docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
+8. v2 任务书：`../docsv2/v2-任务书-M3-涌现边界制图.md`
 
 ## 版本关系
 
@@ -53,6 +54,8 @@ v3 因而把单轴拆开：
   `evaluator-v2.0/full-positive` 的条件性 no-go 证据，不是 v3 边界数据点；
 - 其中 observer-collapse 的“满张到固定映回子空间”推论须满足
   `v3-勘误-observer-collapse-coisometry-2026-07-30.md` 冻结的白化/coisometry 桥；
+- Task 12–17 的 application bundle、预期终止、C20 分析控制和 reference shell 以
+  `v3-勘误-application-scenario与typed-termination-2026-07-31.md` 为准；
 - v3 新结果使用独立 schema、结果文件和运行态，禁止把不同 evaluator 版本的数据混入
   同一边界拟合；
 - `AGENTS.md` / `CLAUDE.md` 已随签发切换到本目录；不启动新 pilot。
