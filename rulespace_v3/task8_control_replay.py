@@ -1,0 +1,428 @@
+"""Deterministic Task-8 control roots for the current Parent replay.
+
+This module is an internal numerical/root adapter, not an authority issuer.
+The public current-Parent entry point must first obtain the exact C01--C03
+scenario authorities from a live :class:`VerifiedParentFreezeV2`; only then
+may it call :func:`_replay_current_task8_control_roots`.
+
+The legacy Parent capability below is retained as a numerical witness.  Every
+current response contract is independently compared with the freshly rebuilt
+controls, matched ablations, programs, effects, bases and grids, so merely
+re-labelling a v1 SHA cannot satisfy this replay.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
+
+from .ablation import AblationConstructionOutcome, matched_ablation, verify_ablation_pair
+from .controls import (
+    SyntheticControlBundle,
+    build_direct_sum_control,
+    build_full_control,
+    build_zero_control,
+)
+from .evidence import canonical_sha
+from .factory import (
+    PrimitiveInterface,
+    PrimitiveOperatorWire,
+    basis_manifest_array,
+    build_basis_manifest,
+    build_calibration_seed,
+    freeze_complex_tensor,
+    freeze_synthetic_target,
+    frozen_tensor_array,
+    measure_calibration_holdout,
+    primitive_payload,
+    primitive_sha,
+)
+from .grids import (
+    build_application_bridge_grid_manifest,
+    build_response_grid_manifest,
+)
+from .parent_freeze import (
+    VerifiedParentFreeze,
+    _reverify_verified_parent_freeze,
+)
+from .parent_v2_contracts import CurrentScenarioAuthorityV2
+from .registry import VerifiedControlRegistry, build_closed_control_registry
+
+
+_TASK8_CASES = (
+    ("C01_BLIND_HOLDOUT_FULL", "full"),
+    ("C02_CONDITIONED_ZERO", "zero"),
+    ("C03_EQUAL_RANK_DIRECT_SUM", "direct_sum"),
+)
+
+
+@dataclass(frozen=True)
+class CurrentTask8ControlCaseReplay:
+    control_case_id: str
+    control_id: str
+    scenario_id: str
+    scenario_authority_sha: str
+    response_contract_sha: str
+    legacy_registry_entry_sha: str
+    actual_factory_sha: str
+    matched_ablated_factory_sha: str
+    actual_program_sha: str
+    matched_ablated_program_sha: str
+    actual_effect_digest: str
+    matched_ablated_effect_digest: str
+    actual_step_count: int
+    matched_ablated_step_count: int
+    expected_actual_shell_rank: int
+    expected_matched_shell_rank: int
+
+
+@dataclass(frozen=True)
+class CurrentTask8ControlReplay:
+    controls: tuple[SyntheticControlBundle, ...]
+    legacy_registry: VerifiedControlRegistry
+    matched_ablation_outcomes: tuple[AblationConstructionOutcome, ...]
+    case_replays: tuple[CurrentTask8ControlCaseReplay, ...]
+
+
+def _task8_program_sha(
+    branch: str,
+    steps: tuple[tuple[object, bool], ...],
+) -> str:
+    if branch not in ("actual", "matched_ablated"):
+        raise ValueError("Task-8 program branch is not frozen")
+    records: list[dict[str, object]] = []
+    for primitive, target_conditioned in steps:
+        if primitive.operation_id != "local_canonical_shear":
+            raise ValueError("Task-8 program contains a non-shear primitive")
+        records.append(
+            {
+                **primitive_payload(primitive),
+                "primitive_sha": primitive_sha(primitive),
+                "target_conditioned": target_conditioned,
+            }
+        )
+    return canonical_sha(
+        {
+            "program_schema_version": (
+                "v3m0.task8-channel-generic-local-shear-program.v1"
+            ),
+            "branch": branch,
+            "steps": records,
+        }
+    )
+
+
+def _task8_effect_digest(
+    channel_order: tuple[str, ...],
+    steps: tuple[tuple[object, bool], ...],
+    branch: str,
+) -> str:
+    if branch not in ("actual", "matched_ablated"):
+        raise ValueError("Task-8 effect branch is not frozen")
+    channel_index = {channel: index for index, channel in enumerate(channel_order)}
+    if len(channel_index) != len(channel_order):
+        raise ValueError("Task-8 factory channel order repeats")
+    spatial_ndim = len(steps[0][0].offset) if steps else 1
+    zero = (0,) * spatial_ndim
+    coefficients: dict[tuple[int, ...], np.ndarray] = {
+        zero: np.eye(len(channel_order), dtype=np.complex128)
+    }
+    for primitive, _ in steps:
+        source = channel_index[primitive.source_channel]
+        destination = channel_index[primitive.destination_channel]
+        coefficient = complex(*primitive.coefficient_wire)
+        previous = {
+            offset: np.asarray(matrix, dtype=np.complex128).copy()
+            for offset, matrix in coefficients.items()
+        }
+        updated = {
+            offset: np.asarray(matrix, dtype=np.complex128).copy()
+            for offset, matrix in previous.items()
+        }
+        for offset, matrix in previous.items():
+            shifted = tuple(
+                left + right for left, right in zip(offset, primitive.offset)
+            )
+            contribution = np.zeros_like(matrix)
+            contribution[destination] = coefficient * matrix[source]
+            if shifted in updated:
+                updated[shifted] += contribution
+            else:
+                updated[shifted] = contribution
+        coefficients = updated
+    support = tuple(sorted(coefficients))
+    kernel = freeze_complex_tensor(
+        np.stack(tuple(coefficients[offset] for offset in support), axis=0)
+    )
+    return canonical_sha(
+        {
+            "effect_schema_version": (
+                "v3m0.task8-channel-generic-laurent-effect.v1"
+            ),
+            "branch": branch,
+            "channel_order": list(channel_order),
+            "support_offsets": [list(item) for item in support],
+            "kernel_tensor_sha": kernel.tensor_sha,
+        }
+    )
+
+
+def _build_task8_controls(
+    parent: VerifiedParentFreeze,
+) -> tuple[SyntheticControlBundle, ...]:
+    manifest = _reverify_verified_parent_freeze(parent)
+    applications = {
+        item.control_case_id: item
+        for item in manifest.synthetic_control_application_specs
+    }
+    c01 = applications[_TASK8_CASES[0][0]]
+    spatial_shape = c01.grid_protocol.spatial_shape
+    source = c01.basis_protocol.source_basis
+    readout = c01.basis_protocol.readout_basis
+    interface = PrimitiveInterface(
+        interface_id="interface.synthetic.local-linear.v1",
+        state_schema_id=source.state_schema_id,
+        spatial_ndim=len(spatial_shape),
+        channel_order=source.channel_order,
+        dtype="complex128",
+        backend="numpy",
+    )
+    holdout = build_basis_manifest(
+        role="holdout_source",
+        state_schema_id=source.state_schema_id,
+        channel_order=source.channel_order,
+        vectors=basis_manifest_array(source),
+    )
+    coefficients = (1.0, -1.0, 1.0)
+    sources = (
+        source.channel_order[0],
+        source.channel_order[1],
+        source.channel_order[0],
+    )
+    destinations = (
+        source.channel_order[1],
+        source.channel_order[0],
+        source.channel_order[1],
+    )
+    operators = tuple(
+        PrimitiveOperatorWire(
+            mechanism_id=f"pair.000.shear.{layer}",
+            production_id="local_canonical_shear",
+            layer_slot_id=f"layer.000.{layer}",
+            operation_id="local_canonical_shear",
+            interface_id=interface.interface_id,
+            source_channel=sources[layer],
+            destination_channel=destinations[layer],
+            offset=(0,) * interface.spatial_ndim,
+            coefficient_wire=(coefficients[layer], 0.0),
+        )
+        for layer in range(3)
+    )
+    seed = build_calibration_seed(
+        calibration_protocol_id="calibration.synthetic.v1",
+        interface=interface,
+        state_shape=(len(interface.channel_order), *spatial_shape),
+        dt=0.25,
+        target_blind_parameters=(("mass", 1.0),),
+        source_basis=source,
+        holdout_source_basis=holdout,
+        readout_basis=readout,
+        boundary_manifest_id="periodic-v1",
+        operator_payload=operators,
+    )
+    observation = measure_calibration_holdout(seed)
+    target = freeze_synthetic_target(seed, observation, "target.synthetic.v1")
+    return (
+        build_full_control(seed, observation, target),
+        build_zero_control(1, target, spatial_shape, 0.25),
+        build_direct_sum_control(1, target, spatial_shape, 0.25),
+    )
+
+
+def _verify_contract_against_replay(
+    *,
+    authority: CurrentScenarioAuthorityV2,
+    parent_application,
+    registry_entry,
+    pair,
+) -> CurrentTask8ControlCaseReplay:
+    response = authority.response_contract
+    actual_factory = pair.actual.factory
+    conditioned = frozenset(
+        item.mechanism_id for item in pair.manifest.replacements
+    )
+    actual_steps = tuple(
+        (primitive, primitive.mechanism_id in conditioned)
+        for primitive in actual_factory.primitives
+    )
+    matched_steps = tuple(item for item in actual_steps if not item[1])
+    actual_program_sha = _task8_program_sha("actual", actual_steps)
+    matched_program_sha = _task8_program_sha(
+        "matched_ablated",
+        matched_steps,
+    )
+    actual_effect_digest = _task8_effect_digest(
+        actual_factory.channel_order,
+        actual_steps,
+        "actual",
+    )
+    matched_effect_digest = _task8_effect_digest(
+        actual_factory.channel_order,
+        matched_steps,
+        "matched_ablated",
+    )
+    response_grid = build_response_grid_manifest(parent_application)
+    bridge_grid = build_application_bridge_grid_manifest(parent_application)
+    selector = response.selector_spec
+    source_selector = frozen_tensor_array(selector.source_injection)
+    readout_selector = frozen_tensor_array(selector.readout_coisometry)
+    source_basis = basis_manifest_array(parent_application.basis_protocol.source_basis)
+    readout_basis = basis_manifest_array(parent_application.basis_protocol.readout_basis)
+    expected_trials = np.eye(source_basis.shape[0], dtype=np.complex128)
+    observed_trials = frozen_tensor_array(response.source_trial_vectors)
+
+    expected = (
+        authority.source_disposition
+        == "PARENT_V1_TASK8_SELECTED_CALIBRATION_LANE"
+        and authority.application_instance_id
+        == parent_application.application_instance_id
+        and authority.based_on_application_spec_sha
+        == parent_application.application_spec_sha
+        and authority.scenario_execution_spec
+        in parent_application.scenario_execution_specs
+        and registry_entry.source_basis
+        == parent_application.basis_protocol.source_basis
+        and registry_entry.readout_basis
+        == parent_application.basis_protocol.readout_basis
+        and actual_factory.factory_sha == registry_entry.factory_sha
+        and pair.manifest.actual_factory_sha == registry_entry.factory_sha
+        and response.selector_sha == selector.selector_sha
+        and np.array_equal(source_selector, source_basis.T)
+        and np.array_equal(readout_selector, readout_basis)
+        and np.array_equal(observed_trials, expected_trials)
+        and response.response_torus_denominators
+        == response_grid.torus_denominators
+        and response.response_reciprocal_indices
+        == response_grid.reciprocal_indices
+        and response.source_readout_bridge_reciprocal_indices
+        == bridge_grid.reciprocal_indices
+        and response.source_readout_bridge_steps
+        == parent_application.grid_protocol.bridge_steps
+        and response.reference_reciprocal_index
+        == parent_application.grid_protocol.reference_reciprocal_index
+        and response.preregistered_phase_bands
+        == parent_application.grid_protocol.preregistered_phase_bands
+        and response.expected_actual_shell_rank
+        == registry_entry.expected_h_actual_rank
+        and response.expected_matched_shell_rank
+        == registry_entry.expected_h_ablated_rank
+        and response.actual_step_count == len(actual_steps)
+        and response.matched_ablated_step_count == len(matched_steps)
+        and response.actual_program_sha == actual_program_sha
+        and response.matched_ablated_program_sha == matched_program_sha
+        and response.actual_effect_digest == actual_effect_digest
+        and response.matched_ablated_effect_digest == matched_effect_digest
+        and response.construction_family_id
+        == "task8-channel-generic-local-canonical-shear-v1"
+        and response.uses_global_fft_projection is False
+        and response.uses_per_k_time_step_projector is False
+    )
+    if not expected:
+        raise ValueError(
+            f"{authority.control_case_id} current contract differs from fresh Task-8 replay"
+        )
+    return CurrentTask8ControlCaseReplay(
+        control_case_id=authority.control_case_id,
+        control_id=registry_entry.control_id,
+        scenario_id=authority.scenario_id,
+        scenario_authority_sha=authority.scenario_authority_sha,
+        response_contract_sha=response.response_contract_sha,
+        legacy_registry_entry_sha=registry_entry.entry_sha,
+        actual_factory_sha=pair.actual.factory.factory_sha,
+        matched_ablated_factory_sha=pair.ablated.factory.factory_sha,
+        actual_program_sha=actual_program_sha,
+        matched_ablated_program_sha=matched_program_sha,
+        actual_effect_digest=actual_effect_digest,
+        matched_ablated_effect_digest=matched_effect_digest,
+        actual_step_count=len(actual_steps),
+        matched_ablated_step_count=len(matched_steps),
+        expected_actual_shell_rank=registry_entry.expected_h_actual_rank,
+        expected_matched_shell_rank=registry_entry.expected_h_ablated_rank,
+    )
+
+
+def _replay_current_task8_control_roots(
+    parent: VerifiedParentFreeze,
+    current_scenario_authorities: tuple[CurrentScenarioAuthorityV2, ...],
+) -> CurrentTask8ControlReplay:
+    """Rebuild C01--C03 and compare them with exact reviewed current contracts."""
+
+    if type(parent) is not VerifiedParentFreeze:
+        raise TypeError("Task-8 replay requires the exact live historical Parent")
+    if type(current_scenario_authorities) is not tuple or len(
+        current_scenario_authorities
+    ) != len(_TASK8_CASES):
+        raise ValueError("Task-8 replay requires the canonical C01--C03 tuple")
+    observed = tuple(
+        item.control_case_id for item in current_scenario_authorities
+    )
+    expected_cases = tuple(item[0] for item in _TASK8_CASES)
+    if observed != expected_cases:
+        raise ValueError("Task-8 authority order is not canonical C01--C03")
+
+    # The closed verifier is imported only at call time, allowing this helper
+    # to be shared by parent_freeze_v2 without an import cycle.
+    from .parent_freeze_v2 import verify_reviewed_unchanged_scenario_authority
+
+    authorities = tuple(
+        verify_reviewed_unchanged_scenario_authority(item)
+        for item in current_scenario_authorities
+    )
+    parent_manifest = _reverify_verified_parent_freeze(parent)
+    parent_applications = {
+        item.control_case_id: item
+        for item in parent_manifest.synthetic_control_application_specs
+    }
+    controls = _build_task8_controls(parent)
+    registry = build_closed_control_registry(controls, parent)
+    raw_registry = registry.registry
+    outcomes: list[AblationConstructionOutcome] = []
+    case_replays: list[CurrentTask8ControlCaseReplay] = []
+    for authority, (case_id, control_id), control, entry in zip(
+        authorities,
+        _TASK8_CASES,
+        controls,
+        raw_registry.entries,
+    ):
+        if (
+            authority.control_case_id != case_id
+            or control.control_id != control_id
+            or entry.control_id != control_id
+        ):
+            raise ValueError("Task-8 replay roots are cross-case spliced")
+        outcome = matched_ablation(control.factory)
+        if not outcome.status.defined or outcome.pair is None:
+            raise ValueError("Task-8 matched ablation is unexpectedly undefined")
+        pair = verify_ablation_pair(outcome.pair)
+        case_replays.append(
+            _verify_contract_against_replay(
+                authority=authority,
+                parent_application=parent_applications[case_id],
+                registry_entry=entry,
+                pair=pair,
+            )
+        )
+        outcomes.append(outcome)
+    return CurrentTask8ControlReplay(
+        controls=controls,
+        legacy_registry=registry,
+        matched_ablation_outcomes=tuple(outcomes),
+        case_replays=tuple(case_replays),
+    )
+
+
+__all__ = [
+    "CurrentTask8ControlCaseReplay",
+    "CurrentTask8ControlReplay",
+]
