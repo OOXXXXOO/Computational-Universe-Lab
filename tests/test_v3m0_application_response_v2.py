@@ -164,9 +164,7 @@ class _Bodies:
                 actual_dynamics_certificate_sha=(
                     authority.actual_dynamics_certificate_sha
                 ),
-                reference_reciprocal_index=(
-                    run_spec.reference_reciprocal_index
-                ),
+                reference_reciprocal_index=(run_spec.reference_reciprocal_index),
                 preregistered_phase_band=(0.1, 0.5),
                 reference_phase=0.25,
                 expected_shell_rank=2,
@@ -177,9 +175,7 @@ class _Bodies:
                 idempotent_residual=0.0,
                 metric_invariance_residual=0.0,
                 eigenphase_residual=0.0,
-                projector=freeze_complex_tensor(
-                    np.eye(2, dtype=np.complex128)
-                ),
+                projector=freeze_complex_tensor(np.eye(2, dtype=np.complex128)),
                 endpoint_reference_sha=SHA0,
             )
         )
@@ -208,9 +204,7 @@ class _Bodies:
         run_spec = self._run_spec() if run_spec is None else run_spec
         authority = self._authority(run_spec) if authority is None else authority
         reference = (
-            self._reference(run_spec, authority)
-            if reference is None
-            else reference
+            self._reference(run_spec, authority) if reference is None else reference
         )
         return self._resign_shell(
             ApplicationEndpointShellV2(
@@ -253,9 +247,7 @@ class _Bodies:
         return replace(
             provisional,
             branch_response_sha=canonical_sha(
-                application_branch_source_readout_response_v2_payload(
-                    provisional
-                )
+                application_branch_source_readout_response_v2_payload(provisional)
             ),
         )
 
@@ -387,8 +379,8 @@ class _Bodies:
             pair.actual_response,
             pair.matched_ablated_response,
         ):
-            branch_payload = (
-                application_branch_source_readout_response_v2_payload(branch)
+            branch_payload = application_branch_source_readout_response_v2_payload(
+                branch
             )
             branch_payload["actual_endpoint_shell"] = shell_record
             signed = replace(
@@ -491,9 +483,7 @@ class ApplicationResponseV2AuthorityContractTests(_Bodies, unittest.TestCase):
         self.assertEqual(verified_authority, authority)
         self.assertIsNot(verified_run, run_spec)
 
-        spliced = self._resign_authority(
-            replace(authority, run_spec_sha=SHAF)
-        )
+        spliced = self._resign_authority(replace(authority, run_spec_sha=SHAF))
         with self.assertRaisesRegex(ValueError, "run spec|lineage|splice"):
             verify_application_response_authority_binding_v2_body(
                 spliced,
@@ -619,26 +609,20 @@ class ApplicationEndpointShellV2ContractTests(_Bodies, unittest.TestCase):
         splices = (
             (
                 "phase",
-                self._resign_shell(
-                    replace(shell, shell_phases=(0.25, 0.30))
-                ),
+                self._resign_shell(replace(shell, shell_phases=(0.25, 0.30))),
             ),
             (
                 "projector",
                 self._resign_shell(
                     replace(
                         shell,
-                        shell_projectors=freeze_complex_tensor(
-                            projector_splice
-                        ),
+                        shell_projectors=freeze_complex_tensor(projector_splice),
                     )
                 ),
             ),
             (
                 "participation",
-                self._resign_shell(
-                    replace(shell, point_participations=(1.0, 0.75))
-                ),
+                self._resign_shell(replace(shell, point_participations=(1.0, 0.75))),
             ),
         )
         for field, spliced_shell in splices:
@@ -656,9 +640,7 @@ class ApplicationEndpointShellV2ContractTests(_Bodies, unittest.TestCase):
                     ValueError,
                     "reference row|cross-splice",
                 ):
-                    verify_application_paired_response_outcome_v2_body(
-                        spliced_pair
-                    )
+                    verify_application_paired_response_outcome_v2_body(spliced_pair)
 
 
 class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
@@ -731,93 +713,129 @@ class ApplicationPairedResponseV2ContractTests(_Bodies, unittest.TestCase):
 
 
 class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
-    def test_public_endpoint_issuer_direct_dependencies_are_capability_safe(
+    def test_public_endpoint_boundaries_have_no_reachable_registry_or_seal(
         self,
     ) -> None:
-        """Issuer 直达依赖不得暴露 raw-only registrar 或 live registry。"""
+        """Issuer/require 的递归依赖不得藏 registry 或 seal。"""
         from weakref import WeakKeyDictionary
 
         from rulespace_v3.application_response import (
-            ApplicationResponseV2UpstreamUnavailable,
             issue_v3m0_application_endpoint_reference_v2,
+            require_application_endpoint_reference_v2,
         )
 
-        issuer = issue_v3m0_application_endpoint_reference_v2
-        upstream_parameter_names = tuple(inspect.signature(issuer).parameters)
-        direct_dependencies = []
-        if issuer.__closure__ is not None:
-            direct_dependencies.extend(
-                cell.cell_contents for cell in issuer.__closure__
-            )
-        direct_dependencies.extend(issuer.__defaults__ or ())
-        direct_dependencies.extend((issuer.__kwdefaults__ or {}).values())
-
         violations = []
-        for dependency in direct_dependencies:
-            if isinstance(dependency, WeakKeyDictionary):
-                violations.append("direct live registry")
-            if inspect.isfunction(dependency):
-                parameter_names = tuple(inspect.signature(dependency).parameters)
-                if parameter_names != upstream_parameter_names:
-                    violations.append(
-                        f"raw-only or partial registrar {dependency.__name__}"
-                    )
-                    continue
-                with self.assertRaises(ApplicationResponseV2UpstreamUnavailable):
-                    dependency(*(object(),) * len(upstream_parameter_names))
+        seen = set()
 
-        self.assertTrue(
-            any(inspect.isfunction(item) for item in direct_dependencies),
-            "public issuer must delegate through a full-upstream replay gate",
+        def walk(value, path):
+            identity = id(value)
+            if identity in seen:
+                return
+            seen.add(identity)
+            if isinstance(value, WeakKeyDictionary):
+                violations.append(f"{path}: live registry")
+                return
+            if not inspect.isfunction(value):
+                return
+            for name, cell in zip(
+                value.__code__.co_freevars,
+                value.__closure__ or (),
+            ):
+                if "seal" in name.lower():
+                    violations.append(f"{path}: reachable seal {name}")
+                walk(cell.cell_contents, f"{path}.closure[{name}]")
+            for index, dependency in enumerate(value.__defaults__ or ()):
+                walk(dependency, f"{path}.default[{index}]")
+            for name, dependency in (value.__kwdefaults__ or {}).items():
+                walk(dependency, f"{path}.kwdefault[{name}]")
+            for name in value.__code__.co_names:
+                dependency = value.__globals__.get(name)
+                if inspect.isfunction(dependency):
+                    walk(dependency, f"{path}.global[{name}]")
+
+        walk(
+            issue_v3m0_application_endpoint_reference_v2,
+            "endpoint issuer",
+        )
+        walk(
+            require_application_endpoint_reference_v2,
+            "endpoint require",
         )
         self.assertEqual(violations, [])
 
-    def test_reference_capability_replays_full_upstream_on_every_require(
+    def test_reference_value_capability_replays_and_detects_slot_drift(
         self,
     ) -> None:
-        """Live entry 只存完整 upstream；读取必须重放并对拍签发体。"""
+        """签发体内嵌完整 upstream；require 重放且拒绝改槽。"""
+        from unittest.mock import patch
+
+        import rulespace_v3.application_response as response_v2
         from rulespace_v3.application_response import (
             issue_v3m0_application_endpoint_reference_v2,
             require_application_endpoint_reference_v2,
         )
 
         issuer = issue_v3m0_application_endpoint_reference_v2
-        gate = next(
-            cell.cell_contents
-            for cell in issuer.__closure__ or ()
-            if inspect.isfunction(cell.cell_contents)
-        )
-        gate_cells = dict(
-            zip(gate.__code__.co_freevars, gate.__closure__ or ())
-        )
-        replayer_cell = gate_cells["reference_replayer"]
-        original_replayer = replayer_cell.cell_contents
-
         issued_raw = self._reference()
-        drifted_raw = self._resign_reference(
-            replace(issued_raw, participation=0.75)
-        )
-        replay_outputs = [issued_raw, issued_raw, drifted_raw]
+        drifted_raw = self._resign_reference(replace(issued_raw, participation=0.75))
         replay_calls = []
-
-        def reference_replayer(*live_upstream):
-            replay_calls.append(live_upstream)
-            return replay_outputs.pop(0)
-
         live_inputs = tuple(object() for _ in inspect.signature(issuer).parameters)
-        replayer_cell.cell_contents = reference_replayer
-        try:
+
+        def fixed_replayer(*live_upstream):
+            replay_calls.append(live_upstream)
+            if live_upstream != live_inputs:
+                raise ValueError("upstream identity drifted")
+            return issued_raw
+
+        with patch.object(
+            response_v2,
+            "_replay_application_endpoint_reference_v2",
+            fixed_replayer,
+        ):
             capability = issuer(*live_inputs)
             self.assertEqual(
                 require_application_endpoint_reference_v2(capability),
                 issued_raw,
             )
+
+            raw_slot = "_VerifiedApplicationEndpointReferenceV2__issued_raw"
+            upstream_slot = "_VerifiedApplicationEndpointReferenceV2__live_upstream"
+            object.__setattr__(capability, raw_slot, drifted_raw)
             with self.assertRaisesRegex(ValueError, "replay differs"):
                 require_application_endpoint_reference_v2(capability)
-        finally:
-            replayer_cell.cell_contents = original_replayer
+            object.__setattr__(capability, raw_slot, issued_raw)
+            object.__setattr__(
+                capability,
+                upstream_slot,
+                live_inputs[:-1] + (object(),),
+            )
+            with self.assertRaisesRegex(ValueError, "upstream identity drifted"):
+                require_application_endpoint_reference_v2(capability)
 
-        self.assertEqual(replay_calls, [live_inputs, live_inputs, live_inputs])
+        self.assertEqual(len(replay_calls), 4)
+
+    def test_reference_value_capability_rejects_missing_and_copied_slots(
+        self,
+    ) -> None:
+        """object.__new__ 不能只靠自签 raw 或拷贝 raw 槽升级。"""
+        from rulespace_v3.application_response import (
+            VerifiedApplicationEndpointReferenceV2,
+            require_application_endpoint_reference_v2,
+        )
+
+        raw_slot = "_VerifiedApplicationEndpointReferenceV2__issued_raw"
+        upstream_slot = "_VerifiedApplicationEndpointReferenceV2__live_upstream"
+        forged = object.__new__(VerifiedApplicationEndpointReferenceV2)
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            require_application_endpoint_reference_v2(forged)
+
+        object.__setattr__(forged, raw_slot, self._reference())
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            require_application_endpoint_reference_v2(forged)
+
+        object.__setattr__(forged, upstream_slot, (object(),) * 11)
+        with self.assertRaises((TypeError, ValueError)):
+            require_application_endpoint_reference_v2(forged)
 
     def test_exact_wrapper_data_integrity_resists_registry_and_global_redirects(
         self,
@@ -825,35 +843,22 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         """exact wrapper 不得借模块 registry 或 global lookup 交叉拼接。"""
         import rulespace_v3.application_response as response_v2
 
-        wrapper = object.__new__(
-            response_v2.VerifiedApplicationEndpointReferenceV2
-        )
+        wrapper = object.__new__(response_v2.VerifiedApplicationEndpointReferenceV2)
         raw = self._reference()
-        legacy_registry = getattr(response_v2, "_REFERENCE_LIVE", None)
-        legacy_seal = getattr(response_v2, "_AUTHORITY_SEAL", object())
-        object.__setattr__(wrapper, "_authority_seal", legacy_seal)
-        if legacy_registry is not None:
-            legacy_registry[wrapper] = raw
-        try:
-            with self.assertRaisesRegex(ValueError, "live|seal"):
-                response_v2.require_application_endpoint_reference_v2(wrapper)
-        finally:
-            if legacy_registry is not None:
-                legacy_registry.pop(wrapper, None)
+        with self.assertRaises(AttributeError):
+            object.__setattr__(wrapper, "_authority_seal", object())
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            response_v2.require_application_endpoint_reference_v2(wrapper)
 
-        original_require = (
-            response_v2.require_application_endpoint_reference_v2
-        )
+        original_require = response_v2.require_application_endpoint_reference_v2
         response_v2.require_application_endpoint_reference_v2 = lambda _: raw
         try:
-            with self.assertRaisesRegex(ValueError, "live|seal"):
+            with self.assertRaisesRegex(ValueError, "incomplete"):
                 _ = wrapper.reference
-            with self.assertRaisesRegex(ValueError, "live|seal"):
+            with self.assertRaisesRegex(ValueError, "incomplete"):
                 response_v2.issue_v3m0_application_endpoint_shell_v2(wrapper)
         finally:
-            response_v2.require_application_endpoint_reference_v2 = (
-                original_require
-            )
+            response_v2.require_application_endpoint_reference_v2 = original_require
 
     def test_opaque_wrappers_reject_raw_forged_and_subclass_values(self) -> None:
         from rulespace_v3.application_response import (
@@ -914,9 +919,7 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         )
 
         endpoint_names = tuple(
-            inspect.signature(
-                issue_v3m0_application_endpoint_reference_v2
-            ).parameters
+            inspect.signature(issue_v3m0_application_endpoint_reference_v2).parameters
         )
         self.assertEqual(
             endpoint_names,
@@ -936,17 +939,13 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         )
         self.assertEqual(
             tuple(
-                inspect.signature(
-                    issue_v3m0_application_endpoint_shell_v2
-                ).parameters
+                inspect.signature(issue_v3m0_application_endpoint_shell_v2).parameters
             ),
             ("reference",),
         )
         self.assertEqual(
             tuple(
-                inspect.signature(
-                    issue_v3m0_application_paired_response_v2
-                ).parameters
+                inspect.signature(issue_v3m0_application_paired_response_v2).parameters
             ),
             ("shell",),
         )
@@ -959,10 +958,13 @@ class ApplicationResponseV2OpaqueBoundaryTests(_Bodies, unittest.TestCase):
         )
 
         inputs = (object(),) * 11
-        with self.assertRaises(ApplicationResponseV2UpstreamUnavailable):
+        with self.assertRaises(TypeError):
             _replay_application_endpoint_reference_v2(*inputs)
-        with self.assertRaises(ApplicationResponseV2UpstreamUnavailable):
+        with self.assertRaises(TypeError):
             issue_v3m0_application_endpoint_reference_v2(*inputs)
+        self.assertTrue(
+            issubclass(ApplicationResponseV2UpstreamUnavailable, RuntimeError)
+        )
 
 
 if __name__ == "__main__":

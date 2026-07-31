@@ -8,8 +8,6 @@ import re
 import struct
 from dataclasses import dataclass, fields as dataclass_fields
 from typing import Literal
-from weakref import WeakKeyDictionary
-
 import numpy as np
 
 from .evidence import canonical_sha
@@ -30,9 +28,7 @@ APPLICATION_RESPONSE_AUTHORITY_BINDING_V2_SCHEMA_VERSION = (
 APPLICATION_ENDPOINT_REFERENCE_V2_SCHEMA_VERSION = (
     "v3m0.application-endpoint-reference.v2"
 )
-APPLICATION_ENDPOINT_SHELL_V2_SCHEMA_VERSION = (
-    "v3m0.application-endpoint-shell.v2"
-)
+APPLICATION_ENDPOINT_SHELL_V2_SCHEMA_VERSION = "v3m0.application-endpoint-shell.v2"
 APPLICATION_BRANCH_SOURCE_READOUT_RESPONSE_V2_SCHEMA_VERSION = (
     "v3m0.application-branch-source-readout-response.v2"
 )
@@ -112,10 +108,7 @@ def _tensor_record(value: FrozenComplexTensor) -> dict[str, object]:
 def _string_tuple(value: object, field: str) -> tuple[str, ...]:
     if type(value) is not tuple or not value:
         raise ValueError(f"{field} must be a non-empty exact tuple")
-    result = tuple(
-        _text(item, f"{field}[{index}]")
-        for index, item in enumerate(value)
-    )
+    result = tuple(_text(item, f"{field}[{index}]") for index, item in enumerate(value))
     if len(result) != len(set(result)):
         raise ValueError(f"{field} must contain unique values")
     return result
@@ -148,9 +141,7 @@ def _index_grid(
         point = []
         for axis, (item, denominator) in enumerate(zip(row, denominators)):
             if type(item) is not int:
-                raise TypeError(
-                    f"{field}[{row_index}][{axis}] must be an exact int"
-                )
+                raise TypeError(f"{field}[{row_index}][{axis}] must be an exact int")
             if not 0 <= item < denominator:
                 raise ValueError(f"{field}[{row_index}] lies outside its torus")
             point.append(item)
@@ -230,12 +221,17 @@ class ApplicationResponseRunSpecV2:
         if (
             type(self.source_readout_bridge_steps) is not tuple
             or not self.source_readout_bridge_steps
-            or any(type(item) is not int or item <= 0 for item in self.source_readout_bridge_steps)
+            or any(
+                type(item) is not int or item <= 0
+                for item in self.source_readout_bridge_steps
+            )
             or self.source_readout_bridge_steps
             != tuple(sorted(set(self.source_readout_bridge_steps)))
             or not any(item > 1 for item in self.source_readout_bridge_steps)
         ):
-            raise ValueError("source_readout_bridge_steps are not frozen canonical steps")
+            raise ValueError(
+                "source_readout_bridge_steps are not frozen canonical steps"
+            )
         if (
             type(self.reference_reciprocal_index) is not tuple
             or self.reference_reciprocal_index not in response_grid
@@ -250,9 +246,15 @@ class ApplicationResponseRunSpecV2:
             raise ValueError("J/P state axes differ from channel_order")
         source_identity = np.eye(source.shape[1], dtype=np.complex128)
         readout_identity = np.eye(readout.shape[0], dtype=np.complex128)
-        if float(np.linalg.norm(source.conj().T @ source - source_identity, 2)) > _ISOMETRY_TOLERANCE:
+        if (
+            float(np.linalg.norm(source.conj().T @ source - source_identity, 2))
+            > _ISOMETRY_TOLERANCE
+        ):
             raise ValueError("source injection isometry residual exceeds 1e-12")
-        if float(np.linalg.norm(readout @ readout.conj().T - readout_identity, 2)) > _ISOMETRY_TOLERANCE:
+        if (
+            float(np.linalg.norm(readout @ readout.conj().T - readout_identity, 2))
+            > _ISOMETRY_TOLERANCE
+        ):
             raise ValueError("readout coisometry residual exceeds 1e-12")
 
 
@@ -265,9 +267,7 @@ def application_response_run_spec_v2_payload(
         "formal_parent_v2_sha": value.formal_parent_v2_sha,
         "permit_v2_sha": value.permit_v2_sha,
         "materialization_v2_sha": value.materialization_v2_sha,
-        "scenario_response_protocol_v2_sha": (
-            value.scenario_response_protocol_v2_sha
-        ),
+        "scenario_response_protocol_v2_sha": (value.scenario_response_protocol_v2_sha),
         "control_case_id": value.control_case_id,
         "scenario_id": value.scenario_id,
         "scenario_sha": value.scenario_sha,
@@ -279,14 +279,11 @@ def application_response_run_spec_v2_payload(
             list(item) for item in value.response_reciprocal_indices
         ],
         "source_readout_bridge_reciprocal_indices": [
-            list(item)
-            for item in value.source_readout_bridge_reciprocal_indices
+            list(item) for item in value.source_readout_bridge_reciprocal_indices
         ],
         "source_readout_bridge_steps": list(value.source_readout_bridge_steps),
         "reference_reciprocal_index": list(value.reference_reciprocal_index),
-        "source_injection_isometry": _tensor_record(
-            value.source_injection_isometry
-        ),
+        "source_injection_isometry": _tensor_record(value.source_injection_isometry),
         "readout_coisometry": _tensor_record(value.readout_coisometry),
     }
 
@@ -533,16 +530,12 @@ def application_endpoint_reference_v2_payload(
 ) -> dict[str, object]:
     _exact_record(value, ApplicationEndpointReferenceV2, "endpoint reference")
     return {
-        "endpoint_reference_schema_version": (
-            value.endpoint_reference_schema_version
-        ),
+        "endpoint_reference_schema_version": (value.endpoint_reference_schema_version),
         "branch": value.branch,
         "authority_binding": _authority_binding_record(value.authority_binding),
         "run_spec": _run_spec_record(value.run_spec),
         "actual_transition_sha": value.actual_transition_sha,
-        "actual_dynamics_certificate_sha": (
-            value.actual_dynamics_certificate_sha
-        ),
+        "actual_dynamics_certificate_sha": (value.actual_dynamics_certificate_sha),
         "reference_reciprocal_index": list(value.reference_reciprocal_index),
         "preregistered_phase_band": list(value.preregistered_phase_band),
         "reference_phase": value.reference_phase,
@@ -571,8 +564,7 @@ def verify_application_endpoint_reference_v2_body(
         value.actual_transition_sha != authority.actual_transition_sha
         or value.actual_dynamics_certificate_sha
         != authority.actual_dynamics_certificate_sha
-        or value.reference_reciprocal_index
-        != value.run_spec.reference_reciprocal_index
+        or value.reference_reciprocal_index != value.run_spec.reference_reciprocal_index
     ):
         raise ValueError("endpoint reference is spliced across actual authority")
     if value.endpoint_reference_sha != canonical_sha(
@@ -581,8 +573,7 @@ def verify_application_endpoint_reference_v2_body(
         raise ValueError("endpoint-reference SHA does not match its body")
     projector = frozen_tensor_array(value.projector)
     if (
-        float(np.linalg.norm(projector - projector.conj().T, 2))
-        > _ISOMETRY_TOLERANCE
+        float(np.linalg.norm(projector - projector.conj().T, 2)) > _ISOMETRY_TOLERANCE
         or float(np.linalg.norm(projector @ projector - projector, 2))
         > _ISOMETRY_TOLERANCE
     ):
@@ -661,10 +652,9 @@ class ApplicationEndpointShellV2:
             value = _finite_float(phase, f"shell_phases[{index}]")
             if not -math.pi <= value <= math.pi:
                 raise ValueError("shell phase is outside the principal interval")
-        if (
-            type(self.point_participations) is not tuple
-            or len(self.point_participations) != len(self.shell_phases)
-        ):
+        if type(self.point_participations) is not tuple or len(
+            self.point_participations
+        ) != len(self.shell_phases):
             raise ValueError("point_participations do not align with shell phases")
         for index, participation in enumerate(self.point_participations):
             value = _finite_float(
@@ -692,13 +682,9 @@ def application_endpoint_shell_v2_payload(
         "branch": value.branch,
         "authority_binding": _authority_binding_record(value.authority_binding),
         "run_spec": _run_spec_record(value.run_spec),
-        "endpoint_reference": _endpoint_reference_record(
-            value.endpoint_reference
-        ),
+        "endpoint_reference": _endpoint_reference_record(value.endpoint_reference),
         "actual_transition_sha": value.actual_transition_sha,
-        "actual_dynamics_certificate_sha": (
-            value.actual_dynamics_certificate_sha
-        ),
+        "actual_dynamics_certificate_sha": (value.actual_dynamics_certificate_sha),
         "shell_phases": list(value.shell_phases),
         "shell_projectors": _tensor_record(value.shell_projectors),
         "point_participations": list(value.point_participations),
@@ -718,9 +704,7 @@ def verify_application_endpoint_shell_v2_body(
         value.authority_binding,
         value.run_spec,
     )
-    reference = verify_application_endpoint_reference_v2_body(
-        value.endpoint_reference
-    )
+    reference = verify_application_endpoint_reference_v2_body(value.endpoint_reference)
     if (
         reference.authority_binding != authority
         or reference.run_spec != value.run_spec
@@ -764,17 +748,14 @@ def verify_application_endpoint_shell_v2_body(
         != struct.pack(">d", reference.participation)
         or len(shell_reference_wire) != len(reference_wire)
         or any(
-            struct.pack(">dd", *shell_value)
-            != struct.pack(">dd", *reference_value)
+            struct.pack(">dd", *shell_value) != struct.pack(">dd", *reference_value)
             for shell_value, reference_value in zip(
                 shell_reference_wire,
                 reference_wire,
             )
         )
     ):
-        raise ValueError(
-            "endpoint shell reference row contains a cross-splice"
-        )
+        raise ValueError("endpoint shell reference row contains a cross-splice")
     for projector in projectors:
         if (
             float(np.linalg.norm(projector - projector.conj().T, 2))
@@ -863,9 +844,7 @@ def application_branch_source_readout_response_v2_payload(
         "branch": value.branch,
         "authority_binding": _authority_binding_record(value.authority_binding),
         "run_spec": _run_spec_record(value.run_spec),
-        "actual_endpoint_shell": _endpoint_shell_record(
-            value.actual_endpoint_shell
-        ),
+        "actual_endpoint_shell": _endpoint_shell_record(value.actual_endpoint_shell),
         "factory_sha": value.factory_sha,
         "prestructure_authority_sha": value.prestructure_authority_sha,
         "transition_sha": value.transition_sha,
@@ -888,15 +867,10 @@ def verify_application_branch_source_readout_response_v2_body(
         value.authority_binding,
         value.run_spec,
     )
-    shell = verify_application_endpoint_shell_v2_body(
-        value.actual_endpoint_shell
-    )
+    shell = verify_application_endpoint_shell_v2_body(value.actual_endpoint_shell)
     if shell.branch != "actual":
         raise ValueError("matched branch cannot supply an endpoint shell")
-    if (
-        shell.authority_binding != authority
-        or shell.run_spec != value.run_spec
-    ):
+    if shell.authority_binding != authority or shell.run_spec != value.run_spec:
         raise ValueError("branch response contains a protocol/shell/run splice")
     if value.branch == "actual":
         expected = (
@@ -962,7 +936,10 @@ class ApplicationPairedResponseOutcomeV2:
         if type(self.actual_endpoint_shell) is not ApplicationEndpointShellV2:
             raise TypeError("actual_endpoint_shell has the wrong strict type")
         for field in ("actual_response", "matched_ablated_response"):
-            if type(getattr(self, field)) is not ApplicationBranchSourceReadoutResponseV2:
+            if (
+                type(getattr(self, field))
+                is not ApplicationBranchSourceReadoutResponseV2
+            ):
                 raise TypeError(f"{field} has the wrong strict type")
         _sha(self.atomic_pair_sha, "atomic_pair_sha")
 
@@ -993,9 +970,7 @@ def application_paired_response_outcome_v2_payload(
         "paired_response_schema_version": value.paired_response_schema_version,
         "authority_binding": _authority_binding_record(value.authority_binding),
         "run_spec": _run_spec_record(value.run_spec),
-        "actual_endpoint_shell": _endpoint_shell_record(
-            value.actual_endpoint_shell
-        ),
+        "actual_endpoint_shell": _endpoint_shell_record(value.actual_endpoint_shell),
         "actual_response": _branch_response_record(value.actual_response),
         "matched_ablated_response": _branch_response_record(
             value.matched_ablated_response
@@ -1016,9 +991,7 @@ def verify_application_paired_response_outcome_v2_body(
         value.authority_binding,
         value.run_spec,
     )
-    shell = verify_application_endpoint_shell_v2_body(
-        value.actual_endpoint_shell
-    )
+    shell = verify_application_endpoint_shell_v2_body(value.actual_endpoint_shell)
     actual = verify_application_branch_source_readout_response_v2_body(
         value.actual_response
     )
@@ -1034,10 +1007,7 @@ def verify_application_paired_response_outcome_v2_body(
         for item in (actual, matched)
     ):
         raise ValueError("atomic pair contains a protocol/shell/J/P splice")
-    if (
-        shell.authority_binding != authority
-        or shell.run_spec != value.run_spec
-    ):
+    if shell.authority_binding != authority or shell.run_spec != value.run_spec:
         raise ValueError("atomic pair endpoint shell is spliced")
     if value.atomic_pair_sha != canonical_sha(
         application_paired_response_outcome_v2_payload(value)
@@ -1047,39 +1017,71 @@ def verify_application_paired_response_outcome_v2_body(
 
 
 class VerifiedApplicationEndpointReferenceV2:
-    """Opaque actual-only endpoint-reference capability."""
+    """Immutable actual-only endpoint-reference value capability."""
 
-    __slots__ = ("_authority_seal", "__weakref__")
+    __slots__ = ("__issued_raw", "__live_upstream")
 
     def __init__(self) -> None:
         raise TypeError("application endpoint-reference v2 is issuer-only")
 
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("application endpoint-reference v2 is immutable")
+
+    @property
+    def reference(self) -> ApplicationEndpointReferenceV2:
+        return _require_endpoint_reference_value(self)
+
 
 class VerifiedApplicationEndpointShellV2:
-    """Opaque actual-only endpoint-shell capability."""
+    """Immutable actual-only endpoint-shell value capability."""
 
-    __slots__ = ("_authority_seal", "__weakref__")
+    __slots__ = ("__issued_raw", "__live_upstream")
 
     def __init__(self) -> None:
         raise TypeError("application endpoint-shell v2 is issuer-only")
 
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("application endpoint-shell v2 is immutable")
+
+    @property
+    def shell(self) -> ApplicationEndpointShellV2:
+        return require_application_endpoint_shell_v2(self)
+
 
 class VerifiedApplicationBranchSourceReadoutResponseV2:
-    """Opaque branch response, issued only inside an atomic pair."""
+    """Immutable branch response, issued only inside an atomic pair."""
 
-    __slots__ = ("_authority_seal", "__weakref__")
+    __slots__ = ("__issued_raw", "__live_upstream")
 
     def __init__(self) -> None:
         raise TypeError("application branch response v2 is issuer-only")
 
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("application branch response v2 is immutable")
+
+    @property
+    def response(self) -> ApplicationBranchSourceReadoutResponseV2:
+        return require_application_branch_source_readout_response_v2(self)
+
 
 class VerifiedApplicationPairedResponseOutcomeV2:
-    """Opaque atomic actual/matched response capability."""
+    """Immutable atomic actual/matched response value capability."""
 
-    __slots__ = ("_authority_seal", "__weakref__")
+    __slots__ = ("__issued_raw", "__live_upstream")
 
     def __init__(self) -> None:
         raise TypeError("application paired response v2 is issuer-only")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        del name, value
+        raise AttributeError("application paired response v2 is immutable")
+
+    @property
+    def outcome(self) -> ApplicationPairedResponseOutcomeV2:
+        return require_application_paired_response_outcome_v2(self)
 
 
 def _replay_application_endpoint_reference_v2(
@@ -1095,7 +1097,34 @@ def _replay_application_endpoint_reference_v2(
     matched_ablated_certificate_v2,
     qualification_v2,
 ):
-    del (
+    from .application_authority_v2 import (
+        VerifiedCalibrationApplicationPermitV2,
+        require_calibration_application_permit_v2,
+    )
+    from .application_materialization_v2 import (
+        VerifiedV3M0ApplicationScenarioMaterializationV2,
+        verify_v3m0_application_scenario_materialization_v2,
+    )
+    from .certificate import (
+        VerifiedDynamicsCertificate,
+        _reverify_verified_dynamics_certificate,
+    )
+    from .dynamics import VerifiedTransition, _reverify_verified_transition
+    from .parent_authority import VerifiedParentFreezeV2, require_current_parent
+    from .prestructure import (
+        VerifiedPrestructureAuthority,
+        _reverify_verified_prestructure_authority,
+    )
+    from .qualification import (
+        VerifiedCertificateBackedQualification,
+        _reverify_verified_certificate_backed_qualification,
+    )
+    from .scenario_response_protocol import (
+        VerifiedApplicationScenarioResponseProtocolV2,
+        verify_v3m0_scenario_response_protocol,
+    )
+
+    exact_values = (
         formal_parent_v2,
         permit_v2,
         materialization_v2,
@@ -1108,160 +1137,207 @@ def _replay_application_endpoint_reference_v2(
         matched_ablated_certificate_v2,
         qualification_v2,
     )
+    exact_types = (
+        VerifiedParentFreezeV2,
+        VerifiedCalibrationApplicationPermitV2,
+        VerifiedV3M0ApplicationScenarioMaterializationV2,
+        VerifiedApplicationScenarioResponseProtocolV2,
+        VerifiedPrestructureAuthority,
+        VerifiedPrestructureAuthority,
+        VerifiedTransition,
+        VerifiedTransition,
+        VerifiedDynamicsCertificate,
+        VerifiedDynamicsCertificate,
+        VerifiedCertificateBackedQualification,
+    )
+    exact_names = (
+        "formal_parent_v2",
+        "permit_v2",
+        "materialization_v2",
+        "protocol_v2",
+        "actual_prestructure_v2",
+        "matched_ablated_prestructure_v2",
+        "actual_transition_v2",
+        "matched_ablated_transition_v2",
+        "actual_certificate_v2",
+        "matched_ablated_certificate_v2",
+        "qualification_v2",
+    )
+    for value, expected_type, field in zip(
+        exact_values,
+        exact_types,
+        exact_names,
+    ):
+        if type(value) is not expected_type:
+            raise TypeError(f"{field} must be an exact live {expected_type.__name__}")
+
+    require_current_parent(formal_parent_v2)
+    require_calibration_application_permit_v2(permit_v2)
+    verify_v3m0_application_scenario_materialization_v2(materialization_v2)
+    verify_v3m0_scenario_response_protocol(protocol_v2)
+    _reverify_verified_prestructure_authority(actual_prestructure_v2)
+    _reverify_verified_prestructure_authority(matched_ablated_prestructure_v2)
+    _reverify_verified_transition(actual_transition_v2)
+    _reverify_verified_transition(matched_ablated_transition_v2)
+    _reverify_verified_dynamics_certificate(actual_certificate_v2)
+    _reverify_verified_dynamics_certificate(matched_ablated_certificate_v2)
+    _reverify_verified_certificate_backed_qualification(qualification_v2)
     raise ApplicationResponseV2UpstreamUnavailable(
         "application response v2 requires " + "; ".join(UPSTREAM_V2_WIRING_POINTS)
     )
 
 
-def _make_closed_response_v2_api(
-    *,
-    reference_replayer=_replay_application_endpoint_reference_v2,
+def _read_value_capability(
+    value: object,
+    wrapper_type: type,
+    raw_slot: str,
+    upstream_slot: str,
+    upstream_arity: int | None,
+    field: str,
 ):
-    reference_live: WeakKeyDictionary[
+    if type(value) is not wrapper_type:
+        raise TypeError(f"{field} requires an exact value capability")
+    try:
+        expected_raw = object.__getattribute__(value, raw_slot)
+        replay_inputs = object.__getattribute__(value, upstream_slot)
+    except AttributeError as exc:
+        raise ValueError(f"{field} capability body is incomplete") from exc
+    if type(replay_inputs) is not tuple or not replay_inputs:
+        raise ValueError(f"{field} live upstream is incomplete")
+    if upstream_arity is not None and len(replay_inputs) != upstream_arity:
+        raise ValueError(f"{field} live upstream arity drifted")
+    return replay_inputs, expected_raw
+
+
+def _replay_application_endpoint_shell_v2(reference):
+    _require_endpoint_reference_value(reference)
+    raise ApplicationResponseV2UpstreamUnavailable(
+        "actual-only endpoint shell numerical replay is not connected"
+    )
+
+
+def _replay_application_branch_source_readout_response_v2(*inputs):
+    del inputs
+    raise ApplicationResponseV2UpstreamUnavailable(
+        "branch source/readout numerical replay is not connected"
+    )
+
+
+def _replay_application_paired_response_outcome_v2(shell):
+    require_application_endpoint_shell_v2(shell)
+    raise ApplicationResponseV2UpstreamUnavailable(
+        "atomic actual/matched response numerical replay is not connected"
+    )
+
+
+def _require_endpoint_reference_value(
+    value: VerifiedApplicationEndpointReferenceV2,
+) -> ApplicationEndpointReferenceV2:
+    replay_inputs, expected_raw = _read_value_capability(
+        value,
         VerifiedApplicationEndpointReferenceV2,
-        tuple[tuple[object, ...], ApplicationEndpointReferenceV2],
-    ] = WeakKeyDictionary()
-    shell_live: WeakKeyDictionary[
+        "_VerifiedApplicationEndpointReferenceV2__issued_raw",
+        "_VerifiedApplicationEndpointReferenceV2__live_upstream",
+        11,
+        "application endpoint reference v2",
+    )
+    replayed = verify_application_endpoint_reference_v2_body(
+        _replay_application_endpoint_reference_v2(*replay_inputs)
+    )
+    expected = verify_application_endpoint_reference_v2_body(expected_raw)
+    if replayed != expected:
+        raise ValueError(
+            "application endpoint reference v2 replay differs from issued body"
+        )
+    return replayed
+
+
+def require_application_endpoint_reference_v2(
+    value: VerifiedApplicationEndpointReferenceV2,
+) -> ApplicationEndpointReferenceV2:
+    return _require_endpoint_reference_value(value)
+
+
+def require_application_endpoint_shell_v2(
+    value: VerifiedApplicationEndpointShellV2,
+) -> ApplicationEndpointShellV2:
+    replay_inputs, expected_raw = _read_value_capability(
+        value,
         VerifiedApplicationEndpointShellV2,
-        tuple[tuple[object, ...], ApplicationEndpointShellV2],
-    ] = WeakKeyDictionary()
-    branch_response_live: WeakKeyDictionary[
+        "_VerifiedApplicationEndpointShellV2__issued_raw",
+        "_VerifiedApplicationEndpointShellV2__live_upstream",
+        1,
+        "application endpoint shell v2",
+    )
+    replayed = verify_application_endpoint_shell_v2_body(
+        _replay_application_endpoint_shell_v2(*replay_inputs)
+    )
+    expected = verify_application_endpoint_shell_v2_body(expected_raw)
+    if replayed != expected:
+        raise ValueError(
+            "application endpoint shell v2 replay differs from issued body"
+        )
+    return replayed
+
+
+def require_application_branch_source_readout_response_v2(
+    value: VerifiedApplicationBranchSourceReadoutResponseV2,
+) -> ApplicationBranchSourceReadoutResponseV2:
+    replay_inputs, expected_raw = _read_value_capability(
+        value,
         VerifiedApplicationBranchSourceReadoutResponseV2,
-        tuple[tuple[object, ...], ApplicationBranchSourceReadoutResponseV2],
-    ] = WeakKeyDictionary()
-    pair_live: WeakKeyDictionary[
+        "_VerifiedApplicationBranchSourceReadoutResponseV2__issued_raw",
+        "_VerifiedApplicationBranchSourceReadoutResponseV2__live_upstream",
+        None,
+        "application branch response v2",
+    )
+    replayed = verify_application_branch_source_readout_response_v2_body(
+        _replay_application_branch_source_readout_response_v2(*replay_inputs)
+    )
+    expected = verify_application_branch_source_readout_response_v2_body(expected_raw)
+    if replayed != expected:
+        raise ValueError(
+            "application branch response v2 replay differs from issued body"
+        )
+    return replayed
+
+
+def require_application_paired_response_outcome_v2(
+    value: VerifiedApplicationPairedResponseOutcomeV2,
+) -> ApplicationPairedResponseOutcomeV2:
+    replay_inputs, expected_raw = _read_value_capability(
+        value,
         VerifiedApplicationPairedResponseOutcomeV2,
-        tuple[tuple[object, ...], ApplicationPairedResponseOutcomeV2],
-    ] = WeakKeyDictionary()
-    authority_seal = object()
-
-    def _require_live_body(
-        value: object,
-        wrapper_type: type,
-        registry: WeakKeyDictionary,
-        verifier,
-        replayer,
-        field: str,
-    ):
-        if type(value) is not wrapper_type:
-            raise TypeError(
-                f"{field} requires an exact live opaque capability"
-            )
-        try:
-            seal = value._authority_seal
-            replay_inputs, expected_raw = registry[value]
-        except (AttributeError, KeyError) as exc:
-            raise ValueError(
-                f"{field} capability identity is not live"
-            ) from exc
-        if seal is not authority_seal:
-            raise ValueError(f"{field} capability seal is forged")
-        if type(replay_inputs) is not tuple or not replay_inputs:
-            raise ValueError(f"{field} live replay inputs are not complete")
-        replayed = verifier(replayer(*replay_inputs))
-        expected = verifier(expected_raw)
-        if replayed != expected:
-            raise ValueError(f"{field} live replay differs from issued body")
-        return replayed
-
-    def _unwired_shell_replayer(reference):
-        del reference
-        raise ApplicationResponseV2UpstreamUnavailable(
-            "actual-only endpoint shell numerical replay is not connected"
-        )
-
-    def _unwired_branch_replayer(*inputs):
-        del inputs
-        raise ApplicationResponseV2UpstreamUnavailable(
-            "branch source/readout numerical replay is not connected"
-        )
-
-    def _unwired_pair_replayer(shell):
-        del shell
-        raise ApplicationResponseV2UpstreamUnavailable(
-            "atomic actual/matched response numerical replay is not connected"
-        )
-
-    def require_application_endpoint_reference_v2(
-        value: VerifiedApplicationEndpointReferenceV2,
-    ) -> ApplicationEndpointReferenceV2:
-        return _require_live_body(
-            value,
-            VerifiedApplicationEndpointReferenceV2,
-            reference_live,
-            verify_application_endpoint_reference_v2_body,
-            reference_replayer,
-            "application endpoint reference v2",
-        )
-
-    def require_application_endpoint_shell_v2(
-        value: VerifiedApplicationEndpointShellV2,
-    ) -> ApplicationEndpointShellV2:
-        return _require_live_body(
-            value,
-            VerifiedApplicationEndpointShellV2,
-            shell_live,
-            verify_application_endpoint_shell_v2_body,
-            _unwired_shell_replayer,
-            "application endpoint shell v2",
-        )
-
-    def require_application_branch_source_readout_response_v2(
-        value: VerifiedApplicationBranchSourceReadoutResponseV2,
-    ) -> ApplicationBranchSourceReadoutResponseV2:
-        return _require_live_body(
-            value,
-            VerifiedApplicationBranchSourceReadoutResponseV2,
-            branch_response_live,
-            verify_application_branch_source_readout_response_v2_body,
-            _unwired_branch_replayer,
-            "application branch response v2",
-        )
-
-    def require_application_paired_response_outcome_v2(
-        value: VerifiedApplicationPairedResponseOutcomeV2,
-    ) -> ApplicationPairedResponseOutcomeV2:
-        return _require_live_body(
-            value,
-            VerifiedApplicationPairedResponseOutcomeV2,
-            pair_live,
-            verify_application_paired_response_outcome_v2_body,
-            _unwired_pair_replayer,
-            "application paired response v2",
-        )
-
-    def _reference_property(
-        value: VerifiedApplicationEndpointReferenceV2,
-    ) -> ApplicationEndpointReferenceV2:
-        return require_application_endpoint_reference_v2(value)
-
-    def _shell_property(
-        value: VerifiedApplicationEndpointShellV2,
-    ) -> ApplicationEndpointShellV2:
-        return require_application_endpoint_shell_v2(value)
-
-    def _response_property(
-        value: VerifiedApplicationBranchSourceReadoutResponseV2,
-    ) -> ApplicationBranchSourceReadoutResponseV2:
-        return require_application_branch_source_readout_response_v2(value)
-
-    def _outcome_property(
-        value: VerifiedApplicationPairedResponseOutcomeV2,
-    ) -> ApplicationPairedResponseOutcomeV2:
-        return require_application_paired_response_outcome_v2(value)
-
-    VerifiedApplicationEndpointReferenceV2.reference = property(
-        _reference_property
+        "_VerifiedApplicationPairedResponseOutcomeV2__issued_raw",
+        "_VerifiedApplicationPairedResponseOutcomeV2__live_upstream",
+        1,
+        "application paired response v2",
     )
-    VerifiedApplicationEndpointShellV2.shell = property(_shell_property)
-    VerifiedApplicationBranchSourceReadoutResponseV2.response = property(
-        _response_property
+    replayed = verify_application_paired_response_outcome_v2_body(
+        _replay_application_paired_response_outcome_v2(*replay_inputs)
     )
-    VerifiedApplicationPairedResponseOutcomeV2.outcome = property(
-        _outcome_property
-    )
+    expected = verify_application_paired_response_outcome_v2_body(expected_raw)
+    if replayed != expected:
+        raise ValueError(
+            "application paired response v2 replay differs from issued body"
+        )
+    return replayed
 
-    def _issue_endpoint_reference_from_live_upstream(
+
+def issue_v3m0_application_endpoint_reference_v2(
+    formal_parent_v2,
+    permit_v2,
+    materialization_v2,
+    protocol_v2,
+    actual_prestructure_v2,
+    matched_ablated_prestructure_v2,
+    actual_transition_v2,
+    matched_ablated_transition_v2,
+    actual_certificate_v2,
+    matched_ablated_certificate_v2,
+    qualification_v2,
+):
+    replay_inputs = (
         formal_parent_v2,
         permit_v2,
         materialization_v2,
@@ -1273,89 +1349,36 @@ def _make_closed_response_v2_api(
         actual_certificate_v2,
         matched_ablated_certificate_v2,
         qualification_v2,
-    ):
-        replay_inputs = (
-            formal_parent_v2,
-            permit_v2,
-            materialization_v2,
-            protocol_v2,
-            actual_prestructure_v2,
-            matched_ablated_prestructure_v2,
-            actual_transition_v2,
-            matched_ablated_transition_v2,
-            actual_certificate_v2,
-            matched_ablated_certificate_v2,
-            qualification_v2,
-        )
-        verified = verify_application_endpoint_reference_v2_body(
-            reference_replayer(*replay_inputs)
-        )
-        capability = object.__new__(VerifiedApplicationEndpointReferenceV2)
-        object.__setattr__(capability, "_authority_seal", authority_seal)
-        reference_live[capability] = (replay_inputs, verified)
-        return capability
+    )
+    issued_raw = verify_application_endpoint_reference_v2_body(
+        _replay_application_endpoint_reference_v2(*replay_inputs)
+    )
+    capability = object.__new__(VerifiedApplicationEndpointReferenceV2)
+    object.__setattr__(
+        capability,
+        "_VerifiedApplicationEndpointReferenceV2__issued_raw",
+        copy.deepcopy(issued_raw),
+    )
+    object.__setattr__(
+        capability,
+        "_VerifiedApplicationEndpointReferenceV2__live_upstream",
+        replay_inputs,
+    )
+    return capability
 
-    def issue_v3m0_application_endpoint_reference_v2(
-        formal_parent_v2,
-        permit_v2,
-        materialization_v2,
-        protocol_v2,
-        actual_prestructure_v2,
-        matched_ablated_prestructure_v2,
-        actual_transition_v2,
-        matched_ablated_transition_v2,
-        actual_certificate_v2,
-        matched_ablated_certificate_v2,
-        qualification_v2,
-    ):
-        return _issue_endpoint_reference_from_live_upstream(
-            formal_parent_v2,
-            permit_v2,
-            materialization_v2,
-            protocol_v2,
-            actual_prestructure_v2,
-            matched_ablated_prestructure_v2,
-            actual_transition_v2,
-            matched_ablated_transition_v2,
-            actual_certificate_v2,
-            matched_ablated_certificate_v2,
-            qualification_v2,
-        )
 
-    def issue_v3m0_application_endpoint_shell_v2(reference):
-        require_application_endpoint_reference_v2(reference)
-        raise ApplicationResponseV2UpstreamUnavailable(
-            "actual-only endpoint shell numerical replay is not connected"
-        )
-
-    def issue_v3m0_application_paired_response_v2(shell):
-        require_application_endpoint_shell_v2(shell)
-        raise ApplicationResponseV2UpstreamUnavailable(
-            "atomic actual/matched response numerical replay is not connected"
-        )
-
-    return (
-        require_application_endpoint_reference_v2,
-        require_application_endpoint_shell_v2,
-        require_application_branch_source_readout_response_v2,
-        require_application_paired_response_outcome_v2,
-        issue_v3m0_application_endpoint_reference_v2,
-        issue_v3m0_application_endpoint_shell_v2,
-        issue_v3m0_application_paired_response_v2,
+def issue_v3m0_application_endpoint_shell_v2(reference):
+    _require_endpoint_reference_value(reference)
+    raise ApplicationResponseV2UpstreamUnavailable(
+        "actual-only endpoint shell numerical replay is not connected"
     )
 
 
-(
-    require_application_endpoint_reference_v2,
-    require_application_endpoint_shell_v2,
-    require_application_branch_source_readout_response_v2,
-    require_application_paired_response_outcome_v2,
-    issue_v3m0_application_endpoint_reference_v2,
-    issue_v3m0_application_endpoint_shell_v2,
-    issue_v3m0_application_paired_response_v2,
-) = _make_closed_response_v2_api()
-
-del _make_closed_response_v2_api
+def issue_v3m0_application_paired_response_v2(shell):
+    require_application_endpoint_shell_v2(shell)
+    raise ApplicationResponseV2UpstreamUnavailable(
+        "atomic actual/matched response numerical replay is not connected"
+    )
 
 
 __all__ = [
