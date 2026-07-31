@@ -246,6 +246,88 @@ def _application_authority(
     )
 
 
+def _with_forged_typed_termination(application):
+    from rulespace_v3.contracts import UndefinedReason
+    from rulespace_v3.evidence import canonical_sha
+    from rulespace_v3.parent_freeze import (
+        application_scenario_execution_spec_payload,
+    )
+    from rulespace_v3.parent_v2_contracts import (
+        current_application_authority_v2_payload,
+    )
+
+    typed0 = replace(
+        application.complete_scenario_execution_specs[0],
+        scenario_id=(
+            f"{application.application_instance_id}.scenario."
+            "caller-forged-typed.v1"
+        ),
+        execution_lane="EXPECTED_TYPED_TERMINATION",
+        expected_terminal_stage="activation",
+        expected_undefined_reason=UndefinedReason.RESPONSE_NULL,
+        expected_artifact_type="VerifiedResponseBlockAttemptOutcome",
+        scenario_sha=SHA0,
+    )
+    typed = replace(
+        typed0,
+        scenario_sha=canonical_sha(
+            application_scenario_execution_spec_payload(typed0)
+        ),
+    )
+    provisional = replace(
+        application,
+        complete_scenario_execution_specs=(
+            *application.complete_scenario_execution_specs,
+            typed,
+        ),
+        application_authority_sha=SHA0,
+    )
+    return replace(
+        provisional,
+        application_authority_sha=canonical_sha(
+            current_application_authority_v2_payload(provisional)
+        ),
+    )
+
+
+def _closure_values(function):
+    return {
+        name: cell.cell_contents
+        for name, cell in zip(
+            function.__code__.co_freevars,
+            function.__closure__ or (),
+        )
+    }
+
+
+def _signed_permit(application, calibration):
+    from rulespace_v3 import application_authority_v2 as authority
+    from rulespace_v3.evidence import canonical_sha
+
+    provisional = authority.CalibrationApplicationPermitV2(
+        permit_schema_version=(
+            authority.CALIBRATION_APPLICATION_PERMIT_V2_SCHEMA_VERSION
+        ),
+        scope="v3m0-current-synthetic-control-application-v2",
+        parent_freeze_v2_sha=SHA1,
+        calibration=calibration,
+        control_case_id=application.control_case_id,
+        application_authority=application,
+        scenario_authority_shas=tuple(
+            item.scenario_authority_sha
+            for item in application.scenario_authorities
+        ),
+        selected_fejer_order=calibration.selection.selected_fejer_order,
+        permit_sha=SHA0,
+    )
+    return replace(
+        provisional,
+        permit_sha=canonical_sha(
+            authority.calibration_application_permit_v2_payload(provisional)
+        ),
+    )
+
+
 def _parent_manifest(*application_stages):
     applications = tuple(item[0] for item in application_stages)
     specifications = tuple(
@@ -390,6 +472,154 @@ class ApplicationAuthorityV2PublicSurfaceTests(unittest.TestCase):
         ):
             with self.assertRaises(TypeError):
                 authority.issue_v3m0_window_threshold_calibration_v2(object())
+
+    def test_permit_builder_ignores_module_resolver_rebinding(self) -> None:
+        from unittest.mock import patch
+
+        from rulespace_v3 import application_authority_v2 as authority
+
+        application = _application_authority()
+        forged = _with_forged_typed_termination(application)
+        parent = _parent_manifest(
+            (application, "control-application-evidence"),
+        )
+        with patch.object(
+            authority,
+            "_current_application_for_instance",
+            return_value=forged,
+        ):
+            permit = authority._expected_calibration_application_permit_v2(
+                parent,
+                _calibration(),
+                application.application_instance_id,
+            )
+
+        self.assertEqual(permit.application_authority, application)
+
+    def test_closure_callable_cannot_register_forged_typed_lineage(self) -> None:
+        from unittest.mock import patch
+
+        from rulespace_v3 import application_authority_v2 as authority
+
+        application = _with_forged_typed_termination(
+            _application_authority()
+        )
+        calibration = _calibration()
+        parent = object()
+        parent_manifest = SimpleNamespace(parent_freeze_v2_sha=SHA1)
+        calibration_issuer = _closure_values(
+            authority.issue_v3m0_window_threshold_calibration_v2
+        )["calibration_issuer"]
+        permit_issuer = _closure_values(
+            authority.issue_v3m0_calibration_application_permit_v2
+        )["permit_issuer"]
+        forged_permit = _signed_permit(application, calibration)
+
+        with self.assertRaises((TypeError, ValueError)):
+            calibration_capability = calibration_issuer(
+                calibration,
+                parent,
+                parent_manifest,
+            )
+            permit_capability = permit_issuer(
+                forged_permit,
+                parent,
+                calibration_capability,
+            )
+            with patch.object(
+                authority,
+                "_require_exact_current_parent",
+                return_value=parent_manifest,
+            ), patch.object(
+                authority,
+                "_expected_calibration_application_permit_v2",
+                return_value=forged_permit,
+            ):
+                authority.require_calibration_application_permit_v2(
+                    permit_capability
+                )
+
+    def test_closure_dependencies_are_not_keyword_injection_surfaces(self) -> None:
+        from unittest.mock import patch
+
+        from rulespace_v3 import application_authority_v2 as authority
+
+        application = _with_forged_typed_termination(
+            _application_authority()
+        )
+        calibration = _calibration()
+        parent = object()
+        parent_manifest = SimpleNamespace(parent_freeze_v2_sha=SHA1)
+        forged_permit = _signed_permit(application, calibration)
+        calibration_issuer = _closure_values(
+            authority.issue_v3m0_window_threshold_calibration_v2
+        )["calibration_issuer"]
+        permit_issuer = _closure_values(
+            authority.issue_v3m0_calibration_application_permit_v2
+        )["permit_issuer"]
+
+        with self.assertRaises((TypeError, ValueError)):
+            calibration_capability = calibration_issuer(
+                parent,
+                parent_reverifier=lambda ignored: parent_manifest,
+                calibration_replayer=lambda *ignored: calibration,
+            )
+            permit_capability = permit_issuer(
+                parent,
+                calibration_capability,
+                application.application_instance_id,
+                parent_reverifier=lambda ignored: parent_manifest,
+                calibration_reverifier=lambda ignored: calibration,
+                calibration_parent_checker=lambda *ignored: None,
+                permit_builder=lambda *ignored: forged_permit,
+            )
+            with patch.object(
+                authority,
+                "_current_application_for_instance",
+                return_value=application,
+            ), patch.object(
+                authority,
+                "_expected_calibration_application_permit_v2",
+                return_value=forged_permit,
+            ):
+                authority.require_calibration_application_permit_v2(
+                    permit_capability,
+                    parent_reverifier=lambda ignored: parent_manifest,
+                    calibration_reverifier=lambda ignored: calibration,
+                    calibration_parent_checker=lambda *ignored: None,
+                    permit_builder=lambda *ignored: forged_permit,
+                )
+
+    def test_authority_boundaries_expose_only_business_parameters(self) -> None:
+        from rulespace_v3 import application_authority_v2 as authority
+
+        calibration_issuer = _closure_values(
+            authority.issue_v3m0_window_threshold_calibration_v2
+        )["calibration_issuer"]
+        permit_issuer = _closure_values(
+            authority.issue_v3m0_calibration_application_permit_v2
+        )["permit_issuer"]
+        boundaries = (
+            (calibration_issuer, ("parent",)),
+            (
+                permit_issuer,
+                ("parent", "calibration", "application_instance_id"),
+            ),
+            (
+                authority.require_window_threshold_calibration_v2,
+                ("calibration",),
+            ),
+            (
+                authority.require_calibration_application_permit_v2,
+                ("permit",),
+            ),
+        )
+        for boundary, expected in boundaries:
+            with self.subTest(boundary=boundary.__name__):
+                self.assertEqual(
+                    tuple(inspect.signature(boundary).parameters),
+                    expected,
+                )
 
     def test_private_raw_issuers_are_not_reachable_module_attributes(self) -> None:
         from rulespace_v3 import application_authority_v2 as authority

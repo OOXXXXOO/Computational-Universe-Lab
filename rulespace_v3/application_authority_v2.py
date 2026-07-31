@@ -24,6 +24,10 @@ from .parent_freeze import (
     ApplicationScenarioExecutionSpec,
     application_scenario_execution_spec_payload,
 )
+from .parent_authority import (
+    VerifiedParentFreezeV2,
+    require_current_parent as _require_current_parent_v2,
+)
 from .parent_v2_contracts import (
     CurrentApplicationAuthorityV2,
     CurrentScenarioAuthorityV2,
@@ -135,36 +139,42 @@ def window_threshold_calibration_v2_payload(
     }
 
 
-def verify_window_threshold_calibration_v2_wire(
+def _verify_window_threshold_calibration_v2_wire_impl(
     calibration: WindowThresholdCalibrationV2,
+    *,
+    exact_record=_exact_record,
+    selection_payload=window_threshold_selection_payload,
+    calibration_payload=window_threshold_calibration_v2_payload,
+    sha_builder=canonical_sha,
+    clone=copy.deepcopy,
 ) -> WindowThresholdCalibrationV2:
     """Validate a raw wire without hydrating it into a capability."""
 
-    _exact_record(
+    exact_record(
         calibration,
         WindowThresholdCalibrationV2,
         "Task-11-v2 calibration wire",
     )
     calibration.__post_init__()
     selection = calibration.selection
-    _exact_record(selection, WindowThresholdSelection, "threshold selection")
+    exact_record(selection, WindowThresholdSelection, "threshold selection")
     selection.__post_init__()
     for index, reference in enumerate(selection.selected_evidence_refs):
-        _exact_record(
+        exact_record(
             reference,
             SelectedControlEvidenceRef,
             f"selected evidence ref[{index}]",
         )
         reference.__post_init__()
-    if selection.selection_sha != canonical_sha(
-        window_threshold_selection_payload(selection)
+    if selection.selection_sha != sha_builder(
+        selection_payload(selection)
     ):
         raise ValueError("selection SHA does not match its exact body")
-    if calibration.calibration_v2_sha != canonical_sha(
-        window_threshold_calibration_v2_payload(calibration)
+    if calibration.calibration_v2_sha != sha_builder(
+        calibration_payload(calibration)
     ):
         raise ValueError("Task-11-v2 calibration SHA does not match its body")
-    return copy.deepcopy(calibration)
+    return clone(calibration)
 
 
 @dataclass(frozen=True)
@@ -238,67 +248,81 @@ def calibration_application_permit_v2_payload(
     }
 
 
-def _verify_current_application_authority(
+def _verify_current_application_authority_impl(
     application: CurrentApplicationAuthorityV2,
+    *,
+    exact_record=_exact_record,
+    execution_payload=application_scenario_execution_spec_payload,
+    response_payload=current_scenario_response_contract_v2_payload,
+    scenario_payload=current_scenario_authority_v2_payload,
+    application_payload=current_application_authority_v2_payload,
+    sha_builder=canonical_sha,
 ) -> None:
-    _exact_record(
+    exact_record(
         application,
         CurrentApplicationAuthorityV2,
         "current application authority",
     )
     application.__post_init__()
     for index, scenario in enumerate(application.scenario_authorities):
-        _exact_record(
+        exact_record(
             scenario,
             CurrentScenarioAuthorityV2,
             f"current scenario authority[{index}]",
         )
         scenario.__post_init__()
         execution = scenario.scenario_execution_spec
-        _exact_record(
+        exact_record(
             execution,
             ApplicationScenarioExecutionSpec,
             f"scenario execution spec[{index}]",
         )
         execution.__post_init__()
-        if execution.scenario_sha != canonical_sha(
-            application_scenario_execution_spec_payload(execution)
+        if execution.scenario_sha != sha_builder(
+            execution_payload(execution)
         ):
             raise ValueError("scenario execution SHA does not match its body")
         response = scenario.response_contract
-        _exact_record(
+        exact_record(
             response,
             CurrentScenarioResponseContractV2,
             f"current response contract[{index}]",
         )
         response.__post_init__()
-        if response.response_contract_sha != canonical_sha(
-            current_scenario_response_contract_v2_payload(response)
+        if response.response_contract_sha != sha_builder(
+            response_payload(response)
         ):
             raise ValueError("current response-contract SHA drifted")
-        if scenario.scenario_authority_sha != canonical_sha(
-            current_scenario_authority_v2_payload(scenario)
+        if scenario.scenario_authority_sha != sha_builder(
+            scenario_payload(scenario)
         ):
             raise ValueError("current scenario-authority SHA drifted")
-    if application.application_authority_sha != canonical_sha(
-        current_application_authority_v2_payload(application)
+    if application.application_authority_sha != sha_builder(
+        application_payload(application)
     ):
         raise ValueError("current application-authority SHA drifted")
 
 
-def verify_calibration_application_permit_v2_wire(
+def _verify_calibration_application_permit_v2_wire_impl(
     permit: CalibrationApplicationPermitV2,
+    *,
+    exact_record=_exact_record,
+    calibration_verifier=_verify_window_threshold_calibration_v2_wire_impl,
+    application_verifier=_verify_current_application_authority_impl,
+    permit_payload=calibration_application_permit_v2_payload,
+    sha_builder=canonical_sha,
+    clone=copy.deepcopy,
 ) -> CalibrationApplicationPermitV2:
     """Validate a raw permit without hydrating it into a capability."""
 
-    _exact_record(
+    exact_record(
         permit,
         CalibrationApplicationPermitV2,
         "Task-12-v2 permit wire",
     )
     permit.__post_init__()
-    verify_window_threshold_calibration_v2_wire(permit.calibration)
-    _verify_current_application_authority(permit.application_authority)
+    calibration_verifier(permit.calibration)
+    application_verifier(permit.application_authority)
     expected_scenario_shas = tuple(
         item.scenario_authority_sha
         for item in permit.application_authority.scenario_authorities
@@ -313,11 +337,11 @@ def verify_calibration_application_permit_v2_wire(
         != permit.calibration.selection.selected_fejer_order
     ):
         raise ValueError("Task-12-v2 permit contains a cross-authority splice")
-    if permit.permit_sha != canonical_sha(
-        calibration_application_permit_v2_payload(permit)
+    if permit.permit_sha != sha_builder(
+        permit_payload(permit)
     ):
         raise ValueError("Task-12-v2 permit SHA does not match its body")
-    return copy.deepcopy(permit)
+    return clone(permit)
 
 
 class VerifiedCalibrationApplicationPermitV2:
@@ -414,24 +438,27 @@ class ApplicationAuthorityV2UpstreamUnavailable(RuntimeError):
     """The current Parent/Task-11 replay chain is not yet issuable."""
 
 
-def _require_exact_current_parent(parent):
-    # Kept lazy so a DRAFT Parent-v2 construction failure cannot weaken or
-    # replace this module's raw exact-type contracts during import.
-    parent_type = type(parent)
-    if (
-        parent_type.__module__ != "rulespace_v3.parent_authority"
-        or parent_type.__name__ != "VerifiedParentFreezeV2"
-    ):
-        raise TypeError(
-            "current authority requires an exact live VerifiedParentFreezeV2"
-        )
-    from .parent_authority import VerifiedParentFreezeV2, require_current_parent
+def _replay_current_window_threshold_calibration_v2(parent, parent_manifest):
+    del parent, parent_manifest
+    raise ApplicationAuthorityV2UpstreamUnavailable(
+        "Task-11-v2 needs a current Parent-v2 control registry, window "
+        "protocol, and six-candidate calibration replay; v1 calibration "
+        "cannot be rebound by copying its thresholds"
+    )
 
-    if parent_type is not VerifiedParentFreezeV2:
+
+def _require_exact_current_parent(
+    parent,
+    *,
+    parent_type=VerifiedParentFreezeV2,
+    parent_reverifier=_require_current_parent_v2,
+    type_fn=type,
+):
+    if type_fn(parent) is not parent_type:
         raise TypeError(
             "current authority requires an exact live VerifiedParentFreezeV2"
         )
-    return require_current_parent(parent)
+    return parent_reverifier(parent)
 
 
 @dataclass(frozen=True)
@@ -439,115 +466,6 @@ class _WindowCalibrationAuthorityV2:
     calibration: WindowThresholdCalibrationV2
     parent: object
     fingerprint: str
-
-
-_WINDOW_CALIBRATION_LIVE: dict[
-    int,
-    tuple[
-        weakref.ReferenceType[VerifiedWindowThresholdCalibrationV2],
-        _WindowCalibrationAuthorityV2,
-    ],
-] = {}
-_WINDOW_CALIBRATION_LOCK = threading.RLock()
-
-
-def _window_calibration_seal(
-    calibration: WindowThresholdCalibrationV2,
-) -> str:
-    return canonical_sha(
-        {
-            "authority_kind": "v3m0-window-threshold-calibration-live-v2",
-            "calibration": {
-                **window_threshold_calibration_v2_payload(calibration),
-                "calibration_v2_sha": calibration.calibration_v2_sha,
-            },
-        }
-    )
-
-
-def _issue_replayed_window_threshold_calibration_v2(
-    calibration: WindowThresholdCalibrationV2,
-    parent,
-    parent_manifest,
-) -> VerifiedWindowThresholdCalibrationV2:
-    """Trusted Task-11 replay connection; never a public hydration path."""
-
-    snapshot = verify_window_threshold_calibration_v2_wire(calibration)
-    if snapshot.parent_freeze_v2_sha != parent_manifest.parent_freeze_v2_sha:
-        raise ValueError("Task-11-v2 calibration is spliced to another Parent-v2")
-    fingerprint = _window_calibration_seal(snapshot)
-    wrapper = VerifiedWindowThresholdCalibrationV2(
-        _ISSUANCE_TOKEN,
-        snapshot,
-        fingerprint,
-    )
-    identity = id(wrapper)
-    authority = _WindowCalibrationAuthorityV2(
-        calibration=copy.deepcopy(snapshot),
-        parent=parent,
-        fingerprint=fingerprint,
-    )
-
-    def remove_stale(
-        reference: weakref.ReferenceType[VerifiedWindowThresholdCalibrationV2],
-        wrapper_id: int = identity,
-    ) -> None:
-        with _WINDOW_CALIBRATION_LOCK:
-            current = _WINDOW_CALIBRATION_LIVE.get(wrapper_id)
-            if current is not None and current[0] is reference:
-                del _WINDOW_CALIBRATION_LIVE[wrapper_id]
-
-    reference = weakref.ref(wrapper, remove_stale)
-    with _WINDOW_CALIBRATION_LOCK:
-        _WINDOW_CALIBRATION_LIVE[identity] = (reference, authority)
-    return wrapper
-
-
-def require_window_threshold_calibration_v2(
-    calibration: VerifiedWindowThresholdCalibrationV2,
-) -> WindowThresholdCalibrationV2:
-    """Consume only an exact live module-issued Task-11-v2 capability."""
-
-    if type(calibration) is not VerifiedWindowThresholdCalibrationV2:
-        raise TypeError(
-            "Task-12-v2 rejects v1, raw, and subclass calibration values"
-        )
-    with _WINDOW_CALIBRATION_LOCK:
-        current = _WINDOW_CALIBRATION_LIVE.get(id(calibration))
-        if current is None or current[0]() is not calibration:
-            raise ValueError(
-                "VerifiedWindowThresholdCalibrationV2 identity is not live"
-            )
-        authority = current[1]
-    try:
-        token = object.__getattribute__(
-            calibration,
-            "_VerifiedWindowThresholdCalibrationV2__token",
-        )
-        raw = object.__getattribute__(
-            calibration,
-            "_VerifiedWindowThresholdCalibrationV2__calibration",
-        )
-        seal = object.__getattribute__(
-            calibration,
-            "_VerifiedWindowThresholdCalibrationV2__seal",
-        )
-    except AttributeError as exc:
-        raise ValueError("Task-11-v2 calibration record is incomplete") from exc
-    if token is not _ISSUANCE_TOKEN:
-        raise ValueError("Task-11-v2 calibration token mismatch")
-    snapshot = verify_window_threshold_calibration_v2_wire(raw)
-    parent_manifest = _require_exact_current_parent(authority.parent)
-    expected_seal = _window_calibration_seal(snapshot)
-    if (
-        snapshot != authority.calibration
-        or snapshot.parent_freeze_v2_sha
-        != parent_manifest.parent_freeze_v2_sha
-        or seal != authority.fingerprint
-        or seal != expected_seal
-    ):
-        raise ValueError("Task-11-v2 calibration immutable seal mismatch")
-    return copy.deepcopy(authority.calibration)
 
 
 @dataclass(frozen=True)
@@ -558,293 +476,502 @@ class _PermitAuthorityV2:
     fingerprint: str
 
 
-_PERMIT_LIVE: dict[
-    int,
-    tuple[
-        weakref.ReferenceType[VerifiedCalibrationApplicationPermitV2],
-        _PermitAuthorityV2,
-    ],
-] = {}
-_PERMIT_LOCK = threading.RLock()
+def _close_wire_verifiers(window_impl, application_impl, permit_impl):
+    exact_record = _exact_record
+    selection_payload = window_threshold_selection_payload
+    calibration_payload = window_threshold_calibration_v2_payload
+    execution_payload = application_scenario_execution_spec_payload
+    response_payload = current_scenario_response_contract_v2_payload
+    scenario_payload = current_scenario_authority_v2_payload
+    application_payload = current_application_authority_v2_payload
+    permit_payload = calibration_application_permit_v2_payload
+    sha_builder = canonical_sha
+    clone = copy.deepcopy
 
-
-def _permit_seal(permit: CalibrationApplicationPermitV2) -> str:
-    return canonical_sha(
-        {
-            "authority_kind": "v3m0-calibration-application-permit-live-v2",
-            "permit": {
-                **calibration_application_permit_v2_payload(permit),
-                "permit_sha": permit.permit_sha,
-            },
-        }
-    )
-
-
-def _current_application_for_instance(
-    parent_manifest,
-    application_instance_id: str,
-) -> CurrentApplicationAuthorityV2:
-    identifier = _text(application_instance_id, "application_instance_id")
-    matches = tuple(
-        item
-        for item in parent_manifest.current_application_authorities
-        if item.application_instance_id == identifier
-    )
-    if len(matches) != 1:
-        raise ValueError(
-            "application instance ID does not resolve to one current "
-            "application authority"
-        )
-    application = matches[0]
-    _verify_current_application_authority(application)
-
-    candidate_matches = tuple(
-        item
-        for item in parent_manifest.reviewed_candidate_v1.application_candidates
-        if item.application_instance_id == identifier
-    )
-    if len(candidate_matches) != 1:
-        raise ValueError(
-            "application instance ID does not resolve to one reviewed "
-            "candidate-v1 application"
-        )
-    candidate = candidate_matches[0]
-    candidate_specs = tuple(
-        item.scenario_execution_spec for item in candidate.scenario_candidates
-    )
-    if (
-        candidate.control_case_id != application.control_case_id
-        or candidate.based_on_application_spec_sha
-        != application.based_on_application_spec_sha
-        or candidate.candidate_application_sha
-        != application.source_candidate_v1_application_sha
-        or candidate_specs != application.complete_scenario_execution_specs
-    ):
-        raise ValueError(
-            "current application authority is spliced from reviewed candidate-v1"
+    def verify_window(calibration):
+        return window_impl(
+            calibration,
+            exact_record=exact_record,
+            selection_payload=selection_payload,
+            calibration_payload=calibration_payload,
+            sha_builder=sha_builder,
+            clone=clone,
         )
 
-    source_matches = tuple(
-        item
-        for item in (
-            parent_manifest.historical_parent_v1.synthetic_control_application_specs
+    def verify_application(application):
+        return application_impl(
+            application,
+            exact_record=exact_record,
+            execution_payload=execution_payload,
+            response_payload=response_payload,
+            scenario_payload=scenario_payload,
+            application_payload=application_payload,
+            sha_builder=sha_builder,
         )
-        if item.application_instance_id == identifier
-    )
-    if len(source_matches) != 1:
-        raise ValueError(
-            "application instance ID does not resolve to one Parent application spec"
+
+    def verify_permit(permit):
+        return permit_impl(
+            permit,
+            exact_record=exact_record,
+            calibration_verifier=verify_window,
+            application_verifier=verify_application,
+            permit_payload=permit_payload,
+            sha_builder=sha_builder,
+            clone=clone,
         )
-    source = source_matches[0]
-    if (
-        source.control_case_id != application.control_case_id
-        or source.application_spec_sha != application.based_on_application_spec_sha
-    ):
-        raise ValueError("current application authority is spliced from its Parent spec")
-    if (
-        "control-application-evidence" not in source.required_pipeline_stages
-        or "window-calibration" in source.required_pipeline_stages
-    ):
-        raise ValueError(
-            "selected calibration applications C01-C03 cannot receive "
-            "application permits"
-        )
-    return copy.deepcopy(application)
+
+    verify_window.__name__ = "verify_window_threshold_calibration_v2_wire"
+    verify_application.__name__ = "_verify_current_application_authority"
+    verify_permit.__name__ = "verify_calibration_application_permit_v2_wire"
+    return verify_window, verify_application, verify_permit
 
 
-def _expected_calibration_application_permit_v2(
-    parent_manifest,
-    calibration: WindowThresholdCalibrationV2,
-    application_instance_id: str,
-) -> CalibrationApplicationPermitV2:
-    verified_calibration = verify_window_threshold_calibration_v2_wire(
-        calibration
-    )
-    if (
-        verified_calibration.parent_freeze_v2_sha
-        != parent_manifest.parent_freeze_v2_sha
-    ):
-        raise ValueError("Task-11-v2 calibration is bound to another Parent-v2")
-    application = _current_application_for_instance(
+(
+    verify_window_threshold_calibration_v2_wire,
+    _verify_current_application_authority,
+    verify_calibration_application_permit_v2_wire,
+) = _close_wire_verifiers(
+    _verify_window_threshold_calibration_v2_wire_impl,
+    _verify_current_application_authority_impl,
+    _verify_calibration_application_permit_v2_wire_impl,
+)
+
+
+def _close_parent_reverifier():
+    parent_impl = _require_exact_current_parent
+    parent_type = VerifiedParentFreezeV2
+    parent_reverifier = _require_current_parent_v2
+    type_fn = type
+
+    def require_parent(parent):
+        return parent_impl(
+            parent,
+            parent_type=parent_type,
+            parent_reverifier=parent_reverifier,
+            type_fn=type_fn,
+        )
+
+    require_parent.__name__ = "_require_exact_current_parent"
+    return require_parent
+
+
+_require_exact_current_parent = _close_parent_reverifier()
+
+
+def _make_application_authority_graph(issuance_token):
+    parent_reverifier = _require_exact_current_parent
+    calibration_replayer = _replay_current_window_threshold_calibration_v2
+    calibration_verifier = verify_window_threshold_calibration_v2_wire
+    application_verifier = _verify_current_application_authority
+    permit_verifier = verify_calibration_application_permit_v2_wire
+    calibration_payload = window_threshold_calibration_v2_payload
+    permit_payload = calibration_application_permit_v2_payload
+    sha_builder = canonical_sha
+    text_validator = _text
+    clone = copy.deepcopy
+    weak_reference = weakref.ref
+    lock_builder = threading.RLock
+    id_fn = id
+    type_fn = type
+    object_getattribute = object.__getattribute__
+    window_wrapper_type = VerifiedWindowThresholdCalibrationV2
+    permit_wrapper_type = VerifiedCalibrationApplicationPermitV2
+    permit_wire_type = CalibrationApplicationPermitV2
+    window_authority_type = _WindowCalibrationAuthorityV2
+    permit_authority_type = _PermitAuthorityV2
+    permit_schema_version = CALIBRATION_APPLICATION_PERMIT_V2_SCHEMA_VERSION
+    permit_scope = _APPLICATION_PERMIT_SCOPE_V2
+    window_live: dict[int, object] = {}
+    permit_live: dict[int, object] = {}
+    window_lock = lock_builder()
+    permit_lock = lock_builder()
+
+    def window_seal(calibration):
+        return sha_builder(
+            {
+                "authority_kind": "v3m0-window-threshold-calibration-live-v2",
+                "calibration": {
+                    **calibration_payload(calibration),
+                    "calibration_v2_sha": calibration.calibration_v2_sha,
+                },
+            }
+        )
+
+    def permit_seal(permit):
+        return sha_builder(
+            {
+                "authority_kind": "v3m0-calibration-application-permit-live-v2",
+                "permit": {
+                    **permit_payload(permit),
+                    "permit_sha": permit.permit_sha,
+                },
+            }
+        )
+
+    def current_application_for_instance(
         parent_manifest,
         application_instance_id,
-    )
-    scenario_shas = tuple(
-        item.scenario_authority_sha
-        for item in application.scenario_authorities
-    )
-    provisional = CalibrationApplicationPermitV2(
-        permit_schema_version=(
-            CALIBRATION_APPLICATION_PERMIT_V2_SCHEMA_VERSION
-        ),
-        scope=_APPLICATION_PERMIT_SCOPE_V2,
-        parent_freeze_v2_sha=parent_manifest.parent_freeze_v2_sha,
-        calibration=verified_calibration,
-        control_case_id=application.control_case_id,
-        application_authority=application,
-        scenario_authority_shas=scenario_shas,
-        selected_fejer_order=(
-            verified_calibration.selection.selected_fejer_order
-        ),
-        permit_sha="0" * 64,
-    )
-    return CalibrationApplicationPermitV2(
-        **{
-            **vars(provisional),
-            "permit_sha": canonical_sha(
-                calibration_application_permit_v2_payload(provisional)
-            ),
-        }
-    )
-
-
-def _issue_calibration_application_permit_v2(
-    permit: CalibrationApplicationPermitV2,
-    parent,
-    calibration: VerifiedWindowThresholdCalibrationV2,
-) -> VerifiedCalibrationApplicationPermitV2:
-    snapshot = verify_calibration_application_permit_v2_wire(permit)
-    fingerprint = _permit_seal(snapshot)
-    wrapper = VerifiedCalibrationApplicationPermitV2(
-        _ISSUANCE_TOKEN,
-        snapshot,
-        fingerprint,
-    )
-    identity = id(wrapper)
-    authority = _PermitAuthorityV2(
-        permit=copy.deepcopy(snapshot),
-        parent=parent,
-        calibration=calibration,
-        fingerprint=fingerprint,
-    )
-
-    def remove_stale(
-        reference: weakref.ReferenceType[VerifiedCalibrationApplicationPermitV2],
-        wrapper_id: int = identity,
-    ) -> None:
-        with _PERMIT_LOCK:
-            current = _PERMIT_LIVE.get(wrapper_id)
-            if current is not None and current[0] is reference:
-                del _PERMIT_LIVE[wrapper_id]
-
-    reference = weakref.ref(wrapper, remove_stale)
-    with _PERMIT_LOCK:
-        _PERMIT_LIVE[identity] = (reference, authority)
-    return wrapper
-
-
-def require_calibration_application_permit_v2(
-    permit: VerifiedCalibrationApplicationPermitV2,
-) -> CalibrationApplicationPermitV2:
-    """Consume only an exact live module-issued Task-12-v2 permit."""
-
-    if type(permit) is not VerifiedCalibrationApplicationPermitV2:
-        raise TypeError("Task-12-v2 rejects v1, raw, and subclass permit values")
-    with _PERMIT_LOCK:
-        current = _PERMIT_LIVE.get(id(permit))
-        if current is None or current[0]() is not permit:
-            raise ValueError(
-                "VerifiedCalibrationApplicationPermitV2 identity is not live"
-            )
-        authority = current[1]
-    try:
-        token = object.__getattribute__(
-            permit,
-            "_VerifiedCalibrationApplicationPermitV2__token",
-        )
-        raw = object.__getattribute__(
-            permit,
-            "_VerifiedCalibrationApplicationPermitV2__permit",
-        )
-        seal = object.__getattribute__(
-            permit,
-            "_VerifiedCalibrationApplicationPermitV2__seal",
-        )
-    except AttributeError as exc:
-        raise ValueError("Task-12-v2 permit record is incomplete") from exc
-    if token is not _ISSUANCE_TOKEN:
-        raise ValueError("Task-12-v2 permit token mismatch")
-    snapshot = verify_calibration_application_permit_v2_wire(raw)
-    parent_manifest = _require_exact_current_parent(authority.parent)
-    calibration_body = require_window_threshold_calibration_v2(
-        authority.calibration
-    )
-    expected = _expected_calibration_application_permit_v2(
-        parent_manifest,
-        calibration_body,
-        authority.permit.application_authority.application_instance_id,
-    )
-    expected_seal = _permit_seal(expected)
-    if (
-        snapshot != authority.permit
-        or snapshot != expected
-        or seal != authority.fingerprint
-        or seal != expected_seal
     ):
-        raise ValueError("Task-12-v2 permit immutable seal mismatch")
-    return copy.deepcopy(authority.permit)
+        identifier = text_validator(
+            application_instance_id,
+            "application_instance_id",
+        )
+        matches = tuple(
+            item
+            for item in parent_manifest.current_application_authorities
+            if item.application_instance_id == identifier
+        )
+        if len(matches) != 1:
+            raise ValueError(
+                "application instance ID does not resolve to one current "
+                "application authority"
+            )
+        application = matches[0]
+        application_verifier(application)
 
+        candidate_matches = tuple(
+            item
+            for item in parent_manifest.reviewed_candidate_v1.application_candidates
+            if item.application_instance_id == identifier
+        )
+        if len(candidate_matches) != 1:
+            raise ValueError(
+                "application instance ID does not resolve to one reviewed "
+                "candidate-v1 application"
+            )
+        candidate = candidate_matches[0]
+        candidate_specs = tuple(
+            item.scenario_execution_spec for item in candidate.scenario_candidates
+        )
+        if (
+            candidate.control_case_id != application.control_case_id
+            or candidate.based_on_application_spec_sha
+            != application.based_on_application_spec_sha
+            or candidate.candidate_application_sha
+            != application.source_candidate_v1_application_sha
+            or candidate_specs != application.complete_scenario_execution_specs
+        ):
+            raise ValueError(
+                "current application authority is spliced from reviewed candidate-v1"
+            )
 
-def _replay_current_window_threshold_calibration_v2(parent, parent_manifest):
-    del parent, parent_manifest
-    raise ApplicationAuthorityV2UpstreamUnavailable(
-        "Task-11-v2 needs a current Parent-v2 control registry, window "
-        "protocol, and six-candidate calibration replay; v1 calibration "
-        "cannot be rebound by copying its thresholds"
+        source_matches = tuple(
+            item
+            for item in (
+                parent_manifest.historical_parent_v1.synthetic_control_application_specs
+            )
+            if item.application_instance_id == identifier
+        )
+        if len(source_matches) != 1:
+            raise ValueError(
+                "application instance ID does not resolve to one Parent "
+                "application spec"
+            )
+        source = source_matches[0]
+        if (
+            source.control_case_id != application.control_case_id
+            or source.application_spec_sha
+            != application.based_on_application_spec_sha
+        ):
+            raise ValueError(
+                "current application authority is spliced from its Parent spec"
+            )
+        if (
+            "control-application-evidence" not in source.required_pipeline_stages
+            or "window-calibration" in source.required_pipeline_stages
+        ):
+            raise ValueError(
+                "selected calibration applications C01-C03 cannot receive "
+                "application permits"
+            )
+        return clone(application)
+
+    def expected_permit(
+        parent_manifest,
+        calibration,
+        application_instance_id,
+    ):
+        verified_calibration = calibration_verifier(calibration)
+        if (
+            verified_calibration.parent_freeze_v2_sha
+            != parent_manifest.parent_freeze_v2_sha
+        ):
+            raise ValueError(
+                "Task-11-v2 calibration is bound to another Parent-v2"
+            )
+        application = current_application_for_instance(
+            parent_manifest,
+            application_instance_id,
+        )
+        scenario_shas = tuple(
+            item.scenario_authority_sha
+            for item in application.scenario_authorities
+        )
+        provisional = permit_wire_type(
+            permit_schema_version=permit_schema_version,
+            scope=permit_scope,
+            parent_freeze_v2_sha=parent_manifest.parent_freeze_v2_sha,
+            calibration=verified_calibration,
+            control_case_id=application.control_case_id,
+            application_authority=application,
+            scenario_authority_shas=scenario_shas,
+            selected_fejer_order=(
+                verified_calibration.selection.selected_fejer_order
+            ),
+            permit_sha="0" * 64,
+        )
+        return permit_wire_type(
+            **{
+                **vars(provisional),
+                "permit_sha": sha_builder(permit_payload(provisional)),
+            }
+        )
+
+    def issue_calibration(parent):
+        parent_manifest = parent_reverifier(parent)
+        replayed = calibration_replayer(parent, parent_manifest)
+        snapshot = calibration_verifier(replayed)
+        if snapshot.parent_freeze_v2_sha != parent_manifest.parent_freeze_v2_sha:
+            raise ValueError(
+                "Task-11-v2 calibration is spliced to another Parent-v2"
+            )
+        fingerprint = window_seal(snapshot)
+        wrapper = window_wrapper_type(
+            issuance_token,
+            snapshot,
+            fingerprint,
+        )
+        identity = id_fn(wrapper)
+        authority = window_authority_type(
+            calibration=clone(snapshot),
+            parent=parent,
+            fingerprint=fingerprint,
+        )
+
+        def remove_stale(reference, wrapper_id=identity):
+            with window_lock:
+                current = window_live.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del window_live[wrapper_id]
+
+        reference = weak_reference(wrapper, remove_stale)
+        with window_lock:
+            current = window_live.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError("Task-11-v2 calibration identity collision")
+            window_live[identity] = (reference, authority)
+        return wrapper
+
+    def require_calibration(calibration):
+        if type_fn(calibration) is not window_wrapper_type:
+            raise TypeError(
+                "Task-12-v2 rejects v1, raw, and subclass calibration values"
+            )
+        with window_lock:
+            current = window_live.get(id_fn(calibration))
+            if current is None or current[0]() is not calibration:
+                raise ValueError(
+                    "VerifiedWindowThresholdCalibrationV2 identity is not live"
+                )
+            authority = current[1]
+        try:
+            token = object_getattribute(
+                calibration,
+                "_VerifiedWindowThresholdCalibrationV2__token",
+            )
+            raw = object_getattribute(
+                calibration,
+                "_VerifiedWindowThresholdCalibrationV2__calibration",
+            )
+            seal = object_getattribute(
+                calibration,
+                "_VerifiedWindowThresholdCalibrationV2__seal",
+            )
+        except AttributeError as exc:
+            raise ValueError(
+                "Task-11-v2 calibration record is incomplete"
+            ) from exc
+        if token is not issuance_token:
+            raise ValueError("Task-11-v2 calibration token mismatch")
+        snapshot = calibration_verifier(raw)
+        parent_manifest = parent_reverifier(authority.parent)
+        replayed = calibration_verifier(
+            calibration_replayer(authority.parent, parent_manifest)
+        )
+        expected_seal = window_seal(replayed)
+        if (
+            snapshot != authority.calibration
+            or snapshot != replayed
+            or replayed.parent_freeze_v2_sha
+            != parent_manifest.parent_freeze_v2_sha
+            or seal != authority.fingerprint
+            or seal != expected_seal
+        ):
+            raise ValueError("Task-11-v2 calibration immutable seal mismatch")
+        return clone(replayed)
+
+    def require_calibration_parent_identity(calibration, parent):
+        with window_lock:
+            current = window_live.get(id_fn(calibration))
+            if current is None or current[0]() is not calibration:
+                raise ValueError("Task-11-v2 calibration identity is not live")
+            if current[1].parent is not parent:
+                raise ValueError(
+                    "Task-11-v2 calibration and permit use different "
+                    "Parent identities"
+                )
+
+    def issue_permit(parent, calibration, application_instance_id):
+        if type_fn(calibration) is not window_wrapper_type:
+            raise TypeError(
+                "Task-12-v2 requires an exact live "
+                "VerifiedWindowThresholdCalibrationV2"
+            )
+        parent_manifest = parent_reverifier(parent)
+        calibration_body = require_calibration(calibration)
+        require_calibration_parent_identity(calibration, parent)
+        expected = expected_permit(
+            parent_manifest,
+            calibration_body,
+            application_instance_id,
+        )
+        snapshot = permit_verifier(expected)
+        fingerprint = permit_seal(snapshot)
+        wrapper = permit_wrapper_type(
+            issuance_token,
+            snapshot,
+            fingerprint,
+        )
+        identity = id_fn(wrapper)
+        authority = permit_authority_type(
+            permit=clone(snapshot),
+            parent=parent,
+            calibration=calibration,
+            fingerprint=fingerprint,
+        )
+
+        def remove_stale(reference, wrapper_id=identity):
+            with permit_lock:
+                current = permit_live.get(wrapper_id)
+                if current is not None and current[0] is reference:
+                    del permit_live[wrapper_id]
+
+        reference = weak_reference(wrapper, remove_stale)
+        with permit_lock:
+            current = permit_live.get(identity)
+            if current is not None and current[0]() is not None:
+                raise RuntimeError("Task-12-v2 permit identity collision")
+            permit_live[identity] = (reference, authority)
+        return wrapper
+
+    def require_permit(permit):
+        if type_fn(permit) is not permit_wrapper_type:
+            raise TypeError("Task-12-v2 rejects v1, raw, and subclass permit values")
+        with permit_lock:
+            current = permit_live.get(id_fn(permit))
+            if current is None or current[0]() is not permit:
+                raise ValueError(
+                    "VerifiedCalibrationApplicationPermitV2 identity is not live"
+                )
+            authority = current[1]
+        try:
+            token = object_getattribute(
+                permit,
+                "_VerifiedCalibrationApplicationPermitV2__token",
+            )
+            raw = object_getattribute(
+                permit,
+                "_VerifiedCalibrationApplicationPermitV2__permit",
+            )
+            seal = object_getattribute(
+                permit,
+                "_VerifiedCalibrationApplicationPermitV2__seal",
+            )
+        except AttributeError as exc:
+            raise ValueError("Task-12-v2 permit record is incomplete") from exc
+        if token is not issuance_token:
+            raise ValueError("Task-12-v2 permit token mismatch")
+        snapshot = permit_verifier(raw)
+        parent_manifest = parent_reverifier(authority.parent)
+        calibration_body = require_calibration(authority.calibration)
+        require_calibration_parent_identity(
+            authority.calibration,
+            authority.parent,
+        )
+        expected = expected_permit(
+            parent_manifest,
+            calibration_body,
+            authority.permit.application_authority.application_instance_id,
+        )
+        expected_seal = permit_seal(expected)
+        if (
+            snapshot != authority.permit
+            or snapshot != expected
+            or seal != authority.fingerprint
+            or seal != expected_seal
+        ):
+            raise ValueError("Task-12-v2 permit immutable seal mismatch")
+        return clone(authority.permit)
+
+    def calibration_property(wrapper):
+        return require_calibration(wrapper)
+
+    def permit_property(wrapper):
+        return require_permit(wrapper)
+
+    current_application_for_instance.__name__ = (
+        "_current_application_for_instance"
+    )
+    expected_permit.__name__ = "_expected_calibration_application_permit_v2"
+    issue_calibration.__name__ = "_issue_replayed_window_threshold_calibration_v2"
+    require_calibration.__name__ = "require_window_threshold_calibration_v2"
+    issue_permit.__name__ = "_issue_calibration_application_permit_v2"
+    require_permit.__name__ = "require_calibration_application_permit_v2"
+    return (
+        current_application_for_instance,
+        expected_permit,
+        issue_calibration,
+        require_calibration,
+        issue_permit,
+        require_permit,
+        calibration_property,
+        permit_property,
     )
 
 
-def _require_calibration_parent_identity(
-    calibration: VerifiedWindowThresholdCalibrationV2,
-    parent,
-) -> None:
-    with _WINDOW_CALIBRATION_LOCK:
-        current = _WINDOW_CALIBRATION_LIVE.get(id(calibration))
-        if current is None or current[0]() is not calibration:
-            raise ValueError("Task-11-v2 calibration identity is not live")
-        if current[1].parent is not parent:
-            raise ValueError(
-                "Task-11-v2 calibration and permit use different Parent identities"
-            )
+(
+    _current_application_for_instance,
+    _expected_calibration_application_permit_v2,
+    _closed_calibration_issuer,
+    require_window_threshold_calibration_v2,
+    _closed_permit_issuer,
+    require_calibration_application_permit_v2,
+    _calibration_property,
+    _permit_property,
+) = _make_application_authority_graph(_ISSUANCE_TOKEN)
+
+VerifiedWindowThresholdCalibrationV2.calibration = property(
+    _calibration_property
+)
+VerifiedCalibrationApplicationPermitV2.permit = property(_permit_property)
 
 
-def _make_public_issuers(
-    *,
-    parent_reverifier=_require_exact_current_parent,
-    calibration_replayer=_replay_current_window_threshold_calibration_v2,
-    calibration_issuer=_issue_replayed_window_threshold_calibration_v2,
-    calibration_type=VerifiedWindowThresholdCalibrationV2,
-    calibration_reverifier=require_window_threshold_calibration_v2,
-    calibration_parent_checker=_require_calibration_parent_identity,
-    permit_builder=_expected_calibration_application_permit_v2,
-    permit_issuer=_issue_calibration_application_permit_v2,
-):
-    """Freeze public issuers away from later module-global rebinding."""
+def _make_public_issuers(calibration_issuer, permit_issuer):
+    """Expose only issuers that replay their complete live authority graph."""
 
     def issue_v3m0_window_threshold_calibration_v2(parent):
-        parent_manifest = parent_reverifier(parent)
-        calibration = calibration_replayer(parent, parent_manifest)
-        return calibration_issuer(calibration, parent, parent_manifest)
+        return calibration_issuer(parent)
 
     def issue_v3m0_calibration_application_permit_v2(
         parent,
         calibration,
         application_instance_id,
     ):
-        if type(calibration) is not calibration_type:
-            raise TypeError(
-                "Task-12-v2 requires an exact live "
-                "VerifiedWindowThresholdCalibrationV2"
-            )
-        parent_manifest = parent_reverifier(parent)
-        calibration_body = calibration_reverifier(calibration)
-        calibration_parent_checker(calibration, parent)
-        expected = permit_builder(
-            parent_manifest,
-            calibration_body,
+        return permit_issuer(
+            parent,
+            calibration,
             application_instance_id,
         )
-        return permit_issuer(expected, parent, calibration)
 
     return (
         issue_v3m0_window_threshold_calibration_v2,
@@ -855,15 +982,25 @@ def _make_public_issuers(
 (
     issue_v3m0_window_threshold_calibration_v2,
     issue_v3m0_calibration_application_permit_v2,
-) = _make_public_issuers()
+) = _make_public_issuers(
+    _closed_calibration_issuer,
+    _closed_permit_issuer,
+)
 
-# The public closures retain these implementation objects in their sealed
-# defaults.  Removing the module attributes prevents callers from bypassing
-# the live-authority checks by reaching a raw issuer or rebuilding the public
-# closures with injected dependencies.
-del _issue_replayed_window_threshold_calibration_v2
-del _issue_calibration_application_permit_v2
+# Every closure-reachable issuer independently replays its live inputs, so
+# extracting a private callable cannot create a raw hydration path.
+del _closed_calibration_issuer
+del _closed_permit_issuer
+del _calibration_property
+del _permit_property
+del _verify_window_threshold_calibration_v2_wire_impl
+del _verify_current_application_authority_impl
+del _verify_calibration_application_permit_v2_wire_impl
+del _close_wire_verifiers
+del _close_parent_reverifier
+del _make_application_authority_graph
 del _make_public_issuers
+del _ISSUANCE_TOKEN
 
 
 __all__ = [
