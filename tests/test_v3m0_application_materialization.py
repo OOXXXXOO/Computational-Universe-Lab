@@ -89,7 +89,7 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
                 self.assertLess(abs(abs(gain_response) - 0.5), 3.0e-14)
                 self.assertGreater(abs(gain_response - 0.5), 0.65)
 
-    def test_equal_spectrum_projector_orientation_has_exact_finite_t_ratios(
+    def test_equal_spectrum_projector_orientation_has_exact_phase_ratio(
         self,
     ) -> None:
         for order in (256, 512, 1024, 2048, 4096, 8192):
@@ -104,17 +104,6 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
                     1.0e-12,
                 )
                 self.assertGreater(abs(y1_actual), 0.49)
-            with self.subTest(order=order, scenario="gain"):
-                y0_matched_ablated = self._cross_response(
-                    math.pi / 4.0,
-                    order,
-                )
-                y1_actual = self._cross_response(math.pi / 12.0, order)
-                self.assertLessEqual(
-                    abs(y0_matched_ablated - 2.0 * y1_actual),
-                    1.0e-12,
-                )
-                self.assertGreater(abs(y1_actual), 0.24)
             for theta in (
                 -math.pi / 4.0,
                 math.pi / 12.0,
@@ -129,6 +118,29 @@ class C05FiniteTResponseDiagnostics(unittest.TestCase):
                     rtol=0.0,
                     atol=2.0e-15,
                 )
+
+    def test_pi_over_12_gain_orientation_is_a_high_t_ratio_no_go(
+        self,
+    ) -> None:
+        for order in (256, 512, 1024, 2048, 4096, 8192):
+            y0_matched_ablated = self._cross_response(
+                math.pi / 4.0,
+                order,
+            )
+            y1_actual = self._cross_response(math.pi / 12.0, order)
+            ratio_error = abs(
+                abs(y0_matched_ablated) / abs(y1_actual) - 2.0
+            )
+            with self.subTest(order=order, scenario="gain"):
+                self.assertLessEqual(
+                    abs(y0_matched_ablated - 2.0 * y1_actual),
+                    1.0e-12,
+                )
+                self.assertGreater(abs(y1_actual), 0.24)
+                if order <= 2048:
+                    self.assertLessEqual(ratio_error, 1.0e-12)
+                else:
+                    self.assertGreater(ratio_error, 1.0e-12)
 
 
 class ApplicationScenarioMaterializationTests(unittest.TestCase):
