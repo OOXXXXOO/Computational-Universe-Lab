@@ -6110,13 +6110,19 @@ def _freeze_response_call_graph(
     return functools.partial(freeze_function(root))
 
 
+_closed_authority_preflight = _freeze_response_call_graph(
+    _preflight_response_evidence_body
+)
+_closed_authority_dataclass_items = _freeze_response_call_graph(
+    _exact_dataclass_items
+)
+
+
 def _make_authority_structural_codec(
     *,
+    preflight: Callable,
+    dataclass_items: Callable,
     canonical_hash: Callable = canonical_sha,
-    preflight: Callable = functools.partial(
-        _preflight_response_evidence_body
-    ),
-    dataclass_items: Callable = functools.partial(_exact_dataclass_items),
     type_fn: Callable = type,
     getattr_fn: Callable = getattr,
     isinstance_fn: Callable = isinstance,
@@ -6197,7 +6203,7 @@ def _make_authority_structural_codec(
 
 def _make_authority_structural_clone(
     *,
-    dataclass_items: Callable = functools.partial(_exact_dataclass_items),
+    dataclass_items: Callable,
     type_fn: Callable = type,
     getattr_fn: Callable = getattr,
     isinstance_fn: Callable = isinstance,
@@ -6323,7 +6329,9 @@ def _make_authority_structural_clone(
     return clone
 
 
-_authority_structural_clone = _make_authority_structural_clone()
+_authority_structural_clone = _make_authority_structural_clone(
+    dataclass_items=_closed_authority_dataclass_items,
+)
 
 
 def _make_closed_reference_authority(
@@ -6919,7 +6927,10 @@ def _make_closed_paired_authority(
 
 
 _authority_structural_digest, _authority_structural_seal = (
-    _make_authority_structural_codec()
+    _make_authority_structural_codec(
+        preflight=_closed_authority_preflight,
+        dataclass_items=_closed_authority_dataclass_items,
+    )
 )
 _closed_expected_reference = _freeze_response_call_graph(_expected_reference_outcome)
 _closed_preflight_reference = _freeze_response_call_graph(

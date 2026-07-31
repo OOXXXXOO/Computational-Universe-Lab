@@ -180,6 +180,96 @@ class ResponseAuthorityStructuralCodecTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "text exceeds resource cap"):
             response_module._authority_structural_digest(oversized_text)
 
+    def test_authority_helper_partials_are_frozen_off_module_globals(
+        self,
+    ) -> None:
+        pending: list[object] = [
+            response_module._authority_structural_digest,
+            response_module._authority_structural_clone,
+        ]
+        seen: set[int] = set()
+        helpers = []
+        while pending:
+            value = pending.pop()
+            if id(value) in seen:
+                continue
+            seen.add(id(value))
+            if type(value) is functools.partial:
+                pending.append(value.func)
+                pending.extend(value.args)
+                pending.extend((value.keywords or {}).values())
+            elif inspect.isfunction(value):
+                if value.__name__ in {
+                    "_exact_dataclass_items",
+                    "_preflight_response_evidence_body",
+                }:
+                    helpers.append(value)
+                pending.extend(value.__defaults__ or ())
+                pending.extend((value.__kwdefaults__ or {}).values())
+                pending.extend(
+                    cell.cell_contents for cell in (value.__closure__ or ())
+                )
+            elif type(value) in (tuple, list, frozenset):
+                pending.extend(value)
+            elif type(value) is dict:
+                pending.extend(value.values())
+
+        self.assertEqual(
+            {helper.__name__ for helper in helpers},
+            {
+                "_exact_dataclass_items",
+                "_preflight_response_evidence_body",
+            },
+        )
+        self.assertTrue(
+            all(
+                helper.__globals__ is not vars(response_module)
+                for helper in helpers
+            )
+        )
+
+    def test_module_helper_redirect_cannot_bypass_unknown_or_text_cap(
+        self,
+    ) -> None:
+        @dataclasses.dataclass(frozen=True)
+        class PlainRecord:
+            value: str
+
+        injected = PlainRecord("safe")
+        object.__setattr__(injected, "caller_unknown", "forbidden")
+        oversized = PlainRecord("x" * 16_385)
+        builtin_vars = vars
+
+        def redirected_vars(value):
+            if isinstance(value, type):
+                return builtin_vars(value)
+            fields = getattr(type(value), "__dataclass_fields__", {})
+            return {
+                name: object.__getattribute__(value, name)
+                for name in fields
+            }
+
+        with (
+            mock.patch.object(
+                response_module,
+                "vars",
+                side_effect=redirected_vars,
+                create=True,
+            ),
+            mock.patch.object(
+                response_module,
+                "_exact_dataclass_items",
+                return_value=(),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "unknown"):
+                response_module._authority_structural_digest(injected)
+            with self.assertRaisesRegex(
+                ValueError,
+                "text exceeds resource cap",
+            ):
+                response_module._authority_structural_digest(oversized)
+
 
 class ResponseRunSpecTests(unittest.TestCase):
     @classmethod
