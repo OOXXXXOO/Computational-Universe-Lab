@@ -1,6 +1,6 @@
 {
   "artifact_kind": "formal_nogo_intermediate_evidence",
-  "certificate_sha": "01fc27a26778058cb7567251d5fd2550408b11f30a119c7c08dfb9528f74962f",
+  "certificate_sha": "b073d046e9b69d957b7c35b8f870d8d953926b0b9e43d4897a45daeb4a3bfc3c",
   "claim_ceiling": "conditional_full_positive_observer_collapse",
   "environment": {
     "attribution_only": true,
@@ -847,7 +847,7 @@
     },
     "static_execution_closure": {
       "all_match": true,
-      "closure_sha256": "7b6848288a60bf0c00cc2f5e7c4a6034425cd5393cc5c3bcec3ddd993d8f0196",
+      "closure_sha256": "200ed57a4bbeca8c98b1f37497a11aec0000dfea10a0947e24ee03a78ff13a77",
       "discovery": "python_ast_conservative_local_import_closure_v2_with_literal_importlib_import_module",
       "file_count": 40,
       "files": {
@@ -1349,9 +1349,9 @@
           "module": "rulespace_v3.contracts"
         },
         "rulespace_v3/evidence.py": {
-          "actual_sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004",
+          "actual_sha256": "46e5ed660d67439eb1e2b696409e9e0cd8d114f20e4257111653491b10f47631",
           "authority": "v3m0_task7_signed_execution_closure_freeze",
-          "expected_sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004",
+          "expected_sha256": "46e5ed660d67439eb1e2b696409e9e0cd8d114f20e4257111653491b10f47631",
           "imports": [],
           "literal_dynamic_imports": [],
           "match": true,
@@ -1373,10 +1373,10 @@
     },
     "v3_source_files": {
       "experiments/v3m0_formal_nogo.py": {
-        "sha256": "86e81bdbe8d6f1bc90b2ebc89d138dbc1ee664345379897a4a666b1add2852e0"
+        "sha256": "97e50df6776c0551344e300ce1ebf80ba3f41c595b80ac22e5ed1875b0c5492c"
       },
       "rulespace_v3/evidence.py": {
-        "sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004"
+        "sha256": "46e5ed660d67439eb1e2b696409e9e0cd8d114f20e4257111653491b10f47631"
       },
       "rulespace_v3/exact.py": {
         "sha256": "19386eeb481393d48814fa35a0618ef1f6edf3f6df4a8abb0039878865eaa934"

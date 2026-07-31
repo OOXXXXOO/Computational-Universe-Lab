@@ -237,7 +237,7 @@ STATIC_CLOSURE_FREEZE = {
         "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
     "rulespace_v3/evidence.py": {
-        "sha256": "8b006b55ade0983dc590b2e284c0c13268b45a5b4c9498f966f181ab7ee67004",
+        "sha256": "46e5ed660d67439eb1e2b696409e9e0cd8d114f20e4257111653491b10f47631",
         "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
 }
