@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 import threading
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Callable, Literal, Optional
 
@@ -50,6 +51,10 @@ from .registry import (
     VerifiedControlRegistry,
     _reverify_verified_control_registry,
     closed_control_registry_payload,
+)
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
 )
 
 
@@ -814,7 +819,10 @@ def _authority_seal(
     )
 
 
-def _make_prestructure_authority() -> tuple[
+def _make_prestructure_authority(
+    cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
+    record_successful_replay: Callable[..., None] = _record_successful_replay,
+) -> tuple[
     Callable[..., VerifiedPrestructureAuthority],
     Callable[..., VerifiedPrestructureAuthority],
     Callable[
@@ -848,7 +856,7 @@ def _make_prestructure_authority() -> tuple[
     ) -> VerifiedPrestructureAuthority:
         seal = _authority_seal(authority, factory)
         record = _PrestructureAuthorityRecord(
-            authority=authority,
+            authority=deepcopy(authority),
             parent=parent,
             registry=registry,
             construction=construction,
@@ -1003,6 +1011,53 @@ def _make_prestructure_authority() -> tuple[
             raise ValueError(
                 "VerifiedPrestructureAuthority record is incomplete"
             ) from exc
+        namespace = "rulespace_v3.prestructure.VerifiedPrestructureAuthority"
+
+        def verified_view() -> _VerifiedPrestructureView:
+            return _VerifiedPrestructureView(
+                authority=record.authority,
+                parent=record.parent,
+                registry=record.registry,
+                construction=record.construction,
+                factory=record.factory,
+                control_id=record.control_id,
+                application_spec=record.application_spec,
+                application_scenario_spec=record.application_scenario_spec,
+                application_permit_sha=record.application_permit_sha,
+                scenario_construction_sha=record.scenario_construction_sha,
+                application_permit=record.application_permit,
+                application_construction=record.application_construction,
+            )
+
+        def cheap_validator() -> None:
+            try:
+                body_mismatch = raw != record.authority
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise ValueError(
+                    "VerifiedPrestructureAuthority exposed body is malformed"
+                ) from exc
+            if (
+                body_mismatch
+                or parent is not record.parent
+                or seal != record.seal
+            ):
+                raise ValueError(
+                    "VerifiedPrestructureAuthority cached immutable guard "
+                    "mismatch"
+                )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedPrestructureAuthority,
+            token=token,
+            exposed_bodies=(raw, parent),
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+            cheap_validator=cheap_validator,
+        ):
+            return verified_view()
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedPrestructureAuthority token mismatch")
         if record.authority.authority_kind == SYNTHETIC_AUTHORITY_KIND:
@@ -1073,20 +1128,17 @@ def _make_prestructure_authority() -> tuple[
             or seal != expected_seal
         ):
             raise ValueError("VerifiedPrestructureAuthority immutable seal mismatch")
-        return _VerifiedPrestructureView(
-            authority=record.authority,
-            parent=record.parent,
-            registry=record.registry,
-            construction=record.construction,
-            factory=record.factory,
-            control_id=record.control_id,
-            application_spec=record.application_spec,
-            application_scenario_spec=record.application_scenario_spec,
-            application_permit_sha=record.application_permit_sha,
-            scenario_construction_sha=record.scenario_construction_sha,
-            application_permit=record.application_permit,
-            application_construction=record.application_construction,
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedPrestructureAuthority,
+            token=token,
+            exposed_bodies=(raw, parent),
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
         )
+        return verified_view()
 
     return issue_registry, issue_application, reverify
 

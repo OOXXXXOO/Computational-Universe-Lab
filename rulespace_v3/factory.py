@@ -13,6 +13,7 @@ import re
 import struct
 import threading
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from functools import reduce
 from operator import mul
@@ -21,6 +22,10 @@ from typing import Callable, Literal, Optional, Sequence
 import numpy as np
 
 from .evidence import canonical_sha
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
+)
 from .trace import (
     ConstructionTrace,
     MechanismKind,
@@ -665,7 +670,10 @@ class _VerifiedFactoryView:
     role: Literal["actual", "matched_ablated"]
 
 
-def _make_verified_factory_authority_registry() -> tuple[
+def _make_verified_factory_authority_registry(
+    cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
+    record_successful_replay: Callable[..., None] = _record_successful_replay,
+) -> tuple[
     Callable[..., VerifiedFactory],
     Callable[[VerifiedFactory], _VerifiedFactoryView],
 ]:
@@ -758,11 +766,6 @@ def _make_verified_factory_authority_registry() -> tuple[
                     "registry"
                 )
             authority = current[1]
-            authority_factory = _snapshot_factory(authority.factory)
-            authority_trace = verify_construction_trace(
-                construction_trace_payload(authority.trace)
-            )
-            authority_target = _snapshot_target(authority.target)
         try:
             token = object.__getattribute__(
                 wrapper,
@@ -788,12 +791,56 @@ def _make_verified_factory_authority_registry() -> tuple[
             raise ValueError(
                 "VerifiedFactory authority record is incomplete"
             ) from exc
+        namespace = "rulespace_v3.factory.VerifiedFactory"
+
+        def cheap_validator() -> None:
+            try:
+                body_mismatch = (
+                    payload != authority.factory
+                    or trace != authority.trace
+                    or target != authority.target
+                )
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise ValueError(
+                    "VerifiedFactory exposed body is malformed"
+                ) from exc
+            if (
+                body_mismatch
+                or payload.factory_role != authority.role
+                or seal != authority.fingerprint
+            ):
+                raise ValueError(
+                    "VerifiedFactory cached immutable guard mismatch"
+                )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedFactory,
+            token=token,
+            exposed_bodies=(payload, trace, target),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.fingerprint,
+            cheap_validator=cheap_validator,
+        ):
+            return _VerifiedFactoryView(
+                factory=_snapshot_factory(authority.factory),
+                trace=deepcopy(authority.trace),
+                target=_snapshot_target(authority.target),
+                role=authority.role,
+            )
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedFactory authority token mismatch")
         if payload.factory_role != authority.role:
             raise ValueError(
                 "VerifiedFactory identity does not match its authority registry"
             )
+        authority_factory = _snapshot_factory(authority.factory)
+        authority_trace = verify_construction_trace(
+            construction_trace_payload(authority.trace)
+        )
+        authority_target = _snapshot_target(authority.target)
         _verify_factory_payload(
             authority_factory,
             authority_trace,
@@ -816,6 +863,16 @@ def _make_verified_factory_authority_registry() -> tuple[
             or seal != authority_fingerprint
         ):
             raise ValueError("VerifiedFactory immutable seal mismatch")
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedFactory,
+            token=token,
+            exposed_bodies=(payload, trace, target),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.fingerprint,
+        )
         return _VerifiedFactoryView(
             factory=authority_factory,
             trace=authority_trace,

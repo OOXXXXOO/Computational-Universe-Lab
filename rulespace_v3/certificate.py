@@ -17,6 +17,7 @@ import re
 import threading
 import types
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
 from typing import Callable, Optional
@@ -86,6 +87,11 @@ from .runtime import (
     RuntimeEvidenceManifest,
     runtime_evidence_manifest_payload,
     verify_runtime_evidence_manifest,
+)
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
+    _scoped_replay_context,
 )
 from .spectral import (
     NORMALIZED_METRIC_RESIDUAL_GATE,
@@ -1022,7 +1028,10 @@ def _validate_certificate(
         raise ValueError("power drift exceeds hard gate")
 
 
-def _make_certificate_authority() -> tuple[
+def _make_certificate_authority(
+    cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
+    record_successful_replay: Callable[..., None] = _record_successful_replay,
+) -> tuple[
     Callable[..., VerifiedDynamicsCertificate],
     Callable[
         [VerifiedDynamicsCertificate],
@@ -1048,7 +1057,7 @@ def _make_certificate_authority() -> tuple[
             raise TypeError("certificate issuance requires validation")
         seal = _certificate_seal(certificate)
         record = _VerifiedCertificateRecord(
-            certificate=certificate,
+            certificate=deepcopy(certificate),
             factory=factory,
             authority=authority,
             seal=seal,
@@ -1101,6 +1110,32 @@ def _make_certificate_authority() -> tuple[
             raise ValueError(
                 "VerifiedDynamicsCertificate record is incomplete"
             ) from exc
+        namespace = "rulespace_v3.certificate.VerifiedDynamicsCertificate"
+
+        def cheap_validator() -> None:
+            try:
+                body_mismatch = certificate != record.certificate
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise ValueError(
+                    "VerifiedDynamicsCertificate exposed body is malformed"
+                ) from exc
+            if body_mismatch or seal != record.seal:
+                raise ValueError(
+                    "VerifiedDynamicsCertificate cached immutable guard mismatch"
+                )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificate,
+            token=token,
+            exposed_bodies=(certificate,),
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+            cheap_validator=cheap_validator,
+        ):
+            return record
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedDynamicsCertificate token mismatch")
         _validate_certificate(
@@ -1115,6 +1150,16 @@ def _make_certificate_authority() -> tuple[
             or seal != expected_seal
         ):
             raise ValueError("VerifiedDynamicsCertificate immutable seal mismatch")
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificate,
+            token=token,
+            exposed_bodies=(certificate,),
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+        )
         return record
 
     return issue, reverify
@@ -1198,7 +1243,10 @@ def _outcome_seal(outcome: DynamicsCertificationOutcome) -> str:
     )
 
 
-def _make_outcome_authority() -> tuple[
+def _make_outcome_authority(
+    cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
+    record_successful_replay: Callable[..., None] = _record_successful_replay,
+) -> tuple[
     Callable[
         [
             DynamicsCertificationOutcome,
@@ -1250,7 +1298,7 @@ def _make_outcome_authority() -> tuple[
             )
         seal = _outcome_seal(outcome)
         record = _VerifiedOutcomeRecord(
-            outcome=outcome,
+            outcome=deepcopy(outcome),
             certificate=certificate,
             factory=factory,
             authority=authority,
@@ -1311,6 +1359,44 @@ def _make_outcome_authority() -> tuple[
             raise ValueError(
                 "VerifiedDynamicsCertificationOutcome record is incomplete"
             ) from exc
+        namespace = (
+            "rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"
+        )
+
+        def cheap_validator() -> None:
+            try:
+                body_mismatch = outcome != record.outcome
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise ValueError(
+                    "VerifiedDynamicsCertificationOutcome exposed body is malformed"
+                ) from exc
+            if (
+                body_mismatch
+                or certificate is not record.certificate
+                or seal != record.seal
+            ):
+                raise ValueError(
+                    "VerifiedDynamicsCertificationOutcome cached immutable "
+                    "guard mismatch"
+                )
+
+        exposed_bodies = (
+            (outcome,)
+            if certificate is None
+            else (outcome, certificate)
+        )
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificationOutcome,
+            token=token,
+            exposed_bodies=exposed_bodies,
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+            cheap_validator=cheap_validator,
+        ):
+            return record
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedDynamicsCertificationOutcome token mismatch")
         _validate_outcome_presence(outcome)
@@ -1339,6 +1425,16 @@ def _make_outcome_authority() -> tuple[
             raise ValueError(
                 "VerifiedDynamicsCertificationOutcome immutable seal mismatch"
             )
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedDynamicsCertificationOutcome,
+            token=token,
+            exposed_bodies=exposed_bodies,
+            seal=seal,
+            authority=record,
+            authority_digest=record.seal,
+        )
         return record
 
     return issue, reverify
@@ -2300,14 +2396,65 @@ _reverify_verified_dynamics_certificate_core = _reverify_verified_dynamics_certi
 _reverify_verified_dynamics_certification_outcome_core = (
     _reverify_verified_dynamics_certification_outcome
 )
+
+
+def _certify_transition_dynamics_in_replay_scope(
+    factory: VerifiedFactory,
+    transition: VerifiedTransition,
+    prestructure_authority: VerifiedPrestructureAuthority,
+    structure_manifest: StructureManifest,
+    stability_metric: StabilityMetricWitness,
+    full_state_bridge_spec: FullStateBridgeSpec,
+    dynamics_grid: DynamicsKGridManifest,
+    runtime_manifest: RuntimeEvidenceManifest,
+) -> VerifiedDynamicsCertificationOutcome:
+    with _scoped_replay_context():
+        return _certify_transition_dynamics_core(
+            factory,
+            transition,
+            prestructure_authority,
+            structure_manifest,
+            stability_metric,
+            full_state_bridge_spec,
+            dynamics_grid,
+            runtime_manifest,
+        )
+
+
+def _verify_dynamics_certificate_in_replay_scope(
+    certificate: DynamicsCertificate,
+    factory: VerifiedFactory,
+    prestructure_authority: VerifiedPrestructureAuthority,
+) -> VerifiedDynamicsCertificate:
+    with _scoped_replay_context():
+        return _verify_dynamics_certificate_core(
+            certificate,
+            factory,
+            prestructure_authority,
+        )
+
+
+def _verify_dynamics_certification_outcome_in_replay_scope(
+    outcome: DynamicsCertificationOutcome,
+    factory: VerifiedFactory,
+    prestructure_authority: VerifiedPrestructureAuthority,
+) -> VerifiedDynamicsCertificationOutcome:
+    with _scoped_replay_context():
+        return _verify_dynamics_certification_outcome_core(
+            outcome,
+            factory,
+            prestructure_authority,
+        )
+
+
 certify_transition_dynamics = _freeze_certificate_call_graph(
-    _certify_transition_dynamics_core
+    _certify_transition_dynamics_in_replay_scope
 )
 verify_dynamics_certificate = _freeze_certificate_call_graph(
-    _verify_dynamics_certificate_core
+    _verify_dynamics_certificate_in_replay_scope
 )
 verify_dynamics_certification_outcome = _freeze_certificate_call_graph(
-    _verify_dynamics_certification_outcome_core
+    _verify_dynamics_certification_outcome_in_replay_scope
 )
 _reverify_verified_dynamics_certificate = _freeze_certificate_call_graph(
     _reverify_verified_dynamics_certificate_core

@@ -12,6 +12,7 @@ import math
 import re
 import threading
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Callable, Literal
 
@@ -31,6 +32,10 @@ from .factory import (
 from .prestructure import (
     VerifiedPrestructureAuthority,
     _reverify_verified_prestructure_authority,
+)
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
 )
 
 
@@ -413,7 +418,10 @@ def _transition_seal(transition: MeasuredTransition) -> str:
     )
 
 
-def _make_transition_authority() -> tuple[
+def _make_transition_authority(
+    cached_replay_is_valid: Callable[..., bool] = _cached_replay_is_valid,
+    record_successful_replay: Callable[..., None] = _record_successful_replay,
+) -> tuple[
     Callable[..., VerifiedTransition],
     Callable[..., VerifiedTransition],
     Callable[[VerifiedTransition], _TransitionAuthority],
@@ -434,7 +442,7 @@ def _make_transition_authority() -> tuple[
     ) -> VerifiedTransition:
         seal = _transition_seal(transition)
         authority = _TransitionAuthority(
-            transition=transition,
+            transition=deepcopy(transition),
             factory=factory,
             prestructure=prestructure,
             seal=seal,
@@ -495,6 +503,32 @@ def _make_transition_authority() -> tuple[
             raise ValueError(
                 "VerifiedTransition authority record is incomplete"
             ) from exc
+        namespace = "rulespace_v3.dynamics.VerifiedTransition"
+
+        def cheap_validator() -> None:
+            try:
+                body_mismatch = transition != authority.transition
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise ValueError(
+                    "VerifiedTransition exposed body is malformed"
+                ) from exc
+            if body_mismatch or seal != authority.seal:
+                raise ValueError(
+                    "VerifiedTransition cached immutable guard mismatch"
+                )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedTransition,
+            token=token,
+            exposed_bodies=(transition,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.seal,
+            cheap_validator=cheap_validator,
+        ):
+            return authority
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedTransition token mismatch")
         expected = _remeasure_transition(
@@ -509,6 +543,16 @@ def _make_transition_authority() -> tuple[
             or seal != expected_seal
         ):
             raise ValueError("VerifiedTransition immutable seal mismatch")
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=VerifiedTransition,
+            token=token,
+            exposed_bodies=(transition,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.seal,
+        )
         return authority
 
     return issue, register_measured, reverify
