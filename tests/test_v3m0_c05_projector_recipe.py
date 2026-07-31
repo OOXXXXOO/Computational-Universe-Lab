@@ -154,6 +154,25 @@ class C05ProjectorOrientationRecipeTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "SHA"):
                     verify_c05_projector_orientation_recipe(hostile)
 
+    def test_verifier_rejects_unknown_fields_at_every_record_layer(self) -> None:
+        attacks = (
+            lambda recipe: recipe,
+            lambda recipe: recipe.actual_steps[0],
+            lambda recipe: recipe.source_injection,
+            lambda recipe: recipe.readout,
+            lambda recipe: recipe.canonical_structure,
+        )
+        for index, select_target in enumerate(attacks):
+            recipe = build_c05_projector_orientation_recipe("gain")
+            object.__setattr__(
+                select_target(recipe),
+                "caller_unknown",
+                "forged",
+            )
+            with self.subTest(attack=index):
+                with self.assertRaisesRegex(ValueError, "unknown fields"):
+                    verify_c05_projector_orientation_recipe(recipe)
+
     def test_ablation_deletes_only_six_conditioned_local_slots(self) -> None:
         for kind, recipe in self.recipes.items():
             trace, pair = _build_factory_pair(recipe, self.target, length=8)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields as dataclass_fields, replace
 from typing import Literal
 
 import numpy as np
@@ -28,6 +28,7 @@ from .factory import (
     PrimitiveOperatorWire,
     freeze_complex_tensor,
     frozen_tensor_array,
+    verify_frozen_tensor,
 )
 from .trace import (
     ConstructionTrace,
@@ -62,6 +63,23 @@ def _sha(value: object, field: str) -> str:
     if _LOWER_SHA.fullmatch(result) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256")
     return result
+
+
+def _require_exact_record_fields(
+    value: object,
+    record_type: type,
+    field: str,
+) -> None:
+    if type(value) is not record_type:
+        raise TypeError(f"{field} must be an exact {record_type.__name__}")
+    expected = {item.name for item in dataclass_fields(record_type)}
+    observed = set(vars(value))
+    unknown = observed - expected
+    missing = expected - observed
+    if unknown:
+        raise ValueError(f"{field} has unknown fields: {sorted(unknown)!r}")
+    if missing:
+        raise ValueError(f"{field} is missing fields: {sorted(missing)!r}")
 
 
 def _step(
@@ -393,8 +411,29 @@ def _compile_recipe(
 
 
 def _validate_recipe(recipe: C05ProjectorOrientationRecipe) -> None:
-    if type(recipe) is not C05ProjectorOrientationRecipe:
-        raise TypeError("recipe must be an exact C05ProjectorOrientationRecipe")
+    _require_exact_record_fields(
+        recipe,
+        C05ProjectorOrientationRecipe,
+        "recipe",
+    )
+    for field in ("actual_steps", "matched_ablated_steps"):
+        steps = getattr(recipe, field)
+        if type(steps) is not tuple:
+            raise TypeError(f"{field} must be an exact tuple")
+        for index, step in enumerate(steps):
+            _require_exact_record_fields(
+                step,
+                ApplicationLocalShearStep,
+                f"{field}[{index}]",
+            )
+    for field in ("source_injection", "readout", "canonical_structure"):
+        tensor = getattr(recipe, field)
+        _require_exact_record_fields(
+            tensor,
+            FrozenComplexTensor,
+            field,
+        )
+        verify_frozen_tensor(tensor)
     if recipe.recipe_sha != canonical_sha(
         c05_projector_orientation_recipe_payload(recipe)
     ):
