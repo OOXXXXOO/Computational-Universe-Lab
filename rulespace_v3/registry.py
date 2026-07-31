@@ -11,7 +11,9 @@ from __future__ import annotations
 import re
 import threading
 import weakref
+from copy import deepcopy
 from dataclasses import dataclass, replace
+from types import FunctionType
 from typing import Callable, Literal
 
 import numpy as np
@@ -177,6 +179,73 @@ class ClosedControlRegistry:
             raise ValueError("entries are not in the unique closed order")
         _sha(self.parent_freeze_sha, "parent_freeze_sha")
         _sha(self.registry_sha, "registry_sha")
+
+
+_REGISTRY_WIRE_TYPES = (
+    ClosedControlRegistry,
+    ControlRegistryEntry,
+    ControlReadoutCalibrationSpec,
+    BasisManifest,
+    FrozenComplexTensor,
+)
+
+
+def _require_exact_registry_schema(
+    registry: object,
+    *,
+    _allowed_types: tuple[type[object], ...] = _REGISTRY_WIRE_TYPES,
+    _type=type,
+    _tuple_type=tuple,
+    _list_type=list,
+    _dict_type=dict,
+    _vars=vars,
+    _getattr=getattr,
+    _frozenset=frozenset,
+    _sorted=sorted,
+    _type_error=TypeError,
+    _value_error=ValueError,
+) -> ClosedControlRegistry:
+    """Reject subclasses and unknown fields throughout the raw registry."""
+
+    if _type(registry) is not ClosedControlRegistry:
+        raise _type_error(
+            "registry must be an exact ClosedControlRegistry record"
+        )
+    pending: list[tuple[object, str]] = _list_type(
+        ((registry, "registry"),)
+    )
+    while pending:
+        value, field = pending.pop()
+        value_type = _type(value)
+        if value_type in _allowed_types:
+            expected = _frozenset(value_type.__dataclass_fields__)
+            try:
+                observed = _frozenset(_vars(value))
+            except _type_error as exc:
+                raise _type_error(
+                    f"{field} has no exact record body"
+                ) from exc
+            if observed != expected:
+                raise _value_error(
+                    f"{field} fields are not exact: "
+                    f"missing={_sorted(expected - observed)!r}, "
+                    f"unknown={_sorted(observed - expected)!r}"
+                )
+            for name in value_type.__dataclass_fields__:
+                pending.append(
+                    (_getattr(value, name), f"{field}.{name}")
+                )
+        elif hasattr(value_type, "__dataclass_fields__"):
+            raise _type_error(
+                f"{field} has a non-exact registry record type"
+            )
+        elif value_type is _tuple_type or value_type is _list_type:
+            for index, item in enumerate(value):
+                pending.append((item, f"{field}[{index}]"))
+        elif value_type is _dict_type:
+            for key, item in value.items():
+                pending.append((item, f"{field}[{key!r}]"))
+    return registry
 
 
 def readout_calibration_spec_payload(
@@ -463,12 +532,83 @@ def _expected_registry(
         parent_freeze_sha=parent_manifest.parent_freeze_sha,
         registry_sha="0" * 64,
     )
-    return replace(
+    expected = replace(
         provisional_registry,
         registry_sha=canonical_sha(
             closed_control_registry_payload(provisional_registry)
         ),
     )
+    _require_exact_registry_schema(expected)
+    return expected
+
+
+def _freeze_registry_authority_functions(
+    *roots: FunctionType,
+) -> tuple[FunctionType, ...]:
+    """Detach registry reconstruction from mutable module bindings."""
+
+    cache: dict[int, FunctionType] = {}
+    module_name = __name__
+
+    def freeze_value(value):
+        if (
+            type(value) is FunctionType
+            and value.__module__ == module_name
+        ):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        if type(value) is dict:
+            return {
+                key: freeze_value(item)
+                for key, item in value.items()
+            }
+        return value
+
+    def freeze_function(function):
+        cached = cache.get(id(function))
+        if cached is not None:
+            return cached
+        frozen_globals = dict(function.__globals__)
+        frozen = FunctionType(
+            function.__code__,
+            frozen_globals,
+            function.__name__,
+            None,
+            function.__closure__,
+        )
+        cache[id(function)] = frozen
+        for name, value in tuple(frozen_globals.items()):
+            if (
+                type(value) is FunctionType
+                and value.__module__ == module_name
+            ):
+                frozen_globals[name] = freeze_function(value)
+        frozen.__defaults__ = freeze_value(function.__defaults__)
+        frozen.__kwdefaults__ = freeze_value(function.__kwdefaults__)
+        frozen.__annotations__ = dict(function.__annotations__)
+        frozen.__dict__.update(function.__dict__)
+        frozen.__doc__ = function.__doc__
+        frozen.__module__ = function.__module__
+        frozen.__qualname__ = function.__qualname__
+        return frozen
+
+    return tuple(freeze_function(root) for root in roots)
+
+
+(
+    _require_exact_registry_schema,
+    readout_calibration_spec_payload,
+    control_registry_entry_payload,
+    closed_control_registry_payload,
+    _expected_registry,
+) = _freeze_registry_authority_functions(
+    _require_exact_registry_schema,
+    readout_calibration_spec_payload,
+    control_registry_entry_payload,
+    closed_control_registry_payload,
+    _expected_registry,
+)
 
 
 class VerifiedControlRegistry:
@@ -521,6 +661,7 @@ class _VerifiedRegistryView:
 @dataclass(frozen=True)
 class _RegistryAuthority:
     registry: ClosedControlRegistry
+    registry_snapshot: ClosedControlRegistry
     controls: tuple[SyntheticControlBundle, ...]
     parent: VerifiedParentFreeze
     seal: str
@@ -530,29 +671,55 @@ def _registry_seal(
     registry: ClosedControlRegistry,
     controls: tuple[SyntheticControlBundle, ...],
     parent: VerifiedParentFreeze,
+    *,
+    expected_registry_builder=_expected_registry,
+    canonical_hash=canonical_sha,
+    registry_payload=closed_control_registry_payload,
+    factory_reverifier=_reverify_verified_factory,
+    parent_reverifier=_reverify_verified_parent_freeze,
+    exact_schema=_require_exact_registry_schema,
+    value_error=ValueError,
 ) -> str:
-    expected = _expected_registry(controls, parent)
+    exact_schema(registry)
+    expected = expected_registry_builder(controls, parent)
     if registry.registry_sha != expected.registry_sha:
-        raise ValueError("registry does not match closed reconstruction")
-    return canonical_sha(
+        raise value_error("registry does not match closed reconstruction")
+    return canonical_hash(
         {
             "authority_schema_version": "v3m0.verified-control-registry.v1",
             "registry": {
-                **closed_control_registry_payload(registry),
+                **registry_payload(registry),
                 "registry_sha": registry.registry_sha,
             },
             "factory_shas": [
-                _reverify_verified_factory(item.factory).factory.factory_sha
+                factory_reverifier(item.factory).factory.factory_sha
                 for item in controls
             ],
-            "parent_freeze_sha": _reverify_verified_parent_freeze(
+            "parent_freeze_sha": parent_reverifier(
                 parent
             ).parent_freeze_sha,
         }
     )
 
 
-def _make_registry_authority() -> tuple[
+def _make_registry_authority(
+    *,
+    seal_builder=_registry_seal,
+    authority_type=_RegistryAuthority,
+    wrapper_type=VerifiedControlRegistry,
+    view_type=_VerifiedRegistryView,
+    issuance_token=_ISSUANCE_TOKEN,
+    weak_reference=weakref.ref,
+    lock_builder=threading.RLock,
+    exact_schema=_require_exact_registry_schema,
+    clone=deepcopy,
+    type_fn=type,
+    id_fn=id,
+    object_type=object,
+    type_error=TypeError,
+    value_error=ValueError,
+    attribute_error=AttributeError,
+) -> tuple[
     Callable[..., VerifiedControlRegistry],
     Callable[[VerifiedControlRegistry], _VerifiedRegistryView],
 ]:
@@ -563,22 +730,28 @@ def _make_registry_authority() -> tuple[
             _RegistryAuthority,
         ],
     ] = {}
-    lock = threading.RLock()
+    lock = lock_builder()
 
     def issue(
         registry: ClosedControlRegistry,
         controls: tuple[SyntheticControlBundle, ...],
         parent: VerifiedParentFreeze,
     ) -> VerifiedControlRegistry:
-        seal = _registry_seal(registry, controls, parent)
-        authority = _RegistryAuthority(
-            registry=registry,
+        exact_schema(registry)
+        exposed = clone(registry)
+        snapshot = clone(registry)
+        exact_schema(exposed)
+        exact_schema(snapshot)
+        seal = seal_builder(snapshot, controls, parent)
+        authority = authority_type(
+            registry=exposed,
+            registry_snapshot=snapshot,
             controls=controls,
             parent=parent,
             seal=seal,
         )
-        wrapper = VerifiedControlRegistry(_ISSUANCE_TOKEN, registry, seal)
-        identity = id(wrapper)
+        wrapper = wrapper_type(issuance_token, exposed, seal)
+        identity = id_fn(wrapper)
 
         def remove(
             reference: weakref.ReferenceType[VerifiedControlRegistry],
@@ -589,7 +762,7 @@ def _make_registry_authority() -> tuple[
                 if current is not None and current[0] is reference:
                     del live[wrapper_id]
 
-        reference = weakref.ref(wrapper, remove)
+        reference = weak_reference(wrapper, remove)
         with lock:
             live[identity] = (reference, authority)
         return wrapper
@@ -597,48 +770,54 @@ def _make_registry_authority() -> tuple[
     def reverify(
         wrapper: VerifiedControlRegistry,
     ) -> _VerifiedRegistryView:
-        if type(wrapper) is not VerifiedControlRegistry:
-            raise TypeError(
+        if type_fn(wrapper) is not wrapper_type:
+            raise type_error(
                 "runtime requires a module-issued VerifiedControlRegistry"
             )
         with lock:
-            current = live.get(id(wrapper))
+            current = live.get(id_fn(wrapper))
             if current is None or current[0]() is not wrapper:
-                raise ValueError(
+                raise value_error(
                     "VerifiedControlRegistry identity is not live"
                 )
             authority = current[1]
         try:
-            token = object.__getattribute__(
+            token = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedControlRegistry__token",
             )
-            raw = object.__getattribute__(
+            raw = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedControlRegistry__registry",
             )
-            seal = object.__getattribute__(
+            seal = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedControlRegistry__seal",
             )
-        except AttributeError as exc:
-            raise ValueError(
+        except attribute_error as exc:
+            raise value_error(
                 "VerifiedControlRegistry authority record is incomplete"
             ) from exc
-        if token is not _ISSUANCE_TOKEN:
-            raise ValueError("VerifiedControlRegistry token mismatch")
-        expected_seal = _registry_seal(
-            authority.registry,
+        if token is not issuance_token:
+            raise value_error("VerifiedControlRegistry token mismatch")
+        exact_schema(raw)
+        exact_schema(authority.registry)
+        exact_schema(authority.registry_snapshot)
+        expected_seal = seal_builder(
+            authority.registry_snapshot,
             authority.controls,
             authority.parent,
         )
         if (
-            raw != authority.registry
+            raw is not authority.registry
+            or raw != authority.registry_snapshot
             or seal != authority.seal
             or seal != expected_seal
         ):
-            raise ValueError("VerifiedControlRegistry immutable seal mismatch")
-        return _VerifiedRegistryView(
+            raise value_error(
+                "VerifiedControlRegistry immutable seal mismatch"
+            )
+        return view_type(
             registry=authority.registry,
             controls=authority.controls,
             parent=authority.parent,
@@ -656,30 +835,68 @@ def _make_registry_authority() -> tuple[
 def build_closed_control_registry(
     controls: tuple[SyntheticControlBundle, ...],
     parent: VerifiedParentFreeze,
+    *,
+    _expected_builder=_expected_registry,
+    _issuer=_issue_verified_control_registry,
 ) -> VerifiedControlRegistry:
     """Build the unique ordered registry; there is no append API."""
 
-    expected = _expected_registry(controls, parent)
-    return _issue_verified_control_registry(expected, controls, parent)
+    expected = _expected_builder(controls, parent)
+    return _issuer(expected, controls, parent)
 
 
 def verify_closed_control_registry(
     registry: ClosedControlRegistry,
     controls: tuple[SyntheticControlBundle, ...],
     parent: VerifiedParentFreeze,
+    *,
+    _registry_type=ClosedControlRegistry,
+    _exact_schema=_require_exact_registry_schema,
+    _expected_builder=_expected_registry,
+    _canonical_hash=canonical_sha,
+    _registry_payload=closed_control_registry_payload,
+    _issuer=_issue_verified_control_registry,
+    _type=type,
+    _type_error=TypeError,
+    _value_error=ValueError,
 ) -> VerifiedControlRegistry:
     """Hydrate a raw registry only by replaying all three live controls."""
 
-    if not isinstance(registry, ClosedControlRegistry):
-        raise TypeError("registry must be a ClosedControlRegistry")
-    expected = _expected_registry(controls, parent)
+    if _type(registry) is not _registry_type:
+        raise _type_error(
+            "registry must be an exact ClosedControlRegistry record"
+        )
+    _exact_schema(registry)
+    expected = _expected_builder(controls, parent)
     if registry.registry_sha != expected.registry_sha:
-        raise ValueError("registry does not match closed reconstruction")
-    if registry.registry_sha != canonical_sha(
-        closed_control_registry_payload(registry)
+        raise _value_error(
+            "registry does not match closed reconstruction"
+        )
+    if registry.registry_sha != _canonical_hash(
+        _registry_payload(registry)
     ):
-        raise ValueError("registry_sha does not match complete body")
-    return _issue_verified_control_registry(registry, controls, parent)
+        raise _value_error(
+            "registry_sha does not match complete body"
+        )
+    return _issuer(registry, controls, parent)
+
+
+def _make_registry_property(
+    reverify=_reverify_verified_control_registry,
+):
+    def registry_property(
+        wrapper: VerifiedControlRegistry,
+    ) -> ClosedControlRegistry:
+        return reverify(wrapper).registry
+
+    return registry_property
+
+
+setattr(
+    VerifiedControlRegistry,
+    "registry",
+    property(_make_registry_property()),
+)
 
 
 __all__ = [

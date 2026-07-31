@@ -155,6 +155,10 @@ class UndefinedReasonTests(unittest.TestCase):
                 "STRUCTURE_UNRESOLVED": "structure_unresolved",
                 "DYNAMICS_BRIDGE_FAILED": "dynamics_bridge_failed",
                 "STABILITY_UNRESOLVED": "stability_unresolved",
+                "WINDOW_UNRESOLVED": "window_unresolved",
+                "ENDPOINT_SHELL_AMBIGUOUS": "endpoint_shell_ambiguous",
+                "PAIRED_RESPONSE_FAILED": "paired_response_failed",
+                "RESPONSE_BRIDGE_FAILED": "response_bridge_failed",
             },
         )
 

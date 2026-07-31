@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import copy
 import dataclasses
+import dis
 import gc
 import hashlib
 import inspect
+import math
 import struct
 import unittest
 import weakref
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 
 from rulespace_v3.evidence import canonical_sha
-from rulespace_v3.factory import build_basis_manifest
+from rulespace_v3.factory import (
+    basis_manifest_array,
+    build_basis_manifest,
+    frozen_tensor_array,
+)
 from rulespace_v3.parent_freeze import (
     APPLICATION_CONTROL_CASE_IDS,
     IMPLEMENTATION_PLAN_SOURCE_PATH,
@@ -53,9 +61,7 @@ def _resign_operation(
 ) -> SyntheticApplicationOperation:
     return dataclasses.replace(
         operation,
-        operation_sha=canonical_sha(
-            synthetic_application_operation_payload(operation)
-        ),
+        operation_sha=canonical_sha(synthetic_application_operation_payload(operation)),
     )
 
 
@@ -275,6 +281,216 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         )
         self.assertEqual(len(operation_ids), len(set(operation_ids)))
 
+    def test_c01_c03_mechanically_match_the_task8_quarter_turn_controls(
+        self,
+    ) -> None:
+        specs = {
+            spec.control_case_id: spec
+            for spec in self.manifest.synthetic_control_application_specs[:3]
+        }
+        expected = {
+            "C01_BLIND_HOLDOUT_FULL": (
+                ("x.000", "y.000"),
+                np.asarray(((1.0, 0.0),), dtype=np.complex128),
+                np.asarray(((0.0, 1.0),), dtype=np.complex128),
+                1,
+            ),
+            "C02_CONDITIONED_ZERO": (
+                ("x.000", "y.000"),
+                np.asarray(((1.0, 0.0),), dtype=np.complex128),
+                np.asarray(((0.0, 1.0),), dtype=np.complex128),
+                1,
+            ),
+            "C03_EQUAL_RANK_DIRECT_SUM": (
+                ("x.b.000", "y.b.000", "x.c.001", "y.c.001"),
+                np.asarray(
+                    (
+                        (1.0, 0.0, 0.0, 0.0),
+                        (0.0, 0.0, 1.0, 0.0),
+                    ),
+                    dtype=np.complex128,
+                ),
+                np.asarray(
+                    (
+                        (0.0, 1.0, 0.0, 0.0),
+                        (0.0, 0.0, 0.0, 1.0),
+                    ),
+                    dtype=np.complex128,
+                ),
+                2,
+            ),
+        }
+        positive_quarter_turn_band = (
+            math.pi / 2.0 - 0.25,
+            math.pi / 2.0 + 0.25,
+        )
+
+        for control_case_id, (
+            channels,
+            source_vectors,
+            readout_vectors,
+            actual_rank,
+        ) in expected.items():
+            with self.subTest(control_case_id=control_case_id):
+                spec = specs[control_case_id]
+                basis = spec.basis_protocol
+                self.assertEqual(
+                    basis.source_basis.state_schema_id,
+                    "state.synthetic.local-linear.v1",
+                )
+                self.assertEqual(
+                    basis.readout_basis.state_schema_id,
+                    "state.synthetic.local-linear.v1",
+                )
+                self.assertEqual(basis.source_basis.channel_order, channels)
+                self.assertEqual(basis.readout_basis.channel_order, channels)
+                np.testing.assert_array_equal(
+                    basis_manifest_array(basis.source_basis),
+                    source_vectors,
+                )
+                np.testing.assert_array_equal(
+                    basis_manifest_array(basis.readout_basis),
+                    readout_vectors,
+                )
+                self.assertEqual(
+                    spec.grid_protocol.preregistered_phase_bands,
+                    (positive_quarter_turn_band,),
+                )
+                self.assertEqual(
+                    spec.grid_protocol.expected_shell_rank,
+                    actual_rank,
+                )
+
+                dimension = source_vectors.shape[0]
+                identity = np.eye(dimension, dtype=np.complex128)
+                readout = spec.readout_protocol
+                for tensor in (
+                    readout.source_metric_whitener,
+                    readout.h_metric_whitener,
+                    readout.curvature_incidence_operator,
+                    readout.curvature_metric_whitener,
+                ):
+                    np.testing.assert_array_equal(
+                        frozen_tensor_array(tensor),
+                        identity,
+                    )
+
+        self.assertEqual(
+            tuple(
+                len(
+                    _exact_values(
+                        specs[control_case_id].expected_prediction_profile
+                    )["survival-spectrum"]
+                )
+                for control_case_id in (
+                    "C01_BLIND_HOLDOUT_FULL",
+                    "C02_CONDITIONED_ZERO",
+                    "C03_EQUAL_RANK_DIRECT_SUM",
+                )
+            ),
+            (1, 1, 2),
+        )
+        integer_parameters = {
+            control_case_id: {
+                name: wire.integer_value
+                for operation in spec.operations
+                for name, wire in operation.parameters
+                if wire.value_kind == "integer"
+            }
+            for control_case_id, spec in specs.items()
+        }
+        self.assertEqual(
+            integer_parameters["C01_BLIND_HOLDOUT_FULL"]["response-rank"],
+            1,
+        )
+        self.assertEqual(
+            integer_parameters["C01_BLIND_HOLDOUT_FULL"]["target-rank"],
+            1,
+        )
+        self.assertEqual(
+            integer_parameters["C02_CONDITIONED_ZERO"]["response-rank"],
+            1,
+        )
+        self.assertEqual(
+            integer_parameters["C03_EQUAL_RANK_DIRECT_SUM"]["response-rank"],
+            2,
+        )
+        self.assertEqual(
+            (
+                integer_parameters["C03_EQUAL_RANK_DIRECT_SUM"]["left-rank"],
+                integer_parameters["C03_EQUAL_RANK_DIRECT_SUM"]["right-rank"],
+            ),
+            (1, 1),
+        )
+
+    def test_c04_c20_application_contract_hashes_remain_unchanged(self) -> None:
+        expected_application_shas = (
+            "5ded5e86d7111d8341acfff1c7efc1de5113a466ab40dc2f8176f7ac049fa43b",
+            "99a23718bdfe401c2e202a5fe270092b315c765390e06371872635811c02b530",
+            "ce62fe83dd692594d7c90e1f136ad9d57844d553b6f0c123237da001802ba94c",
+            "52f45380222bcaba4a3b6b727fa48234bcdb985258511bda4ec96c6db6d6a4bc",
+            "9e64f4cdce70efa204307a02ef2d1e3ae888a78ff21fa5cf226abd9f3aefdbf8",
+            "7249cebef57a87fd2683349dfef8564546fa6a605b41cd930052f2295c654e9c",
+            "6bbd1a319a8f7c7c6faae86e5ea8d133bb9d01048fe240e8181ceb1ba0e3081c",
+            "afbeb4574047d87e782d1e16df401ec6756c743f7ad63261f553c1c04c75415a",
+            "0e26db92cc91e6f26f4b866935cdc7125776ad262d0a641ef92a2d76ad0adf02",
+            "cfed9e8435c82f7ede2de9468f8914299fa3b3814d0010005cf1fabf11c89d49",
+            "6b3b4dbbef5ff53def47b3e57310b956de5ce94d78d5f600b2fdcf866fb05b33",
+            "556b7483b2f9c1dd5acdcdfa907430d4a252687326500a53d83573bc12c11d13",
+            "6f13006080dc9e0508431c031c866bb3b4a61d6e51f3766881ba974435e1b6e3",
+            "e0c5a3cbdf68313824dbffd24f5f53e1e66c90e8d0eb832632c1e9c131e2eac6",
+            "0800fe5100405063a4668ba2a684e2d5a676b518ce3d1889fa88d406a860a646",
+            "094db4d13d66782859002c84bd6aef1789e0a2a5f91a04b4d2d5ae1939d68cda",
+            "865cd29861af476b84e9c5f4a19b8eb87d9b89ec129ab2e50cc59f77b098afe8",
+        )
+        untouched = self.manifest.synthetic_control_application_specs[3:]
+        self.assertEqual(
+            tuple(spec.application_spec_sha for spec in untouched),
+            expected_application_shas,
+        )
+        self.assertEqual(
+            {
+                (
+                    spec.basis_protocol.protocol_sha,
+                    spec.grid_protocol.protocol_sha,
+                    spec.readout_protocol.protocol_sha,
+                )
+                for spec in untouched
+            },
+            {
+                (
+                    "ec3d0d0e641646f5200527c26616482b61ba97501e99dbff7421a956c1e5df74",
+                    "88d9a871e0b043e925ab71fb0982566d74f7a5043f0a149a102129759f279a00",
+                    "4c93f9ff88e652a01f140e52be0b2a19cd4c5587efbe4b3d8a6cabe1e297ac05",
+                )
+            },
+        )
+
+    def test_c20_freezes_four_point_full_window_before_h3_deletion(self) -> None:
+        spec = next(
+            item
+            for item in self.manifest.synthetic_control_application_specs
+            if item.control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR"
+        )
+        series_operations = tuple(
+            operation
+            for operation in spec.operations
+            if operation.operation_kind == "deterministic-series-v1"
+        )
+        self.assertEqual(len(series_operations), 2)
+        for operation in series_operations:
+            self.assertEqual(
+                tuple(
+                    name
+                    for name, _ in operation.parameters
+                    if name.startswith("sample-")
+                ),
+                ("sample-0", "sample-1", "sample-2", "sample-3"),
+            )
+        exact = dict(spec.expected_prediction_profile.expected_exact_values)
+        self.assertEqual(len(exact["clean-zero-series"]), 4)
+        self.assertEqual(len(exact["true-floor-series"]), 4)
+
     def test_full_protocol_bodies_constants_and_document_hashes_are_frozen(
         self,
     ) -> None:
@@ -300,7 +516,9 @@ class ClosedApplicationManifestTests(unittest.TestCase):
             self.assertGreater(len(spec.basis_protocol.readout_basis.vectors_wire), 0)
             self.assertGreater(len(spec.grid_protocol.response_reciprocal_indices), 0)
             self.assertGreater(len(spec.grid_protocol.bridge_reciprocal_indices), 0)
-            self.assertGreater(len(spec.readout_protocol.source_metric_whitener.values_wire), 0)
+            self.assertGreater(
+                len(spec.readout_protocol.source_metric_whitener.values_wire), 0
+            )
             self.assertGreater(len(spec.operations), 0)
             self.assertGreater(len(spec.output_operation_instance_ids), 0)
             self.assertEqual(spec.protocol_constant_payload, self.constants)
@@ -322,9 +540,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         constants = self.constants
         self.assertEqual(
             constants.constants_sha,
-            canonical_sha(
-                synthetic_application_protocol_constants_payload(constants)
-            ),
+            canonical_sha(synthetic_application_protocol_constants_payload(constants)),
         )
         for spec in self.manifest.synthetic_control_application_specs:
             self.assertEqual(
@@ -346,17 +562,13 @@ class ClosedApplicationManifestTests(unittest.TestCase):
             self.assertEqual(
                 spec.basis_protocol.protocol_sha,
                 canonical_sha(
-                    synthetic_application_basis_protocol_payload(
-                        spec.basis_protocol
-                    )
+                    synthetic_application_basis_protocol_payload(spec.basis_protocol)
                 ),
             )
             self.assertEqual(
                 spec.grid_protocol.protocol_sha,
                 canonical_sha(
-                    synthetic_application_grid_protocol_payload(
-                        spec.grid_protocol
-                    )
+                    synthetic_application_grid_protocol_payload(spec.grid_protocol)
                 ),
             )
             self.assertEqual(
@@ -370,9 +582,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
             for operation in spec.operations:
                 self.assertEqual(
                     operation.operation_sha,
-                    canonical_sha(
-                        synthetic_application_operation_payload(operation)
-                    ),
+                    canonical_sha(synthetic_application_operation_payload(operation)),
                 )
             self.assertEqual(
                 spec.application_spec_sha,
@@ -386,9 +596,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
     def test_closed_specs_verify_and_raw_manifest_hydrates(self) -> None:
         self.assertEqual(
             tuple(
-                inspect.signature(
-                    verify_synthetic_control_application_spec
-                ).parameters
+                inspect.signature(verify_synthetic_control_application_spec).parameters
             ),
             ("spec",),
         )
@@ -498,10 +706,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
                 )
                 self.assertGreater(
                     len(spec.expected_prediction_profile.expected_exact_values)
-                    + len(
-                        spec.expected_prediction_profile
-                        .expected_qualitative_labels
-                    ),
+                    + len(spec.expected_prediction_profile.expected_qualitative_labels),
                     0,
                 )
 
@@ -632,9 +837,9 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         self.assertEqual(
             tuple(
                 wire.fp64_bits_value
-                for wire in _exact_values(
-                    c04.expected_prediction_profile
-                )["survival-spectrum"]
+                for wire in _exact_values(c04.expected_prediction_profile)[
+                    "survival-spectrum"
+                ]
             ),
             (_float_bits(0.25), _float_bits(0.75)),
         )
@@ -660,15 +865,13 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         self.assertEqual(
             tuple(
                 wire.fp64_bits_value
-                for wire in _exact_values(
-                    c11.expected_prediction_profile
-                )["input-amplitude"]
+                for wire in _exact_values(c11.expected_prediction_profile)[
+                    "input-amplitude"
+                ]
             ),
             (_float_bits(0.0), _float_bits(0.5), _float_bits(1.0)),
         )
-        outcomes = _exact_values(c11.expected_prediction_profile)[
-            "causal-coordinate"
-        ]
+        outcomes = _exact_values(c11.expected_prediction_profile)["causal-coordinate"]
         self.assertEqual(
             (
                 outcomes[0].fp64_bits_value,
@@ -783,9 +986,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
             _resign_operation(
                 dataclasses.replace(
                     operation,
-                    operation_instance_id=renamed_id(
-                        operation.operation_instance_id
-                    ),
+                    operation_instance_id=renamed_id(operation.operation_instance_id),
                     input_operation_instance_ids=tuple(
                         renamed_id(dependency)
                         for dependency in operation.input_operation_instance_ids
@@ -800,8 +1001,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
                 application_instance_id=renamed_instance_id,
                 operations=renamed_operations,
                 output_operation_instance_ids=tuple(
-                    renamed_id(output)
-                    for output in spec.output_operation_instance_ids
+                    renamed_id(output) for output in spec.output_operation_instance_ids
                 ),
             )
         )
@@ -942,9 +1142,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
             "evidence-schema": _resign_spec(
                 dataclasses.replace(
                     spec,
-                    expected_control_evidence_schema=(
-                        "post-hoc-control-evidence"
-                    ),
+                    expected_control_evidence_schema=("post-hoc-control-evidence"),
                 )
             ),
         }
@@ -980,9 +1178,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
                 input_operation_instance_ids=("missing-operation",),
             )
         )
-        dangling_spec = _resign_spec(
-            dataclasses.replace(spec, operations=(dangling,))
-        )
+        dangling_spec = _resign_spec(dataclasses.replace(spec, operations=(dangling,)))
         with self.assertRaisesRegex(ValueError, "dependency|missing"):
             verify_synthetic_control_application_spec(dangling_spec)
 
@@ -1057,9 +1253,7 @@ class ClosedApplicationManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "canonical"):
             verify_synthetic_control_application_spec(noncanonical_spec)
 
-        duplicate = _resign_spec(
-            dataclasses.replace(spec, operations=(first, first))
-        )
+        duplicate = _resign_spec(dataclasses.replace(spec, operations=(first, first)))
         with self.assertRaisesRegex(ValueError, "duplicate"):
             verify_synthetic_control_application_spec(duplicate)
 
@@ -1171,6 +1365,142 @@ class ClosedApplicationManifestTests(unittest.TestCase):
 
 
 class ParentFreezeCapabilityTests(unittest.TestCase):
+    def test_parent_closed_body_and_codec_rebinding_cannot_forge_issuance(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        baseline = issue_v3m0_parent_freeze().manifest
+        provisional = dataclasses.replace(
+            baseline,
+            program_id="forged-program",
+            parent_freeze_sha="0" * 64,
+        )
+        forged = dataclasses.replace(
+            provisional,
+            parent_freeze_sha=canonical_sha(
+                parent_freeze_manifest_payload(provisional)
+            ),
+        )
+        with (
+            mock.patch.object(
+                parent_freeze,
+                "PROGRAM_ID",
+                "forged-program",
+            ),
+            mock.patch.object(
+                parent_freeze,
+                "_CLOSED_PARENT_FREEZE",
+                forged,
+            ),
+            mock.patch.object(
+                parent_freeze,
+                "canonical_sha",
+                return_value="0" * 64,
+            ),
+            mock.patch.object(
+                parent_freeze,
+                "_manifest_record",
+                return_value={},
+            ),
+        ):
+            observed = issue_v3m0_parent_freeze().manifest
+        self.assertEqual(observed, baseline)
+
+    def test_raw_hydrator_rejects_recursive_unknowns_and_subclasses(
+        self,
+    ) -> None:
+        issued = issue_v3m0_parent_freeze()
+        targets = (
+            lambda raw: raw,
+            lambda raw: raw.synthetic_control_application_specs[0],
+            lambda raw: raw.synthetic_control_application_specs[0].basis_protocol,
+            lambda raw: raw.synthetic_control_application_specs[0].grid_protocol,
+            lambda raw: raw.synthetic_control_application_specs[0].readout_protocol,
+            lambda raw: raw.protocol_constant_payload,
+            lambda raw: (
+                raw.synthetic_control_application_specs[0].expected_prediction_profile
+            ),
+            lambda raw: raw.synthetic_control_application_specs[0].operations[0],
+        )
+        for select in targets:
+            raw = copy.deepcopy(issued.manifest)
+            object.__setattr__(
+                select(raw),
+                "caller_unknown",
+                "forbidden",
+            )
+            with self.subTest(target=type(select(raw)).__name__):
+                with self.assertRaisesRegex(
+                    (TypeError, ValueError),
+                    "exact|unknown|record type",
+                ):
+                    verify_parent_freeze(raw)
+
+        class HostileManifest(ParentFreezeManifest):
+            pass
+
+        raw = issued.manifest
+        hostile = HostileManifest(
+            raw.parent_freeze_schema_version,
+            raw.program_id,
+            raw.parent_v2_sha,
+            raw.task9_commit_sha,
+            raw.taskbook_source_sha,
+            raw.implementation_plan_source_sha,
+            raw.synthetic_control_application_specs,
+            raw.protocol_constant_payload,
+            raw.source_closure,
+            raw.parent_freeze_sha,
+        )
+        with self.assertRaisesRegex(
+            (TypeError, ValueError),
+            "exact|record type|ParentFreezeManifest",
+        ):
+            verify_parent_freeze(hostile)
+
+    def test_reverifier_has_no_module_global_loads(self) -> None:
+        offenders = [
+            (instruction.opname, instruction.argval)
+            for instruction in dis.get_instructions(_reverify_verified_parent_freeze)
+            if instruction.opname in {"LOAD_GLOBAL", "LOAD_NAME"}
+        ]
+        self.assertEqual(offenders, [])
+
+    def test_deepcopy_global_rebinding_cannot_forge_returned_manifest(
+        self,
+    ) -> None:
+        import rulespace_v3.parent_freeze as parent_freeze
+
+        issued = issue_v3m0_parent_freeze()
+        expected = issued.manifest
+        live_registry = next(
+            cell.cell_contents
+            for cell in (
+                parent_freeze._reverify_verified_parent_freeze.__closure__ or ()
+            )
+            if type(cell.cell_contents) is dict and id(issued) in cell.cell_contents
+        )
+        authority = live_registry[id(issued)][1]
+        forged = dataclasses.replace(
+            authority.manifest,
+            parent_freeze_sha="0" * 64,
+        )
+        original_deepcopy = parent_freeze.copy.deepcopy
+
+        def hostile_deepcopy(value):
+            if value is authority.manifest:
+                return forged
+            return original_deepcopy(value)
+
+        with mock.patch.object(
+            parent_freeze.copy,
+            "deepcopy",
+            side_effect=hostile_deepcopy,
+        ):
+            observed = _reverify_verified_parent_freeze(issued)
+        self.assertEqual(observed, expected)
+
     def test_slot_copy_subclass_and_live_slot_mutation_fail_closed(self) -> None:
         issued = issue_v3m0_parent_freeze()
         forged = object.__new__(VerifiedParentFreeze)

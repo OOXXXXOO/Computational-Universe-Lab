@@ -16,6 +16,7 @@ import struct
 import threading
 import weakref
 from dataclasses import dataclass, replace
+from types import FunctionType
 from typing import Callable, Literal, Optional
 
 import numpy as np
@@ -38,9 +39,7 @@ APPLICATION_OPERATION_SCHEMA_VERSION = "v3m0.synthetic-application-operation.v1"
 APPLICATION_BASIS_PROTOCOL_SCHEMA_VERSION = (
     "v3m0.synthetic-application-basis-protocol.v1"
 )
-APPLICATION_GRID_PROTOCOL_SCHEMA_VERSION = (
-    "v3m0.synthetic-application-grid-protocol.v1"
-)
+APPLICATION_GRID_PROTOCOL_SCHEMA_VERSION = "v3m0.synthetic-application-grid-protocol.v1"
 APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION = (
     "v3m0.synthetic-application-readout-protocol.v1"
 )
@@ -54,18 +53,12 @@ APPLICATION_SPEC_SCHEMA_VERSION = "v3m0.synthetic-control-application-spec.v1"
 PROGRAM_ID = "projective-rule-space-v3m0-v1"
 TASK9_COMMIT_SHA = "39d1c1427aefa38cd46e1272affb9a10dd46a073"
 TASKBOOK_SOURCE_PATH = "docsv3/v3-任务书-V3M0-因果响应与几何距离仪器.md"
-IMPLEMENTATION_PLAN_SOURCE_PATH = (
-    "docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md"
-)
-TASKBOOK_SOURCE_SHA = (
-    "77137fac1cc88972a9227a67db5d67fbedb082aac4d0f860d2b248ac23e22a63"
-)
+IMPLEMENTATION_PLAN_SOURCE_PATH = "docsv3/v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md"
+TASKBOOK_SOURCE_SHA = "77137fac1cc88972a9227a67db5d67fbedb082aac4d0f860d2b248ac23e22a63"
 IMPLEMENTATION_PLAN_SOURCE_SHA = (
     "908e888c98a008c3668155350de18be60be976d32ff69c7dd52b37b1a349b90f"
 )
-PARENT_V2_SHA = (
-    "bf5668fe03c108624426c2a38c67413818db833f8d0c178455dc424ef96ff1af"
-)
+PARENT_V2_SHA = "bf5668fe03c108624426c2a38c67413818db833f8d0c178455dc424ef96ff1af"
 EXPECTED_SHELL_RANK_SOURCE_ID = "parent-freeze-control-application-spec-v1"
 CURVATURE_NORMALIZER_ID = "synthetic-identity-v1"
 
@@ -152,7 +145,7 @@ _SOURCE_CLOSURE = (
     ),
     (
         "rulespace_v3/contracts.py",
-        "83a410babffbd9037370a6bc7e0da8f2fdd50b68dd353f3151aae9c5a8733be1",
+        "7f0f77fceeb19d1490b84096cda0679e2b1875fba4e3d4b3753242bd54598d71",
     ),
     (
         "rulespace_v3/controls.py",
@@ -245,9 +238,7 @@ def _string_tuple(
 ) -> tuple[str, ...]:
     if type(value) is not tuple:
         raise TypeError(f"{field} must be a tuple")
-    result = tuple(
-        _text(item, f"{field}[{index}]") for index, item in enumerate(value)
-    )
+    result = tuple(_text(item, f"{field}[{index}]") for index, item in enumerate(value))
     if not allow_empty and not result:
         raise ValueError(f"{field} must be non-empty")
     return result
@@ -353,9 +344,7 @@ class SyntheticApplicationOperation:
                 raise TypeError(f"parameters[{index}] must be a name/value pair")
             _text(entry[0], f"parameters[{index}][0]")
             if type(entry[1]) is not TaggedScalarWire:
-                raise TypeError(
-                    f"parameters[{index}][1] must be a TaggedScalarWire"
-                )
+                raise TypeError(f"parameters[{index}][1] must be a TaggedScalarWire")
         _sha(self.operation_sha, "operation_sha")
 
 
@@ -413,9 +402,7 @@ class SyntheticApplicationGridProtocol:
     reference_reciprocal_index: tuple[int, ...]
     preregistered_phase_bands: tuple[tuple[float, float], ...]
     expected_shell_rank: int
-    expected_shell_rank_source_id: Literal[
-        "parent-freeze-control-application-spec-v1"
-    ]
+    expected_shell_rank_source_id: Literal["parent-freeze-control-application-spec-v1"]
     protocol_sha: str
 
     def __post_init__(self) -> None:
@@ -486,9 +473,7 @@ class SyntheticApplicationProtocolConstants:
             raise TypeError("tagged_constants must be a tuple")
         for index, entry in enumerate(self.tagged_constants):
             if type(entry) is not tuple or len(entry) != 2:
-                raise TypeError(
-                    f"tagged_constants[{index}] must be a name/value pair"
-                )
+                raise TypeError(f"tagged_constants[{index}] must be a name/value pair")
             _text(entry[0], f"tagged_constants[{index}][0]")
             if type(entry[1]) is not TaggedScalarWire:
                 raise TypeError(
@@ -509,9 +494,7 @@ class SyntheticApplicationPredictionProfile:
     prediction_schema_version: str
     prediction_profile_id: str
     control_case_id: str
-    expected_exact_values: tuple[
-        tuple[str, tuple[TaggedScalarWire, ...]], ...
-    ]
+    expected_exact_values: tuple[tuple[str, tuple[TaggedScalarWire, ...]], ...]
     expected_qualitative_labels: tuple[tuple[str, tuple[str, ...]], ...]
     prediction_profile_sha: str
 
@@ -540,18 +523,14 @@ class SyntheticApplicationPredictionProfile:
         for index, entry in enumerate(self.expected_qualitative_labels):
             if type(entry) is not tuple or len(entry) != 2:
                 raise TypeError(
-                    "expected_qualitative_labels"
-                    f"[{index}] must be a name/labels pair"
+                    f"expected_qualitative_labels[{index}] must be a name/labels pair"
                 )
             _text(entry[0], f"expected_qualitative_labels[{index}][0]")
             _string_tuple(
                 entry[1],
                 f"expected_qualitative_labels[{index}][1]",
             )
-        if (
-            not self.expected_exact_values
-            and not self.expected_qualitative_labels
-        ):
+        if not self.expected_exact_values and not self.expected_qualitative_labels:
             raise ValueError("prediction profile body must be non-empty")
         _sha(self.prediction_profile_sha, "prediction_profile_sha")
 
@@ -584,9 +563,7 @@ class V3M0SyntheticControlApplicationSpec:
                 "basis_protocol must be a SyntheticApplicationBasisProtocol"
             )
         if type(self.grid_protocol) is not SyntheticApplicationGridProtocol:
-            raise TypeError(
-                "grid_protocol must be a SyntheticApplicationGridProtocol"
-            )
+            raise TypeError("grid_protocol must be a SyntheticApplicationGridProtocol")
         if type(self.readout_protocol) is not SyntheticApplicationReadoutProtocol:
             raise TypeError(
                 "readout_protocol must be a SyntheticApplicationReadoutProtocol"
@@ -640,14 +617,10 @@ class ParentFreezeManifest:
     parent_freeze_schema_version: str
     program_id: Literal["projective-rule-space-v3m0-v1"]
     parent_v2_sha: str
-    task9_commit_sha: Literal[
-        "39d1c1427aefa38cd46e1272affb9a10dd46a073"
-    ]
+    task9_commit_sha: Literal["39d1c1427aefa38cd46e1272affb9a10dd46a073"]
     taskbook_source_sha: str
     implementation_plan_source_sha: str
-    synthetic_control_application_specs: tuple[
-        V3M0SyntheticControlApplicationSpec, ...
-    ]
+    synthetic_control_application_specs: tuple[V3M0SyntheticControlApplicationSpec, ...]
     protocol_constant_payload: SyntheticApplicationProtocolConstants
     source_closure: tuple[tuple[str, str], ...]
     parent_freeze_sha: str
@@ -666,9 +639,7 @@ class ParentFreezeManifest:
             "implementation_plan_source_sha",
         )
         if type(self.synthetic_control_application_specs) is not tuple:
-            raise TypeError(
-                "synthetic_control_application_specs must be a tuple"
-            )
+            raise TypeError("synthetic_control_application_specs must be a tuple")
         if not all(
             type(spec) is V3M0SyntheticControlApplicationSpec
             for spec in self.synthetic_control_application_specs
@@ -680,19 +651,84 @@ class ParentFreezeManifest:
             type(self.protocol_constant_payload)
             is not SyntheticApplicationProtocolConstants
         ):
-            raise TypeError(
-                "protocol_constant_payload has the wrong record type"
-            )
+            raise TypeError("protocol_constant_payload has the wrong record type")
         if type(self.source_closure) is not tuple:
             raise TypeError("source_closure must be a tuple")
         for index, entry in enumerate(self.source_closure):
             if type(entry) is not tuple or len(entry) != 2:
-                raise TypeError(
-                    f"source_closure[{index}] must be a path/SHA pair"
-                )
+                raise TypeError(f"source_closure[{index}] must be a path/SHA pair")
             _text(entry[0], f"source_closure[{index}][0]")
             _sha(entry[1], f"source_closure[{index}][1]")
         _sha(self.parent_freeze_sha, "parent_freeze_sha")
+
+
+_PARENT_WIRE_TYPES = (
+    ParentFreezeManifest,
+    V3M0SyntheticControlApplicationSpec,
+    SyntheticApplicationPredictionProfile,
+    SyntheticApplicationProtocolConstants,
+    SyntheticApplicationReadoutProtocol,
+    SyntheticApplicationGridProtocol,
+    DirectionPathClosure,
+    SyntheticApplicationBasisProtocol,
+    SyntheticApplicationOperation,
+    TaggedScalarWire,
+    BasisManifest,
+    FrozenComplexTensor,
+)
+
+
+def _require_exact_parent_schema(
+    value: object,
+    field: str,
+    *,
+    _allowed_types: tuple[type[object], ...] = _PARENT_WIRE_TYPES,
+    _type=type,
+    _tuple_type=tuple,
+    _list_type=list,
+    _dict_type=dict,
+    _vars=vars,
+    _getattr=getattr,
+    _frozenset=frozenset,
+    _sorted=sorted,
+    _enumerate=enumerate,
+    _hasattr=hasattr,
+    _type_error=TypeError,
+    _value_error=ValueError,
+) -> None:
+    """Reject subclasses and unknown fields throughout a parent wire."""
+
+    pending: list[tuple[object, str]] = _list_type(((value, field),))
+    while pending:
+        current, current_field = pending.pop()
+        current_type = _type(current)
+        if current_type in _allowed_types:
+            expected = _frozenset(current_type.__dataclass_fields__)
+            try:
+                observed = _frozenset(_vars(current))
+            except _type_error as exc:
+                raise _type_error(f"{current_field} has no exact record body") from exc
+            if observed != expected:
+                raise _value_error(
+                    f"{current_field} fields are not exact: "
+                    f"missing={_sorted(expected - observed)!r}, "
+                    f"unknown={_sorted(observed - expected)!r}"
+                )
+            for name in current_type.__dataclass_fields__:
+                pending.append(
+                    (
+                        _getattr(current, name),
+                        f"{current_field}.{name}",
+                    )
+                )
+        elif _hasattr(current_type, "__dataclass_fields__"):
+            raise _type_error(f"{current_field} has a non-exact parent record type")
+        elif current_type is _tuple_type or current_type is _list_type:
+            for index, item in _enumerate(current):
+                pending.append((item, f"{current_field}[{index}]"))
+        elif current_type is _dict_type:
+            for key, item in current.items():
+                pending.append((item, f"{current_field}[{key!r}]"))
 
 
 def tagged_scalar_wire_payload(wire: TaggedScalarWire) -> dict[str, object]:
@@ -704,9 +740,7 @@ def tagged_scalar_wire_payload(wire: TaggedScalarWire) -> dict[str, object]:
         "integer_value": wire.integer_value,
         "fp64_bits_value": wire.fp64_bits_value,
         "text_value": wire.text_value,
-        "complex128_bits_value": (
-            None if complex_bits is None else list(complex_bits)
-        ),
+        "complex128_bits_value": (None if complex_bits is None else list(complex_bits)),
     }
 
 
@@ -719,9 +753,7 @@ def synthetic_application_operation_payload(
         "operation_schema_version": operation.operation_schema_version,
         "operation_instance_id": operation.operation_instance_id,
         "operation_kind": operation.operation_kind,
-        "input_operation_instance_ids": list(
-            operation.input_operation_instance_ids
-        ),
+        "input_operation_instance_ids": list(operation.input_operation_instance_ids),
         "parameters": [
             [name, tagged_scalar_wire_payload(value)]
             for name, value in operation.parameters
@@ -742,9 +774,7 @@ def synthetic_application_basis_protocol_payload(
     protocol: SyntheticApplicationBasisProtocol,
 ) -> dict[str, object]:
     if type(protocol) is not SyntheticApplicationBasisProtocol:
-        raise TypeError(
-            "protocol must be a SyntheticApplicationBasisProtocol"
-        )
+        raise TypeError("protocol must be a SyntheticApplicationBasisProtocol")
     return {
         "protocol_schema_version": protocol.protocol_schema_version,
         "source_basis": _basis_record(protocol.source_basis),
@@ -783,9 +813,7 @@ def synthetic_application_grid_protocol_payload(
         "protocol_schema_version": protocol.protocol_schema_version,
         "spatial_ndim": protocol.spatial_ndim,
         "spatial_shape": list(protocol.spatial_shape),
-        "response_torus_denominators": list(
-            protocol.response_torus_denominators
-        ),
+        "response_torus_denominators": list(protocol.response_torus_denominators),
         "response_reciprocal_indices": [
             list(index) for index in protocol.response_reciprocal_indices
         ],
@@ -804,16 +832,12 @@ def synthetic_application_grid_protocol_payload(
             list(index) for index in protocol.bridge_reciprocal_indices
         ],
         "bridge_steps": list(protocol.bridge_steps),
-        "reference_reciprocal_index": list(
-            protocol.reference_reciprocal_index
-        ),
+        "reference_reciprocal_index": list(protocol.reference_reciprocal_index),
         "preregistered_phase_bands": [
             list(band) for band in protocol.preregistered_phase_bands
         ],
         "expected_shell_rank": protocol.expected_shell_rank,
-        "expected_shell_rank_source_id": (
-            protocol.expected_shell_rank_source_id
-        ),
+        "expected_shell_rank_source_id": (protocol.expected_shell_rank_source_id),
     }
 
 
@@ -830,21 +854,15 @@ def synthetic_application_readout_protocol_payload(
     protocol: SyntheticApplicationReadoutProtocol,
 ) -> dict[str, object]:
     if type(protocol) is not SyntheticApplicationReadoutProtocol:
-        raise TypeError(
-            "protocol must be a SyntheticApplicationReadoutProtocol"
-        )
+        raise TypeError("protocol must be a SyntheticApplicationReadoutProtocol")
     return {
         "protocol_schema_version": protocol.protocol_schema_version,
-        "source_metric_whitener": _tensor_record(
-            protocol.source_metric_whitener
-        ),
+        "source_metric_whitener": _tensor_record(protocol.source_metric_whitener),
         "h_metric_whitener": _tensor_record(protocol.h_metric_whitener),
         "curvature_incidence_operator": _tensor_record(
             protocol.curvature_incidence_operator
         ),
-        "curvature_metric_whitener": _tensor_record(
-            protocol.curvature_metric_whitener
-        ),
+        "curvature_metric_whitener": _tensor_record(protocol.curvature_metric_whitener),
         "curvature_normalizer_id": protocol.curvature_normalizer_id,
     }
 
@@ -862,9 +880,7 @@ def synthetic_application_protocol_constants_payload(
     constants: SyntheticApplicationProtocolConstants,
 ) -> dict[str, object]:
     if type(constants) is not SyntheticApplicationProtocolConstants:
-        raise TypeError(
-            "constants must be a SyntheticApplicationProtocolConstants"
-        )
+        raise TypeError("constants must be a SyntheticApplicationProtocolConstants")
     return {
         "constants_schema_version": constants.constants_schema_version,
         "tagged_constants": [
@@ -891,9 +907,7 @@ def synthetic_application_prediction_profile_payload(
     profile: SyntheticApplicationPredictionProfile,
 ) -> dict[str, object]:
     if type(profile) is not SyntheticApplicationPredictionProfile:
-        raise TypeError(
-            "profile must be a SyntheticApplicationPredictionProfile"
-        )
+        raise TypeError("profile must be a SyntheticApplicationPredictionProfile")
     return {
         "prediction_schema_version": profile.prediction_schema_version,
         "prediction_profile_id": profile.prediction_profile_id,
@@ -906,8 +920,7 @@ def synthetic_application_prediction_profile_payload(
             for name, values in profile.expected_exact_values
         ],
         "expected_qualitative_labels": [
-            [name, list(labels)]
-            for name, labels in profile.expected_qualitative_labels
+            [name, list(labels)] for name, labels in profile.expected_qualitative_labels
         ],
     }
 
@@ -925,9 +938,7 @@ def synthetic_control_application_spec_payload(
     spec: V3M0SyntheticControlApplicationSpec,
 ) -> dict[str, object]:
     if type(spec) is not V3M0SyntheticControlApplicationSpec:
-        raise TypeError(
-            "spec must be a V3M0SyntheticControlApplicationSpec"
-        )
+        raise TypeError("spec must be a V3M0SyntheticControlApplicationSpec")
     return {
         "application_schema_version": spec.application_schema_version,
         "control_case_id": spec.control_case_id,
@@ -936,25 +947,15 @@ def synthetic_control_application_spec_payload(
         "basis_protocol": _basis_protocol_record(spec.basis_protocol),
         "grid_protocol": _grid_protocol_record(spec.grid_protocol),
         "readout_protocol": _readout_protocol_record(spec.readout_protocol),
-        "protocol_constant_payload": _constants_record(
-            spec.protocol_constant_payload
-        ),
-        "operations": [
-            _operation_record(operation) for operation in spec.operations
-        ],
-        "output_operation_instance_ids": list(
-            spec.output_operation_instance_ids
-        ),
+        "protocol_constant_payload": _constants_record(spec.protocol_constant_payload),
+        "operations": [_operation_record(operation) for operation in spec.operations],
+        "output_operation_instance_ids": list(spec.output_operation_instance_ids),
         "required_pipeline_stages": list(spec.required_pipeline_stages),
-        "expected_prediction_profile_id": (
-            spec.expected_prediction_profile_id
-        ),
+        "expected_prediction_profile_id": (spec.expected_prediction_profile_id),
         "expected_prediction_profile": _prediction_profile_record(
             spec.expected_prediction_profile
         ),
-        "expected_control_evidence_schema": (
-            spec.expected_control_evidence_schema
-        ),
+        "expected_control_evidence_schema": (spec.expected_control_evidence_schema),
     }
 
 
@@ -978,9 +979,7 @@ def parent_freeze_manifest_payload(
         "parent_v2_sha": manifest.parent_v2_sha,
         "task9_commit_sha": manifest.task9_commit_sha,
         "taskbook_source_sha": manifest.taskbook_source_sha,
-        "implementation_plan_source_sha": (
-            manifest.implementation_plan_source_sha
-        ),
+        "implementation_plan_source_sha": (manifest.implementation_plan_source_sha),
         "synthetic_control_application_specs": [
             _application_spec_record(spec)
             for spec in manifest.synthetic_control_application_specs
@@ -1003,9 +1002,7 @@ def _verify_basis_protocol(
     protocol: SyntheticApplicationBasisProtocol,
 ) -> None:
     if type(protocol) is not SyntheticApplicationBasisProtocol:
-        raise TypeError(
-            "basis_protocol must be a SyntheticApplicationBasisProtocol"
-        )
+        raise TypeError("basis_protocol must be a SyntheticApplicationBasisProtocol")
     if protocol.protocol_schema_version != APPLICATION_BASIS_PROTOCOL_SCHEMA_VERSION:
         raise ValueError("unexpected basis protocol_schema_version")
     verify_basis_manifest(protocol.source_basis)
@@ -1015,15 +1012,11 @@ def _verify_basis_protocol(
     if protocol.readout_basis.role != "readout":
         raise ValueError("readout_basis role must be readout")
     if (
-        protocol.source_basis.state_schema_id
-        != protocol.readout_basis.state_schema_id
-        or protocol.source_basis.channel_order
-        != protocol.readout_basis.channel_order
+        protocol.source_basis.state_schema_id != protocol.readout_basis.state_schema_id
+        or protocol.source_basis.channel_order != protocol.readout_basis.channel_order
     ):
         raise ValueError("source/readout basis state schema mismatch")
-    expected = canonical_sha(
-        synthetic_application_basis_protocol_payload(protocol)
-    )
+    expected = canonical_sha(synthetic_application_basis_protocol_payload(protocol))
     if protocol.protocol_sha != expected:
         raise ValueError("basis protocol_sha does not match complete body")
 
@@ -1032,9 +1025,7 @@ def _verify_grid_protocol(
     protocol: SyntheticApplicationGridProtocol,
 ) -> None:
     if type(protocol) is not SyntheticApplicationGridProtocol:
-        raise TypeError(
-            "grid_protocol must be a SyntheticApplicationGridProtocol"
-        )
+        raise TypeError("grid_protocol must be a SyntheticApplicationGridProtocol")
     if protocol.protocol_schema_version != APPLICATION_GRID_PROTOCOL_SCHEMA_VERSION:
         raise ValueError("unexpected grid protocol_schema_version")
     ndim = _positive_int(protocol.spatial_ndim, "spatial_ndim")
@@ -1067,7 +1058,10 @@ def _verify_grid_protocol(
         if result != tuple(sorted(result)):
             raise ValueError(f"{field} must be canonical")
         for item in result:
-            if any(not 0 <= coordinate < modulus for coordinate, modulus in zip(item, moduli)):
+            if any(
+                not 0 <= coordinate < modulus
+                for coordinate, modulus in zip(item, moduli)
+            ):
                 raise ValueError(f"{field} contains an out-of-range index")
         return result
 
@@ -1117,9 +1111,7 @@ def _verify_grid_protocol(
     closure_ids: list[str] = []
     for closure in protocol.closure_path_pairs:
         if type(closure) is not DirectionPathClosure:
-            raise TypeError(
-                "closure_path_pairs entries must be DirectionPathClosure"
-            )
+            raise TypeError("closure_path_pairs entries must be DirectionPathClosure")
         closure_ids.append(closure.closure_id)
         if (
             closure.first_path_id not in path_lookup
@@ -1171,9 +1163,7 @@ def _verify_grid_protocol(
     bands: list[tuple[float, float]] = []
     for index, band in enumerate(protocol.preregistered_phase_bands):
         if type(band) is not tuple or len(band) != 2:
-            raise TypeError(
-                f"preregistered_phase_bands[{index}] must be a pair"
-            )
+            raise TypeError(f"preregistered_phase_bands[{index}] must be a pair")
         lower = _finite_float(
             band[0],
             f"preregistered_phase_bands[{index}][0]",
@@ -1190,9 +1180,7 @@ def _verify_grid_protocol(
     _positive_int(protocol.expected_shell_rank, "expected_shell_rank")
     if protocol.expected_shell_rank_source_id != EXPECTED_SHELL_RANK_SOURCE_ID:
         raise ValueError("unexpected expected_shell_rank_source_id")
-    expected = canonical_sha(
-        synthetic_application_grid_protocol_payload(protocol)
-    )
+    expected = canonical_sha(synthetic_application_grid_protocol_payload(protocol))
     if protocol.protocol_sha != expected:
         raise ValueError("grid protocol_sha does not match complete body")
 
@@ -1204,10 +1192,7 @@ def _verify_readout_protocol(
         raise TypeError(
             "readout_protocol must be a SyntheticApplicationReadoutProtocol"
         )
-    if (
-        protocol.protocol_schema_version
-        != APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION
-    ):
+    if protocol.protocol_schema_version != APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION:
         raise ValueError("unexpected readout protocol_schema_version")
     tensors = (
         protocol.source_metric_whitener,
@@ -1232,9 +1217,7 @@ def _verify_readout_protocol(
     if incidence.shape[0] != protocol.curvature_metric_whitener.shape[0]:
         raise ValueError("curvature incidence output dimension mismatch")
     _text(protocol.curvature_normalizer_id, "curvature_normalizer_id")
-    expected = canonical_sha(
-        synthetic_application_readout_protocol_payload(protocol)
-    )
+    expected = canonical_sha(synthetic_application_readout_protocol_payload(protocol))
     if protocol.protocol_sha != expected:
         raise ValueError("readout protocol_sha does not match complete body")
 
@@ -1243,9 +1226,7 @@ def _verify_protocol_constants(
     constants: SyntheticApplicationProtocolConstants,
 ) -> None:
     if type(constants) is not SyntheticApplicationProtocolConstants:
-        raise TypeError(
-            "constants must be a SyntheticApplicationProtocolConstants"
-        )
+        raise TypeError("constants must be a SyntheticApplicationProtocolConstants")
     if constants.constants_schema_version != APPLICATION_CONSTANTS_SCHEMA_VERSION:
         raise ValueError("unexpected constants_schema_version")
     names = tuple(name for name, _ in constants.tagged_constants)
@@ -1302,9 +1283,7 @@ def _verify_prediction_profile(
             raise ValueError("expected exact value sequences must be non-empty")
         if not all(type(value) is TaggedScalarWire for value in values):
             raise TypeError("expected exact values have the wrong wire type")
-    label_names = tuple(
-        name for name, _ in profile.expected_qualitative_labels
-    )
+    label_names = tuple(name for name, _ in profile.expected_qualitative_labels)
     if len(set(label_names)) != len(label_names):
         raise ValueError("expected_qualitative_labels contains duplicate names")
     if label_names != tuple(sorted(label_names)):
@@ -1338,10 +1317,9 @@ def verify_synthetic_control_application_spec(
 ) -> V3M0SyntheticControlApplicationSpec:
     """Verify one complete lazy application graph against frozen caps."""
 
+    _require_exact_parent_schema(spec, "application")
     if type(spec) is not V3M0SyntheticControlApplicationSpec:
-        raise TypeError(
-            "spec must be a V3M0SyntheticControlApplicationSpec"
-        )
+        raise TypeError("spec must be a V3M0SyntheticControlApplicationSpec")
     constants = spec.protocol_constant_payload
     _verify_protocol_constants(constants)
     if spec.control_case_id not in APPLICATION_CONTROL_CASE_IDS:
@@ -1357,8 +1335,7 @@ def verify_synthetic_control_application_spec(
         raise ValueError("operations must be non-empty")
     operation_count = len(operations)
     edge_count = sum(
-        len(operation.input_operation_instance_ids)
-        for operation in operations
+        len(operation.input_operation_instance_ids) for operation in operations
     )
     parameter_count = sum(len(operation.parameters) for operation in operations)
     if operation_count > constants.max_operation_count:
@@ -1384,10 +1361,7 @@ def verify_synthetic_control_application_spec(
     for operation in operations:
         if type(operation) is not SyntheticApplicationOperation:
             raise TypeError("operations has the wrong record type")
-        if (
-            operation.operation_schema_version
-            != APPLICATION_OPERATION_SCHEMA_VERSION
-        ):
+        if operation.operation_schema_version != APPLICATION_OPERATION_SCHEMA_VERSION:
             raise ValueError("unexpected operation_schema_version")
         if operation.operation_kind not in _APPLICATION_OPERATION_KINDS:
             raise ValueError("operation_kind is outside the closed registry")
@@ -1415,9 +1389,7 @@ def verify_synthetic_control_application_spec(
     known_ids = frozenset(operation_ids)
     for operation_id, dependency_ids in dependencies.items():
         missing = tuple(
-            dependency
-            for dependency in dependency_ids
-            if dependency not in known_ids
+            dependency for dependency in dependency_ids if dependency not in known_ids
         )
         if missing:
             raise ValueError(
@@ -1437,8 +1409,7 @@ def verify_synthetic_control_application_spec(
             operation_id
             for operation_id in sorted(remaining)
             if all(
-                dependency not in remaining
-                for dependency in dependencies[operation_id]
+                dependency not in remaining for dependency in dependencies[operation_id]
             )
         )
         if not ready:
@@ -1454,7 +1425,9 @@ def verify_synthetic_control_application_spec(
         reachable.add(operation_id)
         stack.extend(reversed(dependencies[operation_id]))
     if reachable != known_ids:
-        raise ValueError("application graph contains dead nodes not reachable from outputs")
+        raise ValueError(
+            "application graph contains dead nodes not reachable from outputs"
+        )
 
     stages = _string_tuple(
         spec.required_pipeline_stages,
@@ -1470,9 +1443,7 @@ def verify_synthetic_control_application_spec(
         spec.expected_prediction_profile_id
         != spec.expected_prediction_profile.prediction_profile_id
     ):
-        raise ValueError(
-            "expected_prediction_profile_id does not bind prediction body"
-        )
+        raise ValueError("expected_prediction_profile_id does not bind prediction body")
     _text(
         spec.expected_control_evidence_schema,
         "expected_control_evidence_schema",
@@ -1484,9 +1455,7 @@ def verify_synthetic_control_application_spec(
         V3M0SyntheticControlApplicationSpec.__dataclass_fields__
     )
     if dataclass_field_names != _APPLICATION_SPEC_CANONICAL_FIELD_NAMES:
-        raise RuntimeError(
-            "canonical application field registry is incomplete"
-        )
+        raise RuntimeError("canonical application field registry is incomplete")
     for field_name in _APPLICATION_SPEC_CANONICAL_FIELD_NAMES:
         if getattr(spec, field_name) != getattr(canonical_spec, field_name):
             raise ValueError(
@@ -1501,6 +1470,7 @@ def _validate_parent_freeze_manifest(
     *,
     require_closed_body: bool,
 ) -> ParentFreezeManifest:
+    _require_exact_parent_schema(manifest, "parent freeze manifest")
     if type(manifest) is not ParentFreezeManifest:
         raise TypeError("manifest must be a ParentFreezeManifest")
     if manifest.parent_freeze_schema_version != PARENT_FREEZE_SCHEMA_VERSION:
@@ -1513,10 +1483,7 @@ def _validate_parent_freeze_manifest(
         raise ValueError("task9_commit_sha does not match the frozen Task 9")
     if manifest.taskbook_source_sha != TASKBOOK_SOURCE_SHA:
         raise ValueError("taskbook_source_sha does not match the frozen taskbook")
-    if (
-        manifest.implementation_plan_source_sha
-        != IMPLEMENTATION_PLAN_SOURCE_SHA
-    ):
+    if manifest.implementation_plan_source_sha != IMPLEMENTATION_PLAN_SOURCE_SHA:
         raise ValueError(
             "implementation_plan_source_sha does not match the frozen plan"
         )
@@ -1529,10 +1496,7 @@ def _validate_parent_freeze_manifest(
     global_operation_ids: list[str] = []
     verified_specs = []
     for spec in specs:
-        if (
-            spec.protocol_constant_payload
-            != manifest.protocol_constant_payload
-        ):
+        if spec.protocol_constant_payload != manifest.protocol_constant_payload:
             raise ValueError(
                 "application protocol constants do not match parent constants"
             )
@@ -1765,6 +1729,143 @@ def _build_readout_protocol() -> SyntheticApplicationReadoutProtocol:
     )
 
 
+def _build_task8_anchor_basis_protocol(
+    control_case_id: str,
+) -> SyntheticApplicationBasisProtocol:
+    if control_case_id in (
+        "C01_BLIND_HOLDOUT_FULL",
+        "C02_CONDITIONED_ZERO",
+    ):
+        channel_order = ("x.000", "y.000")
+        source_vectors = np.asarray(((1.0, 0.0),), dtype=np.complex128)
+        readout_vectors = np.asarray(((0.0, 1.0),), dtype=np.complex128)
+    elif control_case_id == "C03_EQUAL_RANK_DIRECT_SUM":
+        channel_order = (
+            "x.b.000",
+            "y.b.000",
+            "x.c.001",
+            "y.c.001",
+        )
+        source_vectors = np.asarray(
+            (
+                (1.0, 0.0, 0.0, 0.0),
+                (0.0, 0.0, 1.0, 0.0),
+            ),
+            dtype=np.complex128,
+        )
+        readout_vectors = np.asarray(
+            (
+                (0.0, 1.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0, 1.0),
+            ),
+            dtype=np.complex128,
+        )
+    else:
+        raise ValueError("control_case_id is not a Task 8 window anchor")
+
+    state_schema_id = "state.synthetic.local-linear.v1"
+    source = build_basis_manifest(
+        role="source",
+        state_schema_id=state_schema_id,
+        channel_order=channel_order,
+        vectors=source_vectors,
+    )
+    readout = build_basis_manifest(
+        role="readout",
+        state_schema_id=state_schema_id,
+        channel_order=channel_order,
+        vectors=readout_vectors,
+    )
+    provisional = SyntheticApplicationBasisProtocol(
+        protocol_schema_version=APPLICATION_BASIS_PROTOCOL_SCHEMA_VERSION,
+        source_basis=source,
+        readout_basis=readout,
+        protocol_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        protocol_sha=canonical_sha(
+            synthetic_application_basis_protocol_payload(provisional)
+        ),
+    )
+
+
+def _build_task8_anchor_grid_protocol(
+    control_case_id: str,
+) -> SyntheticApplicationGridProtocol:
+    expected_shell_rank = {
+        "C01_BLIND_HOLDOUT_FULL": 1,
+        "C02_CONDITIONED_ZERO": 1,
+        "C03_EQUAL_RANK_DIRECT_SUM": 2,
+    }.get(control_case_id)
+    if expected_shell_rank is None:
+        raise ValueError("control_case_id is not a Task 8 window anchor")
+    provisional = replace(
+        _build_grid_protocol(),
+        preregistered_phase_bands=(
+            (math.pi / 2.0 - 0.25, math.pi / 2.0 + 0.25),
+        ),
+        expected_shell_rank=expected_shell_rank,
+        protocol_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        protocol_sha=canonical_sha(
+            synthetic_application_grid_protocol_payload(provisional)
+        ),
+    )
+
+
+def _build_task8_anchor_readout_protocol(
+    control_case_id: str,
+) -> SyntheticApplicationReadoutProtocol:
+    dimension = {
+        "C01_BLIND_HOLDOUT_FULL": 1,
+        "C02_CONDITIONED_ZERO": 1,
+        "C03_EQUAL_RANK_DIRECT_SUM": 2,
+    }.get(control_case_id)
+    if dimension is None:
+        raise ValueError("control_case_id is not a Task 8 window anchor")
+    identity = freeze_complex_tensor(
+        np.eye(dimension, dtype=np.complex128)
+    )
+    provisional = SyntheticApplicationReadoutProtocol(
+        protocol_schema_version=APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION,
+        source_metric_whitener=identity,
+        h_metric_whitener=identity,
+        curvature_incidence_operator=identity,
+        curvature_metric_whitener=identity,
+        curvature_normalizer_id=CURVATURE_NORMALIZER_ID,
+        protocol_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        protocol_sha=canonical_sha(
+            synthetic_application_readout_protocol_payload(provisional)
+        ),
+    )
+
+
+def _build_application_protocols(
+    control_case_id: str,
+) -> tuple[
+    SyntheticApplicationBasisProtocol,
+    SyntheticApplicationGridProtocol,
+    SyntheticApplicationReadoutProtocol,
+]:
+    if control_case_id in APPLICATION_CONTROL_CASE_IDS[:3]:
+        return (
+            _build_task8_anchor_basis_protocol(control_case_id),
+            _build_task8_anchor_grid_protocol(control_case_id),
+            _build_task8_anchor_readout_protocol(control_case_id),
+        )
+    return (
+        _build_basis_protocol(),
+        _build_grid_protocol(),
+        _build_readout_protocol(),
+    )
+
+
 def _constant_wire(
     constants: SyntheticApplicationProtocolConstants,
     name: str,
@@ -1819,9 +1920,7 @@ def _make_operation(
     )
     return replace(
         operation,
-        operation_sha=canonical_sha(
-            synthetic_application_operation_payload(operation)
-        ),
+        operation_sha=canonical_sha(synthetic_application_operation_payload(operation)),
     )
 
 
@@ -1861,7 +1960,7 @@ def _build_control_operation_graph(
                 "00-blind-response",
                 "identity-v1",
                 parameters=(
-                    ("response-rank", _integer_wire(2)),
+                    ("response-rank", _integer_wire(1)),
                     ("target-visibility", _text_wire("blind")),
                 ),
             ),
@@ -1883,7 +1982,7 @@ def _build_control_operation_graph(
                 ("01-actual-branch", "02-ablated-branch"),
                 (
                     ("construction", _text_wire("holdout-span")),
-                    ("target-rank", _integer_wire(2)),
+                    ("target-rank", _integer_wire(1)),
                 ),
             ),
         )
@@ -1894,7 +1993,7 @@ def _build_control_operation_graph(
                 "00-conditioned-actual",
                 "identity-v1",
                 parameters=(
-                    ("response-rank", _integer_wire(2)),
+                    ("response-rank", _integer_wire(1)),
                     ("target-visibility", _text_wire("conditioned")),
                 ),
             ),
@@ -2458,6 +2557,7 @@ def _build_control_operation_graph(
                     ("sample-0", zero),
                     ("sample-1", zero),
                     ("sample-2", zero),
+                    ("sample-3", zero),
                     ("series-class", _text_wire("clean-zero")),
                 ),
             ),
@@ -2481,6 +2581,13 @@ def _build_control_operation_graph(
                     ),
                     (
                         "sample-2",
+                        _constant_wire(
+                            constants,
+                            "deterministic-true-floor-fp64-bits",
+                        ),
+                    ),
+                    (
+                        "sample-3",
                         _constant_wire(
                             constants,
                             "deterministic-true-floor-fp64-bits",
@@ -2543,12 +2650,8 @@ def _make_prediction_profile(
 ) -> SyntheticApplicationPredictionProfile:
     ordinal = APPLICATION_CONTROL_CASE_IDS.index(control_case_id) + 1
     provisional = SyntheticApplicationPredictionProfile(
-        prediction_schema_version=(
-            APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION
-        ),
-        prediction_profile_id=(
-            f"v3m0.synthetic-prediction.c{ordinal:02d}.v1"
-        ),
+        prediction_schema_version=(APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION),
+        prediction_profile_id=(f"v3m0.synthetic-prediction.c{ordinal:02d}.v1"),
         control_case_id=control_case_id,
         expected_exact_values=tuple(sorted(exact_values.items())),
         expected_qualitative_labels=tuple(sorted(qualitative_labels.items())),
@@ -2581,14 +2684,14 @@ def _build_prediction_profile(
         exact = {
             "causal-epsilon": fp(1.0),
             "geometry-delta": fp(0.0),
-            "survival-spectrum": fp(1.0, 1.0),
+            "survival-spectrum": fp(1.0),
         }
         labels = {"target-construction": ("blind-holdout",)}
     elif control_case_id == "C02_CONDITIONED_ZERO":
         exact = {
             "causal-epsilon": fp(0.0),
             "geometry-delta": fp(0.0),
-            "survival-spectrum": fp(0.0, 0.0),
+            "survival-spectrum": fp(0.0),
         }
         labels = {"target-construction": ("conditioned",)}
     elif control_case_id == "C03_EQUAL_RANK_DIRECT_SUM":
@@ -2657,9 +2760,7 @@ def _build_prediction_profile(
         labels = {"curvature-spectrum": ("gauge-invariant",)}
     elif control_case_id == "C10_FULL_SOURCE_EXTRA_MODE":
         exact = {"chi-extra": fp(1.0)}
-        labels = {
-            "new-orthogonal-mode": ("detected-by-full-source-readout",)
-        }
+        labels = {"new-orthogonal-mode": ("detected-by-full-source-readout",)}
     elif control_case_id == "C11_NULL_GREY_SIGNAL_AMPLITUDE":
         amplitudes = (
             _constant_float(
@@ -2812,8 +2913,8 @@ def _build_prediction_profile(
             "deterministic-true-floor-fp64-bits",
         )
         exact = {
-            "clean-zero-series": fp(0.0, 0.0, 0.0),
-            "true-floor-series": fp(floor, floor, floor),
+            "clean-zero-series": fp(0.0, 0.0, 0.0, 0.0),
+            "true-floor-series": fp(floor, floor, floor, floor),
         }
         labels = {
             "D-M2-6-decision": (
@@ -2857,11 +2958,7 @@ def _assemble_canonical_application_spec(
         "dynamics",
         "endpoint-shell",
         "paired-response",
-        (
-            "window-calibration"
-            if ordinal <= 3
-            else "control-application-evidence"
-        ),
+        ("window-calibration" if ordinal <= 3 else "control-application-evidence"),
     )
     provisional = V3M0SyntheticControlApplicationSpec(
         application_schema_version=APPLICATION_SPEC_SCHEMA_VERSION,
@@ -2875,9 +2972,7 @@ def _assemble_canonical_application_spec(
         operations=operations,
         output_operation_instance_ids=outputs,
         required_pipeline_stages=stages,
-        expected_prediction_profile_id=(
-            prediction_profile.prediction_profile_id
-        ),
+        expected_prediction_profile_id=(prediction_profile.prediction_profile_id),
         expected_prediction_profile=prediction_profile,
         expected_control_evidence_schema=(
             "v3m0.window-control-evidence.v1"
@@ -2899,31 +2994,36 @@ def _build_canonical_application_spec(
 ) -> V3M0SyntheticControlApplicationSpec:
     """Rebuild one complete spec solely from its closed case ordinal."""
 
+    basis_protocol, grid_protocol, readout_protocol = (
+        _build_application_protocols(control_case_id)
+    )
     return _assemble_canonical_application_spec(
         control_case_id,
         _build_constants(),
-        _build_basis_protocol(),
-        _build_grid_protocol(),
-        _build_readout_protocol(),
+        basis_protocol,
+        grid_protocol,
+        readout_protocol,
     )
 
 
 def _build_application_specs(
     constants: SyntheticApplicationProtocolConstants,
 ) -> tuple[V3M0SyntheticControlApplicationSpec, ...]:
-    basis_protocol = _build_basis_protocol()
-    grid_protocol = _build_grid_protocol()
-    readout_protocol = _build_readout_protocol()
-    return tuple(
-        _assemble_canonical_application_spec(
-            control_case_id,
-            constants,
-            basis_protocol,
-            grid_protocol,
-            readout_protocol,
+    specs: list[V3M0SyntheticControlApplicationSpec] = []
+    for control_case_id in APPLICATION_CONTROL_CASE_IDS:
+        basis_protocol, grid_protocol, readout_protocol = (
+            _build_application_protocols(control_case_id)
         )
-        for control_case_id in APPLICATION_CONTROL_CASE_IDS
-    )
+        specs.append(
+            _assemble_canonical_application_spec(
+                control_case_id,
+                constants,
+                basis_protocol,
+                grid_protocol,
+                readout_protocol,
+            )
+        )
+    return tuple(specs)
 
 
 def _build_closed_parent_freeze() -> ParentFreezeManifest:
@@ -2949,6 +3049,66 @@ def _build_closed_parent_freeze() -> ParentFreezeManifest:
 _CLOSED_PARENT_FREEZE = _build_closed_parent_freeze()
 
 
+def _freeze_parent_authority_functions(
+    *roots: FunctionType,
+) -> tuple[FunctionType, ...]:
+    """Detach parent verification from mutable module bindings."""
+
+    cache: dict[int, FunctionType] = {}
+    module_name = __name__
+
+    def freeze_value(value):
+        if type(value) is FunctionType and value.__module__ == module_name:
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        if type(value) is dict:
+            return {key: freeze_value(item) for key, item in value.items()}
+        return value
+
+    def freeze_function(function):
+        cached = cache.get(id(function))
+        if cached is not None:
+            return cached
+        frozen_globals = dict(function.__globals__)
+        frozen = FunctionType(
+            function.__code__,
+            frozen_globals,
+            function.__name__,
+            None,
+            function.__closure__,
+        )
+        cache[id(function)] = frozen
+        for name, value in tuple(frozen_globals.items()):
+            if type(value) is FunctionType and value.__module__ == module_name:
+                frozen_globals[name] = freeze_function(value)
+        frozen.__defaults__ = freeze_value(function.__defaults__)
+        frozen.__kwdefaults__ = freeze_value(function.__kwdefaults__)
+        frozen.__annotations__ = dict(function.__annotations__)
+        frozen.__dict__.update(function.__dict__)
+        frozen.__doc__ = function.__doc__
+        frozen.__module__ = function.__module__
+        frozen.__qualname__ = function.__qualname__
+        return frozen
+
+    return tuple(freeze_function(root) for root in roots)
+
+
+(
+    _require_exact_parent_schema,
+    verify_synthetic_control_application_spec,
+    _validate_parent_freeze_manifest,
+    _manifest_record,
+) = _freeze_parent_authority_functions(
+    _require_exact_parent_schema,
+    verify_synthetic_control_application_spec,
+    _validate_parent_freeze_manifest,
+    _manifest_record,
+)
+
+_CLOSED_PARENT_FREEZE_SNAPSHOT = copy.deepcopy(_CLOSED_PARENT_FREEZE)
+
+
 class VerifiedParentFreeze:
     """Opaque live capability for the one closed V3-M0 parent body."""
 
@@ -2959,18 +3119,25 @@ class VerifiedParentFreeze:
         token: object,
         manifest: ParentFreezeManifest,
         seal: str,
+        *,
+        _issuance_token=_ISSUANCE_TOKEN,
+        _clone=copy.deepcopy,
+        _object_setattr=object.__setattr__,
+        _type_error=TypeError,
     ) -> None:
-        if token is not _ISSUANCE_TOKEN:
-            raise TypeError(
-                "VerifiedParentFreeze can only be issued by this module"
-            )
-        object.__setattr__(
+        if token is not _issuance_token:
+            raise _type_error("VerifiedParentFreeze can only be issued by this module")
+        _object_setattr(
             self,
             "_VerifiedParentFreeze__manifest",
-            copy.deepcopy(manifest),
+            _clone(manifest),
         )
-        object.__setattr__(self, "_VerifiedParentFreeze__token", token)
-        object.__setattr__(self, "_VerifiedParentFreeze__seal", seal)
+        _object_setattr(
+            self,
+            "_VerifiedParentFreeze__token",
+            token,
+        )
+        _object_setattr(self, "_VerifiedParentFreeze__seal", seal)
 
     def __setattr__(self, name: str, value: object) -> None:
         del name, value
@@ -2987,16 +3154,38 @@ class _ParentFreezeAuthority:
     fingerprint: str
 
 
-def _parent_freeze_seal(manifest: ParentFreezeManifest) -> str:
-    return canonical_sha(
+def _parent_freeze_seal(
+    manifest: ParentFreezeManifest,
+    *,
+    canonical_hash=canonical_sha,
+    manifest_record=_manifest_record,
+) -> str:
+    return canonical_hash(
         {
             "authority_kind": "v3m0-parent-freeze-live-identity-v1",
-            "manifest": _manifest_record(manifest),
+            "manifest": manifest_record(manifest),
         }
     )
 
 
-def _make_parent_freeze_registry() -> tuple[
+def _make_parent_freeze_registry(
+    *,
+    manifest_validator=_validate_parent_freeze_manifest,
+    seal_builder=_parent_freeze_seal,
+    authority_type=_ParentFreezeAuthority,
+    wrapper_type=VerifiedParentFreeze,
+    issuance_token=_ISSUANCE_TOKEN,
+    clone=copy.deepcopy,
+    weak_reference=weakref.ref,
+    lock_builder=threading.RLock,
+    type_fn=type,
+    id_fn=id,
+    object_type=object,
+    type_error=TypeError,
+    value_error=ValueError,
+    runtime_error=RuntimeError,
+    attribute_error=AttributeError,
+) -> tuple[
     Callable[[ParentFreezeManifest], VerifiedParentFreeze],
     Callable[[VerifiedParentFreeze], ParentFreezeManifest],
 ]:
@@ -3007,22 +3196,22 @@ def _make_parent_freeze_registry() -> tuple[
             _ParentFreezeAuthority,
         ],
     ] = {}
-    lock = threading.RLock()
+    lock = lock_builder()
 
     def issue_authorized(
         manifest: ParentFreezeManifest,
     ) -> VerifiedParentFreeze:
-        snapshot = _validate_parent_freeze_manifest(
+        snapshot = manifest_validator(
             manifest,
             require_closed_body=True,
         )
-        fingerprint = _parent_freeze_seal(snapshot)
-        wrapper = VerifiedParentFreeze(
-            _ISSUANCE_TOKEN,
+        fingerprint = seal_builder(snapshot)
+        wrapper = wrapper_type(
+            issuance_token,
             snapshot,
             fingerprint,
         )
-        identity = id(wrapper)
+        identity = id_fn(wrapper)
 
         def remove_stale(
             reference: weakref.ReferenceType[VerifiedParentFreeze],
@@ -3033,63 +3222,62 @@ def _make_parent_freeze_registry() -> tuple[
                 if current is not None and current[0] is reference:
                     del registry[wrapper_id]
 
-        reference = weakref.ref(wrapper, remove_stale)
-        authority = _ParentFreezeAuthority(
-            manifest=copy.deepcopy(snapshot),
+        reference = weak_reference(wrapper, remove_stale)
+        authority = authority_type(
+            manifest=clone(snapshot),
             fingerprint=fingerprint,
         )
         with lock:
             current = registry.get(identity)
             if current is not None and current[0]() is not None:
-                raise RuntimeError("live VerifiedParentFreeze identity collision")
+                raise runtime_error("live VerifiedParentFreeze identity collision")
             registry[identity] = (reference, authority)
         return wrapper
 
     def reverify_authorized(
         wrapper: VerifiedParentFreeze,
     ) -> ParentFreezeManifest:
-        if type(wrapper) is not VerifiedParentFreeze:
-            raise TypeError(
-                "parent-freeze consumer requires a module-issued "
-                "VerifiedParentFreeze"
+        if type_fn(wrapper) is not wrapper_type:
+            raise type_error(
+                "parent-freeze consumer requires a module-issued VerifiedParentFreeze"
             )
         with lock:
-            current = registry.get(id(wrapper))
+            current = registry.get(id_fn(wrapper))
             if current is None or current[0]() is not wrapper:
-                raise ValueError(
+                raise value_error(
                     "VerifiedParentFreeze identity is absent from the "
                     "authority registry"
                 )
             authority = current[1]
         try:
-            token = object.__getattribute__(
+            token = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedParentFreeze__token",
             )
-            seal = object.__getattribute__(
+            seal = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedParentFreeze__seal",
             )
-            manifest = object.__getattribute__(
+            manifest = object_type.__getattribute__(
                 wrapper,
                 "_VerifiedParentFreeze__manifest",
             )
-        except AttributeError as exc:
-            raise ValueError(
+        except attribute_error as exc:
+            raise value_error(
                 "VerifiedParentFreeze authority record is incomplete"
             ) from exc
-        if token is not _ISSUANCE_TOKEN:
-            raise ValueError("VerifiedParentFreeze authority token mismatch")
-        snapshot = _validate_parent_freeze_manifest(
+        if token is not issuance_token:
+            raise value_error("VerifiedParentFreeze authority token mismatch")
+        snapshot = manifest_validator(
             manifest,
             require_closed_body=True,
         )
-        expected_seal = _parent_freeze_seal(snapshot)
+        expected_seal = seal_builder(snapshot)
         if seal != expected_seal or seal != authority.fingerprint:
-            raise ValueError("VerifiedParentFreeze authority seal mismatch")
+            raise value_error("VerifiedParentFreeze authority seal mismatch")
         if snapshot != authority.manifest:
-            raise ValueError("VerifiedParentFreeze manifest authority mismatch")
-        return copy.deepcopy(authority.manifest)
+            raise value_error("VerifiedParentFreeze manifest authority mismatch")
+        return clone(authority.manifest)
 
     return issue_authorized, reverify_authorized
 
@@ -3099,22 +3287,53 @@ _issue_verified_parent_freeze, _reverify_verified_parent_freeze = (
 )
 
 
-def issue_v3m0_parent_freeze() -> VerifiedParentFreeze:
-    """Issue the one no-argument, module-closed V3-M0 parent capability."""
+def _make_parent_public_api(
+    *,
+    closed_snapshot=copy.deepcopy(_CLOSED_PARENT_FREEZE_SNAPSHOT),
+    manifest_validator=_validate_parent_freeze_manifest,
+    issuer=_issue_verified_parent_freeze,
+    reverifier=_reverify_verified_parent_freeze,
+    clone=copy.deepcopy,
+):
+    def issue_v3m0_parent_freeze() -> VerifiedParentFreeze:
+        """Issue the one no-argument, module-closed V3-M0 parent."""
 
-    return _issue_verified_parent_freeze(copy.deepcopy(_CLOSED_PARENT_FREEZE))
+        return issuer(clone(closed_snapshot))
 
+    def verify_parent_freeze(
+        manifest: ParentFreezeManifest,
+    ) -> VerifiedParentFreeze:
+        """Hydrate only the exact recursive closed parent body."""
 
-def verify_parent_freeze(
-    manifest: ParentFreezeManifest,
-) -> VerifiedParentFreeze:
-    """Hydrate the exact raw closed body into a fresh live capability."""
+        snapshot = manifest_validator(
+            manifest,
+            require_closed_body=True,
+        )
+        return issuer(snapshot)
 
-    snapshot = _validate_parent_freeze_manifest(
-        manifest,
-        require_closed_body=True,
+    def parent_property(
+        wrapper: VerifiedParentFreeze,
+    ) -> ParentFreezeManifest:
+        return reverifier(wrapper)
+
+    return (
+        issue_v3m0_parent_freeze,
+        verify_parent_freeze,
+        parent_property,
     )
-    return _issue_verified_parent_freeze(snapshot)
+
+
+(
+    issue_v3m0_parent_freeze,
+    verify_parent_freeze,
+    _closed_parent_property,
+) = _make_parent_public_api()
+
+setattr(
+    VerifiedParentFreeze,
+    "manifest",
+    property(_closed_parent_property),
+)
 
 
 __all__ = [
