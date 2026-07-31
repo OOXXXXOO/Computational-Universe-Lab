@@ -47,6 +47,9 @@ APPLICATION_READOUT_PROTOCOL_SCHEMA_VERSION = (
 APPLICATION_CONSTANTS_SCHEMA_VERSION = (
     "v3m0.synthetic-application-protocol-constants.v1"
 )
+APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION = (
+    "v3m0.synthetic-application-prediction-profile.v1"
+)
 APPLICATION_SPEC_SCHEMA_VERSION = "v3m0.synthetic-control-application-spec.v1"
 PROGRAM_ID = "projective-rule-space-v3m0-v1"
 TASK9_COMMIT_SHA = "39d1c1427aefa38cd46e1272affb9a10dd46a073"
@@ -121,6 +124,7 @@ _VALUE_KINDS = (
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _LOWER_GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 _UINT64_MAX = (1 << 64) - 1
+_FP64_EXPONENT_MASK = 0x7FF0000000000000
 _ISSUANCE_TOKEN = object()
 
 _SOURCE_CLOSURE = (
@@ -197,6 +201,13 @@ def _uint64(value: object, field: str) -> int:
     result = _int(value, field)
     if not 0 <= result <= _UINT64_MAX:
         raise ValueError(f"{field} must be an unsigned 64-bit integer")
+    return result
+
+
+def _finite_fp64_bits(value: object, field: str) -> int:
+    result = _uint64(value, field)
+    if result & _FP64_EXPONENT_MASK == _FP64_EXPONENT_MASK:
+        raise ValueError(f"{field} must encode a finite IEEE-754 binary64 value")
     return result
 
 
@@ -287,15 +298,15 @@ class TaggedScalarWire:
         if self.integer_value is not None:
             _int(self.integer_value, "integer_value")
         if self.fp64_bits_value is not None:
-            _uint64(self.fp64_bits_value, "fp64_bits_value")
+            _finite_fp64_bits(self.fp64_bits_value, "fp64_bits_value")
         if self.text_value is not None:
             _text(self.text_value, "text_value")
         if self.complex128_bits_value is not None:
             value = self.complex128_bits_value
             if type(value) is not tuple or len(value) != 2:
                 raise TypeError("complex128_bits_value must be a two-item tuple")
-            _uint64(value[0], "complex128_bits_value[0]")
-            _uint64(value[1], "complex128_bits_value[1]")
+            _finite_fp64_bits(value[0], "complex128_bits_value[0]")
+            _finite_fp64_bits(value[1], "complex128_bits_value[1]")
 
 
 @dataclass(frozen=True)
@@ -476,6 +487,58 @@ class SyntheticApplicationProtocolConstants:
 
 
 @dataclass(frozen=True)
+class SyntheticApplicationPredictionProfile:
+    prediction_schema_version: str
+    prediction_profile_id: str
+    control_case_id: str
+    expected_exact_values: tuple[
+        tuple[str, tuple[TaggedScalarWire, ...]], ...
+    ]
+    expected_qualitative_labels: tuple[tuple[str, tuple[str, ...]], ...]
+    prediction_profile_sha: str
+
+    def __post_init__(self) -> None:
+        _text(self.prediction_schema_version, "prediction_schema_version")
+        _text(self.prediction_profile_id, "prediction_profile_id")
+        _text(self.control_case_id, "control_case_id")
+        if type(self.expected_exact_values) is not tuple:
+            raise TypeError("expected_exact_values must be a tuple")
+        for index, entry in enumerate(self.expected_exact_values):
+            if type(entry) is not tuple or len(entry) != 2:
+                raise TypeError(
+                    f"expected_exact_values[{index}] must be a name/value pair"
+                )
+            _text(entry[0], f"expected_exact_values[{index}][0]")
+            if type(entry[1]) is not tuple or not entry[1]:
+                raise ValueError(
+                    f"expected_exact_values[{index}][1] must be a non-empty tuple"
+                )
+            if not all(type(value) is TaggedScalarWire for value in entry[1]):
+                raise TypeError(
+                    f"expected_exact_values[{index}][1] has the wrong wire type"
+                )
+        if type(self.expected_qualitative_labels) is not tuple:
+            raise TypeError("expected_qualitative_labels must be a tuple")
+        for index, entry in enumerate(self.expected_qualitative_labels):
+            if type(entry) is not tuple or len(entry) != 2:
+                raise TypeError(
+                    "expected_qualitative_labels"
+                    f"[{index}] must be a name/labels pair"
+                )
+            _text(entry[0], f"expected_qualitative_labels[{index}][0]")
+            _string_tuple(
+                entry[1],
+                f"expected_qualitative_labels[{index}][1]",
+            )
+        if (
+            not self.expected_exact_values
+            and not self.expected_qualitative_labels
+        ):
+            raise ValueError("prediction profile body must be non-empty")
+        _sha(self.prediction_profile_sha, "prediction_profile_sha")
+
+
+@dataclass(frozen=True)
 class V3M0SyntheticControlApplicationSpec:
     application_schema_version: str
     control_case_id: str
@@ -484,10 +547,12 @@ class V3M0SyntheticControlApplicationSpec:
     basis_protocol: SyntheticApplicationBasisProtocol
     grid_protocol: SyntheticApplicationGridProtocol
     readout_protocol: SyntheticApplicationReadoutProtocol
+    protocol_constant_payload: SyntheticApplicationProtocolConstants
     operations: tuple[SyntheticApplicationOperation, ...]
     output_operation_instance_ids: tuple[str, ...]
     required_pipeline_stages: tuple[str, ...]
     expected_prediction_profile_id: str
+    expected_prediction_profile: SyntheticApplicationPredictionProfile
     expected_control_evidence_schema: str
     application_spec_sha: str
 
@@ -507,6 +572,14 @@ class V3M0SyntheticControlApplicationSpec:
         if type(self.readout_protocol) is not SyntheticApplicationReadoutProtocol:
             raise TypeError(
                 "readout_protocol must be a SyntheticApplicationReadoutProtocol"
+            )
+        if (
+            type(self.protocol_constant_payload)
+            is not SyntheticApplicationProtocolConstants
+        ):
+            raise TypeError(
+                "protocol_constant_payload must be a "
+                "SyntheticApplicationProtocolConstants"
             )
         if type(self.operations) is not tuple:
             raise TypeError("operations must be a tuple")
@@ -529,6 +602,14 @@ class V3M0SyntheticControlApplicationSpec:
             self.expected_prediction_profile_id,
             "expected_prediction_profile_id",
         )
+        if (
+            type(self.expected_prediction_profile)
+            is not SyntheticApplicationPredictionProfile
+        ):
+            raise TypeError(
+                "expected_prediction_profile must be a "
+                "SyntheticApplicationPredictionProfile"
+            )
         _text(
             self.expected_control_evidence_schema,
             "expected_control_evidence_schema",
@@ -788,6 +869,40 @@ def _constants_record(
     }
 
 
+def synthetic_application_prediction_profile_payload(
+    profile: SyntheticApplicationPredictionProfile,
+) -> dict[str, object]:
+    if type(profile) is not SyntheticApplicationPredictionProfile:
+        raise TypeError(
+            "profile must be a SyntheticApplicationPredictionProfile"
+        )
+    return {
+        "prediction_schema_version": profile.prediction_schema_version,
+        "prediction_profile_id": profile.prediction_profile_id,
+        "control_case_id": profile.control_case_id,
+        "expected_exact_values": [
+            [
+                name,
+                [tagged_scalar_wire_payload(value) for value in values],
+            ]
+            for name, values in profile.expected_exact_values
+        ],
+        "expected_qualitative_labels": [
+            [name, list(labels)]
+            for name, labels in profile.expected_qualitative_labels
+        ],
+    }
+
+
+def _prediction_profile_record(
+    profile: SyntheticApplicationPredictionProfile,
+) -> dict[str, object]:
+    return {
+        **synthetic_application_prediction_profile_payload(profile),
+        "prediction_profile_sha": profile.prediction_profile_sha,
+    }
+
+
 def synthetic_control_application_spec_payload(
     spec: V3M0SyntheticControlApplicationSpec,
 ) -> dict[str, object]:
@@ -803,6 +918,9 @@ def synthetic_control_application_spec_payload(
         "basis_protocol": _basis_protocol_record(spec.basis_protocol),
         "grid_protocol": _grid_protocol_record(spec.grid_protocol),
         "readout_protocol": _readout_protocol_record(spec.readout_protocol),
+        "protocol_constant_payload": _constants_record(
+            spec.protocol_constant_payload
+        ),
         "operations": [
             _operation_record(operation) for operation in spec.operations
         ],
@@ -812,6 +930,9 @@ def synthetic_control_application_spec_payload(
         "required_pipeline_stages": list(spec.required_pipeline_stages),
         "expected_prediction_profile_id": (
             spec.expected_prediction_profile_id
+        ),
+        "expected_prediction_profile": _prediction_profile_record(
+            spec.expected_prediction_profile
         ),
         "expected_control_evidence_schema": (
             spec.expected_control_evidence_schema
@@ -1133,6 +1254,55 @@ def _verify_protocol_constants(
         raise ValueError("constants_sha does not match complete body")
 
 
+def _verify_prediction_profile(
+    profile: SyntheticApplicationPredictionProfile,
+    *,
+    control_case_id: str,
+) -> None:
+    if type(profile) is not SyntheticApplicationPredictionProfile:
+        raise TypeError(
+            "expected_prediction_profile must be a "
+            "SyntheticApplicationPredictionProfile"
+        )
+    if (
+        profile.prediction_schema_version
+        != APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION
+    ):
+        raise ValueError("unexpected prediction_schema_version")
+    if profile.control_case_id != control_case_id:
+        raise ValueError(
+            "prediction profile control_case_id does not match application"
+        )
+    exact_names = tuple(name for name, _ in profile.expected_exact_values)
+    if len(set(exact_names)) != len(exact_names):
+        raise ValueError("expected_exact_values contains duplicate names")
+    if exact_names != tuple(sorted(exact_names)):
+        raise ValueError("expected_exact_values must be canonical")
+    for name, values in profile.expected_exact_values:
+        _text(name, "expected_exact_values name")
+        if type(values) is not tuple or not values:
+            raise ValueError("expected exact value sequences must be non-empty")
+        if not all(type(value) is TaggedScalarWire for value in values):
+            raise TypeError("expected exact values have the wrong wire type")
+    label_names = tuple(
+        name for name, _ in profile.expected_qualitative_labels
+    )
+    if len(set(label_names)) != len(label_names):
+        raise ValueError("expected_qualitative_labels contains duplicate names")
+    if label_names != tuple(sorted(label_names)):
+        raise ValueError("expected_qualitative_labels must be canonical")
+    for name, labels in profile.expected_qualitative_labels:
+        _text(name, "expected_qualitative_labels name")
+        _string_tuple(labels, f"expected_qualitative_labels[{name!r}]")
+    expected_sha = canonical_sha(
+        synthetic_application_prediction_profile_payload(profile)
+    )
+    if profile.prediction_profile_sha != expected_sha:
+        raise ValueError(
+            "prediction_profile_sha does not match complete prediction body"
+        )
+
+
 def _serialized_size(payload: dict[str, object]) -> int:
     return len(
         json.dumps(
@@ -1147,7 +1317,6 @@ def _serialized_size(payload: dict[str, object]) -> int:
 
 def verify_synthetic_control_application_spec(
     spec: V3M0SyntheticControlApplicationSpec,
-    constants: SyntheticApplicationProtocolConstants,
 ) -> V3M0SyntheticControlApplicationSpec:
     """Verify one complete lazy application graph against frozen caps."""
 
@@ -1155,6 +1324,7 @@ def verify_synthetic_control_application_spec(
         raise TypeError(
             "spec must be a V3M0SyntheticControlApplicationSpec"
         )
+    constants = spec.protocol_constant_payload
     _verify_protocol_constants(constants)
     if spec.application_schema_version != APPLICATION_SPEC_SCHEMA_VERSION:
         raise ValueError("unexpected application_schema_version")
@@ -1185,6 +1355,10 @@ def verify_synthetic_control_application_spec(
     _verify_basis_protocol(spec.basis_protocol)
     _verify_grid_protocol(spec.grid_protocol)
     _verify_readout_protocol(spec.readout_protocol)
+    _verify_prediction_profile(
+        spec.expected_prediction_profile,
+        control_case_id=spec.control_case_id,
+    )
 
     operation_ids: list[str] = []
     dependencies: dict[str, tuple[str, ...]] = {}
@@ -1273,6 +1447,13 @@ def verify_synthetic_control_application_spec(
         spec.expected_prediction_profile_id,
         "expected_prediction_profile_id",
     )
+    if (
+        spec.expected_prediction_profile_id
+        != spec.expected_prediction_profile.prediction_profile_id
+    ):
+        raise ValueError(
+            "expected_prediction_profile_id does not bind prediction body"
+        )
     _text(
         spec.expected_control_evidence_schema,
         "expected_control_evidence_schema",
@@ -1280,6 +1461,28 @@ def verify_synthetic_control_application_spec(
     expected_spec_sha = canonical_sha(spec_payload)
     if spec.application_spec_sha != expected_spec_sha:
         raise ValueError("application_spec_sha does not match complete body")
+    expected_constants = _build_constants()
+    if constants != expected_constants:
+        raise ValueError(
+            "protocol constant payload does not match closed control body"
+        )
+    expected_operations, expected_outputs = _build_control_operation_graph(
+        spec.control_case_id,
+        spec.application_instance_id,
+        constants,
+    )
+    if operations != expected_operations or outputs != expected_outputs:
+        raise ValueError(
+            "operation DAG does not match closed replayable control body"
+        )
+    expected_profile = _build_prediction_profile(
+        spec.control_case_id,
+        constants,
+    )
+    if spec.expected_prediction_profile != expected_profile:
+        raise ValueError(
+            "prediction profile does not match closed control body"
+        )
     return copy.deepcopy(spec)
 
 
@@ -1316,10 +1519,14 @@ def _validate_parent_freeze_manifest(
     global_operation_ids: list[str] = []
     verified_specs = []
     for spec in specs:
-        verified = verify_synthetic_control_application_spec(
-            spec,
-            manifest.protocol_constant_payload,
-        )
+        if (
+            spec.protocol_constant_payload
+            != manifest.protocol_constant_payload
+        ):
+            raise ValueError(
+                "application protocol constants do not match parent constants"
+            )
+        verified = verify_synthetic_control_application_spec(spec)
         verified_specs.append(verified)
         instance_ids.append(verified.application_instance_id)
         global_operation_ids.extend(
@@ -1350,33 +1557,103 @@ def _float_bits(value: float) -> int:
     return struct.unpack(">Q", struct.pack(">d", value))[0]
 
 
+def _bits_float(value: int) -> float:
+    return struct.unpack(">d", struct.pack(">Q", value))[0]
+
+
+def _fp64_wire(value: float) -> TaggedScalarWire:
+    return TaggedScalarWire(
+        "fp64-bits",
+        None,
+        _float_bits(value),
+        None,
+        None,
+    )
+
+
+def _integer_wire(value: int) -> TaggedScalarWire:
+    return TaggedScalarWire("integer", value, None, None, None)
+
+
+def _text_wire(value: str) -> TaggedScalarWire:
+    return TaggedScalarWire("text", None, None, value, None)
+
+
 def _build_constants() -> SyntheticApplicationProtocolConstants:
     provisional = SyntheticApplicationProtocolConstants(
         constants_schema_version=APPLICATION_CONSTANTS_SCHEMA_VERSION,
         tagged_constants=(
             (
+                "amplitude-grey-control-fp64-bits",
+                _fp64_wire(0.5),
+            ),
+            (
+                "amplitude-null-control-fp64-bits",
+                _fp64_wire(0.0),
+            ),
+            (
+                "amplitude-null-upper-fp64-bits",
+                _fp64_wire(0.25),
+            ),
+            (
+                "amplitude-signal-control-fp64-bits",
+                _fp64_wire(1.0),
+            ),
+            (
+                "amplitude-signal-lower-fp64-bits",
+                _fp64_wire(0.75),
+            ),
+            (
                 "bridge-tolerance-fp64-bits",
-                TaggedScalarWire(
-                    "fp64-bits",
-                    None,
-                    _float_bits(1.0e-12),
-                    None,
-                    None,
-                ),
+                _fp64_wire(1.0e-12),
+            ),
+            (
+                "canonical-angle-high-squared-correlation-fp64-bits",
+                _fp64_wire(0.75),
+            ),
+            (
+                "canonical-angle-low-squared-correlation-fp64-bits",
+                _fp64_wire(0.25),
+            ),
+            (
+                "coverage-above-lower-fp64-bits",
+                _fp64_wire(0.6),
+            ),
+            (
+                "coverage-below-upper-fp64-bits",
+                _fp64_wire(0.4),
+            ),
+            (
+                "coverage-high-control-fp64-bits",
+                _fp64_wire(0.75),
+            ),
+            (
+                "coverage-low-control-fp64-bits",
+                _fp64_wire(0.25),
+            ),
+            (
+                "curvature-mode-count",
+                _integer_wire(2),
+            ),
+            (
+                "deterministic-true-floor-fp64-bits",
+                _fp64_wire(0.125),
             ),
             (
                 "endpoint-extraction-protocol",
-                TaggedScalarWire(
-                    "text",
-                    None,
-                    None,
-                    "endpoint-single-node-reference-v1",
-                    None,
-                ),
+                _text_wire("endpoint-single-node-reference-v1"),
             ),
             (
                 "phase-grid-denominator",
-                TaggedScalarWire("integer", 16, None, None, None),
+                _integer_wire(16),
+            ),
+            (
+                "survival-above-lower-fp64-bits",
+                _fp64_wire(0.6),
+            ),
+            (
+                "survival-below-upper-fp64-bits",
+                _fp64_wire(0.4),
             ),
             (
                 "unit-complex128-bits",
@@ -1478,7 +1755,1075 @@ def _build_readout_protocol() -> SyntheticApplicationReadoutProtocol:
     )
 
 
-def _build_application_specs() -> tuple[V3M0SyntheticControlApplicationSpec, ...]:
+def _constant_wire(
+    constants: SyntheticApplicationProtocolConstants,
+    name: str,
+) -> TaggedScalarWire:
+    matches = tuple(
+        value
+        for constant_name, value in constants.tagged_constants
+        if constant_name == name
+    )
+    if len(matches) != 1:
+        raise ValueError(f"missing or duplicate frozen constant {name!r}")
+    return matches[0]
+
+
+def _constant_float(
+    constants: SyntheticApplicationProtocolConstants,
+    name: str,
+) -> float:
+    wire = _constant_wire(constants, name)
+    if wire.value_kind != "fp64-bits" or wire.fp64_bits_value is None:
+        raise TypeError(f"frozen constant {name!r} is not fp64-bits")
+    return _bits_float(wire.fp64_bits_value)
+
+
+def _constant_integer(
+    constants: SyntheticApplicationProtocolConstants,
+    name: str,
+) -> int:
+    wire = _constant_wire(constants, name)
+    if wire.value_kind != "integer" or wire.integer_value is None:
+        raise TypeError(f"frozen constant {name!r} is not an integer")
+    return wire.integer_value
+
+
+def _make_operation(
+    application_instance_id: str,
+    local_id: str,
+    operation_kind: ApplicationOperationKind,
+    *,
+    inputs: tuple[str, ...] = (),
+    parameters: tuple[tuple[str, TaggedScalarWire], ...] = (),
+) -> SyntheticApplicationOperation:
+    operation = SyntheticApplicationOperation(
+        operation_schema_version=APPLICATION_OPERATION_SCHEMA_VERSION,
+        operation_instance_id=f"{application_instance_id}.{local_id}",
+        operation_kind=operation_kind,
+        input_operation_instance_ids=tuple(
+            sorted(f"{application_instance_id}.{item}" for item in inputs)
+        ),
+        parameters=tuple(sorted(parameters, key=lambda entry: entry[0])),
+        operation_sha="0" * 64,
+    )
+    return replace(
+        operation,
+        operation_sha=canonical_sha(
+            synthetic_application_operation_payload(operation)
+        ),
+    )
+
+
+def _build_control_operation_graph(
+    control_case_id: str,
+    application_instance_id: str,
+    constants: SyntheticApplicationProtocolConstants,
+) -> tuple[
+    tuple[SyntheticApplicationOperation, ...],
+    tuple[str, ...],
+]:
+    """Build the closed, typed, replayable DAG for one synthetic control."""
+
+    def op(
+        local_id: str,
+        kind: ApplicationOperationKind,
+        inputs: tuple[str, ...] = (),
+        parameters: tuple[tuple[str, TaggedScalarWire], ...] = (),
+    ) -> SyntheticApplicationOperation:
+        return _make_operation(
+            application_instance_id,
+            local_id,
+            kind,
+            inputs=inputs,
+            parameters=parameters,
+        )
+
+    one = _fp64_wire(1.0)
+    zero = _fp64_wire(0.0)
+    two = _fp64_wire(2.0)
+    operations: tuple[SyntheticApplicationOperation, ...]
+    output_local_id: str
+
+    if control_case_id == "C01_BLIND_HOLDOUT_FULL":
+        operations = (
+            op(
+                "00-blind-response",
+                "identity-v1",
+                parameters=(
+                    ("response-rank", _integer_wire(2)),
+                    ("target-visibility", _text_wire("blind")),
+                ),
+            ),
+            op(
+                "01-actual-branch",
+                "identity-v1",
+                ("00-blind-response",),
+                (("branch-role", _text_wire("actual")),),
+            ),
+            op(
+                "02-ablated-branch",
+                "identity-v1",
+                ("00-blind-response",),
+                (("branch-role", _text_wire("ablated")),),
+            ),
+            op(
+                "03-holdout-span",
+                "geometry-subspace-v1",
+                ("01-actual-branch", "02-ablated-branch"),
+                (
+                    ("construction", _text_wire("holdout-span")),
+                    ("target-rank", _integer_wire(2)),
+                ),
+            ),
+        )
+        output_local_id = "03-holdout-span"
+    elif control_case_id == "C02_CONDITIONED_ZERO":
+        operations = (
+            op(
+                "00-conditioned-actual",
+                "identity-v1",
+                parameters=(
+                    ("response-rank", _integer_wire(2)),
+                    ("target-visibility", _text_wire("conditioned")),
+                ),
+            ),
+            op(
+                "01-ablated-zero",
+                "amplitude-rescale-v1",
+                ("00-conditioned-actual",),
+                (("amplitude-scale", zero),),
+            ),
+            op(
+                "02-paired-output",
+                "direct-sum-v1",
+                ("00-conditioned-actual", "01-ablated-zero"),
+                (("component-count", _integer_wire(2)),),
+            ),
+        )
+        output_local_id = "02-paired-output"
+    elif control_case_id == "C03_EQUAL_RANK_DIRECT_SUM":
+        operations = (
+            op(
+                "00-rank-two-source",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-missing-half",
+                "amplitude-rescale-v1",
+                ("00-rank-two-source",),
+                (("amplitude-scale", zero),),
+            ),
+            op(
+                "02-surviving-half",
+                "amplitude-rescale-v1",
+                ("00-rank-two-source",),
+                (("amplitude-scale", one),),
+            ),
+            op(
+                "03-equal-rank-direct-sum",
+                "direct-sum-v1",
+                ("01-missing-half", "02-surviving-half"),
+                (
+                    ("left-rank", _integer_wire(1)),
+                    ("right-rank", _integer_wire(1)),
+                ),
+            ),
+        )
+        output_local_id = "03-equal-rank-direct-sum"
+    elif control_case_id == "C04_CANONICAL_ANGLE_025_075":
+        operations = (
+            op(
+                "00-orthonormal-source",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-canonical-angle-pair",
+                "canonical-shear-v1",
+                ("00-orthonormal-source",),
+                (
+                    (
+                        "survival-squared-correlation-0",
+                        _constant_wire(
+                            constants,
+                            "canonical-angle-low-squared-correlation-fp64-bits",
+                        ),
+                    ),
+                    (
+                        "survival-squared-correlation-1",
+                        _constant_wire(
+                            constants,
+                            "canonical-angle-high-squared-correlation-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "02-survival-readout",
+                "geometry-subspace-v1",
+                ("01-canonical-angle-pair",),
+                (("readout", _text_wire("squared-canonical-correlation")),),
+            ),
+        )
+        output_local_id = "02-survival-readout"
+    elif control_case_id == "C05_PHASE_AND_SCALAR_GAIN":
+        operations = (
+            op(
+                "00-reference-response",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-phase-flip",
+                "phase-rotation-v1",
+                ("00-reference-response",),
+                (("phase-radians", _fp64_wire(math.pi)),),
+            ),
+            op(
+                "02-scalar-gain",
+                "amplitude-rescale-v1",
+                ("00-reference-response",),
+                (("amplitude-scale", two),),
+            ),
+            op(
+                "03-auxiliary-pair",
+                "direct-sum-v1",
+                ("01-phase-flip", "02-scalar-gain"),
+                (("component-count", _integer_wire(2)),),
+            ),
+        )
+        output_local_id = "03-auxiliary-pair"
+    elif control_case_id == "C06_INTERNAL_NONSCALE_MIXING":
+        operations = (
+            op(
+                "00-source-frame",
+                "identity-v1",
+                parameters=(("source-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-nonscalar-mix",
+                "source-linear-mix-v1",
+                ("00-source-frame",),
+                (
+                    ("matrix-00", _integer_wire(2)),
+                    ("matrix-01", _integer_wire(1)),
+                    ("matrix-10", _integer_wire(0)),
+                    ("matrix-11", _integer_wire(1)),
+                ),
+            ),
+        )
+        output_local_id = "01-nonscalar-mix"
+    elif control_case_id == "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE":
+        operations = (
+            op(
+                "00-reference-wave",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(1)),),
+            ),
+            op(
+                "01-constructive",
+                "phase-rotation-v1",
+                ("00-reference-wave",),
+                (("phase-radians", zero),),
+            ),
+            op(
+                "02-destructive",
+                "phase-rotation-v1",
+                ("00-reference-wave",),
+                (("phase-radians", _fp64_wire(math.pi)),),
+            ),
+            op(
+                "03-interference-pair",
+                "direct-sum-v1",
+                ("01-constructive", "02-destructive"),
+                (("combination", _text_wire("coherent-pair")),),
+            ),
+            op(
+                "04-interference-combiner",
+                "source-linear-mix-v1",
+                ("03-interference-pair",),
+                (
+                    ("combiner-00", _integer_wire(1)),
+                    ("combiner-01", _integer_wire(1)),
+                    ("combiner-10", _integer_wire(1)),
+                    ("combiner-11", _integer_wire(-1)),
+                ),
+            ),
+        )
+        output_local_id = "04-interference-combiner"
+    elif control_case_id == "C08_RANK_R_MISSING_MODES":
+        operations = (
+            op(
+                "00-rank-two-target",
+                "identity-v1",
+                parameters=(("target-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-rank-one-deletion",
+                "geometry-subspace-v1",
+                ("00-rank-two-target",),
+                (
+                    ("missing-rank", _integer_wire(1)),
+                    ("selection", _text_wire("target-conditioned")),
+                ),
+            ),
+        )
+        output_local_id = "01-rank-one-deletion"
+    elif control_case_id == "C09_PURE_GAUGE_DRESSING":
+        operations = (
+            op(
+                "00-curvature-response",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(2)),),
+            ),
+            op(
+                "01-pure-gauge-dressing",
+                "canonical-shear-v1",
+                ("00-curvature-response",),
+                (
+                    ("gauge-amplitude", _fp64_wire(8.0)),
+                    ("gauge-sector", _text_wire("readout-nullspace")),
+                ),
+            ),
+            op(
+                "02-curvature-quotient",
+                "geometry-subspace-v1",
+                ("01-pure-gauge-dressing",),
+                (("quotient", _text_wire("curvature")),),
+            ),
+        )
+        output_local_id = "02-curvature-quotient"
+    elif control_case_id == "C10_FULL_SOURCE_EXTRA_MODE":
+        operations = (
+            op(
+                "00-actual-inactive-source",
+                "amplitude-rescale-v1",
+                parameters=(("amplitude-scale", zero),),
+            ),
+            op(
+                "01-ablated-orthogonal-mode",
+                "source-linear-mix-v1",
+                ("00-actual-inactive-source",),
+                (
+                    ("new-source-axis", _integer_wire(1)),
+                    ("orthogonal-amplitude", one),
+                ),
+            ),
+            op(
+                "02-full-source-extra-readout",
+                "geometry-subspace-v1",
+                ("00-actual-inactive-source", "01-ablated-orthogonal-mode"),
+                (("source-domain", _text_wire("full")),),
+            ),
+        )
+        output_local_id = "02-full-source-extra-readout"
+    elif control_case_id == "C11_NULL_GREY_SIGNAL_AMPLITUDE":
+        operations = (
+            op(
+                "00-unit-response",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(1)),),
+            ),
+            op(
+                "01-null-amplitude",
+                "amplitude-rescale-v1",
+                ("00-unit-response",),
+                (
+                    (
+                        "amplitude-scale",
+                        _constant_wire(
+                            constants,
+                            "amplitude-null-control-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "02-grey-amplitude",
+                "amplitude-rescale-v1",
+                ("00-unit-response",),
+                (
+                    (
+                        "amplitude-scale",
+                        _constant_wire(
+                            constants,
+                            "amplitude-grey-control-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "03-signal-amplitude",
+                "amplitude-rescale-v1",
+                ("00-unit-response",),
+                (
+                    (
+                        "amplitude-scale",
+                        _constant_wire(
+                            constants,
+                            "amplitude-signal-control-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "04-amplitude-regime-bundle",
+                "direct-sum-v1",
+                (
+                    "01-null-amplitude",
+                    "02-grey-amplitude",
+                    "03-signal-amplitude",
+                ),
+                (("component-count", _integer_wire(3)),),
+            ),
+        )
+        output_local_id = "04-amplitude-regime-bundle"
+    elif control_case_id == "C12_NU_INC_IR_NORMALIZATION":
+        operations = (
+            op(
+                "00-all-window-response",
+                "identity-v1",
+                parameters=(
+                    ("direction-count", _integer_wire(1)),
+                    ("window-count", _integer_wire(2)),
+                ),
+            ),
+            op(
+                "01-nu-inc-normalized",
+                "geometry-subspace-v1",
+                ("00-all-window-response",),
+                (
+                    (
+                        "curvature-mode-count",
+                        _integer_wire(
+                            _constant_integer(
+                                constants,
+                                "curvature-mode-count",
+                            )
+                        ),
+                    ),
+                    ("normalizer", _text_wire("nu-inc")),
+                    ("raw-noise-gates", _text_wire("absolute-and-relative")),
+                ),
+            ),
+        )
+        output_local_id = "01-nu-inc-normalized"
+    elif control_case_id == "C13_BOTH_ZERO_UNDEFINED":
+        operations = (
+            op(
+                "00-zero-seed",
+                "identity-v1",
+                parameters=(("response-rank", _integer_wire(1)),),
+            ),
+            op(
+                "01-actual-zero",
+                "amplitude-rescale-v1",
+                ("00-zero-seed",),
+                (("amplitude-scale", zero),),
+            ),
+            op(
+                "02-ablated-zero",
+                "amplitude-rescale-v1",
+                ("00-zero-seed",),
+                (("amplitude-scale", zero),),
+            ),
+            op(
+                "03-zero-pair",
+                "direct-sum-v1",
+                ("01-actual-zero", "02-ablated-zero"),
+                (("component-count", _integer_wire(2)),),
+            ),
+        )
+        output_local_id = "03-zero-pair"
+    elif control_case_id == "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL":
+        operations = (
+            op(
+                "00-endpoint-ambiguous",
+                "deterministic-series-v1",
+                parameters=(
+                    ("fault-mode", _text_wire("endpoint-shell-ambiguous")),
+                    ("series-code", _text_wire("phase-band-empty")),
+                ),
+            ),
+            op(
+                "01-response-null",
+                "deterministic-series-v1",
+                parameters=(
+                    ("fault-mode", _text_wire("response-null")),
+                    ("series-code", _text_wire("actual-rank-zero")),
+                ),
+            ),
+            op(
+                "02-trace-unclassified",
+                "deterministic-series-v1",
+                parameters=(
+                    ("fault-mode", _text_wire("trace-unclassified")),
+                    ("series-code", _text_wire("unclassified")),
+                ),
+            ),
+            op(
+                "03-unstable",
+                "deterministic-series-v1",
+                parameters=(
+                    ("fault-mode", _text_wire("unstable")),
+                    ("series-code", _text_wire("spectral-radius-above-one")),
+                ),
+            ),
+            op(
+                "04-fault-bundle",
+                "direct-sum-v1",
+                (
+                    "00-endpoint-ambiguous",
+                    "01-response-null",
+                    "02-trace-unclassified",
+                    "03-unstable",
+                ),
+                (("component-count", _integer_wire(4)),),
+            ),
+        )
+        output_local_id = "04-fault-bundle"
+    elif control_case_id == "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY":
+        operations = (
+            op(
+                "00-full-h",
+                "geometry-subspace-v1",
+                parameters=(
+                    ("geometry-variant", _text_wire("full-h")),
+                    ("physical-rank", _integer_wire(2)),
+                ),
+            ),
+            op(
+                "01-low-rank-tt",
+                "geometry-subspace-v1",
+                parameters=(
+                    ("geometry-variant", _text_wire("low-rank-TT")),
+                    ("physical-rank", _integer_wire(1)),
+                ),
+            ),
+            op(
+                "02-tt",
+                "geometry-subspace-v1",
+                parameters=(
+                    ("geometry-variant", _text_wire("TT")),
+                    ("physical-rank", _integer_wire(2)),
+                ),
+            ),
+            op(
+                "03-tt-plus-row",
+                "geometry-subspace-v1",
+                parameters=(
+                    ("geometry-variant", _text_wire("TT⊕row")),
+                    ("physical-rank", _integer_wire(2)),
+                    ("row-rank", _integer_wire(1)),
+                ),
+            ),
+            op(
+                "04-geometry-bundle",
+                "direct-sum-v1",
+                ("00-full-h", "01-low-rank-tt", "02-tt", "03-tt-plus-row"),
+                (
+                    (
+                        "frozen-spectrum-length",
+                        _integer_wire(
+                            _constant_integer(
+                                constants,
+                                "curvature-mode-count",
+                            )
+                        ),
+                    ),
+                ),
+            ),
+        )
+        output_local_id = "04-geometry-bundle"
+    elif control_case_id == "C16_COVERAGE_025_075":
+        operations = (
+            op(
+                "00-coverage-low",
+                "coverage-subspace-v1",
+                parameters=(
+                    (
+                        "coverage-squared-correlation",
+                        _constant_wire(
+                            constants,
+                            "coverage-low-control-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "01-coverage-high",
+                "coverage-subspace-v1",
+                parameters=(
+                    (
+                        "coverage-squared-correlation",
+                        _constant_wire(
+                            constants,
+                            "coverage-high-control-fp64-bits",
+                        ),
+                    ),
+                ),
+            ),
+            op(
+                "02-coverage-pair",
+                "direct-sum-v1",
+                ("00-coverage-low", "01-coverage-high"),
+                (("component-count", _integer_wire(2)),),
+            ),
+        )
+        output_local_id = "02-coverage-pair"
+    elif control_case_id == "C17_QUOTIENT_GAUGE_COVERAGE":
+        operations = (
+            op(
+                "00-physical-target",
+                "coverage-subspace-v1",
+                parameters=(("quotient", _text_wire("curvature")),),
+            ),
+            op(
+                "01-gauge-dressing",
+                "canonical-shear-v1",
+                ("00-physical-target",),
+                (
+                    ("gauge-amplitude", _fp64_wire(8.0)),
+                    ("gauge-sector", _text_wire("readout-nullspace")),
+                ),
+            ),
+            op(
+                "02-dressed-quotient",
+                "coverage-subspace-v1",
+                ("00-physical-target", "01-gauge-dressing"),
+                (("quotient", _text_wire("curvature")),),
+            ),
+        )
+        output_local_id = "02-dressed-quotient"
+    elif control_case_id == "C18_ABLATED_INDEPENDENT_UNARY":
+        operations = (
+            op(
+                "00-actual-source-domain",
+                "identity-v1",
+                parameters=(("source-axis", _integer_wire(0)),),
+            ),
+            op(
+                "01-ablated-new-source-axis",
+                "source-linear-mix-v1",
+                ("00-actual-source-domain",),
+                (
+                    ("independent-source-axis", _integer_wire(1)),
+                    ("new-axis-amplitude", one),
+                ),
+            ),
+            op(
+                "02-unary-geometry-sigma",
+                "geometry-subspace-v1",
+                ("00-actual-source-domain", "01-ablated-new-source-axis"),
+                (("observer", _text_wire("geometry-and-sigma")),),
+            ),
+        )
+        output_local_id = "02-unary-geometry-sigma"
+    elif control_case_id == "C19_FULL_POSITIVE_OBSERVER_COLLAPSE":
+        operations = (
+            op(
+                "00-full-positive-h",
+                "identity-v1",
+                parameters=(
+                    ("frequency-sector", _text_wire("positive-full")),
+                    ("h-rank", _integer_wire(2)),
+                ),
+            ),
+            op(
+                "01-observer-collapse-check",
+                "geometry-subspace-v1",
+                ("00-full-positive-h",),
+                (("certificate", _text_wire("observer-collapse")),),
+            ),
+        )
+        output_local_id = "01-observer-collapse-check"
+    elif control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR":
+        operations = (
+            op(
+                "00-clean-zero-series",
+                "deterministic-series-v1",
+                parameters=(
+                    ("sample-0", zero),
+                    ("sample-1", zero),
+                    ("sample-2", zero),
+                    ("series-class", _text_wire("clean-zero")),
+                ),
+            ),
+            op(
+                "01-true-floor-series",
+                "deterministic-series-v1",
+                parameters=(
+                    (
+                        "sample-0",
+                        _constant_wire(
+                            constants,
+                            "deterministic-true-floor-fp64-bits",
+                        ),
+                    ),
+                    (
+                        "sample-1",
+                        _constant_wire(
+                            constants,
+                            "deterministic-true-floor-fp64-bits",
+                        ),
+                    ),
+                    (
+                        "sample-2",
+                        _constant_wire(
+                            constants,
+                            "deterministic-true-floor-fp64-bits",
+                        ),
+                    ),
+                    ("series-class", _text_wire("true-floor")),
+                ),
+            ),
+            op(
+                "02-dm26-pair",
+                "direct-sum-v1",
+                ("00-clean-zero-series", "01-true-floor-series"),
+                (("decision-rule", _text_wire("D-M2-6")),),
+            ),
+        )
+        output_local_id = "02-dm26-pair"
+    else:
+        raise ValueError("control_case_id is outside the closed C01-C20 registry")
+
+    canonical_operations = tuple(
+        sorted(operations, key=lambda operation: operation.operation_instance_id)
+    )
+    return (
+        canonical_operations,
+        (f"{application_instance_id}.{output_local_id}",),
+    )
+
+
+def _side_label(
+    value: float,
+    *,
+    below_upper: float,
+    above_lower: float,
+) -> str:
+    if value < below_upper:
+        return "below"
+    if value > above_lower:
+        return "above"
+    return "grey"
+
+
+def _amplitude_regime(
+    value: float,
+    *,
+    null_upper: float,
+    signal_lower: float,
+) -> str:
+    if value < null_upper:
+        return "null"
+    if value > signal_lower:
+        return "signal"
+    return "grey"
+
+
+def _make_prediction_profile(
+    control_case_id: str,
+    *,
+    exact_values: dict[str, tuple[TaggedScalarWire, ...]],
+    qualitative_labels: dict[str, tuple[str, ...]],
+) -> SyntheticApplicationPredictionProfile:
+    ordinal = APPLICATION_CONTROL_CASE_IDS.index(control_case_id) + 1
+    provisional = SyntheticApplicationPredictionProfile(
+        prediction_schema_version=(
+            APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION
+        ),
+        prediction_profile_id=(
+            f"v3m0.synthetic-prediction.c{ordinal:02d}.v1"
+        ),
+        control_case_id=control_case_id,
+        expected_exact_values=tuple(sorted(exact_values.items())),
+        expected_qualitative_labels=tuple(sorted(qualitative_labels.items())),
+        prediction_profile_sha="0" * 64,
+    )
+    return replace(
+        provisional,
+        prediction_profile_sha=canonical_sha(
+            synthetic_application_prediction_profile_payload(provisional)
+        ),
+    )
+
+
+def _build_prediction_profile(
+    control_case_id: str,
+    constants: SyntheticApplicationProtocolConstants,
+) -> SyntheticApplicationPredictionProfile:
+    """Derive expected values and labels from the frozen control constants."""
+
+    def fp(*values: float) -> tuple[TaggedScalarWire, ...]:
+        return tuple(_fp64_wire(value) for value in values)
+
+    def integer(*values: int) -> tuple[TaggedScalarWire, ...]:
+        return tuple(_integer_wire(value) for value in values)
+
+    exact: dict[str, tuple[TaggedScalarWire, ...]]
+    labels: dict[str, tuple[str, ...]]
+
+    if control_case_id == "C01_BLIND_HOLDOUT_FULL":
+        exact = {
+            "causal-epsilon": fp(1.0),
+            "geometry-delta": fp(0.0),
+            "survival-spectrum": fp(1.0, 1.0),
+        }
+        labels = {"target-construction": ("blind-holdout",)}
+    elif control_case_id == "C02_CONDITIONED_ZERO":
+        exact = {
+            "causal-epsilon": fp(0.0),
+            "geometry-delta": fp(0.0),
+            "survival-spectrum": fp(0.0, 0.0),
+        }
+        labels = {"target-construction": ("conditioned",)}
+    elif control_case_id == "C03_EQUAL_RANK_DIRECT_SUM":
+        exact = {
+            "causal-epsilon": fp(0.5),
+            "survival-spectrum": fp(0.0, 1.0),
+        }
+        labels = {"rank-partition": ("equal", "equal")}
+    elif control_case_id == "C04_CANONICAL_ANGLE_025_075":
+        values = (
+            _constant_float(
+                constants,
+                "canonical-angle-low-squared-correlation-fp64-bits",
+            ),
+            _constant_float(
+                constants,
+                "canonical-angle-high-squared-correlation-fp64-bits",
+            ),
+        )
+        below_upper = _constant_float(
+            constants,
+            "survival-below-upper-fp64-bits",
+        )
+        above_lower = _constant_float(
+            constants,
+            "survival-above-lower-fp64-bits",
+        )
+        exact = {"survival-spectrum": fp(*values)}
+        labels = {
+            "survival-side": tuple(
+                _side_label(
+                    value,
+                    below_upper=below_upper,
+                    above_lower=above_lower,
+                )
+                for value in values
+            )
+        }
+    elif control_case_id == "C05_PHASE_AND_SCALAR_GAIN":
+        exact = {
+            "map-congruence": fp(1.0, 1.0),
+            "survival-spectrum": fp(1.0, 1.0),
+        }
+        labels = {"auxiliary-change": ("phase", "scalar-gain")}
+    elif control_case_id == "C06_INTERNAL_NONSCALE_MIXING":
+        exact = {"survival-spectrum": fp(1.0, 1.0)}
+        labels = {"map-congruence": ("strictly-below-one",)}
+    elif control_case_id == "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE":
+        exact = {
+            "chi-extra": fp(0.0, 1.0),
+            "procrustes-residual": fp(0.0, 1.0),
+            "survival-spectrum": fp(1.0, 0.0),
+        }
+        labels = {"interference-order": ("constructive", "destructive")}
+    elif control_case_id == "C08_RANK_R_MISSING_MODES":
+        exact = {
+            "missing-rank": integer(1),
+            "survival-spectrum": fp(0.0, 1.0),
+        }
+        labels = {"zero-count": ("equals-missing-rank",)}
+    elif control_case_id == "C09_PURE_GAUGE_DRESSING":
+        exact = {
+            "survival-after-dressing": fp(1.0, 1.0),
+            "survival-before-dressing": fp(1.0, 1.0),
+        }
+        labels = {"curvature-spectrum": ("gauge-invariant",)}
+    elif control_case_id == "C10_FULL_SOURCE_EXTRA_MODE":
+        exact = {"chi-extra": fp(1.0)}
+        labels = {
+            "new-orthogonal-mode": ("detected-by-full-source-readout",)
+        }
+    elif control_case_id == "C11_NULL_GREY_SIGNAL_AMPLITUDE":
+        amplitudes = (
+            _constant_float(
+                constants,
+                "amplitude-null-control-fp64-bits",
+            ),
+            _constant_float(
+                constants,
+                "amplitude-grey-control-fp64-bits",
+            ),
+            _constant_float(
+                constants,
+                "amplitude-signal-control-fp64-bits",
+            ),
+        )
+        null_upper = _constant_float(
+            constants,
+            "amplitude-null-upper-fp64-bits",
+        )
+        signal_lower = _constant_float(
+            constants,
+            "amplitude-signal-lower-fp64-bits",
+        )
+        regimes = tuple(
+            _amplitude_regime(
+                value,
+                null_upper=null_upper,
+                signal_lower=signal_lower,
+            )
+            for value in amplitudes
+        )
+        coordinate_by_regime = {
+            "null": _fp64_wire(0.0),
+            "grey": _text_wire("undefined"),
+            "signal": _fp64_wire(1.0),
+        }
+        exact = {
+            "causal-coordinate": tuple(
+                coordinate_by_regime[regime] for regime in regimes
+            ),
+            "input-amplitude": fp(*amplitudes),
+        }
+        labels = {"amplitude-regime": regimes}
+    elif control_case_id == "C12_NU_INC_IR_NORMALIZATION":
+        mode_count = _constant_integer(constants, "curvature-mode-count")
+        exact = {
+            "curvature-mode-count-by-window": integer(
+                mode_count,
+                mode_count,
+            )
+        }
+        labels = {
+            "raw-noise-gates": (
+                "absolute-gate-not-bypassed",
+                "relative-gate-not-bypassed",
+            )
+        }
+    elif control_case_id == "C13_BOTH_ZERO_UNDEFINED":
+        exact = {
+            "ablated-response-norm": fp(0.0),
+            "actual-response-norm": fp(0.0),
+        }
+        labels = {
+            "coordinate-status": (
+                "causal-undefined",
+                "geometry-undefined",
+                "sigma-undefined",
+            )
+        }
+    elif control_case_id == "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL":
+        exact = {}
+        labels = {
+            "fault-outcome": (
+                "UNSTABLE",
+                "TRACE_UNCLASSIFIED",
+                "ENDPOINT_SHELL_AMBIGUOUS",
+                "RESPONSE_NULL",
+            ),
+            "coordinate-status": (
+                "causal-undefined",
+                "causal-undefined",
+                "all-undefined",
+                "all-undefined",
+            ),
+        }
+    elif control_case_id == "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY":
+        exact = {
+            "g-spectrum.full-h": fp(1.0, 1.0),
+            "g-spectrum.low-rank-tt": fp(0.0, 1.0),
+            "g-spectrum.tt": fp(1.0, 1.0),
+            "g-spectrum.tt-plus-row": fp(1.0, 1.0),
+        }
+        labels = {
+            "geometry-variant": (
+                "full-h",
+                "low-rank-tt",
+                "tt",
+                "tt-plus-row",
+            )
+        }
+    elif control_case_id == "C16_COVERAGE_025_075":
+        values = (
+            _constant_float(constants, "coverage-low-control-fp64-bits"),
+            _constant_float(constants, "coverage-high-control-fp64-bits"),
+        )
+        below_upper = _constant_float(
+            constants,
+            "coverage-below-upper-fp64-bits",
+        )
+        above_lower = _constant_float(
+            constants,
+            "coverage-above-lower-fp64-bits",
+        )
+        exact = {"coverage-spectrum": fp(*values)}
+        labels = {
+            "coverage-side": tuple(
+                _side_label(
+                    value,
+                    below_upper=below_upper,
+                    above_lower=above_lower,
+                )
+                for value in values
+            ),
+            "grey-policy": ("neither-below-nor-above",),
+        }
+    elif control_case_id == "C17_QUOTIENT_GAUGE_COVERAGE":
+        values = (
+            _constant_float(constants, "coverage-low-control-fp64-bits"),
+            _constant_float(constants, "coverage-high-control-fp64-bits"),
+        )
+        exact = {
+            "coverage-after-dressing": fp(*values),
+            "coverage-before-dressing": fp(*values),
+        }
+        labels = {"quotient-coverage": ("gauge-invariant",)}
+    elif control_case_id == "C18_ABLATED_INDEPENDENT_UNARY":
+        exact = {}
+        labels = {
+            "independent-source-direction": (
+                "detected-by-geometry",
+                "detected-by-sigma",
+            )
+        }
+    elif control_case_id == "C19_FULL_POSITIVE_OBSERVER_COLLAPSE":
+        exact = {"full-positive-h-rank": integer(2)}
+        labels = {"observer-collapse": ("triggered",)}
+    elif control_case_id == "C20_DM26_CLEAN_ZERO_TRUE_FLOOR":
+        floor = _constant_float(
+            constants,
+            "deterministic-true-floor-fp64-bits",
+        )
+        exact = {
+            "clean-zero-series": fp(0.0, 0.0, 0.0),
+            "true-floor-series": fp(floor, floor, floor),
+        }
+        labels = {
+            "D-M2-6-decision": (
+                "clean-zero-excluded",
+                "true-floor-retained",
+            )
+        }
+    else:
+        raise ValueError("control_case_id is outside the closed C01-C20 registry")
+
+    return _make_prediction_profile(
+        control_case_id,
+        exact_values=exact,
+        qualitative_labels=labels,
+    )
+
+
+def _build_application_specs(
+    constants: SyntheticApplicationProtocolConstants,
+) -> tuple[V3M0SyntheticControlApplicationSpec, ...]:
     basis_protocol = _build_basis_protocol()
     grid_protocol = _build_grid_protocol()
     readout_protocol = _build_readout_protocol()
@@ -1488,26 +2833,14 @@ def _build_application_specs() -> tuple[V3M0SyntheticControlApplicationSpec, ...
         start=1,
     ):
         application_instance_id = f"v3m0.synthetic-control.c{ordinal:02d}.v1"
-        operation = SyntheticApplicationOperation(
-            operation_schema_version=APPLICATION_OPERATION_SCHEMA_VERSION,
-            operation_instance_id=f"{application_instance_id}.root",
-            operation_kind=_APPLICATION_OPERATION_KINDS[
-                (ordinal - 1) % len(_APPLICATION_OPERATION_KINDS)
-            ],
-            input_operation_instance_ids=(),
-            parameters=(
-                (
-                    "case-ordinal",
-                    TaggedScalarWire("integer", ordinal, None, None, None),
-                ),
-            ),
-            operation_sha="0" * 64,
+        operations, outputs = _build_control_operation_graph(
+            control_case_id,
+            application_instance_id,
+            constants,
         )
-        operation = replace(
-            operation,
-            operation_sha=canonical_sha(
-                synthetic_application_operation_payload(operation)
-            ),
+        prediction_profile = _build_prediction_profile(
+            control_case_id,
+            constants,
         )
         stages = (
             "construction",
@@ -1529,12 +2862,14 @@ def _build_application_specs() -> tuple[V3M0SyntheticControlApplicationSpec, ...
             basis_protocol=basis_protocol,
             grid_protocol=grid_protocol,
             readout_protocol=readout_protocol,
-            operations=(operation,),
-            output_operation_instance_ids=(operation.operation_instance_id,),
+            protocol_constant_payload=constants,
+            operations=operations,
+            output_operation_instance_ids=outputs,
             required_pipeline_stages=stages,
             expected_prediction_profile_id=(
-                f"v3m0.synthetic-prediction.c{ordinal:02d}.v1"
+                prediction_profile.prediction_profile_id
             ),
+            expected_prediction_profile=prediction_profile,
             expected_control_evidence_schema=(
                 "v3m0.window-control-evidence.v1"
                 if ordinal <= 3
@@ -1554,6 +2889,7 @@ def _build_application_specs() -> tuple[V3M0SyntheticControlApplicationSpec, ...
 
 
 def _build_closed_parent_freeze() -> ParentFreezeManifest:
+    constants = _build_constants()
     provisional = ParentFreezeManifest(
         parent_freeze_schema_version=PARENT_FREEZE_SCHEMA_VERSION,
         program_id=PROGRAM_ID,
@@ -1561,8 +2897,8 @@ def _build_closed_parent_freeze() -> ParentFreezeManifest:
         task9_commit_sha=TASK9_COMMIT_SHA,
         taskbook_source_sha=TASKBOOK_SOURCE_SHA,
         implementation_plan_source_sha=IMPLEMENTATION_PLAN_SOURCE_SHA,
-        synthetic_control_application_specs=_build_application_specs(),
-        protocol_constant_payload=_build_constants(),
+        synthetic_control_application_specs=_build_application_specs(constants),
+        protocol_constant_payload=constants,
         source_closure=_SOURCE_CLOSURE,
         parent_freeze_sha="0" * 64,
     )
@@ -1745,6 +3081,7 @@ def verify_parent_freeze(
 
 __all__ = [
     "APPLICATION_CONTROL_CASE_IDS",
+    "APPLICATION_PREDICTION_PROFILE_SCHEMA_VERSION",
     "IMPLEMENTATION_PLAN_SOURCE_PATH",
     "PARENT_FREEZE_SCHEMA_VERSION",
     "PROGRAM_ID",
@@ -1756,6 +3093,7 @@ __all__ = [
     "SyntheticApplicationBasisProtocol",
     "SyntheticApplicationGridProtocol",
     "SyntheticApplicationOperation",
+    "SyntheticApplicationPredictionProfile",
     "SyntheticApplicationProtocolConstants",
     "SyntheticApplicationReadoutProtocol",
     "TaggedScalarWire",
@@ -1766,6 +3104,7 @@ __all__ = [
     "synthetic_application_basis_protocol_payload",
     "synthetic_application_grid_protocol_payload",
     "synthetic_application_operation_payload",
+    "synthetic_application_prediction_profile_payload",
     "synthetic_application_protocol_constants_payload",
     "synthetic_application_readout_protocol_payload",
     "synthetic_control_application_spec_payload",
