@@ -118,6 +118,103 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
                 (changed,) + authorities[1:],
             )
 
+    def test_current_registry_body_binds_parent_and_every_replayed_root(self) -> None:
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.task8_control_replay import (
+            CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION,
+            _build_current_control_registry_v2_body,
+            current_control_registry_v2_payload,
+        )
+
+        parent, authorities = self._inputs()
+        from rulespace_v3.task8_control_replay import (
+            _replay_current_task8_control_roots,
+        )
+
+        replay = _replay_current_task8_control_roots(parent, authorities)
+        parent_v2_sha = "a" * 64
+        registry = _build_current_control_registry_v2_body(
+            parent_v2_sha,
+            replay,
+        )
+
+        self.assertEqual(
+            registry.registry_schema_version,
+            CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION,
+        )
+        self.assertEqual(registry.parent_freeze_v2_sha, parent_v2_sha)
+        self.assertEqual(
+            registry.historical_parent_v1_sha,
+            parent.manifest.parent_freeze_sha,
+        )
+        self.assertEqual(
+            tuple(item.control_case_id for item in registry.entries),
+            tuple(item.control_case_id for item in replay.case_replays),
+        )
+        self.assertEqual(
+            tuple(item.scenario_authority_sha for item in registry.entries),
+            tuple(item.scenario_authority_sha for item in replay.case_replays),
+        )
+        self.assertEqual(
+            registry.registry_sha,
+            canonical_sha(current_control_registry_v2_payload(registry)),
+        )
+
+    def test_current_registry_rejects_replay_body_and_parent_splices(self) -> None:
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.task8_control_replay import (
+            _build_current_control_registry_v2_body,
+            current_control_registry_v2_payload,
+            verify_current_control_registry_v2_body,
+        )
+
+        parent, authorities = self._inputs()
+        from rulespace_v3.task8_control_replay import (
+            _replay_current_task8_control_roots,
+        )
+
+        replay = _replay_current_task8_control_roots(parent, authorities)
+        registry = _build_current_control_registry_v2_body("a" * 64, replay)
+        first = registry.entries[0]
+        changed_entry0 = replace(
+            first,
+            actual_program_sha="b" * 64,
+            entry_sha="0" * 64,
+        )
+        from rulespace_v3.task8_control_replay import (
+            current_control_registry_entry_v2_payload,
+        )
+
+        changed_entry = replace(
+            changed_entry0,
+            entry_sha=canonical_sha(
+                current_control_registry_entry_v2_payload(changed_entry0)
+            ),
+        )
+        changed0 = replace(
+            registry,
+            entries=(changed_entry,) + registry.entries[1:],
+            registry_sha="0" * 64,
+        )
+        changed = replace(
+            changed0,
+            registry_sha=canonical_sha(
+                current_control_registry_v2_payload(changed0)
+            ),
+        )
+        with self.assertRaises(ValueError):
+            verify_current_control_registry_v2_body(
+                changed,
+                "a" * 64,
+                replay,
+            )
+        with self.assertRaises(ValueError):
+            verify_current_control_registry_v2_body(
+                registry,
+                "b" * 64,
+                replay,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

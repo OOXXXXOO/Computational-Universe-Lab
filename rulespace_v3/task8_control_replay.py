@@ -13,7 +13,8 @@ re-labelling a v1 SHA cannot satisfy this replay.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as dataclass_fields, replace
+import re
 
 import numpy as np
 
@@ -47,7 +48,12 @@ from .parent_freeze import (
     _reverify_verified_parent_freeze,
 )
 from .parent_v2_contracts import CurrentScenarioAuthorityV2
-from .registry import VerifiedControlRegistry, build_closed_control_registry
+from .registry import (
+    ControlRegistryEntry,
+    VerifiedControlRegistry,
+    build_closed_control_registry,
+    control_registry_entry_payload,
+)
 
 
 _TASK8_CASES = (
@@ -55,6 +61,179 @@ _TASK8_CASES = (
     ("C02_CONDITIONED_ZERO", "zero"),
     ("C03_EQUAL_RANK_DIRECT_SUM", "direct_sum"),
 )
+CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION = (
+    "v3m0.current-control-registry-entry.v2"
+)
+CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION = "v3m0.current-control-registry.v2"
+_LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _sha(value: object, field: str) -> str:
+    if type(value) is not str or _LOWER_SHA.fullmatch(value) is None:
+        raise ValueError(f"{field} must be a lowercase SHA-256")
+    return value
+
+
+def _text(value: object, field: str) -> str:
+    if type(value) is not str or not value.strip():
+        raise ValueError(f"{field} must be a non-empty exact string")
+    return value
+
+
+def _exact_record(value: object, record_type: type, field: str) -> None:
+    if type(value) is not record_type:
+        raise TypeError(f"{field} must be an exact {record_type.__name__}")
+    expected = frozenset(item.name for item in dataclass_fields(record_type))
+    if frozenset(vars(value)) != expected:
+        raise ValueError(f"{field} contains unknown or missing fields")
+
+
+@dataclass(frozen=True)
+class CurrentControlRegistryEntryV2:
+    entry_schema_version: str
+    parent_freeze_v2_sha: str
+    control_case_id: str
+    control_id: str
+    scenario_id: str
+    scenario_authority_sha: str
+    response_contract_sha: str
+    legacy_registry_entry: ControlRegistryEntry
+    actual_factory_sha: str
+    matched_ablated_factory_sha: str
+    actual_program_sha: str
+    matched_ablated_program_sha: str
+    actual_effect_digest: str
+    matched_ablated_effect_digest: str
+    actual_step_count: int
+    matched_ablated_step_count: int
+    expected_actual_shell_rank: int
+    expected_matched_shell_rank: int
+    entry_sha: str
+
+    def __post_init__(self) -> None:
+        if (
+            self.entry_schema_version
+            != CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION
+        ):
+            raise ValueError("current control registry-entry schema drifted")
+        _sha(self.parent_freeze_v2_sha, "parent_freeze_v2_sha")
+        for field in ("control_case_id", "control_id", "scenario_id"):
+            _text(getattr(self, field), field)
+        for field in (
+            "scenario_authority_sha",
+            "response_contract_sha",
+            "actual_factory_sha",
+            "matched_ablated_factory_sha",
+            "actual_program_sha",
+            "matched_ablated_program_sha",
+            "actual_effect_digest",
+            "matched_ablated_effect_digest",
+            "entry_sha",
+        ):
+            _sha(getattr(self, field), field)
+        _exact_record(
+            self.legacy_registry_entry,
+            ControlRegistryEntry,
+            "legacy_registry_entry",
+        )
+        self.legacy_registry_entry.__post_init__()
+        for field in (
+            "actual_step_count",
+            "matched_ablated_step_count",
+            "expected_actual_shell_rank",
+            "expected_matched_shell_rank",
+        ):
+            value = getattr(self, field)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"{field} must be a non-negative exact integer")
+
+
+def current_control_registry_entry_v2_payload(
+    entry: CurrentControlRegistryEntryV2,
+) -> dict[str, object]:
+    _exact_record(entry, CurrentControlRegistryEntryV2, "current registry entry")
+    return {
+        "entry_schema_version": entry.entry_schema_version,
+        "parent_freeze_v2_sha": entry.parent_freeze_v2_sha,
+        "control_case_id": entry.control_case_id,
+        "control_id": entry.control_id,
+        "scenario_id": entry.scenario_id,
+        "scenario_authority_sha": entry.scenario_authority_sha,
+        "response_contract_sha": entry.response_contract_sha,
+        "legacy_registry_entry": {
+            **control_registry_entry_payload(entry.legacy_registry_entry),
+            "entry_sha": entry.legacy_registry_entry.entry_sha,
+        },
+        "actual_factory_sha": entry.actual_factory_sha,
+        "matched_ablated_factory_sha": entry.matched_ablated_factory_sha,
+        "actual_program_sha": entry.actual_program_sha,
+        "matched_ablated_program_sha": entry.matched_ablated_program_sha,
+        "actual_effect_digest": entry.actual_effect_digest,
+        "matched_ablated_effect_digest": entry.matched_ablated_effect_digest,
+        "actual_step_count": entry.actual_step_count,
+        "matched_ablated_step_count": entry.matched_ablated_step_count,
+        "expected_actual_shell_rank": entry.expected_actual_shell_rank,
+        "expected_matched_shell_rank": entry.expected_matched_shell_rank,
+    }
+
+
+@dataclass(frozen=True)
+class CurrentControlRegistryV2:
+    registry_schema_version: str
+    parent_freeze_v2_sha: str
+    historical_parent_v1_sha: str
+    legacy_registry_sha: str
+    entries: tuple[CurrentControlRegistryEntryV2, ...]
+    registry_sha: str
+
+    def __post_init__(self) -> None:
+        if self.registry_schema_version != CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION:
+            raise ValueError("current control registry schema drifted")
+        for field in (
+            "parent_freeze_v2_sha",
+            "historical_parent_v1_sha",
+            "legacy_registry_sha",
+            "registry_sha",
+        ):
+            _sha(getattr(self, field), field)
+        if (
+            type(self.entries) is not tuple
+            or len(self.entries) != len(_TASK8_CASES)
+            or not all(type(item) is CurrentControlRegistryEntryV2 for item in self.entries)
+        ):
+            raise TypeError("current registry entries must be the exact three-entry tuple")
+        if tuple(item.control_case_id for item in self.entries) != tuple(
+            item[0] for item in _TASK8_CASES
+        ):
+            raise ValueError("current registry entries are not in canonical C01-C03 order")
+        if tuple(item.control_id for item in self.entries) != tuple(
+            item[1] for item in _TASK8_CASES
+        ):
+            raise ValueError("current registry control IDs are not canonical")
+        if any(
+            item.parent_freeze_v2_sha != self.parent_freeze_v2_sha
+            for item in self.entries
+        ):
+            raise ValueError("current registry entry is spliced to another Parent-v2")
+
+
+def current_control_registry_v2_payload(
+    registry: CurrentControlRegistryV2,
+) -> dict[str, object]:
+    _exact_record(registry, CurrentControlRegistryV2, "current control registry")
+    return {
+        "registry_schema_version": registry.registry_schema_version,
+        "parent_freeze_v2_sha": registry.parent_freeze_v2_sha,
+        "historical_parent_v1_sha": registry.historical_parent_v1_sha,
+        "legacy_registry_sha": registry.legacy_registry_sha,
+        "entries": [
+            {
+                **current_control_registry_entry_v2_payload(item),
+                "entry_sha": item.entry_sha,
+            }
+            for item in registry.entries
+        ],
+    }
 
 
 @dataclass(frozen=True)
@@ -422,7 +601,123 @@ def _replay_current_task8_control_roots(
     )
 
 
+def _build_current_control_registry_v2_body(
+    parent_freeze_v2_sha: str,
+    replay: CurrentTask8ControlReplay,
+) -> CurrentControlRegistryV2:
+    """Bind the fresh Task-8 replay to one current Parent-v2 root."""
+
+    parent_sha = _sha(parent_freeze_v2_sha, "parent_freeze_v2_sha")
+    if type(replay) is not CurrentTask8ControlReplay:
+        raise TypeError("current registry requires an exact Task-8 replay")
+    if (
+        type(replay.case_replays) is not tuple
+        or len(replay.case_replays) != len(_TASK8_CASES)
+    ):
+        raise ValueError("Task-8 replay does not contain the exact three cases")
+    legacy = replay.legacy_registry.registry
+    if len(legacy.entries) != len(_TASK8_CASES):
+        raise ValueError("legacy Task-8 registry does not contain three entries")
+    entries: list[CurrentControlRegistryEntryV2] = []
+    for case, legacy_entry in zip(replay.case_replays, legacy.entries):
+        if (
+            case.control_id != legacy_entry.control_id
+            or case.legacy_registry_entry_sha != legacy_entry.entry_sha
+            or case.actual_factory_sha != legacy_entry.factory_sha
+        ):
+            raise ValueError("Task-8 case replay is spliced from its legacy entry")
+        provisional = CurrentControlRegistryEntryV2(
+            entry_schema_version=(
+                CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION
+            ),
+            parent_freeze_v2_sha=parent_sha,
+            control_case_id=case.control_case_id,
+            control_id=case.control_id,
+            scenario_id=case.scenario_id,
+            scenario_authority_sha=case.scenario_authority_sha,
+            response_contract_sha=case.response_contract_sha,
+            legacy_registry_entry=legacy_entry,
+            actual_factory_sha=case.actual_factory_sha,
+            matched_ablated_factory_sha=case.matched_ablated_factory_sha,
+            actual_program_sha=case.actual_program_sha,
+            matched_ablated_program_sha=case.matched_ablated_program_sha,
+            actual_effect_digest=case.actual_effect_digest,
+            matched_ablated_effect_digest=case.matched_ablated_effect_digest,
+            actual_step_count=case.actual_step_count,
+            matched_ablated_step_count=case.matched_ablated_step_count,
+            expected_actual_shell_rank=case.expected_actual_shell_rank,
+            expected_matched_shell_rank=case.expected_matched_shell_rank,
+            entry_sha="0" * 64,
+        )
+        entries.append(
+            replace(
+                provisional,
+                entry_sha=canonical_sha(
+                    current_control_registry_entry_v2_payload(provisional)
+                ),
+            )
+        )
+    provisional_registry = CurrentControlRegistryV2(
+        registry_schema_version=CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION,
+        parent_freeze_v2_sha=parent_sha,
+        historical_parent_v1_sha=legacy.parent_freeze_sha,
+        legacy_registry_sha=legacy.registry_sha,
+        entries=tuple(entries),
+        registry_sha="0" * 64,
+    )
+    return replace(
+        provisional_registry,
+        registry_sha=canonical_sha(
+            current_control_registry_v2_payload(provisional_registry)
+        ),
+    )
+
+
+def verify_current_control_registry_v2_body(
+    registry: CurrentControlRegistryV2,
+    parent_freeze_v2_sha: str,
+    replay: CurrentTask8ControlReplay,
+) -> CurrentControlRegistryV2:
+    """Validate an inert raw body; this function issues no capability."""
+
+    _exact_record(registry, CurrentControlRegistryV2, "current control registry")
+    registry.__post_init__()
+    for index, entry in enumerate(registry.entries):
+        _exact_record(
+            entry,
+            CurrentControlRegistryEntryV2,
+            f"current control registry entry[{index}]",
+        )
+        entry.__post_init__()
+        legacy_entry = entry.legacy_registry_entry
+        if legacy_entry.entry_sha != canonical_sha(
+            control_registry_entry_payload(legacy_entry)
+        ):
+            raise ValueError("legacy registry-entry SHA drifted")
+        if entry.entry_sha != canonical_sha(
+            current_control_registry_entry_v2_payload(entry)
+        ):
+            raise ValueError("current registry-entry SHA drifted")
+    if registry.registry_sha != canonical_sha(
+        current_control_registry_v2_payload(registry)
+    ):
+        raise ValueError("current control-registry SHA drifted")
+    expected = _build_current_control_registry_v2_body(
+        parent_freeze_v2_sha,
+        replay,
+    )
+    if registry != expected:
+        raise ValueError("current control registry differs from fresh Task-8 replay")
+    return registry
+
+
 __all__ = [
+    "CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION",
+    "CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION",
+    "CurrentControlRegistryEntryV2",
+    "CurrentControlRegistryV2",
     "CurrentTask8ControlCaseReplay",
     "CurrentTask8ControlReplay",
+    "current_control_registry_entry_v2_payload",
+    "current_control_registry_v2_payload",
 ]
