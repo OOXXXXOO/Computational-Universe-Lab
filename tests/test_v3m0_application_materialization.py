@@ -27,6 +27,7 @@ from rulespace_v3.calibration_authority import (
 )
 from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.factory import apply_factory_step
+from rulespace_v3.response import compute_fejer_filtered_response
 from rulespace_v3.trace import MechanismKind
 
 
@@ -45,6 +46,77 @@ def _plane_wave(
     return (
         vector[:, None] * np.exp(1.0j * momentum * sites)[None, :]
     ).astype(np.complex128)
+
+
+class C05FiniteTResponseDiagnostics(unittest.TestCase):
+    @staticmethod
+    def _projector_transition(theta: float) -> np.ndarray:
+        vector = np.asarray(
+            (math.cos(theta), math.sin(theta)),
+            dtype=np.complex128,
+        )
+        projector = np.outer(vector, vector.conj())
+        return (1.0j * (2.0 * projector - np.eye(2))).astype(
+            np.complex128
+        )
+
+    @classmethod
+    def _cross_response(cls, theta: float, order: int) -> complex:
+        response = compute_fejer_filtered_response(
+            cls._projector_transition(theta),
+            np.eye(2, dtype=np.complex128),
+            math.pi / 2.0,
+            order,
+            np.asarray(((0.0,), (1.0,)), dtype=np.complex128),
+            np.asarray(((1.0, 0.0),), dtype=np.complex128),
+        )
+        return complex(response[0, 0])
+
+    def test_old_phase_offset_identity_contract_is_a_finite_t_no_go(
+        self,
+    ) -> None:
+        for order in (256, 512, 1024, 2048, 4096, 8192):
+            with self.subTest(order=order, scenario="phase"):
+                phase_response = _causal_fejer_scalar(
+                    math.pi / order,
+                    order,
+                )
+                self.assertGreater(abs(phase_response + 1.0), 1.5)
+                self.assertGreater(abs(abs(phase_response) - 1.0), 0.24)
+            with self.subTest(order=order, scenario="gain"):
+                offset = _gain_phase_offset(2.0, order)
+                gain_response = _causal_fejer_scalar(offset, order)
+                self.assertLess(abs(abs(gain_response) - 0.5), 3.0e-14)
+                self.assertGreater(abs(gain_response - 0.5), 0.65)
+
+    def test_equal_spectrum_projector_orientation_has_exact_finite_t_ratios(
+        self,
+    ) -> None:
+        for order in (256, 512, 1024, 2048, 4096, 8192):
+            with self.subTest(order=order, scenario="phase"):
+                actual = self._cross_response(math.pi / 4.0, order)
+                ablated = self._cross_response(-math.pi / 4.0, order)
+                self.assertLessEqual(abs(actual + ablated), 1.0e-12)
+                self.assertGreater(abs(actual), 0.49)
+            with self.subTest(order=order, scenario="gain"):
+                actual = self._cross_response(math.pi / 4.0, order)
+                ablated = self._cross_response(math.pi / 12.0, order)
+                self.assertLessEqual(abs(actual - 2.0 * ablated), 1.0e-12)
+                self.assertGreater(abs(ablated), 0.24)
+            for theta in (
+                -math.pi / 4.0,
+                math.pi / 12.0,
+                math.pi / 4.0,
+            ):
+                phases = np.sort(
+                    np.angle(np.linalg.eigvals(self._projector_transition(theta)))
+                )
+                np.testing.assert_allclose(
+                    phases,
+                    np.asarray((-math.pi / 2.0, math.pi / 2.0)),
+                    rtol=0.0,
+                    atol=2.0e-15,
+                )
 
 
 class ApplicationScenarioMaterializationTests(unittest.TestCase):
@@ -221,23 +293,6 @@ class ApplicationScenarioMaterializationTests(unittest.TestCase):
                         rtol=0.0,
                         atol=2.0e-12,
                     )
-
-    def test_c05_phase_offset_identity_contract_remains_explicit_no_go(
-        self,
-    ) -> None:
-        for order in (256, 512, 1024, 2048, 4096, 8192):
-            with self.subTest(order=order, scenario="phase"):
-                phase_response = _causal_fejer_scalar(
-                    math.pi / order,
-                    order,
-                )
-                self.assertGreater(abs(phase_response + 1.0), 1.5)
-                self.assertGreater(abs(abs(phase_response) - 1.0), 0.24)
-            with self.subTest(order=order, scenario="gain"):
-                offset = _gain_phase_offset(2.0, order)
-                gain_response = _causal_fejer_scalar(offset, order)
-                self.assertLess(abs(abs(gain_response) - 0.5), 3.0e-14)
-                self.assertGreater(abs(gain_response - 0.5), 0.65)
 
     def test_hydration_and_authority_attacks_fail_closed(self) -> None:
         scenario_id = APPLICATION_RECIPE_SCENARIO_IDS[0]
