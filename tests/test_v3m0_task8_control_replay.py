@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import inspect
 import unittest
+from unittest import mock
 
 
 class CurrentTask8ControlReplayTests(unittest.TestCase):
@@ -214,6 +216,33 @@ class CurrentTask8ControlReplayTests(unittest.TestCase):
                 "b" * 64,
                 replay,
             )
+
+    def test_public_current_registry_accepts_only_live_current_parent(self) -> None:
+        import rulespace_v3.task8_control_replay as task8
+        from rulespace_v3.task8_control_replay import (
+            VerifiedCurrentControlRegistryV2,
+            build_current_control_registry_v2,
+            require_current_control_registry_v2,
+        )
+
+        self.assertEqual(
+            tuple(inspect.signature(build_current_control_registry_v2).parameters),
+            ("parent_v2",),
+        )
+        with mock.patch.object(
+            task8,
+            "_replay_current_task8_control_roots",
+            side_effect=AssertionError("numerical replay ran before Parent gate"),
+        ) as replay:
+            with self.assertRaises(TypeError):
+                build_current_control_registry_v2(object())
+        replay.assert_not_called()
+
+        with self.assertRaises(TypeError):
+            VerifiedCurrentControlRegistryV2()  # type: ignore[call-arg]
+        forged = object.__new__(VerifiedCurrentControlRegistryV2)
+        with self.assertRaises((TypeError, ValueError, AttributeError)):
+            require_current_control_registry_v2(forged)
 
 
 if __name__ == "__main__":

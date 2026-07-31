@@ -236,6 +236,47 @@ def current_control_registry_v2_payload(
     }
 
 
+class CurrentControlRegistryV2Unavailable(RuntimeError):
+    """The raw current registry exists, but its live Parent connector is locked."""
+
+
+class VerifiedCurrentControlRegistryV2:
+    """Reserved opaque type; positive issuance waits for the signed Parent-v2."""
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        raise TypeError("current control registry v2 is issuer-only")
+
+
+def build_current_control_registry_v2(parent_v2) -> VerifiedCurrentControlRegistryV2:
+    """Fail before numerical replay unless a live signed current Parent exists."""
+
+    from .parent_authority import (
+        VerifiedParentFreezeV2,
+        require_current_parent,
+    )
+
+    if type(parent_v2) is not VerifiedParentFreezeV2:
+        raise TypeError("current registry requires an exact live current Parent")
+    require_current_parent(parent_v2)
+    raise CurrentControlRegistryV2Unavailable(
+        "live current control-registry issuance awaits the closed replay connector"
+    )
+
+
+def require_current_control_registry_v2(
+    value: VerifiedCurrentControlRegistryV2,
+) -> CurrentControlRegistryV2:
+    """No raw body or forged placeholder can cross the unfinished boundary."""
+
+    if type(value) is not VerifiedCurrentControlRegistryV2:
+        raise TypeError("current registry consumer requires its exact opaque type")
+    raise ValueError(
+        "current control-registry capability identity is not live"
+    )
+
+
 @dataclass(frozen=True)
 class CurrentTask8ControlCaseReplay:
     control_case_id: str
@@ -714,10 +755,14 @@ def verify_current_control_registry_v2_body(
 __all__ = [
     "CURRENT_CONTROL_REGISTRY_ENTRY_V2_SCHEMA_VERSION",
     "CURRENT_CONTROL_REGISTRY_V2_SCHEMA_VERSION",
+    "CurrentControlRegistryV2Unavailable",
     "CurrentControlRegistryEntryV2",
     "CurrentControlRegistryV2",
     "CurrentTask8ControlCaseReplay",
     "CurrentTask8ControlReplay",
+    "VerifiedCurrentControlRegistryV2",
+    "build_current_control_registry_v2",
     "current_control_registry_entry_v2_payload",
     "current_control_registry_v2_payload",
+    "require_current_control_registry_v2",
 ]
