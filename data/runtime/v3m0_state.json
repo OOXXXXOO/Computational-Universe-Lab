@@ -1,0 +1,20 @@
+{
+  "all_analysis_controls_verified": false,
+  "all_block_success_artifacts_verified": false,
+  "all_expected_terminations_verified": false,
+  "all_required_controls_pass": false,
+  "exact_all_pass": true,
+  "first_undefined": {
+    "block_id": "window_threshold_calibration",
+    "reason": "window_unresolved"
+  },
+  "formal_all_pass": true,
+  "identifiability_all_pass": true,
+  "no_physical_anchor_run": true,
+  "no_unexpected_downstream_capability": true,
+  "ready": false,
+  "representation_invariants_pass": false,
+  "result_sha": "5af1fb5247c246af62395e0b6bee6b8e9a8f8a42ea0f91acc268948cc1236522",
+  "schema_version": "v3m0.state-evidence.v1",
+  "state": "HALT-V3M0-WINDOW"
+}

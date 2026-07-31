@@ -1,0 +1,1124 @@
+{
+  "ANALYSIS_CONTROL": [
+    {
+      "control_id": "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c20.v1.scenario.clean-zero.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c20.v1.scenario.true-floor.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    }
+  ],
+  "BLOCK_SUCCESS": [
+    {
+      "control_id": "C01_BLIND_HOLDOUT_FULL",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c01.v1.scenario.holdout-span.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C02_CONDITIONED_ZERO",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c02.v1.scenario.conditioned-zero.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C03_EQUAL_RANK_DIRECT_SUM",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c03.v1.scenario.equal-rank-direct-sum.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C04_CANONICAL_ANGLE_025_075",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C05_PHASE_AND_SCALAR_GAIN",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c05.v1.scenario.phase.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C05_PHASE_AND_SCALAR_GAIN",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c05.v1.scenario.gain.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C06_INTERNAL_NONSCALE_MIXING",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c07.v1.scenario.interference.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C08_RANK_R_MISSING_MODES",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C09_PURE_GAUGE_DRESSING",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C10_FULL_SOURCE_EXTRA_MODE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.signal.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C12_NU_INC_IR_NORMALIZATION",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.full-h.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.tt.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C16_COVERAGE_025_075",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C16_COVERAGE_025_075",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C17_QUOTIENT_GAUGE_COVERAGE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C18_ABLATED_INDEPENDENT_UNARY",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "control_id": "C19_FULL_POSITIVE_OBSERVER_COLLAPSE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1",
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    }
+  ],
+  "EXPECTED_TYPED_TERMINATION": [
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.null.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.grey.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C13_BOTH_ZERO_UNDEFINED",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c13.v1.scenario.both-zero.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.endpoint-ambiguous.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.response-null.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.trace-unclassified.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "defined": false,
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.unstable.v1",
+      "termination_events": [],
+      "undefined_reason": "prestructure_invalid"
+    }
+  ],
+  "REPRESENTATION_INVARIANTS": [
+    {
+      "defined": false,
+      "invariant_id": "I01_LAYER_SPLIT_MERGE",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I02_INSERT_S_SINV",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I03_COMMUTING_LAYER_REORDER",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I04_Q_LABEL_PERMUTATION",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I05_SOURCE_ISOMETRY",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I06_READOUT_ISOMETRY",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I07_PHASE_NONZERO_SCALAR",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I08_COVARIANT_CANONICAL_CHANGE",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    },
+    {
+      "defined": false,
+      "invariant_id": "I09_NO_WRAP_VOLUME_CHANGE",
+      "margins": [],
+      "passed": false,
+      "raw_spectra": [],
+      "termination_events": [],
+      "undefined_reason": "window_unresolved"
+    }
+  ],
+  "ablated_unary_manifest_id": null,
+  "actual_unary_manifest_id": null,
+  "all_analysis_controls_verified": false,
+  "all_block_success_artifacts_verified": false,
+  "all_expected_terminations_verified": false,
+  "all_required_controls_pass": false,
+  "curvature_metric_id": null,
+  "evaluator_version": null,
+  "exact_all_pass": true,
+  "formal_all_pass": true,
+  "grammar_id": null,
+  "identifiability_all_pass": true,
+  "lane_failures": [
+    {
+      "lane_id": "v3m0.synthetic-control.c11.v1.scenario.null.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c11.v1.scenario.null.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c11.v1.scenario.grey.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c11.v1.scenario.grey.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c13.v1.scenario.both-zero.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c13.v1.scenario.both-zero.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.endpoint-ambiguous.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.endpoint-ambiguous.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.response-null.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.response-null.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.trace-unclassified.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.trace-unclassified.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.unstable.v1.application_permit",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c14.v1.scenario.unstable.v1.expected_typed_termination",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c20.v1.scenario.clean-zero.v1.verified_series_evidence",
+      "reason": "prestructure_invalid"
+    },
+    {
+      "lane_id": "v3m0.synthetic-control.c20.v1.scenario.true-floor.v1.verified_series_evidence",
+      "reason": "prestructure_invalid"
+    }
+  ],
+  "no_physical_anchor_run": true,
+  "no_unexpected_downstream_capability": true,
+  "nu_inc_id": null,
+  "parent_v2_sha": null,
+  "physical_h_metric_id": null,
+  "physical_quotient_id": null,
+  "physical_quotient_metric_id": null,
+  "ready": false,
+  "representation_invariants_pass": false,
+  "required_blocks": {
+    "defined": false,
+    "undefined": [
+      {
+        "block_id": "window_threshold_calibration",
+        "reason": "window_unresolved"
+      },
+      {
+        "block_id": "parent_freeze",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "survival_threshold_calibration",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "geometry_coverage_threshold_calibration",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "final_evidence_envelope",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c01.v1.scenario.holdout-span.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c01.v1.scenario.holdout-span.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c01.v1.scenario.holdout-span.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c02.v1.scenario.conditioned-zero.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c02.v1.scenario.conditioned-zero.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c02.v1.scenario.conditioned-zero.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c03.v1.scenario.equal-rank-direct-sum.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c03.v1.scenario.equal-rank-direct-sum.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c03.v1.scenario.equal-rank-direct-sum.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C04_CANONICAL_ANGLE_025_075.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C05_PHASE_AND_SCALAR_GAIN.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.phase.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.phase.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.phase.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.gain.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.gain.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c05.v1.scenario.gain.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C06_INTERNAL_NONSCALE_MIXING.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c07.v1.scenario.interference.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c07.v1.scenario.interference.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c07.v1.scenario.interference.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C08_RANK_R_MISSING_MODES.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C09_PURE_GAUGE_DRESSING.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C10_FULL_SOURCE_EXTRA_MODE.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c11.v1.scenario.signal.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c11.v1.scenario.signal.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c11.v1.scenario.signal.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C12_NU_INC_IR_NORMALIZATION.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.full-h.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.full-h.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.full-h.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C16_COVERAGE_025_075.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C17_QUOTIENT_GAUGE_COVERAGE.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C18_ABLATED_INDEPENDENT_UNARY.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "C19_FULL_POSITIVE_OBSERVER_COLLAPSE.application_permit",
+        "reason": "prestructure_invalid"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1.actual_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1.ablated_response_block",
+        "reason": "response_bridge_failed"
+      },
+      {
+        "block_id": "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1.response_pair_binding",
+        "reason": "response_bridge_failed"
+      }
+    ],
+    "undefined_reason": "window_unresolved"
+  },
+  "response_manifest_id": null,
+  "result_sha": "5af1fb5247c246af62395e0b6bee6b8e9a8f8a42ea0f91acc268948cc1236522",
+  "scenario_manifest": [
+    {
+      "control_id": "C01_BLIND_HOLDOUT_FULL",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c01.v1.scenario.holdout-span.v1",
+      "scenario_slug": "holdout-span"
+    },
+    {
+      "control_id": "C02_CONDITIONED_ZERO",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c02.v1.scenario.conditioned-zero.v1",
+      "scenario_slug": "conditioned-zero"
+    },
+    {
+      "control_id": "C03_EQUAL_RANK_DIRECT_SUM",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c03.v1.scenario.equal-rank-direct-sum.v1",
+      "scenario_slug": "equal-rank-direct-sum"
+    },
+    {
+      "control_id": "C04_CANONICAL_ANGLE_025_075",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c04.v1.scenario.canonical-angle.v1",
+      "scenario_slug": "canonical-angle"
+    },
+    {
+      "control_id": "C05_PHASE_AND_SCALAR_GAIN",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c05.v1.scenario.phase.v1",
+      "scenario_slug": "phase"
+    },
+    {
+      "control_id": "C05_PHASE_AND_SCALAR_GAIN",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c05.v1.scenario.gain.v1",
+      "scenario_slug": "gain"
+    },
+    {
+      "control_id": "C06_INTERNAL_NONSCALE_MIXING",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c06.v1.scenario.nonscale-mixing.v1",
+      "scenario_slug": "nonscale-mixing"
+    },
+    {
+      "control_id": "C07_CONSTRUCTIVE_DESTRUCTIVE_INTERFERENCE",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c07.v1.scenario.interference.v1",
+      "scenario_slug": "interference"
+    },
+    {
+      "control_id": "C08_RANK_R_MISSING_MODES",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c08.v1.scenario.rank-missing.v1",
+      "scenario_slug": "rank-missing"
+    },
+    {
+      "control_id": "C09_PURE_GAUGE_DRESSING",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c09.v1.scenario.gauge-dressing.v1",
+      "scenario_slug": "gauge-dressing"
+    },
+    {
+      "control_id": "C10_FULL_SOURCE_EXTRA_MODE",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c10.v1.scenario.extra-mode.v1",
+      "scenario_slug": "extra-mode"
+    },
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "activation",
+      "expected_undefined_reason": "response_null",
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.null.v1",
+      "scenario_slug": "null"
+    },
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "activation",
+      "expected_undefined_reason": "response_grey",
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.grey.v1",
+      "scenario_slug": "grey"
+    },
+    {
+      "control_id": "C11_NULL_GREY_SIGNAL_AMPLITUDE",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c11.v1.scenario.signal.v1",
+      "scenario_slug": "signal"
+    },
+    {
+      "control_id": "C12_NU_INC_IR_NORMALIZATION",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c12.v1.scenario.ir-normalization.v1",
+      "scenario_slug": "ir-normalization"
+    },
+    {
+      "control_id": "C13_BOTH_ZERO_UNDEFINED",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "activation",
+      "expected_undefined_reason": "response_null",
+      "scenario_id": "v3m0.synthetic-control.c13.v1.scenario.both-zero.v1",
+      "scenario_slug": "both-zero"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "endpoint_shell",
+      "expected_undefined_reason": "endpoint_shell_ambiguous",
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.endpoint-ambiguous.v1",
+      "scenario_slug": "endpoint-ambiguous"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "activation",
+      "expected_undefined_reason": "response_null",
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.response-null.v1",
+      "scenario_slug": "response-null"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "trace",
+      "expected_undefined_reason": "trace_unclassified",
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.trace-unclassified.v1",
+      "scenario_slug": "trace-unclassified"
+    },
+    {
+      "control_id": "C14_UNSTABLE_UNCLASSIFIED_ENDPOINT_SHELL",
+      "execution_lane": "EXPECTED_TYPED_TERMINATION",
+      "expected_artifact_type": "VerifiedResponseBlockAttemptOutcome",
+      "expected_terminal_stage": "stability",
+      "expected_undefined_reason": "unstable",
+      "scenario_id": "v3m0.synthetic-control.c14.v1.scenario.unstable.v1",
+      "scenario_slug": "unstable"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.full-h.v1",
+      "scenario_slug": "full-h"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.low-rank-tt.v1",
+      "scenario_slug": "low-rank-tt"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.tt.v1",
+      "scenario_slug": "tt"
+    },
+    {
+      "control_id": "C15_TT_ROW_FULLH_LOWRANK_GEOMETRY",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c15.v1.scenario.tt-plus-row.v1",
+      "scenario_slug": "tt-plus-row"
+    },
+    {
+      "control_id": "C16_COVERAGE_025_075",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-low.v1",
+      "scenario_slug": "coverage-low"
+    },
+    {
+      "control_id": "C16_COVERAGE_025_075",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c16.v1.scenario.coverage-high.v1",
+      "scenario_slug": "coverage-high"
+    },
+    {
+      "control_id": "C17_QUOTIENT_GAUGE_COVERAGE",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c17.v1.scenario.quotient-gauge.v1",
+      "scenario_slug": "quotient-gauge"
+    },
+    {
+      "control_id": "C18_ABLATED_INDEPENDENT_UNARY",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c18.v1.scenario.independent-unary.v1",
+      "scenario_slug": "independent-unary"
+    },
+    {
+      "control_id": "C19_FULL_POSITIVE_OBSERVER_COLLAPSE",
+      "execution_lane": "BLOCK_SUCCESS",
+      "expected_artifact_type": "VerifiedResponseBlock",
+      "expected_terminal_stage": "success",
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c19.v1.scenario.observer-collapse.v1",
+      "scenario_slug": "observer-collapse"
+    },
+    {
+      "control_id": "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
+      "execution_lane": "ANALYSIS_CONTROL",
+      "expected_artifact_type": "VerifiedDeterministicSeriesControlOutcome",
+      "expected_terminal_stage": null,
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c20.v1.scenario.clean-zero.v1",
+      "scenario_slug": "clean-zero"
+    },
+    {
+      "control_id": "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
+      "execution_lane": "ANALYSIS_CONTROL",
+      "expected_artifact_type": "VerifiedDeterministicSeriesControlOutcome",
+      "expected_terminal_stage": null,
+      "expected_undefined_reason": null,
+      "scenario_id": "v3m0.synthetic-control.c20.v1.scenario.true-floor.v1",
+      "scenario_slug": "true-floor"
+    }
+  ],
+  "schema_version": "v3m0.control-assembly.v1",
+  "source_metric_id": null,
+  "state": "HALT-V3M0-WINDOW",
+  "target_spec_id": null,
+  "toolchain_manifest": null,
+  "trace_sha": null,
+  "window_manifest_sha": null
+}

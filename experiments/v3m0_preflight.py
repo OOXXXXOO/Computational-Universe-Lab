@@ -30,7 +30,7 @@ DEFAULT_RESULT = ROOT / "data" / "results" / "v3m0_controls.json"
 DEFAULT_STATE = ROOT / "data" / "runtime" / "v3m0_state.json"
 V3M0_STATE_EVIDENCE_SCHEMA_VERSION = "v3m0.state-evidence.v1"
 EXPECTED_PHASE0_CERTIFICATE_SHA = (
-    "01fc27a26778058cb7567251d5fd2550408b11f30a119c7c08dfb9528f74962f"
+    "b073d046e9b69d957b7c35b8f870d8d953926b0b9e43d4897a45daeb4a3bfc3c"
 )
 
 FORBIDDEN_HISTORICAL_FACTORY_MODULES = frozenset(
