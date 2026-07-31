@@ -31,14 +31,16 @@ theorem jordanNilpotent_sq_zero (v : ℤ × ℤ) :
 /-- Universal integer power formula `J^t(x,y)=(x+t y,y)`. -/
 theorem jordanStep_iterate (t : ℕ) (v : ℤ × ℤ) :
     (jordanStep^[t]) v = (v.1 + (t : ℤ) * v.2, v.2) := by
-  induction t with
+  induction t generalizing v with
   | zero =>
       simp
   | succ t ih =>
       rw [Function.iterate_succ_apply, ih]
       simp only [jordanStep]
-      constructor <;> simp_all
-      ring
+      apply Prod.ext
+      · simp
+        ring
+      · simp
 
 /-- Exact squared Euclidean norm on the integer two-state witness lane. -/
 def jordanNormSquared (v : ℤ × ℤ) : ℤ :=
@@ -59,8 +61,13 @@ theorem jordan_t16384_growth :
     jordanNormSquared ((jordanStep^[16384]) (0, 1)) = 268435457 ∧
       (100000001 : ℤ) <
         jordanNormSquared ((jordanStep^[16384]) (0, 1)) := by
+  have exact_norm := jordan_e2_norm_squared 16384
   constructor
-  · norm_num [jordan_e2_norm_squared]
-  · norm_num [jordan_e2_norm_squared]
+  · calc
+      jordanNormSquared ((jordanStep^[16384]) (0, 1)) =
+          (16384 : ℤ) * 16384 + 1 := exact_norm
+      _ = 268435457 := by norm_num
+  · rw [exact_norm]
+    norm_num
 
 end V3M0
