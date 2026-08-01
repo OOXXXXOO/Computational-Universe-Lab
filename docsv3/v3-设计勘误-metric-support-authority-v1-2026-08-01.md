@@ -87,6 +87,58 @@ label、shape 或一个 caller-supplied SHA。
 ```
 
 不新建同义 support schema，也不允许只对裸 tuple 或串接文本求 hash。
+authority-neutral implementation 必须复用 `rulespace_v3.metric` 中该 schema 的
+`METRIC_SUPPORT_SCHEMA_VERSION` 与 `metric_support_payload()` canonical owner。该复用只继承
+raw support wire，不继承或授权历史 `StabilityMetricWitness` /
+`VerifiedPrestructureAuthority`。
+
+public canonical verifier 唯一命名为：
+
+```python
+verify_metric_support_derivation_protocol_v1(
+    protocol: MetricSupportDerivationProtocolV1,
+) -> MetricSupportDerivationProtocolV1
+```
+
+它必须独立拒绝 raw dict/subclass、未知或缺失字段、任何 tuple/
+inner-tuple/scalar 子类与 bool-as-int，并机械重建 schema、`I20`、channel order、
+shape/ndim、normalization、exact `((0,),)`、canonical support SHA、`False` 与
+protocol SHA。任何 future Parent/materialization/factory/attestation/grid/verdict 字段都必须因
+exact-field closure 被拒绝。Parent-v3 application verifier 还必须递归比较该 protocol
+与 response geometry bundle 的 exact state metric。
+
+## 2.1 Authority-neutral provisional dependency closure
+
+`CurrentApplicationAuthorityV3` 中的 dependency closure 只允许下列明示的
+provisional 状态：
+
+```text
+construction_dependency_closure_state
+  = PROVISIONAL_CONSTRUCTION_DEPENDENCIES_NOT_SIGNED
+```
+
+它不是 signed-source closure、Parent review closure 或 issuer authority。但为了使当前 raw
+builder 的设计、canonical owner 与 root-bearing implementation 全部可达，其 canonical
+UTF-8 path order 必须精确为：
+
+```text
+docsv3/v3-设计勘误-C19-refreeze-v2-2026-08-01.md
+docsv3/v3-设计勘误-metric-support-authority-v1-2026-08-01.md
+rulespace_v3/ablation.py
+rulespace_v3/c19_refreeze_v2.py
+rulespace_v3/evidence.py
+rulespace_v3/factory.py
+rulespace_v3/grids.py
+rulespace_v3/metric.py
+rulespace_v3/parent_v3_contracts.py
+rulespace_v3/trace.py
+```
+
+每项递归携带 repo-relative path 与当前 raw-byte SHA-256，closure SHA 同时绑定
+上述 provisional state。`parent_v3_contracts.py` 的 source SHA 嵌入其运行时产生的
+raw authority，source 本身不包含该 authority/root literal，因此不形成 hash 环。
+未来 Parent-v3 机械签发仍必须建立另外的 signed-source/review/source closure；
+不得直接抬升这个 provisional closure。
 
 ## 3. Runtime attestation 与 opaque capability
 
@@ -189,7 +241,8 @@ exact V3 迁移。在该迁移完成前，不得把旧 `VerifiedTransition` 与�
 可以立即实现的只有：
 
 1. Parent-v3 authority-neutral raw contract 中的 exact
-   `MetricSupportDerivationProtocolV1`、payload 和 canonical verifier；
+   `MetricSupportDerivationProtocolV1`、payload、独立 canonical verifier、递归 exact-type
+   closure 和第 2.1 节 provisional dependency closure；
 2. production issuer 的 RED 攻击合同，前提是不用 fake upstream 制造 GREEN。
 
 能成功返回 `VerifiedMetricSignedSupportAttestationV1` 的 production issuer 必须等待：
