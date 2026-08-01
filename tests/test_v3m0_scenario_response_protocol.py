@@ -44,6 +44,202 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
             raise AssertionError("test fixture did not resolve one historical application")
         return applications[0]
 
+    @classmethod
+    def _repository_c04_bodies(cls):
+        from rulespace_v3.application_authority_v2 import (
+            CALIBRATION_APPLICATION_PERMIT_V2_SCHEMA_VERSION,
+            WINDOW_THRESHOLD_CALIBRATION_V2_SCHEMA_VERSION,
+            CalibrationApplicationPermitV2,
+            WindowThresholdCalibrationV2,
+            calibration_application_permit_v2_payload,
+            window_threshold_calibration_v2_payload,
+        )
+        from rulespace_v3.application_materialization_v2 import (
+            _make_expected_live_materialization_v2,
+        )
+        from rulespace_v3.calibration_authority import (
+            SelectedControlEvidenceRef,
+            WindowThresholdSelection,
+            window_threshold_selection_payload,
+        )
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_candidate_v2 import (
+            ParentFreezeCandidateV2Manifest,
+        )
+        from rulespace_v3.parent_freeze import (
+            build_v3m0_parent_freeze_candidate,
+        )
+        from rulespace_v3.parent_freeze_v2 import (
+            _build_reviewed_unchanged_scenario_authorities,
+        )
+        from rulespace_v3.parent_v2_contracts import (
+            CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION,
+            PARENT_FREEZE_V2_SCHEMA_VERSION,
+            CurrentApplicationAuthorityV2,
+            ParentFreezeV2Manifest,
+            SignedSourceRefV1,
+            current_application_authority_v2_payload,
+        )
+
+        cached = getattr(cls, "_repository_c04_bodies_cache", None)
+        if cached is not None:
+            return cached
+
+        historical = cls._historical_parent()
+        candidate = build_v3m0_parent_freeze_candidate()
+        scenario = next(
+            item
+            for item in _build_reviewed_unchanged_scenario_authorities()
+            if item.control_case_id == "C04_CANONICAL_ANGLE_025_075"
+        )
+        candidate_application = next(
+            item
+            for item in candidate.application_candidates
+            if item.control_case_id == scenario.control_case_id
+        )
+        provisional_application = CurrentApplicationAuthorityV2(
+            application_authority_schema_version=(
+                CURRENT_APPLICATION_AUTHORITY_SCHEMA_VERSION
+            ),
+            authority_state="CURRENT_REVIEWED_APPLICATION",
+            control_case_id=scenario.control_case_id,
+            application_instance_id=scenario.application_instance_id,
+            based_on_application_spec_sha=(
+                scenario.based_on_application_spec_sha
+            ),
+            source_candidate_v1_application_sha=(
+                candidate_application.candidate_application_sha
+            ),
+            complete_scenario_execution_specs=tuple(
+                item.scenario_execution_spec
+                for item in candidate_application.scenario_candidates
+            ),
+            scenario_authorities=(scenario,),
+            application_authority_sha="0" * 64,
+        )
+        application = replace(
+            provisional_application,
+            application_authority_sha=canonical_sha(
+                current_application_authority_v2_payload(
+                    provisional_application
+                )
+            ),
+        )
+
+        def exact_shell(record_type):
+            value = object.__new__(record_type)
+            for field in fields(record_type):
+                object.__setattr__(value, field.name, None)
+            return value
+
+        parent = object.__new__(ParentFreezeV2Manifest)
+        parent_values = {
+            "parent_freeze_schema_version": PARENT_FREEZE_V2_SCHEMA_VERSION,
+            "authority_state": "CURRENT_PARENT_V2_ISSUED",
+            "program_id": "projective-rule-space-v3m0-v2",
+            "historical_parent_v1": historical,
+            "reviewed_candidate_v1": candidate,
+            "reviewed_candidate_v2": exact_shell(
+                ParentFreezeCandidateV2Manifest
+            ),
+            "signed_incremental_erratum": exact_shell(SignedSourceRefV1),
+            "current_application_authorities": (application,),
+            "block_success_scenario_ids": (scenario.scenario_id,),
+            "source_closure": (("docsv3/test-fixture.md", "a" * 64),),
+            "parent_freeze_v2_sha": "a" * 64,
+        }
+        for name, value in parent_values.items():
+            object.__setattr__(parent, name, value)
+        parent.__post_init__()
+
+        evidence_refs = tuple(
+            SelectedControlEvidenceRef(
+                control_id=control_id,
+                control_registry_entry_sha="1" * 64,
+                expected_rank_declaration_sha="1" * 64,
+                run_spec_sha="1" * 64,
+                paired_response_sha="1" * 64,
+                shell_manifest_sha="1" * 64,
+                comparison_2t_run_spec_sha="1" * 64,
+                comparison_2t_response_sha="1" * 64,
+                comparison_2t_shell_manifest_sha="1" * 64,
+            )
+            for control_id in ("full", "zero", "direct_sum")
+        )
+        provisional_selection = WindowThresholdSelection(
+            selected_fejer_order=256,
+            h_scale_ref=1.0,
+            h_noise_ref=1.0e-14,
+            h_signal_min=0.5,
+            h_tau_sig=1.0e-3,
+            curv_scale_ref=1.0,
+            curv_noise_ref=1.0e-14,
+            curv_signal_min=0.5,
+            curv_tau_sig=1.0e-3,
+            selected_evidence_refs=evidence_refs,
+            selection_sha="0" * 64,
+        )
+        selection = replace(
+            provisional_selection,
+            selection_sha=canonical_sha(
+                window_threshold_selection_payload(provisional_selection)
+            ),
+        )
+        provisional_calibration = WindowThresholdCalibrationV2(
+            calibration_schema_version=(
+                WINDOW_THRESHOLD_CALIBRATION_V2_SCHEMA_VERSION
+            ),
+            authority_state="CURRENT_PARENT_V2_BOUND_CALIBRATION",
+            parent_freeze_v2_sha=parent.parent_freeze_v2_sha,
+            current_control_registry_sha="2" * 64,
+            current_window_protocol_sha="3" * 64,
+            current_calibration_outcome_sha="4" * 64,
+            selection=selection,
+            replay_contract_id=(
+                "replay-window-threshold-calibration-under-current-parent-v2"
+            ),
+            calibration_v2_sha="0" * 64,
+        )
+        calibration = replace(
+            provisional_calibration,
+            calibration_v2_sha=canonical_sha(
+                window_threshold_calibration_v2_payload(
+                    provisional_calibration
+                )
+            ),
+        )
+        provisional_permit = CalibrationApplicationPermitV2(
+            permit_schema_version=(
+                CALIBRATION_APPLICATION_PERMIT_V2_SCHEMA_VERSION
+            ),
+            scope="v3m0-current-synthetic-control-application-v2",
+            parent_freeze_v2_sha=parent.parent_freeze_v2_sha,
+            calibration=calibration,
+            control_case_id=application.control_case_id,
+            application_authority=application,
+            scenario_authority_shas=(scenario.scenario_authority_sha,),
+            selected_fejer_order=selection.selected_fejer_order,
+            permit_sha="0" * 64,
+        )
+        permit = replace(
+            provisional_permit,
+            permit_sha=canonical_sha(
+                calibration_application_permit_v2_payload(
+                    provisional_permit
+                )
+            ),
+        )
+        replay = _make_expected_live_materialization_v2(
+            lambda *_: (parent, permit)
+        )(
+            object(),
+            object(),
+            scenario.scenario_id,
+        )
+        result = (parent, permit, replay.materialization)
+        cls._repository_c04_bodies_cache = result
+        return result
+
     def _upstream_bodies(self, protocol):
         response_contract = SimpleNamespace(
             scenario_id=protocol.scenario_id,
@@ -773,6 +969,281 @@ class ScenarioResponseProtocolContractTests(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(ValueError, field):
                     hostile_compiler(parent, permit, materialization)
+
+    def test_repository_closed_c04_compiles_real_identity_protocol(self) -> None:
+        from rulespace_v3.factory import frozen_tensor_array
+        from rulespace_v3.identity_incidence import (
+            build_identity_analytic_incidence_certificate,
+            verify_identity_analytic_incidence_certificate,
+        )
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+            _repository_closed_expected_protocol_inputs,
+            _repository_closed_protocol_body_builder,
+        )
+
+        parent, permit, materialization = self._repository_c04_bodies()
+        compiler = _make_exact_scenario_response_protocol_compiler(
+            parent_body_type=type(parent),
+            permit_body_type=type(permit),
+            materialization_body_type=type(materialization),
+            protocol_body_builder=_repository_closed_protocol_body_builder,
+            expected_inputs_resolver=(
+                _repository_closed_expected_protocol_inputs
+            ),
+        )
+        protocol = compiler(parent, permit, materialization)
+        historical = self._historical_application(protocol.control_case_id)
+        certificate = verify_identity_analytic_incidence_certificate(
+            build_identity_analytic_incidence_certificate(
+                historical.readout_protocol.protocol_sha
+            )
+        )
+
+        self.assertEqual(
+            protocol.control_case_id,
+            "C04_CANONICAL_ANGLE_025_075",
+        )
+        self.assertEqual(
+            protocol.selected_fejer_order,
+            permit.selected_fejer_order,
+        )
+        self.assertIsNone(protocol.geometry_bundle)
+        self.assertEqual(
+            tuple(item.reciprocal_index for item in protocol.momentum_wires),
+            protocol.response_reciprocal_indices,
+        )
+        self.assertTrue(
+            all(
+                item.curvature_incidence_family_id
+                == "identity-incidence-v1"
+                and item.curvature_ir_certificate_sha
+                == certificate.certificate_sha
+                and item.curvature_ir_limit_formula_id
+                == certificate.ir_limit_formula_id
+                for item in protocol.momentum_wires
+            )
+        )
+        self.assertEqual(
+            certificate.historical_readout_protocol_sha,
+            historical.readout_protocol.protocol_sha,
+        )
+        self.assertEqual(certificate.ir_normalizer_limit, 1.0)
+        self.assertEqual(
+            certificate.ir_constant_conclusion,
+            "POSITIVE_MOMENTUM_INDEPENDENT_UNIT_NORMALIZER",
+        )
+        expected_incidence = frozen_tensor_array(
+            historical.readout_protocol.curvature_incidence_operator
+        ) @ frozen_tensor_array(
+            materialization.scenario_recipe.readout_selector
+        ).conj().T
+        for wire in protocol.momentum_wires:
+            self.assertTrue(
+                np.array_equal(
+                    frozen_tensor_array(
+                        wire.normalized_curvature_incidence_operator
+                    ),
+                    expected_incidence,
+                )
+            )
+
+    def test_repository_closed_c04_rejects_fake_certificate_and_wrong_index(
+        self,
+    ) -> None:
+        from rulespace_v3.scenario_response_protocol import (
+            _make_exact_scenario_response_protocol_compiler,
+            _repository_closed_expected_protocol_inputs,
+            _repository_closed_protocol_body_builder,
+        )
+
+        parent, permit, materialization = self._repository_c04_bodies()
+        protocol = _repository_closed_protocol_body_builder(
+            parent,
+            permit,
+            materialization,
+        )
+
+        def compile_candidate(candidate):
+            compiler = _make_exact_scenario_response_protocol_compiler(
+                parent_body_type=type(parent),
+                permit_body_type=type(permit),
+                materialization_body_type=type(materialization),
+                protocol_body_builder=lambda *_: candidate,
+                expected_inputs_resolver=(
+                    _repository_closed_expected_protocol_inputs
+                ),
+            )
+            return compiler(parent, permit, materialization)
+
+        first = protocol.momentum_wires[0]
+        fake_certificate = self._resign_momentum(
+            replace(first, curvature_ir_certificate_sha="f" * 64)
+        )
+        attacked = self._resign_protocol(
+            replace(
+                protocol,
+                momentum_wires=(
+                    fake_certificate,
+                    *protocol.momentum_wires[1:],
+                ),
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "momentum_wires"):
+            compile_candidate(attacked)
+
+        wrong_index = self._resign_momentum(
+            replace(
+                first,
+                reciprocal_index=(3,),
+                momentum_wire=(3.0 * math.pi / 4.0,),
+            )
+        )
+        attacked = self._resign_protocol(
+            replace(
+                protocol,
+                momentum_wires=(wrong_index, *protocol.momentum_wires[1:]),
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "reciprocal index"):
+            compile_candidate(attacked)
+
+    def test_repository_closed_c04_rejects_t_selector_and_lineage_splices(
+        self,
+    ) -> None:
+        from rulespace_v3.factory import (
+            freeze_complex_tensor,
+            frozen_tensor_array,
+        )
+        from rulespace_v3.scenario_response_protocol import (
+            _repository_closed_protocol_body_builder,
+        )
+
+        parent, permit, materialization = self._repository_c04_bodies()
+        attacks = {
+            "permit T": (
+                parent,
+                replace(permit, selected_fejer_order=512),
+                materialization,
+            ),
+            "materialization T": (
+                parent,
+                permit,
+                replace(materialization, selected_fejer_order=512),
+            ),
+            "parent": (
+                replace(parent, parent_freeze_v2_sha="f" * 64),
+                permit,
+                materialization,
+            ),
+            "permit": (
+                parent,
+                replace(permit, permit_sha="f" * 64),
+                materialization,
+            ),
+            "materialization": (
+                parent,
+                permit,
+                replace(materialization, application_spec_sha="f" * 64),
+            ),
+        }
+        hostile_selector = freeze_complex_tensor(
+            -frozen_tensor_array(
+                materialization.scenario_recipe.readout_selector
+            )
+        )
+        attacks["selector"] = (
+            parent,
+            permit,
+            replace(
+                materialization,
+                scenario_recipe=replace(
+                    materialization.scenario_recipe,
+                    readout_selector=hostile_selector,
+                ),
+            ),
+        )
+        for label, upstream in attacks.items():
+            with self.subTest(label=label):
+                with self.assertRaises((TypeError, ValueError)):
+                    _repository_closed_protocol_body_builder(*upstream)
+
+    def test_repository_closed_c04_resolver_captures_module_dependencies(
+        self,
+    ) -> None:
+        import rulespace_v3.identity_incidence as incidence_module
+        import rulespace_v3.scenario_response_protocol as protocol_module
+
+        parent, permit, materialization = self._repository_c04_bodies()
+        body_builder = protocol_module._repository_closed_protocol_body_builder
+        expected_resolver = (
+            protocol_module._repository_closed_expected_protocol_inputs
+        )
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_, **__):
+                poisoned_calls.append(label)
+                raise AssertionError(f"rebound {label} was called")
+
+            return poisoned
+
+        with (
+            patch.object(
+                protocol_module,
+                "_resolve_repository_closed_c04_context",
+                poison("context resolver"),
+            ),
+            patch.object(
+                protocol_module,
+                "_build_expected_scenario_protocol_inputs",
+                poison("expected input builder"),
+            ),
+            patch.object(
+                incidence_module,
+                "build_identity_analytic_incidence_certificate",
+                poison("certificate builder"),
+            ),
+            patch.object(
+                protocol_module,
+                "_index_grid",
+                poison("index-grid verifier"),
+            ),
+            patch.object(
+                protocol_module,
+                "freeze_complex_tensor",
+                poison("tensor builder"),
+            ),
+            patch.object(
+                protocol_module,
+                "ApplicationScenarioResponseProtocolV2",
+                poison("protocol body type"),
+            ),
+            patch.object(
+                protocol_module,
+                "application_scenario_response_protocol_v2_payload",
+                poison("protocol payload"),
+            ),
+            patch.object(
+                protocol_module,
+                "replace",
+                poison("dataclass replace"),
+            ),
+            patch.object(
+                protocol_module,
+                "_RepositoryClosedC04Context",
+                poison("context body type"),
+            ),
+            patch.object(
+                protocol_module,
+                "_C04_CONTROL_CASE_ID",
+                "C99_REBOUND",
+            ),
+        ):
+            protocol = body_builder(parent, permit, materialization)
+            expected = expected_resolver(parent, permit, materialization)
+        self.assertEqual(protocol.momentum_wires, expected.momentum_wires)
+        self.assertEqual(poisoned_calls, [])
 
     def test_metric_restriction_is_derived_not_temporary_identity(self) -> None:
         from rulespace_v3.factory import (

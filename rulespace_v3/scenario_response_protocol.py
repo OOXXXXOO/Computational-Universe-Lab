@@ -6,8 +6,10 @@ audited with :func:`verify_application_scenario_response_protocol_v2_body`,
 but they cannot be promoted.  Issuance is closed over the exact live
 Parent-v2, permit-v2 and materialization-v2 replayers.  The exact compiler is
 dependency-injected and audits the complete upstream lineage before returning
-any body.  Public issuance still fails closed while the cross-module live
-identity bridge and repository-closed complete input resolver are unavailable.
+any body.  Repository-closed pure compilation currently covers only C04
+without geometry; public issuance still requires the complete live
+Parent-v2/Task-11/permit/materialization identity chain and fails closed when
+that chain is absent.
 
 No measured response, singular value, verdict, threshold override or caller
 supplied numerical construction enters the issuer API.
@@ -15,7 +17,7 @@ supplied numerical construction enters the issuer API.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields as dataclass_fields
+from dataclasses import dataclass, fields as dataclass_fields, replace
 import math
 import re
 import struct
@@ -52,6 +54,13 @@ from .grids import (
     build_application_bridge_grid_manifest,
     build_response_grid_manifest,
 )
+from .identity_incidence import (
+    IDENTITY_INCIDENCE_FAMILY_ID,
+    IDENTITY_NORMALIZER_DERIVATION_ID,
+    IDENTITY_NORMALIZER_FORMULA_ID,
+    build_identity_analytic_incidence_certificate,
+    verify_identity_analytic_incidence_certificate,
+)
 from .frozen_call_graph import freeze_rulespace_call_graph
 from .parent_authority import VerifiedParentFreezeV2, require_current_parent
 from .parent_v2_contracts import ParentFreezeV2Manifest
@@ -73,15 +82,16 @@ APPLICATION_SCENARIO_RESPONSE_PROTOCOL_V2_STATE = (
 SELECTOR_RESIDUAL_TOLERANCE = 1.0e-12
 
 _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
-_IDENTITY_INCIDENCE_FAMILY = "identity-incidence-v1"
-_IDENTITY_NORMALIZER_FORMULA = "identity-positive-normalizer-v1"
-_IDENTITY_DERIVATION = "identity-incidence-derivation-v1"
+_IDENTITY_INCIDENCE_FAMILY = IDENTITY_INCIDENCE_FAMILY_ID
+_IDENTITY_NORMALIZER_FORMULA = IDENTITY_NORMALIZER_FORMULA_ID
+_IDENTITY_DERIVATION = IDENTITY_NORMALIZER_DERIVATION_ID
 _LAPLACIAN_INCIDENCE_FAMILY = "synthetic-lattice-laplacian-incidence-v1"
 _LAPLACIAN_NORMALIZER_FORMULA = "nu-inc-4-sum-sin2-half-v1"
 _LAPLACIAN_DERIVATION = (
     "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
 )
 _C12_CONTROL_CASE_ID = "C12_NU_INC_IR_NORMALIZATION"
+_C04_CONTROL_CASE_ID = "C04_CANONICAL_ANGLE_025_075"
 
 # These exact names are the only upstream assembly points.  Keeping them here
 # is deliberate: a v1 permit/materialization, a provisional candidate or a
@@ -95,7 +105,7 @@ UPSTREAM_V2_WIRING_POINTS = (
 
 
 class ScenarioResponseProtocolUpstreamUnavailable(RuntimeError):
-    """The exact live v2 authority chain is not implemented yet."""
+    """The requested exact repository/live upstream path is unavailable."""
 
 
 def _text(value: object, field: str) -> str:
@@ -1891,14 +1901,390 @@ def _load_exact_v2_upstream() -> tuple[object, ...]:
     )
 
 
+@dataclass(frozen=True)
+class _RepositoryClosedC04Context:
+    historical_application: object
+    application: object
+    scenario: object
+    response: object
+    recipe: object
+    trace: object
+    selected_fejer_order: int
+    momentum_wires: tuple[ScenarioResponseMomentumWireV2, ...]
+
+
+def _selected_t_wire(value: object, field: str) -> bytes:
+    if type(value) is not int:
+        raise TypeError(f"{field} must be an exact integer wire")
+    if value <= 0 or value >= 1 << 64:
+        raise ValueError(f"{field} lies outside the unsigned 64-bit wire")
+    return value.to_bytes(8, "big", signed=False)
+
+
+def _resolve_repository_closed_c04_context(
+    parent_body: object,
+    permit_body: object,
+    materialization_body: object,
+    *,
+    parent_body_type=ParentFreezeV2Manifest,
+    permit_body_type=CalibrationApplicationPermitV2,
+    materialization_body_type=ApplicationScenarioMaterializationV2,
+    exact_record=_exact_record,
+    unique_by_identifier=_unique_by_identifier,
+    lineage_equal=_lineage_equal,
+    selected_t_wire=_selected_t_wire,
+    index_grid=_index_grid,
+    matrix_reader=_matrix,
+    tensor_reader=frozen_tensor_array,
+    tensor_builder=freeze_complex_tensor,
+    certificate_builder=build_identity_analytic_incidence_certificate,
+    certificate_verifier=verify_identity_analytic_incidence_certificate,
+    sha_builder=canonical_sha,
+    momentum_payload=scenario_response_momentum_wire_v2_payload,
+    momentum_body_type=ScenarioResponseMomentumWireV2,
+    momentum_schema_version=(
+        SCENARIO_RESPONSE_MOMENTUM_WIRE_V2_SCHEMA_VERSION
+    ),
+    momentum_verifier=_verify_momentum_wire,
+    context_body_type=_RepositoryClosedC04Context,
+    dataclass_replace=replace,
+    c04_control_case_id=_C04_CONTROL_CASE_ID,
+    upstream_unavailable=ScenarioResponseProtocolUpstreamUnavailable,
+) -> _RepositoryClosedC04Context:
+    """Resolve the sole repository-closed C04 analytic response context."""
+
+    for value, expected_type, field in (
+        (parent_body, parent_body_type, "Parent-v2 body"),
+        (permit_body, permit_body_type, "permit-v2 body"),
+        (
+            materialization_body,
+            materialization_body_type,
+            "materialization-v2 body",
+        ),
+    ):
+        if type(value) is not expected_type:
+            raise TypeError(f"{field} has the wrong exact type")
+        exact_record(value, expected_type, field)
+        value.__post_init__()
+
+    application = permit_body.application_authority
+    if application.control_case_id != c04_control_case_id:
+        raise upstream_unavailable(
+            "repository-closed pure protocol resolver currently supports "
+            "only C04 without geometry"
+        )
+    parent_application = unique_by_identifier(
+        parent_body.current_application_authorities,
+        application.application_instance_id,
+        "application_instance_id",
+    )
+    historical_application = unique_by_identifier(
+        parent_body.historical_parent_v1.synthetic_control_application_specs,
+        application.application_instance_id,
+        "application_instance_id",
+    )
+    scenario = unique_by_identifier(
+        application.scenario_authorities,
+        materialization_body.scenario_id,
+        "scenario_id",
+    )
+    response = scenario.response_contract
+    recipe = materialization_body.scenario_recipe
+    trace = materialization_body.construction_trace
+
+    if scenario.source_disposition != "PARENT_V1_C04_CLOSED_RECIPE":
+        raise ValueError("C04 scenario is not the closed Parent-v1 recipe")
+    if (
+        response.construction_rule_id
+        != "two-mode-split-step-canonical-angle-v1"
+        or response.construction_family_id
+        != "c04-canonical-angle-local-shear-family-v1"
+    ):
+        raise ValueError("C04 response construction identity drifted")
+
+    shared = (
+        (
+            parent_body.parent_freeze_v2_sha,
+            permit_body.parent_freeze_v2_sha,
+            "Parent/permit root",
+        ),
+        (
+            parent_body.parent_freeze_v2_sha,
+            permit_body.calibration.parent_freeze_v2_sha,
+            "Parent/calibration root",
+        ),
+        (
+            parent_body.parent_freeze_v2_sha,
+            materialization_body.formal_parent_v2_sha,
+            "Parent/materialization root",
+        ),
+        (parent_application, application, "Parent/permit application"),
+        (
+            application.application_authority_sha,
+            materialization_body.application_authority_sha,
+            "application authority SHA",
+        ),
+        (
+            application.based_on_application_spec_sha,
+            historical_application.application_spec_sha,
+            "historical application spec SHA",
+        ),
+        (
+            application.based_on_application_spec_sha,
+            materialization_body.application_spec_sha,
+            "materialization application spec SHA",
+        ),
+        (
+            application.control_case_id,
+            permit_body.control_case_id,
+            "permit control case",
+        ),
+        (
+            application.control_case_id,
+            materialization_body.control_case_id,
+            "materialization control case",
+        ),
+        (
+            application.application_instance_id,
+            materialization_body.application_instance_id,
+            "materialization application instance",
+        ),
+        (
+            permit_body.permit_sha,
+            materialization_body.permit_v2_sha,
+            "permit/materialization SHA",
+        ),
+        (
+            scenario.scenario_authority_sha,
+            materialization_body.scenario_authority_sha,
+            "scenario authority SHA",
+        ),
+        (
+            scenario.scenario_execution_spec.scenario_sha,
+            materialization_body.scenario_sha,
+            "scenario SHA",
+        ),
+        (
+            response.response_contract_sha,
+            materialization_body.response_contract_sha,
+            "response contract SHA",
+        ),
+        (
+            response.selector_spec.source_selector,
+            recipe.source_selector,
+            "source selector",
+        ),
+        (
+            response.selector_spec.readout_selector,
+            recipe.readout_selector,
+            "readout selector",
+        ),
+        (
+            response.selector_spec.source_injection,
+            materialization_body.scenario_source_injection,
+            "source injection",
+        ),
+        (
+            response.selector_spec.readout_coisometry,
+            materialization_body.scenario_readout_coisometry,
+            "readout coisometry",
+        ),
+        (response.operation_dag_sha, recipe.operation_dag_sha, "operation DAG"),
+        (
+            response.compiled_contract_sha,
+            recipe.compiled_contract_sha,
+            "compiled contract",
+        ),
+        (recipe.recipe_sha, trace.recipe_sha, "recipe/trace SHA"),
+    )
+    for observed, expected, field in shared:
+        lineage_equal(observed, expected, field)
+
+    selected_t = permit_body.selected_fejer_order
+    selected_t_bits = selected_t_wire(selected_t, "permit selected T")
+    for observed, field in (
+        (
+            permit_body.calibration.selection.selected_fejer_order,
+            "calibration selected T",
+        ),
+        (materialization_body.selected_fejer_order, "materialization selected T"),
+    ):
+        if selected_t_wire(observed, field) != selected_t_bits:
+            raise ValueError(f"{field} differs bitwise from permit selected T")
+
+    response_indices = index_grid(
+        response.response_reciprocal_indices,
+        "C04 response reciprocal indices",
+        response.response_torus_denominators,
+    )
+    bands = response.preregistered_phase_bands
+    if len(bands) == 1:
+        phase_bands = bands * len(response_indices)
+    elif len(bands) == len(response_indices):
+        phase_bands = bands
+    else:
+        raise ValueError("C04 phase bands do not cover the response grid")
+
+    readout_protocol = historical_application.readout_protocol
+    certificate = certificate_verifier(
+        certificate_builder(readout_protocol.protocol_sha)
+    )
+    common_incidence = matrix_reader(
+        readout_protocol.curvature_incidence_operator,
+        "historical C04 curvature incidence",
+    )
+    readout_selector = matrix_reader(
+        recipe.readout_selector,
+        "C04 scenario readout selector",
+    )
+    normalized_incidence = np.asarray(
+        common_incidence @ readout_selector.conj().T,
+        dtype=np.complex128,
+    )
+    frozen_incidence = tensor_builder(normalized_incidence)
+    momentum_wires = []
+    for reciprocal_index, phase_band in zip(response_indices, phase_bands):
+        momentum = tuple(
+            2.0
+            * math.pi
+            * (index if index <= denominator // 2 else index - denominator)
+            / denominator
+            for index, denominator in zip(
+                reciprocal_index,
+                response.response_torus_denominators,
+            )
+        )
+        provisional = momentum_body_type(
+            momentum_wire_schema_version=momentum_schema_version,
+            scenario_id=scenario.scenario_id,
+            reciprocal_index=reciprocal_index,
+            momentum_wire=momentum,
+            phase_band=phase_band,
+            expected_actual_shell_rank=response.expected_actual_shell_rank,
+            expected_matched_shell_rank=response.expected_matched_shell_rank,
+            curvature_incidence_family_id=certificate.incidence_family_id,
+            curvature_incidence_operator=frozen_incidence,
+            curvature_normalizer_formula_id=(
+                certificate.normalizer_formula_id
+            ),
+            curvature_normalizer_derivation_id=(
+                certificate.normalizer_derivation_id
+            ),
+            curvature_normalizer_value=certificate.ir_normalizer_limit,
+            normalized_curvature_incidence_operator=frozen_incidence,
+            curvature_ir_limit_formula_id=certificate.ir_limit_formula_id,
+            curvature_ir_certificate_sha=certificate.certificate_sha,
+            momentum_wire_sha="0" * 64,
+        )
+        wire = dataclass_replace(
+            provisional,
+            momentum_wire_sha=sha_builder(momentum_payload(provisional)),
+        )
+        momentum_verifier(wire)
+        if not np.array_equal(
+            tensor_reader(wire.curvature_incidence_operator),
+            normalized_incidence,
+        ):
+            raise ValueError("C04 identity incidence construction drifted")
+        momentum_wires.append(wire)
+
+    return context_body_type(
+        historical_application=historical_application,
+        application=application,
+        scenario=scenario,
+        response=response,
+        recipe=recipe,
+        trace=trace,
+        selected_fejer_order=selected_t,
+        momentum_wires=tuple(momentum_wires),
+    )
+
+
 def _repository_closed_protocol_body_builder(
     parent_body: object,
     permit_body: object,
     materialization_body: object,
+    *,
+    context_resolver=_resolve_repository_closed_c04_context,
+    expected_input_builder=_build_expected_scenario_protocol_inputs,
+    protocol_body_type=ApplicationScenarioResponseProtocolV2,
+    protocol_payload=application_scenario_response_protocol_v2_payload,
+    sha_builder=canonical_sha,
+    protocol_schema_version=(
+        APPLICATION_SCENARIO_RESPONSE_PROTOCOL_V2_SCHEMA_VERSION
+    ),
+    protocol_state=APPLICATION_SCENARIO_RESPONSE_PROTOCOL_V2_STATE,
+    dataclass_replace=replace,
 ) -> ApplicationScenarioResponseProtocolV2:
-    del parent_body, permit_body, materialization_body
-    raise ScenarioResponseProtocolUpstreamUnavailable(
-        "repository-closed momentum/geometry protocol input resolver is not connected"
+    context = context_resolver(parent_body, permit_body, materialization_body)
+    expected = expected_input_builder(
+        parent_body,
+        permit_body,
+        materialization_body,
+        momentum_wires=context.momentum_wires,
+        geometry_bundle=None,
+    )
+    response = context.response
+    recipe = context.recipe
+    trace = context.trace
+    actual = materialization_body.actual_factory_binding
+    matched = materialization_body.matched_ablated_factory_binding
+    provisional = protocol_body_type(
+        protocol_schema_version=protocol_schema_version,
+        protocol_state=protocol_state,
+        formal_parent_v2_sha=parent_body.parent_freeze_v2_sha,
+        permit_v2_sha=permit_body.permit_sha,
+        application_spec_sha=context.application.based_on_application_spec_sha,
+        application_instance_id=context.application.application_instance_id,
+        control_case_id=context.application.control_case_id,
+        scenario_id=context.scenario.scenario_id,
+        scenario_sha=context.scenario.scenario_execution_spec.scenario_sha,
+        operation_dag_sha=response.operation_dag_sha,
+        compiled_contract_sha=response.compiled_contract_sha,
+        materialization_v2_sha=materialization_body.materialization_v2_sha,
+        recipe_sha=recipe.recipe_sha,
+        construction_trace_sha=trace.construction_trace_sha,
+        actual_factory_sha=actual.factory_sha,
+        matched_ablated_factory_sha=matched.factory_sha,
+        actual_effect_digest=actual.effect_digest,
+        matched_ablated_effect_digest=matched.effect_digest,
+        selected_fejer_order=context.selected_fejer_order,
+        common_source_basis=materialization_body.common_source_basis,
+        common_readout_basis=materialization_body.common_readout_basis,
+        source_selector=recipe.source_selector,
+        readout_selector=recipe.readout_selector,
+        source_injection_isometry=(
+            materialization_body.scenario_source_injection
+        ),
+        readout_coisometry=materialization_body.scenario_readout_coisometry,
+        state_schema_id=trace.state_schema_id,
+        channel_order=trace.channel_order,
+        spatial_shape=trace.state_shape[1:],
+        response_torus_denominators=response.response_torus_denominators,
+        response_reciprocal_indices=response.response_reciprocal_indices,
+        response_grid_sha=expected.response_grid_sha,
+        source_bridge_reciprocal_indices=(
+            response.source_readout_bridge_reciprocal_indices
+        ),
+        source_bridge_grid_sha=expected.source_bridge_grid_sha,
+        readout_bridge_reciprocal_indices=(
+            response.source_readout_bridge_reciprocal_indices
+        ),
+        readout_bridge_grid_sha=expected.readout_bridge_grid_sha,
+        source_readout_bridge_steps=response.source_readout_bridge_steps,
+        reference_reciprocal_index=response.reference_reciprocal_index,
+        source_trial_vectors=response.source_trial_vectors,
+        bridge_tolerance=expected.bridge_tolerance,
+        source_metric_whitener=expected.source_metric_whitener,
+        h_metric_whitener=expected.h_metric_whitener,
+        curvature_metric_whitener=expected.curvature_metric_whitener,
+        momentum_wires=context.momentum_wires,
+        geometry_bundle=None,
+        protocol_sha="0" * 64,
+    )
+    return dataclass_replace(
+        provisional,
+        protocol_sha=sha_builder(protocol_payload(provisional)),
     )
 
 
@@ -1906,11 +2292,26 @@ def _repository_closed_expected_protocol_inputs(
     parent_body: object,
     permit_body: object,
     materialization_body: object,
+    *,
+    context_resolver=_resolve_repository_closed_c04_context,
+    expected_input_builder=_build_expected_scenario_protocol_inputs,
 ) -> ExpectedScenarioProtocolInputs:
-    del parent_body, permit_body, materialization_body
-    raise ScenarioResponseProtocolUpstreamUnavailable(
-        "repository-closed complete expected protocol inputs are not connected"
+    context = context_resolver(parent_body, permit_body, materialization_body)
+    return expected_input_builder(
+        parent_body,
+        permit_body,
+        materialization_body,
+        momentum_wires=context.momentum_wires,
+        geometry_bundle=None,
     )
+
+
+_repository_closed_protocol_body_builder = freeze_rulespace_call_graph(
+    _repository_closed_protocol_body_builder
+)
+_repository_closed_expected_protocol_inputs = freeze_rulespace_call_graph(
+    _repository_closed_expected_protocol_inputs
+)
 
 
 def _make_repository_closed_live_relationship_verifier(
