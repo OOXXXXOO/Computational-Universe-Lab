@@ -148,43 +148,175 @@ def _exact_record(value: object, record_type: type, field: str) -> object:
     return value
 
 
-def _exact_dataclass_items(
+def _raw_dataclass_fields(
+    record_type: type,
+    _type_getattribute: Callable = type.__getattribute__,
+) -> object:
+    """Read dataclass metadata from class storage without descriptor dispatch."""
+
+    for owner in _type_getattribute(record_type, "__mro__"):
+        mapping = _type_getattribute(owner, "__dict__")
+        if "__dataclass_fields__" in mapping:
+            return mapping["__dataclass_fields__"]
+    return None
+
+
+def _exact_dataclass_storage_items(
     value: object,
     field: str,
     fields: dict[str, object],
+    _field_reader: Callable[[type], object] = _raw_dataclass_fields,
+    _type_fn: Callable = type,
+    _type_getattribute: Callable = type.__getattribute__,
+    _tuple_type: type = tuple,
+    _list_type: type = list,
+    _str_type: type = str,
+    _dict_type: type = dict,
+    _frozenset_type: Callable = frozenset,
+    _any_fn: Callable = any,
+    _dict_getitem: Callable = dict.__getitem__,
+    _member_descriptor_type: type = types.MemberDescriptorType,
+    _getset_descriptor_type: type = types.GetSetDescriptorType,
+    _member_get: Callable = types.MemberDescriptorType.__get__,
+    _getset_get: Callable = types.GetSetDescriptorType.__get__,
 ) -> tuple[tuple[str, object], ...]:
-    """Read plain or slotted dataclass fields without dispatching getters."""
+    """Read exact instance storage without dispatching user descriptors."""
 
-    expected = frozenset(fields)
+    if (
+        fields is not _field_reader(_type_fn(value))
+        or _type_fn(fields) is not _dict_type
+    ):
+        raise TypeError(f"{field} dataclass fields must be an exact dict")
+    expected_names = _tuple_type(fields)
+    if _any_fn(_type_fn(name) is not _str_type for name in expected_names):
+        raise TypeError(f"{field} dataclass field names must be strings")
+    expected = _frozenset_type(expected_names)
+    item_type = _type_fn(value)
+    mro = _tuple_type(_type_getattribute(item_type, "__mro__"))
+    owner_mappings = _tuple_type(
+        (owner, _type_getattribute(owner, "__dict__")) for owner in mro
+    )
     declared_slots: set[str] = set()
-    for record_type in type(value).__mro__:
-        slots = vars(record_type).get("__slots__", ())
-        if type(slots) is str:
-            declared_slots.add(slots)
+    slot_descriptors: dict[str, tuple[object, type]] = {}
+    dict_storage: Optional[tuple[object, type]] = None
+    for owner, mapping in owner_mappings:
+        slots = mapping.get("__slots__", ())
+        if _type_fn(slots) is _str_type:
+            normalized_slots = (slots,)
+        elif _type_fn(slots) in (_tuple_type, _list_type):
+            normalized_slots = _tuple_type(slots)
         else:
-            declared_slots.update(slots)
+            raise TypeError(f"{field} contains invalid slot declarations")
+        for name in normalized_slots:
+            if _type_fn(name) is not _str_type:
+                raise TypeError(f"{field} contains a non-string slot declaration")
+            declared_slots.add(name)
+            if name in ("__dict__", "__weakref__"):
+                continue
+            descriptor = mapping.get(name)
+            if _type_fn(descriptor) is not _member_descriptor_type:
+                raise ValueError(f"{field} slot descriptor was replaced")
+            if name in slot_descriptors:
+                raise ValueError(f"{field} contains duplicate slot storage")
+            slot_descriptors[name] = (descriptor, owner)
+        candidate = mapping.get("__dict__")
+        if _type_fn(candidate) is _getset_descriptor_type:
+            if dict_storage is not None:
+                raise ValueError(f"{field} contains duplicate dict storage")
+            dict_storage = (candidate, owner)
+        elif "__dict__" in mapping:
+            raise ValueError(f"{field} dict descriptor was replaced")
     if declared_slots.difference(
         expected,
         {"__dict__", "__weakref__"},
     ):
         raise ValueError(f"{field} contains missing or unknown fields")
-    try:
-        body = vars(value)
-    except TypeError:
-        body = None
-    if body is not None and frozenset(body) != expected:
+    if dict_storage is not None:
+        if slot_descriptors:
+            raise ValueError(f"{field} contains ambiguous field storage")
+        descriptor, owner = dict_storage
+        try:
+            body = _getset_get(descriptor, value, owner)
+        except AttributeError as exc:
+            raise ValueError(f"{field} has no exact record body") from exc
+        if _type_fn(body) is not _dict_type:
+            raise TypeError(f"{field} has no exact record body")
+        if _frozenset_type(body) != expected:
+            raise ValueError(f"{field} contains missing or unknown fields")
+        return _tuple_type((name, _dict_getitem(body, name)) for name in expected_names)
+    if _frozenset_type(slot_descriptors) != expected:
         raise ValueError(f"{field} contains missing or unknown fields")
     result = []
-    for name in fields:
+    for name in expected_names:
+        descriptor, owner = slot_descriptors[name]
+        for binding_owner, mapping in owner_mappings:
+            if name in mapping and mapping[name] is not descriptor:
+                raise ValueError(
+                    f"{field} slot storage is shadowed on {binding_owner.__name__}"
+                )
         try:
-            nested = object.__getattribute__(value, name)
+            nested = _member_get(descriptor, value, owner)
         except AttributeError as exc:
             raise ValueError(f"{field} contains a missing field: {name}") from exc
         result.append((name, nested))
-    return tuple(result)
+    return _tuple_type(result)
 
 
-def _exact_dataclass_tree(value: object, field: str) -> None:
+def _dataclass_has_unsafe_field_binding(
+    value: object,
+    field_names: tuple[object, ...],
+    _type_fn: Callable = type,
+    _type_getattribute: Callable = type.__getattribute__,
+    _member_descriptor_type: type = types.MemberDescriptorType,
+) -> bool:
+    """Detect user descriptors without invoking their protocol."""
+
+    item_type = _type_fn(value)
+    for owner in _type_getattribute(item_type, "__mro__"):
+        mapping = _type_getattribute(owner, "__dict__")
+        for name in field_names:
+            if name not in mapping:
+                continue
+            binding = mapping[name]
+            if _type_fn(binding) is _member_descriptor_type:
+                continue
+            binding_type = _type_fn(binding)
+            for binding_owner in _type_getattribute(binding_type, "__mro__"):
+                binding_mapping = _type_getattribute(binding_owner, "__dict__")
+                if "__set__" in binding_mapping or "__delete__" in binding_mapping:
+                    return True
+    return False
+
+
+def _exact_dataclass_items(
+    value: object,
+    field: str,
+    fields: dict[str, object],
+    _storage_reader: Callable = _exact_dataclass_storage_items,
+) -> tuple[tuple[str, object], ...]:
+    """Read the exact trusted storage of a plain or slotted dataclass."""
+
+    return _storage_reader(value, field, fields)
+
+
+def _exact_dataclass_tree_impl(
+    value: object,
+    field: str,
+    _storage_reader: Callable = _exact_dataclass_storage_items,
+    _unsafe_binding_checker: Callable = _dataclass_has_unsafe_field_binding,
+    _field_reader: Callable[[type], object] = _raw_dataclass_fields,
+    _type_fn: Callable = type,
+    _id_fn: Callable = id,
+    _tuple_type: type = tuple,
+    _list_type: type = list,
+    _dict_type: type = dict,
+    _str_type: type = str,
+    _len_fn: Callable = len,
+    _any_fn: Callable = any,
+    _zip_fn: Callable = zip,
+    _enumerate_fn: Callable = enumerate,
+    _reversed_fn: Callable = reversed,
+) -> None:
     """Reject unknown fields at every recursively embedded dataclass.
 
     Upstream payload helpers intentionally own their wire spelling, but some
@@ -193,47 +325,205 @@ def _exact_dataclass_tree(value: object, field: str) -> None:
     before any hash is evaluated.
     """
 
-    stack: list[tuple[object, str]] = [(value, field)]
-    active: set[int] = set()
+    stack: list[tuple[bool, object, str]] = [(False, value, field)]
+    # Strong references make identity memoization safe from object-id reuse.
+    gray: dict[int, object] = {}
+    black: dict[int, object] = {}
+    subtree_logical_nodes: dict[int, int] = {}
+    traversal_starts: dict[int, int] = {}
+    shallow_snapshots: dict[
+        int,
+        tuple[str, tuple[object, ...], tuple[object, ...]],
+    ] = {}
+    storage_reader = _storage_reader
+    unsafe_binding_checker = _unsafe_binding_checker
+    field_reader = _field_reader
+
+    def raw_dataclass_storage(
+        item: object,
+        path: str,
+        expected_names: tuple[object, ...],
+    ) -> tuple[object, ...]:
+        item_type = _type_fn(item)
+        fields = field_reader(item_type)
+        if fields is None or _tuple_type(fields) != expected_names:
+            raise ValueError(f"{path} dataclass schema changed after validation")
+        items = storage_reader(item, path, fields, field_reader)
+        if _tuple_type(name for name, _ in items) != expected_names:
+            raise ValueError(f"{path} dataclass schema changed after validation")
+        return _tuple_type(nested for _, nested in items)
+
+    def guard_shallow(item: object, path: str) -> None:
+        identity = _id_fn(item)
+        try:
+            kind, names, expected_values = shallow_snapshots[identity]
+        except KeyError as exc:
+            raise RuntimeError("recursive traversal snapshot invariant failed") from exc
+        if kind == "dataclass":
+            current_values = raw_dataclass_storage(item, path, names)
+        elif kind in ("tuple", "list"):
+            current_values = _tuple_type(item)
+        elif kind == "dict":
+            try:
+                current_items = _tuple_type(item.items())
+            except RuntimeError as exc:
+                raise ValueError(f"{path} changed after validation") from exc
+            current_names = _tuple_type(key for key, _ in current_items)
+            if _any_fn(_type_fn(key) is not _str_type for key in current_names):
+                raise TypeError(f"{path} mapping keys must be strings")
+            if current_names != names:
+                raise ValueError(f"{path} changed after validation")
+            current_values = _tuple_type(nested for _, nested in current_items)
+        else:
+            raise RuntimeError("recursive traversal snapshot kind invariant failed")
+        if _len_fn(current_values) != _len_fn(expected_values) or _any_fn(
+            current is not expected
+            for current, expected in _zip_fn(current_values, expected_values)
+        ):
+            raise ValueError(f"{path} changed after validation")
+        if kind == "dataclass" and unsafe_binding_checker(item, names):
+            raise ValueError(
+                f"{path} contains missing or unknown fields; "
+                "storage changed after validation"
+            )
+
     visited = 0
-    while stack:
-        item, path = stack.pop()
-        visited += 1
+
+    def charge_nodes(amount: int) -> None:
+        nonlocal visited
+        visited += amount
         if visited > 20_000_000:
             raise ValueError(f"{field} recursive body exceeds node cap")
-        item_type = type(item)
-        fields = getattr(item_type, "__dataclass_fields__", None)
-        if fields is not None:
-            identity = id(item)
-            if identity in active:
-                raise ValueError(f"{path} contains a cyclic dataclass")
-            items = _exact_dataclass_items(item, path, fields)
-            active.add(identity)
-            for name, nested in reversed(items):
-                stack.append((nested, f"{path}.{name}"))
-            active.remove(identity)
+
+    while stack:
+        leaving, item, path = stack.pop()
+        identity = _id_fn(item)
+        if leaving:
+            if identity not in gray or gray[identity] is not item:
+                raise RuntimeError("recursive traversal identity invariant failed")
+            guard_shallow(item, path)
+            try:
+                traversal_start = traversal_starts.pop(identity)
+            except KeyError as exc:
+                raise RuntimeError(
+                    "recursive traversal charge invariant failed"
+                ) from exc
+            subtree_logical_nodes[identity] = visited - traversal_start
+            del gray[identity]
+            black[identity] = item
             continue
-        if item_type is tuple:
-            if len(item) > 16_777_216:
+        charge_nodes(1)
+        item_type = _type_fn(item)
+        fields = field_reader(item_type)
+        if identity in black:
+            if black[identity] is not item:
+                raise RuntimeError("recursive traversal identity invariant failed")
+            guard_shallow(item, path)
+            try:
+                logical_nodes = subtree_logical_nodes[identity]
+            except KeyError as exc:
+                raise RuntimeError(
+                    "recursive traversal charge invariant failed"
+                ) from exc
+            charge_nodes(logical_nodes - 1)
+            continue
+        if identity in gray:
+            if gray[identity] is not item:
+                raise RuntimeError("recursive traversal identity invariant failed")
+            snapshot_kind = shallow_snapshots[identity][0]
+            kind = "dataclass" if snapshot_kind == "dataclass" else "container"
+            raise ValueError(f"{path} contains a cyclic {kind}")
+        if fields is None and item_type not in (
+            _tuple_type,
+            _list_type,
+            _dict_type,
+        ):
+            continue
+        gray[identity] = item
+        traversal_starts[identity] = visited - 1
+        stack.append((True, item, path))
+        if fields is not None:
+            items = storage_reader(item, path, fields, field_reader)
+            names = _tuple_type(fields)
+            shallow_snapshots[identity] = (
+                "dataclass",
+                names,
+                _tuple_type(nested for _, nested in items),
+            )
+            for name, nested in _reversed_fn(items):
+                stack.append((False, nested, f"{path}.{name}"))
+            continue
+        if item_type is _tuple_type:
+            if _len_fn(item) > 16_777_216:
                 raise ValueError(f"{path} tuple exceeds recursive entry cap")
-            stack.extend(
-                (nested, f"{path}[{index}]")
-                for index, nested in reversed(tuple(enumerate(item)))
+            entries = _tuple_type(_enumerate_fn(item))
+            shallow_snapshots[identity] = (
+                "tuple",
+                (),
+                _tuple_type(nested for _, nested in entries),
             )
-        elif item_type is list:
-            if len(item) > 16_777_216:
+            stack.extend(
+                (False, nested, f"{path}[{index}]")
+                for index, nested in _reversed_fn(entries)
+            )
+        elif item_type is _list_type:
+            if _len_fn(item) > 16_777_216:
                 raise ValueError(f"{path} list exceeds recursive entry cap")
-            stack.extend(
-                (nested, f"{path}[{index}]")
-                for index, nested in reversed(tuple(enumerate(item)))
+            entries = _tuple_type(_enumerate_fn(item))
+            shallow_snapshots[identity] = (
+                "list",
+                (),
+                _tuple_type(nested for _, nested in entries),
             )
-        elif item_type is dict:
-            if len(item) > 262_144:
+            stack.extend(
+                (False, nested, f"{path}[{index}]")
+                for index, nested in _reversed_fn(entries)
+            )
+        elif item_type is _dict_type:
+            if _len_fn(item) > 262_144:
                 raise ValueError(f"{path} mapping exceeds recursive entry cap")
-            for key, nested in item.items():
-                if type(key) is not str:
+            entries = _tuple_type(item.items())
+            for key, _ in entries:
+                if _type_fn(key) is not _str_type:
                     raise TypeError(f"{path} mapping keys must be strings")
-                stack.append((nested, f"{path}.{key}"))
+            shallow_snapshots[identity] = (
+                "dict",
+                _tuple_type(key for key, _ in entries),
+                _tuple_type(nested for _, nested in entries),
+            )
+            for key, nested in entries:
+                stack.append((False, nested, f"{path}.{key}"))
+
+    for item in _tuple_type(black.values()):
+        guard_shallow(item, field)
+
+
+def _make_exact_dataclass_tree(
+    implementation: Callable,
+    storage_reader: Callable,
+    unsafe_binding_checker: Callable,
+    field_reader: Callable[[type], object],
+) -> Callable[[object, str], None]:
+    """Freeze the exact-tree helper graph off later module rebinding."""
+
+    def exact_dataclass_tree(value: object, field: str) -> None:
+        implementation(
+            value,
+            field,
+            storage_reader,
+            unsafe_binding_checker,
+            field_reader,
+        )
+
+    return exact_dataclass_tree
+
+
+_exact_dataclass_tree = _make_exact_dataclass_tree(
+    _exact_dataclass_tree_impl,
+    _exact_dataclass_storage_items,
+    _dataclass_has_unsafe_field_binding,
+    _raw_dataclass_fields,
+)
 
 
 def _exact_response_grid_tree(
