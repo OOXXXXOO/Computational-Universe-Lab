@@ -96,3 +96,8 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
   control-evidence issuer 与机械签发闭合均尚待实现。本 DRAFT 不改变 Parent、permit 或
   `HALT-V3M0-WINDOW`，也不签发
   `READY-V3-M1-ANCHOR-CERTIFICATION` 或任何下游解锁状态。
+- [`v3-设计勘误-metric-support-authority-v1-2026-08-01.md`](v3-设计勘误-metric-support-authority-v1-2026-08-01.md)：
+  冻结 C19 production Dynamics grid 所需的独立 metric-support authority、exact
+  `MetricSupportDerivationProtocolV1` 和无环 Parent-v3→Materialization-v3→runtime
+  拓扑。当前不存在合法 Parent-v3/materialization lineage，因此本 DRAFT 只能
+  定义预响应 raw protocol，不能签发 production attestation 或解锁 GPU。
