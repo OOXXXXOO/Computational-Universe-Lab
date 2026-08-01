@@ -112,7 +112,11 @@ _LOWER_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _LOWER_GIT_SHA1 = re.compile(r"[0-9a-f]{40}\Z")
 _REGULAR_GIT_MODES = frozenset(("100644", "100755"))
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-_FRESH_AUDIT_REQUIRED_DEPENDENCY_MODULES = ("numpy", "sympy")
+_FRESH_AUDIT_REQUIRED_DEPENDENCY_MODULES = (
+    "numpy",
+    "scipy.linalg",
+    "sympy",
+)
 
 
 def _resolve_fresh_audit_external_import_roots() -> tuple[str, ...]:
@@ -864,6 +868,7 @@ def _bootstrap():
         set_dependency_phase(True)
         try:
             __import__("numpy.testing")
+            __import__("scipy.linalg")
         finally:
             set_dependency_phase(False)
         require_lscpu_blocked()
@@ -1030,16 +1035,33 @@ def _bootstrap():
 
     if audit_mode == smoke_mode:
         dependency_modules = request["dependency_modules"]
-        if dependency_modules not in (["numpy"], ["numpy", "sympy"]):
+        if dependency_modules not in (
+            ["numpy", "scipy.linalg"],
+            ["numpy", "scipy.linalg", "sympy"],
+        ):
             raise RuntimeError("fresh audit dependency smoke modules drifted")
+        lock_dynamic_loading()
         for module_name in dependency_modules:
             __import__(module_name)
+        numpy_module = sys.modules["numpy"]
+        scipy_linalg_module = sys.modules["scipy.linalg"]
+        schur_input = numpy_module.asarray(
+            ((1.0 + 0.0j, 2.0 - 1.0j), (0.0 + 0.0j, 3.0 + 0.0j)),
+            dtype=numpy_module.complex128,
+        )
+        schur_t, schur_z = scipy_linalg_module.schur(
+            schur_input,
+            output="complex",
+        )
+        if schur_t.shape != (2, 2) or schur_z.shape != (2, 2):
+            raise RuntimeError("fresh audit SciPy linalg smoke result drifted")
         frame_writer(
             "final",
             {
                 "audit_mode": smoke_mode,
                 "dependency_initialization_state": (
-                    "NUMPY_TESTING_IMPORTED_WITH_LSCPU_EXECUTION_BLOCKED"
+                    "NUMPY_TESTING_AND_SCIPY_LINALG_PRELOADED_WITH_LSCPU_"
+                    "BLOCKED_AND_SCHUR_EXECUTED_AFTER_DYNAMIC_LOCK"
                 ),
                 "hook_installation_state": "HOOK_INSTALLED_BEFORE_REPOSITORY_IMPORT",
                 "imported_dependency_modules": dependency_modules,
@@ -3307,8 +3329,13 @@ def _validate_fresh_interpreter_audit_output(
 
 def _run_fresh_interpreter_dependency_import_smoke() -> dict[str, object]:
     dependency_modules = _FRESH_AUDIT_AVAILABLE_DEPENDENCY_MODULES
-    if not dependency_modules or dependency_modules[0] != "numpy":
-        raise ValueError("fresh-audit dependency smoke requires NumPy")
+    if dependency_modules not in (
+        ("numpy", "scipy.linalg"),
+        ("numpy", "scipy.linalg", "sympy"),
+    ):
+        raise ValueError(
+            "fresh-audit dependency smoke requires NumPy and SciPy linalg"
+        )
     nonce = secrets.token_hex(32)
     request = {
         "audit_mode": _FRESH_INTERPRETER_IMPORT_SMOKE_MODE,
@@ -3351,7 +3378,8 @@ def _run_fresh_interpreter_dependency_import_smoke() -> dict[str, object]:
     expected = {
         "audit_mode": _FRESH_INTERPRETER_IMPORT_SMOKE_MODE,
         "dependency_initialization_state": (
-            "NUMPY_TESTING_IMPORTED_WITH_LSCPU_EXECUTION_BLOCKED"
+            "NUMPY_TESTING_AND_SCIPY_LINALG_PRELOADED_WITH_LSCPU_BLOCKED_"
+            "AND_SCHUR_EXECUTED_AFTER_DYNAMIC_LOCK"
         ),
         "hook_installation_state": _FRESH_INTERPRETER_HOOK_STATE,
         "imported_dependency_modules": list(dependency_modules),

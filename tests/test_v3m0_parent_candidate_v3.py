@@ -1167,13 +1167,14 @@ def test_slice3b2_s2b_real_isolated_dependency_import_smoke() -> None:
     observed = candidate._run_fresh_interpreter_dependency_import_smoke()
     expected_modules = tuple(
         module_name
-        for module_name in ("numpy", "sympy")
+        for module_name in ("numpy", "scipy.linalg", "sympy")
         if importlib.util.find_spec(module_name) is not None
     )
     assert observed == {
         "audit_mode": candidate._FRESH_INTERPRETER_IMPORT_SMOKE_MODE,
         "dependency_initialization_state": (
-            "NUMPY_TESTING_IMPORTED_WITH_LSCPU_EXECUTION_BLOCKED"
+            "NUMPY_TESTING_AND_SCIPY_LINALG_PRELOADED_WITH_LSCPU_BLOCKED_"
+            "AND_SCHUR_EXECUTED_AFTER_DYNAMIC_LOCK"
         ),
         "hook_installation_state": candidate._FRESH_INTERPRETER_HOOK_STATE,
         "imported_dependency_modules": list(expected_modules),
@@ -1181,6 +1182,35 @@ def test_slice3b2_s2b_real_isolated_dependency_import_smoke() -> None:
             candidate._TRUSTED_PYTHON_EXECUTABLE_REALPATH
         ),
     }
+
+
+def test_slice3b2_s2b_scipy_linalg_is_preloaded_and_rechecked_after_lock() -> None:
+    candidate = _candidate_module()
+    source = candidate._FRESH_AUDIT_BOOTSTRAP
+    dependency_phase_index = source.index("if audit_mode in (main_mode")
+    scipy_preload_index = source.find(
+        '__import__("scipy.linalg")',
+        dependency_phase_index,
+    )
+    main_lock_index = source.find(
+        "        lock_dynamic_loading()",
+        dependency_phase_index,
+    )
+    smoke_index = source.index("if audit_mode == smoke_mode:")
+    smoke_lock_index = source.find("        lock_dynamic_loading()", smoke_index)
+    smoke_reimport_index = source.index(
+        "        for module_name in dependency_modules:",
+        smoke_index,
+    )
+    smoke_schur_index = source.find(".schur(", smoke_reimport_index)
+    smoke_final_index = source.index(
+        '        frame_writer(\n            "final",',
+        smoke_index,
+    )
+
+    assert dependency_phase_index < scipy_preload_index < main_lock_index
+    assert smoke_index < smoke_lock_index < smoke_reimport_index
+    assert smoke_reimport_index < smoke_schur_index < smoke_final_index
 
 
 def test_slice3b2_s2c_fresh_candidate_import_reuses_parent_direct_git() -> None:
