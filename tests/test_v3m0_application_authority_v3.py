@@ -620,6 +620,42 @@ def test_resolved_calibration_issues_only_exact_current_v3_scenario_permit(
         fixture.graph.verify_permit(fixture.parent, permit)
 
 
+def test_calibration_and_permit_resolver_redirection_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calibration_fixture = _make_fake_authority_graph(monkeypatch)
+    calibration = calibration_fixture.graph.calibrate(calibration_fixture.parent)
+    object.__setattr__(
+        calibration,
+        "_VerifiedWindowThresholdCalibrationV3__resolver",
+        lambda _wrapper: object(),
+    )
+    with pytest.raises(ValueError, match="resolver|immutable"):
+        calibration_fixture.graph.verify_calibration(
+            calibration_fixture.parent,
+            calibration,
+        )
+
+    permit_fixture = _make_fake_authority_graph(monkeypatch)
+    permit_calibration = permit_fixture.graph.calibrate(permit_fixture.parent)
+    application = permit_fixture.v3_application
+    scenario = application.scenario_authorities[0]
+    permit = permit_fixture.graph.issue_permit(
+        permit_fixture.parent,
+        permit_calibration,
+        application.control_case_id,
+        application.application_instance_id,
+        scenario.scenario_id,
+    )
+    object.__setattr__(
+        permit,
+        "_VerifiedCalibrationApplicationPermitV3__resolver",
+        lambda _wrapper: object(),
+    )
+    with pytest.raises(ValueError, match="resolver|immutable"):
+        permit_fixture.graph.verify_permit(permit_fixture.parent, permit)
+
+
 def test_unresolved_window_never_issues_permit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -587,6 +587,7 @@ class _WindowAuthorityV3:
     calibration: WindowThresholdCalibrationV3
     parent: object
     fingerprint: str
+    resolver: Callable[[object], WindowThresholdCalibrationV3]
 
 
 @dataclass(frozen=True)
@@ -595,6 +596,7 @@ class _PermitAuthorityV3:
     parent: object
     calibration: VerifiedWindowThresholdCalibrationV3
     fingerprint: str
+    resolver: Callable[[object], CalibrationApplicationPermitV3]
 
 
 @dataclass(frozen=True)
@@ -973,7 +975,12 @@ def _make_application_authority_v3_graph(
             resolver,
         )
         identity = id_fn(wrapper)
-        authority = window_authority_type(clone(snapshot), parent, fingerprint)
+        authority = window_authority_type(
+            clone(snapshot),
+            parent,
+            fingerprint,
+            resolver,
+        )
 
         def remove_stale(reference, wrapper_id=identity):
             with window_lock:
@@ -1017,10 +1024,14 @@ def _make_application_authority_v3_graph(
                 calibration,
                 "_VerifiedWindowThresholdCalibrationV3__seal",
             )
+            resolver = object_getattribute(
+                calibration,
+                "_VerifiedWindowThresholdCalibrationV3__resolver",
+            )
         except AttributeError as exc:
             raise ValueError("calibration-v3 immutable record is incomplete") from exc
-        if token is not issuance_token:
-            raise ValueError("calibration-v3 immutable token drifted")
+        if token is not issuance_token or resolver is not authority.resolver:
+            raise ValueError("calibration-v3 immutable token/resolver drifted")
         try:
             snapshot = verify_calibration_wire(raw)
         except (AttributeError, TypeError, ValueError) as exc:
@@ -1238,6 +1249,7 @@ def _make_application_authority_v3_graph(
             parent,
             calibration,
             fingerprint,
+            resolver,
         )
 
         def remove_stale(reference, wrapper_id=identity):
@@ -1278,10 +1290,14 @@ def _make_application_authority_v3_graph(
                 permit,
                 "_VerifiedCalibrationApplicationPermitV3__seal",
             )
+            resolver = object_getattribute(
+                permit,
+                "_VerifiedCalibrationApplicationPermitV3__resolver",
+            )
         except AttributeError as exc:
             raise ValueError("permit-v3 immutable record is incomplete") from exc
-        if token is not issuance_token:
-            raise ValueError("permit-v3 immutable token drifted")
+        if token is not issuance_token or resolver is not authority.resolver:
+            raise ValueError("permit-v3 immutable token/resolver drifted")
         try:
             snapshot = verify_permit_wire(raw)
         except (AttributeError, TypeError, ValueError) as exc:
