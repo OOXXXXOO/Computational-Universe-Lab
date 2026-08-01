@@ -149,7 +149,7 @@ STATIC_CLOSURE_FREEZE = {
         "authority": "rulespace_v2.frozen.EXPECTED_SHA256",
     },
     "rulespace_gpu/__init__.py": {
-        "sha256": "911e8a678bfc9c9ef7fd5b9d775135cf340823fc116f6b02adfabdaab8bcc32a",
+        "sha256": "4e24f1a28422aa51d5ff03a6d786f74b08384274046221b690cd96283aaca6cc",
         "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
     "rulespace_gpu/backend.py": {
@@ -179,10 +179,6 @@ STATIC_CLOSURE_FREEZE = {
     "rulespace_gpu/spin2_evolver.py": {
         "sha256": "dc9a1a8a28e87288cf858f4dea0c275983d606e2a15b34fe0e819f98e7150900",
         "authority": "parent.protocol.frozen_verification.record_only",
-    },
-    "rulespace_gpu/states.py": {
-        "sha256": "9d26f3ce4727d634376aebc48a55c49d0824525bb76badc67045f2881da793d8",
-        "authority": "v3m0_task7_signed_execution_closure_freeze",
     },
     "rulespace_gpu/tensor_coin_feedback.py": {
         "sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",

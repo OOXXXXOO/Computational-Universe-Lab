@@ -1,6 +1,6 @@
 {
   "artifact_kind": "formal_nogo_intermediate_evidence",
-  "certificate_sha": "b073d046e9b69d957b7c35b8f870d8d953926b0b9e43d4897a45daeb4a3bfc3c",
+  "certificate_sha": "01ad06309e82c7046b6abbc84c17475a7c73569dfa0753d1c0b33b9699492f0c",
   "claim_ceiling": "conditional_full_positive_observer_collapse",
   "environment": {
     "attribution_only": true,
@@ -587,7 +587,6 @@
         "rulespace_gpu/observables.py",
         "rulespace_gpu/pathB_spin2.py",
         "rulespace_gpu/spin2_evolver.py",
-        "rulespace_gpu/states.py",
         "rulespace_gpu/tensor_coin_feedback.py",
         "rulespace_gpu/tensor_qca.py",
         "rulespace_v2/__init__.py",
@@ -635,7 +634,6 @@
         "rulespace_gpu/observables.py",
         "rulespace_gpu/pathB_spin2.py",
         "rulespace_gpu/spin2_evolver.py",
-        "rulespace_gpu/states.py",
         "rulespace_gpu/tensor_coin_feedback.py",
         "rulespace_gpu/tensor_qca.py",
         "rulespace_v2/__init__.py",
@@ -730,9 +728,6 @@
         ],
         "rulespace_gpu/spin2_evolver.py": [
           "rulespace_gpu.spin2_evolver"
-        ],
-        "rulespace_gpu/states.py": [
-          "rulespace_gpu.states"
         ],
         "rulespace_gpu/tensor_coin_feedback.py": [
           "rulespace_gpu.tensor_coin_feedback"
@@ -847,9 +842,9 @@
     },
     "static_execution_closure": {
       "all_match": true,
-      "closure_sha256": "200ed57a4bbeca8c98b1f37497a11aec0000dfea10a0947e24ee03a78ff13a77",
+      "closure_sha256": "8cef46c9053d8cdb3cf42d4db7815f231798289f4dbae401916d84e1bf43f4e4",
       "discovery": "python_ast_conservative_local_import_closure_v2_with_literal_importlib_import_module",
-      "file_count": 40,
+      "file_count": 39,
       "files": {
         "experiments/__init__.py": {
           "actual_sha256": "1b4bb82a4493cbf123326d43960ab6232ed0eb6aaec75205acb4c2773b1dc4bd",
@@ -1079,15 +1074,10 @@
           "module": "r32_reachability_probe"
         },
         "rulespace_gpu/__init__.py": {
-          "actual_sha256": "911e8a678bfc9c9ef7fd5b9d775135cf340823fc116f6b02adfabdaab8bcc32a",
+          "actual_sha256": "4e24f1a28422aa51d5ff03a6d786f74b08384274046221b690cd96283aaca6cc",
           "authority": "v3m0_task7_signed_execution_closure_freeze",
-          "expected_sha256": "911e8a678bfc9c9ef7fd5b9d775135cf340823fc116f6b02adfabdaab8bcc32a",
-          "imports": [
-            "rulespace_gpu/backend.py",
-            "rulespace_gpu/engine.py",
-            "rulespace_gpu/observables.py",
-            "rulespace_gpu/states.py"
-          ],
+          "expected_sha256": "4e24f1a28422aa51d5ff03a6d786f74b08384274046221b690cd96283aaca6cc",
+          "imports": [],
           "literal_dynamic_imports": [],
           "match": true,
           "module": "rulespace_gpu"
@@ -1179,19 +1169,6 @@
           "literal_dynamic_imports": [],
           "match": true,
           "module": "rulespace_gpu.spin2_evolver"
-        },
-        "rulespace_gpu/states.py": {
-          "actual_sha256": "9d26f3ce4727d634376aebc48a55c49d0824525bb76badc67045f2881da793d8",
-          "authority": "v3m0_task7_signed_execution_closure_freeze",
-          "expected_sha256": "9d26f3ce4727d634376aebc48a55c49d0824525bb76badc67045f2881da793d8",
-          "imports": [
-            "rulespace_gpu/__init__.py",
-            "rulespace_gpu/backend.py",
-            "rulespace_gpu/engine.py"
-          ],
-          "literal_dynamic_imports": [],
-          "match": true,
-          "module": "rulespace_gpu.states"
         },
         "rulespace_gpu/tensor_coin_feedback.py": {
           "actual_sha256": "c31badcb14b3a005204d92f2149e67ca2a553693c564e9374153a89d993639f7",
@@ -1373,7 +1350,7 @@
     },
     "v3_source_files": {
       "experiments/v3m0_formal_nogo.py": {
-        "sha256": "97e50df6776c0551344e300ce1ebf80ba3f41c595b80ac22e5ed1875b0c5492c"
+        "sha256": "38cbc38a3699cec47477f2774b15491d354807076dfaa2aefaf8ca2b0686ac97"
       },
       "rulespace_v3/evidence.py": {
         "sha256": "46e5ed660d67439eb1e2b696409e9e0cd8d114f20e4257111653491b10f47631"
