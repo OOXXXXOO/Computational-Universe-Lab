@@ -1102,6 +1102,51 @@ class MatchedAblationTests(unittest.TestCase):
         second = qualify_ablation(failed, None)
         self.assertEqual(first.qualification_sha, second.qualification_sha)
 
+    def test_verify_pair_replay_does_not_issue_ephemeral_factories(self):
+        from rulespace_v3.replay_scope import (
+            _replay_scope_statistics,
+            _scoped_replay_context,
+        )
+
+        _, _, _, _, actual = actual_factory(conditioned=("m0", "m2"))
+        outcome = matched_ablation(actual)
+        assert outcome.pair is not None
+        namespace = "rulespace_v3.factory.VerifiedFactory"
+
+        with _scoped_replay_context():
+            verify_ablation_pair(outcome.pair)
+            first = _replay_scope_statistics()
+            for _ in range(20):
+                verify_ablation_pair(outcome.pair)
+            repeated = _replay_scope_statistics()
+
+        self.assertEqual(repeated.entry_count, first.entry_count)
+        self.assertEqual(
+            dict(repeated.full_records).get(namespace, 0),
+            dict(first.full_records).get(namespace, 0),
+        )
+
+    def test_verify_pair_replay_uses_raw_reconstruction_not_issuers(self):
+        from rulespace_v3 import ablation as ablation_module
+
+        _, _, _, _, actual = actual_factory(conditioned=("m0", "m2"))
+        outcome = matched_ablation(actual)
+        assert outcome.pair is not None
+
+        with (
+            mock.patch.object(
+                ablation_module,
+                "verify_factory",
+                side_effect=AssertionError("actual issuer was called"),
+            ),
+            mock.patch.object(
+                ablation_module,
+                "_verify_matched_ablated_factory",
+                side_effect=AssertionError("ablated issuer was called"),
+            ),
+        ):
+            self.assertIs(verify_ablation_pair(outcome.pair), outcome.pair)
+
     def test_unclassified_trace_fails_without_pair(self):
         seed, _, target = seed_target()
         operator = seed.runtime_operator_payload

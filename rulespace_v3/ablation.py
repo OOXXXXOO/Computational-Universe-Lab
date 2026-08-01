@@ -16,6 +16,7 @@ from .factory import (
     VerifiedFactory,
     _VerifiedFactoryView,
     _reverify_verified_factory,
+    _verify_factory_payload,
     _verify_matched_ablated_factory,
     factory_sha,
     primitive_sha,
@@ -495,20 +496,15 @@ def _same_metadata(
     return None
 
 
-def _construct_pair(
-    actual: VerifiedFactory,
-    verified_actual: Optional[_VerifiedFactoryView] = None,
-) -> AblationPair:
-    snapshot = (
-        _reverify_verified_factory(actual)
-        if verified_actual is None
-        else verified_actual
-    )
-    pair_actual = verify_factory(
-        snapshot.factory,
-        snapshot.trace,
-        snapshot.target,
-    )
+def _reconstruct_pair_body(
+    snapshot: _VerifiedFactoryView,
+) -> tuple[LinearRealspaceFactory, AblationManifest]:
+    """Replay the closed ablation body without issuing runtime capabilities."""
+
+    if type(snapshot) is not _VerifiedFactoryView:
+        raise TypeError("pair reconstruction requires a verified actual snapshot")
+    if snapshot.role != "actual":
+        raise ValueError("pair reconstruction requires an actual factory")
     trace = snapshot.trace
     target = snapshot.target
     primitives = []
@@ -547,17 +543,17 @@ def _construct_pair(
         provisional,
         factory_sha=factory_sha(provisional),
     )
-    verified_ablated = _verify_matched_ablated_factory(
+    _verify_factory_payload(
         ablated_payload,
         trace,
         target,
+        expected_role="matched_ablated",
     )
-    ablated_snapshot = _reverify_verified_factory(verified_ablated)
     provisional_manifest = AblationManifest(
         manifest_schema_version=ABLATION_MANIFEST_SCHEMA_VERSION,
         construction_trace_sha=trace.trace_sha,
         actual_factory_sha=snapshot.factory.factory_sha,
-        ablated_factory_sha=ablated_snapshot.factory.factory_sha,
+        ablated_factory_sha=ablated_payload.factory_sha,
         replacements=tuple(replacements),
         manifest_sha="0" * 64,
     )
@@ -566,6 +562,29 @@ def _construct_pair(
         manifest_sha=canonical_sha(
             ablation_manifest_payload(provisional_manifest)
         ),
+    )
+    return ablated_payload, manifest
+
+
+def _construct_pair(
+    actual: VerifiedFactory,
+    verified_actual: Optional[_VerifiedFactoryView] = None,
+) -> AblationPair:
+    snapshot = (
+        _reverify_verified_factory(actual)
+        if verified_actual is None
+        else verified_actual
+    )
+    ablated_payload, manifest = _reconstruct_pair_body(snapshot)
+    pair_actual = verify_factory(
+        snapshot.factory,
+        snapshot.trace,
+        snapshot.target,
+    )
+    verified_ablated = _verify_matched_ablated_factory(
+        ablated_payload,
+        snapshot.trace,
+        snapshot.target,
     )
     return AblationPair(
         actual=pair_actual,
@@ -645,9 +664,8 @@ def verify_ablation_pair(pair: AblationPair) -> AblationPair:
     mismatch = _same_metadata(actual.factory, ablated.factory)
     if mismatch is not None:
         raise ValueError(f"{mismatch} mismatch")
-    expected = _construct_pair(pair.actual, actual)
-    expected_ablated = _reverify_verified_factory(expected.ablated)
-    if ablated.factory != expected_ablated.factory:
+    expected_ablated, expected_manifest = _reconstruct_pair_body(actual)
+    if ablated.factory != expected_ablated:
         raise ValueError("ablated factory is not the unique matched construction")
     manifest = pair.manifest
     if manifest.manifest_schema_version != ABLATION_MANIFEST_SCHEMA_VERSION:
@@ -658,7 +676,7 @@ def verify_ablation_pair(pair: AblationPair) -> AblationPair:
         raise ValueError("manifest actual_factory_sha mismatch")
     if manifest.ablated_factory_sha != ablated.factory.factory_sha:
         raise ValueError("manifest ablated_factory_sha mismatch")
-    if manifest.replacements != expected.manifest.replacements:
+    if manifest.replacements != expected_manifest.replacements:
         raise ValueError("manifest replacements mismatch")
     if manifest.manifest_sha != canonical_sha(
         ablation_manifest_payload(manifest)
