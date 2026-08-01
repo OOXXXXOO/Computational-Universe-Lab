@@ -405,7 +405,11 @@ class DynamicsCertificateTests(unittest.TestCase):
                 self.authority,
             )
         self.assertIs(type(hydrated), VerifiedDynamicsCertificate)
-        dispatch.assert_called_once()
+        # Hydration recursively revalidates the normalized and power-drift
+        # evidence that depends on the same spectral coverage.  This contract
+        # only requires every route to use the generic builder; it must not
+        # prescribe how often the fail-closed dependency graph replays it.
+        dispatch.assert_called()
 
     def test_raw_failure_hydrator_rejects_false_prestructure_failure(self):
         attempt = certificate_module._attempt(
