@@ -410,20 +410,11 @@ class FullStateTransitionTests(unittest.TestCase):
         factory = construction.pair.actual
         shared_core = dynamics._measure_bound_realspace_transition
 
-        with (
-            mock.patch.object(
-                dynamics,
-                "_bind_inputs",
-                side_effect=ValueError("legacy join rejected"),
-            ) as bind_inputs,
-            mock.patch.object(
-                dynamics,
-                "_measure_bound_realspace_transition",
-                wraps=shared_core,
-            ) as core,
-        ):
-            with self.assertRaisesRegex(ValueError, "legacy join rejected"):
-                dynamics._remeasure_transition(factory, authority)
+        bind_inputs = mock.Mock(side_effect=ValueError("legacy join rejected"))
+        core = mock.Mock(wraps=shared_core)
+        rejected_remeasure = dynamics._make_remeasure_transition(bind_inputs, core)
+        with self.assertRaisesRegex(ValueError, "legacy join rejected"):
+            rejected_remeasure(factory, authority)
         bind_inputs.assert_called_once_with(factory, authority)
         core.assert_not_called()
 
@@ -438,19 +429,10 @@ class FullStateTransitionTests(unittest.TestCase):
             call_order.append("core")
             return shared_core(*args, **kwargs)
 
-        with (
-            mock.patch.object(
-                dynamics,
-                "_bind_inputs",
-                side_effect=traced_bind_inputs,
-            ) as bind_inputs,
-            mock.patch.object(
-                dynamics,
-                "_measure_bound_realspace_transition",
-                side_effect=traced_core,
-            ) as core,
-        ):
-            raw = dynamics._remeasure_transition(factory, authority)
+        bind_inputs = mock.Mock(side_effect=traced_bind_inputs)
+        core = mock.Mock(side_effect=traced_core)
+        traced_remeasure = dynamics._make_remeasure_transition(bind_inputs, core)
+        raw = traced_remeasure(factory, authority)
         bind_inputs.assert_called_once_with(factory, authority)
         core.assert_called_once_with(
             factory,
@@ -468,6 +450,54 @@ class FullStateTransitionTests(unittest.TestCase):
             raw.transition_sha,
             _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
         )
+
+        def redirected(*_args, **_kwargs):
+            raise AssertionError("post-freeze dynamics global was consulted")
+
+        with (
+            mock.patch.object(dynamics, "_bind_inputs", side_effect=redirected) as bind,
+            mock.patch.object(
+                dynamics,
+                "_measure_bound_realspace_transition",
+                side_effect=redirected,
+            ) as measure,
+            mock.patch.object(
+                dynamics,
+                "_reverify_verified_factory",
+                side_effect=redirected,
+            ) as factory_reverify,
+            mock.patch.object(
+                dynamics,
+                "_reverify_verified_prestructure_authority",
+                side_effect=redirected,
+            ) as prestructure_reverify,
+            mock.patch.object(
+                dynamics,
+                "_remeasure_transition",
+                side_effect=redirected,
+            ) as remeasure,
+            mock.patch.object(
+                dynamics,
+                "_reverify_verified_transition",
+                side_effect=redirected,
+            ) as transition_reverify,
+        ):
+            production_raw = dynamics._make_remeasure_transition(
+                original_bind_inputs,
+                shared_core,
+            )(factory, authority)
+            verified = dynamics.measure_transition(factory, authority)
+            dynamics.transition_kernel_array(verified)
+        self.assertEqual(production_raw, raw)
+        for redirected_mock in (
+            bind,
+            measure,
+            factory_reverify,
+            prestructure_reverify,
+            remeasure,
+            transition_reverify,
+        ):
+            redirected_mock.assert_not_called()
 
     def test_matched_ablated_role_is_bound_before_measurement(self):
         construction, actual_authority, actual_factory, _ = self._role_transition(

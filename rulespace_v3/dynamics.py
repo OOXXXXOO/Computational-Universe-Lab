@@ -48,6 +48,10 @@ _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
 
 
+class _MeasuredTransitionSupportFailure(ValueError):
+    """Owner-private typed support failure for downstream exact routing."""
+
+
 def _text(value: object, field: str) -> str:
     if type(value) is not str:
         raise TypeError(f"{field} must be a string")
@@ -209,9 +213,12 @@ def measured_transition_payload(
 def _assert_no_wrap(
     spatial_shape: tuple[int, ...],
     support: tuple[tuple[int, ...], ...],
+    *,
+    _max=max,
+    _abs=abs,
 ) -> None:
     for axis, length in enumerate(spatial_shape):
-        radius = max(abs(item[axis]) for item in support)
+        radius = _max(_abs(item[axis]) for item in support)
         if length <= 2 * radius:
             raise ValueError(f"spatial axis {axis} violates no-wrap L_i > 2 r_i")
 
@@ -219,41 +226,64 @@ def _assert_no_wrap(
 def _outside_support_mask(
     spatial_shape: tuple[int, ...],
     support: tuple[tuple[int, ...], ...],
+    *,
+    _np=np,
+    _zip=zip,
 ) -> np.ndarray:
-    mask = np.ones(spatial_shape, dtype=np.bool_)
+    mask = _np.ones(spatial_shape, dtype=_np.bool_)
     for offset in support:
         index = tuple(
-            coordinate % length for coordinate, length in zip(offset, spatial_shape)
+            coordinate % length for coordinate, length in _zip(offset, spatial_shape)
         )
         mask[index] = False
     return mask
 
 
-def _assert_positive_bit_zero(values: np.ndarray) -> None:
-    contiguous = np.ascontiguousarray(values, dtype=np.complex128)
-    if np.any(contiguous.view(np.uint64) != np.uint64(0)):
+def _assert_positive_bit_zero(values: np.ndarray, *, _np=np) -> None:
+    contiguous = _np.ascontiguousarray(values, dtype=_np.complex128)
+    if _np.any(contiguous.view(_np.uint64) != _np.uint64(0)):
         raise ValueError("transition outside declared support is not bit-exact +0.0")
+
+
+def _canonical_transition_support(
+    factory_support: tuple[tuple[int, ...], ...],
+    *,
+    _tuple=tuple,
+    _sorted=sorted,
+) -> tuple[tuple[int, ...], ...]:
+    return _tuple(
+        _sorted(
+            {_tuple(-coordinate for coordinate in offset) for offset in factory_support}
+        )
+    )
 
 
 def _allocate_transition_kernel(
     state_count: int,
     spatial_shape: tuple[int, ...],
+    *,
+    _math=math,
+    _np=np,
+    _entry_cap=TRANSITION_MAX_COMPLEX_ENTRIES,
 ) -> np.ndarray:
-    entry_count = state_count * state_count * math.prod(spatial_shape)
-    if entry_count > TRANSITION_MAX_COMPLEX_ENTRIES:
+    entry_count = state_count * state_count * _math.prod(spatial_shape)
+    if entry_count > _entry_cap:
         raise ValueError("transition complex-entry cap exceeded")
-    return np.zeros(
+    return _np.zeros(
         (state_count, state_count) + spatial_shape,
-        dtype=np.complex128,
+        dtype=_np.complex128,
     )
 
 
 def _bind_inputs(
     factory: VerifiedFactory,
     authority: VerifiedPrestructureAuthority,
+    *,
+    _factory_reverifier=_reverify_verified_factory,
+    _prestructure_reverifier=_reverify_verified_prestructure_authority,
 ) -> tuple[object, object]:
-    factory_view = _reverify_verified_factory(factory)
-    authority_view = _reverify_verified_prestructure_authority(authority)
+    factory_view = _factory_reverifier(factory)
+    authority_view = _prestructure_reverifier(authority)
     if factory is not authority_view.factory:
         raise ValueError("factory is not the role-specific live authority factory")
     if factory_view.factory.factory_sha != authority_view.authority.factory_sha:
@@ -263,82 +293,141 @@ def _bind_inputs(
     return factory_view, authority_view
 
 
-def _remeasure_transition(
-    factory: VerifiedFactory,
-    authority: VerifiedPrestructureAuthority,
-) -> MeasuredTransition:
-    _, authority_view = _bind_inputs(factory, authority)
-    return _measure_bound_realspace_transition(
-        factory,
-        parent_freeze_sha=authority_view.parent.manifest.parent_freeze_sha,
-        prestructure_authority_sha=authority_view.authority.authority_sha,
-    )
-
-
-def _measure_bound_realspace_transition(
-    factory: VerifiedFactory,
+def _make_bound_realspace_transition_core(
     *,
-    parent_freeze_sha: str,
-    prestructure_authority_sha: str,
-) -> MeasuredTransition:
-    """Measure one live factory without choosing an authority owner."""
+    factory_reverifier,
+    factory_support_builder,
+    canonical_support_builder,
+    no_wrap_validator,
+    kernel_allocator,
+    factory_executor,
+    outside_mask_builder,
+    positive_zero_validator,
+    tensor_freezer,
+    sha_builder,
+    support_payload_builder,
+    measured_type,
+    measured_payload_builder,
+    replace_fn,
+    np_module,
+    transition_schema,
+    basis_convention,
+    support_failure_type,
+):
+    def _measure_bound_realspace_transition(
+        factory: VerifiedFactory,
+        *,
+        parent_freeze_sha: str,
+        prestructure_authority_sha: str,
+    ) -> MeasuredTransition:
+        """Measure one live factory without choosing an authority owner."""
 
-    factory_view = _reverify_verified_factory(factory)
-    payload = factory_view.factory
-    spatial_shape = payload.state_shape[1:]
-    stencil_support = factory_support_offsets(factory, 1)
-    support = tuple(
-        sorted(
-            {tuple(-coordinate for coordinate in offset) for offset in stencil_support}
+        factory_view = factory_reverifier(factory)
+        payload = factory_view.factory
+        spatial_shape = payload.state_shape[1:]
+        try:
+            stencil_support = factory_support_builder(factory, 1)
+            support = canonical_support_builder(stencil_support)
+            no_wrap_validator(spatial_shape, support)
+        except (IndexError, TypeError, ValueError) as exc:
+            raise support_failure_type(str(exc)) from exc
+        state_count = len(payload.channel_order)
+        kernel = kernel_allocator(state_count, spatial_shape)
+        origin = (0,) * len(spatial_shape)
+        for source in range(state_count):
+            impulse = np_module.zeros(
+                payload.state_shape,
+                dtype=np_module.complex128,
+            )
+            impulse[(source,) + origin] = 1.0 + 0.0j
+            output = factory_executor(factory, impulse)
+            if output.dtype != np_module.dtype(np_module.complex128):
+                raise TypeError("factory executor changed the frozen dtype")
+            if output.shape != payload.state_shape:
+                raise ValueError("factory executor changed the frozen state shape")
+            kernel[:, source, ...] = output
+        try:
+            outside = outside_mask_builder(spatial_shape, support)
+            if bool(np_module.any(outside)):
+                positive_zero_validator(kernel[:, :, outside])
+        except ValueError as exc:
+            raise support_failure_type(str(exc)) from exc
+        frozen_kernel = tensor_freezer(kernel)
+        support_sha = sha_builder(
+            support_payload_builder(
+                support,
+                spatial_shape,
+                payload.channel_order,
+                basis_convention,
+            )
         )
-    )
-    _assert_no_wrap(spatial_shape, support)
-    state_count = len(payload.channel_order)
-    kernel = _allocate_transition_kernel(state_count, spatial_shape)
-    origin = (0,) * len(spatial_shape)
-    for source in range(state_count):
-        impulse = np.zeros(payload.state_shape, dtype=np.complex128)
-        impulse[(source,) + origin] = 1.0 + 0.0j
-        output = apply_factory_step(factory, impulse)
-        if output.dtype != np.dtype(np.complex128):
-            raise TypeError("factory executor changed the frozen dtype")
-        if output.shape != payload.state_shape:
-            raise ValueError("factory executor changed the frozen state shape")
-        kernel[:, source, ...] = output
-    outside = _outside_support_mask(spatial_shape, support)
-    if bool(np.any(outside)):
-        _assert_positive_bit_zero(kernel[:, :, outside])
-    frozen_kernel = freeze_complex_tensor(kernel)
-    support_sha = canonical_sha(
-        transition_support_payload(
-            support,
-            spatial_shape,
-            payload.channel_order,
-            STATE_BASIS_CONVENTION_ID,
+        provisional = measured_type(
+            transition_schema_version=transition_schema,
+            parent_freeze_sha=parent_freeze_sha,
+            prestructure_authority_sha=prestructure_authority_sha,
+            factory_sha=payload.factory_sha,
+            factory_role=factory_view.role,
+            state_schema_id=payload.state_schema_id,
+            channel_order=payload.channel_order,
+            spatial_shape=spatial_shape,
+            dt=payload.dt,
+            boundary_manifest_id=payload.boundary_manifest_id,
+            state_basis_convention_id=basis_convention,
+            kernel=frozen_kernel,
+            support_offsets=support,
+            support_sha=support_sha,
+            macro_steps=1,
+            transition_sha="0" * 64,
         )
-    )
-    provisional = MeasuredTransition(
-        transition_schema_version=TRANSITION_SCHEMA_VERSION,
-        parent_freeze_sha=parent_freeze_sha,
-        prestructure_authority_sha=prestructure_authority_sha,
-        factory_sha=payload.factory_sha,
-        factory_role=factory_view.role,
-        state_schema_id=payload.state_schema_id,
-        channel_order=payload.channel_order,
-        spatial_shape=spatial_shape,
-        dt=payload.dt,
-        boundary_manifest_id=payload.boundary_manifest_id,
-        state_basis_convention_id=STATE_BASIS_CONVENTION_ID,
-        kernel=frozen_kernel,
-        support_offsets=support,
-        support_sha=support_sha,
-        macro_steps=1,
-        transition_sha="0" * 64,
-    )
-    return replace(
-        provisional,
-        transition_sha=canonical_sha(measured_transition_payload(provisional)),
-    )
+        return replace_fn(
+            provisional,
+            transition_sha=sha_builder(measured_payload_builder(provisional)),
+        )
+
+    return _measure_bound_realspace_transition
+
+
+_measure_bound_realspace_transition = _make_bound_realspace_transition_core(
+    factory_reverifier=_reverify_verified_factory,
+    factory_support_builder=factory_support_offsets,
+    canonical_support_builder=_canonical_transition_support,
+    no_wrap_validator=_assert_no_wrap,
+    kernel_allocator=_allocate_transition_kernel,
+    factory_executor=apply_factory_step,
+    outside_mask_builder=_outside_support_mask,
+    positive_zero_validator=_assert_positive_bit_zero,
+    tensor_freezer=freeze_complex_tensor,
+    sha_builder=canonical_sha,
+    support_payload_builder=transition_support_payload,
+    measured_type=MeasuredTransition,
+    measured_payload_builder=measured_transition_payload,
+    replace_fn=replace,
+    np_module=np,
+    transition_schema=TRANSITION_SCHEMA_VERSION,
+    basis_convention=STATE_BASIS_CONVENTION_ID,
+    support_failure_type=_MeasuredTransitionSupportFailure,
+)
+
+
+def _make_remeasure_transition(input_binder, measurement_core):
+    def _remeasure_transition(
+        factory: VerifiedFactory,
+        authority: VerifiedPrestructureAuthority,
+    ) -> MeasuredTransition:
+        _, authority_view = input_binder(factory, authority)
+        return measurement_core(
+            factory,
+            parent_freeze_sha=authority_view.parent.manifest.parent_freeze_sha,
+            prestructure_authority_sha=authority_view.authority.authority_sha,
+        )
+
+    return _remeasure_transition
+
+
+_remeasure_transition = _make_remeasure_transition(
+    _bind_inputs,
+    _measure_bound_realspace_transition,
+)
 
 
 class VerifiedTransition:
@@ -410,6 +499,7 @@ def _make_transition_authority(
     prestructure_reverifier: Callable[..., object] = (
         _reverify_verified_prestructure_authority
     ),
+    remeasure_transition: Callable[..., MeasuredTransition] = (_remeasure_transition),
 ) -> tuple[
     Callable[..., VerifiedTransition],
     Callable[..., VerifiedTransition],
@@ -458,7 +548,7 @@ def _make_transition_authority(
         factory: VerifiedFactory,
         prestructure: VerifiedPrestructureAuthority,
     ) -> VerifiedTransition:
-        expected = _remeasure_transition(factory, prestructure)
+        expected = remeasure_transition(factory, prestructure)
         if transition.transition_sha != expected.transition_sha:
             raise ValueError(
                 "transition does not match real-space impulse remeasurement"
@@ -530,7 +620,7 @@ def _make_transition_authority(
             return authority
         if token is not _ISSUANCE_TOKEN:
             raise ValueError("VerifiedTransition token mismatch")
-        expected = _remeasure_transition(
+        expected = remeasure_transition(
             authority.factory,
             authority.prestructure,
         )
@@ -568,10 +658,10 @@ def measure_transition(
     factory: VerifiedFactory,
     authority: VerifiedPrestructureAuthority,
 ) -> VerifiedTransition:
-    """Measure the one-step square transition from canonical impulses."""
+    """Static signature stub; rebound to the frozen closure below."""
 
-    transition = _remeasure_transition(factory, authority)
-    return _register_measured_transition(transition, factory, authority)
+    del factory, authority
+    raise AssertionError("measure_transition signature stub is not executable")
 
 
 def verify_measured_transition(
@@ -579,82 +669,172 @@ def verify_measured_transition(
     factory: VerifiedFactory,
     authority: VerifiedPrestructureAuthority,
 ) -> VerifiedTransition:
-    """Hydrate raw evidence only after executor remeasurement."""
+    """Static signature stub; rebound to the frozen closure below."""
 
-    if not isinstance(transition, MeasuredTransition):
-        raise TypeError("transition must be a MeasuredTransition")
-    if transition.transition_schema_version != TRANSITION_SCHEMA_VERSION:
-        raise ValueError("unexpected transition_schema_version")
-    if transition.support_sha != canonical_sha(
-        transition_support_payload(
-            transition.support_offsets,
-            transition.spatial_shape,
-            transition.channel_order,
-            transition.state_basis_convention_id,
-        )
-    ):
-        raise ValueError("support_sha does not match declared support")
-    if transition.transition_sha != canonical_sha(
-        measured_transition_payload(transition)
-    ):
-        raise ValueError("transition_sha does not match complete body")
-    expected = _remeasure_transition(factory, authority)
-    if transition.transition_sha != expected.transition_sha:
-        raise ValueError("raw transition does not match executor remeasurement")
-    return _register_measured_transition(transition, factory, authority)
+    del transition, factory, authority
+    raise AssertionError("verify_measured_transition signature stub is not executable")
 
 
 def transition_kernel_array(
     transition: VerifiedTransition,
 ) -> np.ndarray:
-    """Return a fresh non-authoritative array copy of the verified kernel."""
+    """Static signature stub; rebound to the frozen closure below."""
 
-    authority = _reverify_verified_transition(transition)
-    return frozen_tensor_array(authority.transition.kernel)
+    del transition
+    raise AssertionError("transition_kernel_array signature stub is not executable")
 
 
 def transition_symbol(
     transition: VerifiedTransition,
     momentum: np.ndarray,
 ) -> np.ndarray:
-    """Evaluate ``sum_d K[d] exp(-i k·d)`` from verified support only."""
+    """Static signature stub; rebound to the frozen closure below."""
 
-    authority = _reverify_verified_transition(transition)
-    return _transition_symbol_from_raw(authority.transition, momentum)
+    del transition, momentum
+    raise AssertionError("transition_symbol signature stub is not executable")
 
 
-def _transition_symbol_from_raw(
-    raw: MeasuredTransition,
-    momentum: np.ndarray,
-) -> np.ndarray:
-    """Package-private deterministic Fourier evaluator used after authority."""
+def _make_transition_symbol_from_raw(
+    tensor_array_builder,
+    np_module,
+    *,
+    type_fn=type,
+    length_fn=len,
+    tuple_builder=tuple,
+    zip_builder=zip,
+    float_builder=float,
+    sum_builder=sum,
+    enumerate_builder=enumerate,
+    slice_type=slice,
+):
+    def _transition_symbol_from_raw(
+        raw: MeasuredTransition,
+        momentum: np.ndarray,
+    ) -> np.ndarray:
+        """Package-private deterministic Fourier evaluator after authority."""
 
-    if type(momentum) is not np.ndarray:
-        raise TypeError("momentum must be a NumPy ndarray")
-    if momentum.dtype != np.dtype(np.float64):
-        raise TypeError("momentum dtype must be float64")
-    if momentum.shape != (len(raw.spatial_shape),):
-        raise ValueError("momentum dimension does not match transition")
-    if not np.isfinite(momentum).all():
-        raise ValueError("momentum must be finite")
-    kernel = frozen_tensor_array(raw.kernel)
-    result = np.zeros(
-        (len(raw.channel_order), len(raw.channel_order)),
-        dtype=np.complex128,
-    )
-    for offset in raw.support_offsets:
-        index = tuple(
-            coordinate % length for coordinate, length in zip(offset, raw.spatial_shape)
+        if type_fn(momentum) is not np_module.ndarray:
+            raise TypeError("momentum must be a NumPy ndarray")
+        if momentum.dtype != np_module.dtype(np_module.float64):
+            raise TypeError("momentum dtype must be float64")
+        if momentum.shape != (length_fn(raw.spatial_shape),):
+            raise ValueError("momentum dimension does not match transition")
+        if not np_module.isfinite(momentum).all():
+            raise ValueError("momentum must be finite")
+        kernel = tensor_array_builder(raw.kernel)
+        result = np_module.zeros(
+            (length_fn(raw.channel_order), length_fn(raw.channel_order)),
+            dtype=np_module.complex128,
         )
-        phase_argument = -float(
-            sum(
-                float(momentum[axis]) * coordinate
-                for axis, coordinate in enumerate(offset)
+        for offset in raw.support_offsets:
+            index = tuple_builder(
+                coordinate % length
+                for coordinate, length in zip_builder(offset, raw.spatial_shape)
             )
-        )
-        phase = np.exp(np.complex128(1.0j * phase_argument))
-        result += kernel[(slice(None), slice(None)) + index] * phase
-    return result
+            phase_argument = -float_builder(
+                sum_builder(
+                    float_builder(momentum[axis]) * coordinate
+                    for axis, coordinate in enumerate_builder(offset)
+                )
+            )
+            phase = np_module.exp(np_module.complex128(1.0j * phase_argument))
+            result += kernel[(slice_type(None), slice_type(None)) + index] * phase
+        return result
+
+    return _transition_symbol_from_raw
+
+
+_transition_symbol_from_raw = _make_transition_symbol_from_raw(
+    frozen_tensor_array,
+    np,
+)
+
+
+def _make_legacy_transition_public_apis(
+    *,
+    remeasure_transition,
+    register_measured_transition,
+    transition_reverifier,
+    tensor_array_builder,
+    raw_symbol_builder,
+    measured_type,
+    transition_schema,
+    sha_builder,
+    support_payload_builder,
+    measured_payload_builder,
+):
+    def measure_transition(
+        factory: VerifiedFactory,
+        authority: VerifiedPrestructureAuthority,
+    ) -> VerifiedTransition:
+        transition = remeasure_transition(factory, authority)
+        return register_measured_transition(transition, factory, authority)
+
+    def verify_measured_transition(
+        transition: MeasuredTransition,
+        factory: VerifiedFactory,
+        authority: VerifiedPrestructureAuthority,
+    ) -> VerifiedTransition:
+        if type(transition) is not measured_type:
+            raise TypeError("transition must be an exact MeasuredTransition")
+        if transition.transition_schema_version != transition_schema:
+            raise ValueError("unexpected transition_schema_version")
+        if transition.support_sha != sha_builder(
+            support_payload_builder(
+                transition.support_offsets,
+                transition.spatial_shape,
+                transition.channel_order,
+                transition.state_basis_convention_id,
+            )
+        ):
+            raise ValueError("support_sha does not match declared support")
+        if transition.transition_sha != sha_builder(
+            measured_payload_builder(transition)
+        ):
+            raise ValueError("transition_sha does not match complete body")
+        expected = remeasure_transition(factory, authority)
+        if transition.transition_sha != expected.transition_sha:
+            raise ValueError("raw transition does not match executor remeasurement")
+        return register_measured_transition(transition, factory, authority)
+
+    def transition_kernel_array(
+        transition: VerifiedTransition,
+    ) -> np.ndarray:
+        authority = transition_reverifier(transition)
+        return tensor_array_builder(authority.transition.kernel)
+
+    def transition_symbol(
+        transition: VerifiedTransition,
+        momentum: np.ndarray,
+    ) -> np.ndarray:
+        authority = transition_reverifier(transition)
+        return raw_symbol_builder(authority.transition, momentum)
+
+    return (
+        measure_transition,
+        verify_measured_transition,
+        transition_kernel_array,
+        transition_symbol,
+    )
+
+
+(
+    measure_transition,  # noqa: F811
+    verify_measured_transition,  # noqa: F811
+    transition_kernel_array,  # noqa: F811
+    transition_symbol,  # noqa: F811
+) = _make_legacy_transition_public_apis(
+    remeasure_transition=_remeasure_transition,
+    register_measured_transition=_register_measured_transition,
+    transition_reverifier=_reverify_verified_transition,
+    tensor_array_builder=frozen_tensor_array,
+    raw_symbol_builder=_transition_symbol_from_raw,
+    measured_type=MeasuredTransition,
+    transition_schema=TRANSITION_SCHEMA_VERSION,
+    sha_builder=canonical_sha,
+    support_payload_builder=transition_support_payload,
+    measured_payload_builder=measured_transition_payload,
+)
 
 
 __all__ = [
