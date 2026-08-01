@@ -220,6 +220,20 @@ P 中必须冻结 `rulespace_v3/parent_reviewer_keys_v1.py` 的 exact trusted-ke
 runtime artifact 或 source closure。`signature_algorithm` 唯一为 `openssh-ed25519-v1`，签名
 namespace 唯一为 `culab-parent-v3-review-v1`。
 
+`reviewer_key_id` 冻结为 OpenSSH SHA-256 fingerprint 的 exact canonical 形式。registry 中的
+public-key text 必须恰为一行 `ssh-ed25519 <base64>`，不允许 option、comment、前后空白或
+newline；base64 解码后必须是唯一合法 OpenSSH wire blob：一个 length-prefixed ASCII
+`ssh-ed25519` 字符串，紧接一个 length-prefixed 32-byte public key，且无尾随 bytes。唯一
+派生算法为：
+
+```text
+reviewer_key_id = "SHA256:" + base64_no_padding(SHA256(decoded_wire_blob))
+```
+
+其输出必须逐字节等于 `ssh-keygen -lf` 对同一 key blob 给出的 SHA-256
+fingerprint。禁止对 authorized-key 整行、base64 text、comment 或换行做哈希，也禁止
+MD5 fingerprint 或带 `=` padding 的变体。
+
 `signed_statement_sha` 是 receipt 前述字段中除 `signed_statement_sha`、`signature_armor`、
 `receipt_sha` 外完整 canonical payload 的 SHA-256。`signature_armor` 必须是
 `ssh-keygen -Y sign` 对该 canonical payload UTF-8 bytes 产生的 exact ASCII-armored signature；

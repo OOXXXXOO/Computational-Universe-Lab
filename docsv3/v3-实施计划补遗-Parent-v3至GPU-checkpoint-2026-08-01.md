@@ -183,11 +183,14 @@ taskbook增加 typed manifest/body，不得修改已签 handoff语义。
 - Create: `tests/test_v3m0_parent_freeze_v3_contracts.py`
 
 **RED attacks:** exact type/field closure、bad role/scope/order、wrong P/S SHA kind、duplicate reviewer
-key/identity、bad canonical JSON、oversized receipt、bad signature/self-hash、tag/root owner drift。
+key/identity、non-canonical Ed25519 public-key text/wire blob/fingerprint、bad canonical JSON、oversized
+receipt、bad signature/self-hash、tag/root owner drift。
 
 **GREEN：** 实现 `SignedSourceRefV2`、`ParentReviewReceiptV1`、
 `ParentSigningAuditV1`、`ParentFreezeV3Manifest` 的 pure contracts/payload/verifiers；keys/literals仍是
-P 前占位，不签发 capability。
+P 前占位，不签发 capability。`reviewer_key_id` 严格采用设计冻结的 OpenSSH
+SHA-256 fingerprint：解码 canonical `ssh-ed25519 <base64>` wire blob后做 SHA-256、base64
+去 padding并加 `SHA256:` 前缀；golden test 必须与 `ssh-keygen -lf` 一致。
 
 **Commit:** `feat(v3m0): freeze Parent-v3 signing records`
 
