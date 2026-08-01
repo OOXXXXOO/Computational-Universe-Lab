@@ -17,11 +17,14 @@ from typing import Callable, Literal
 
 import numpy as np
 
-from .controls import SyntheticControlBundle
+from .controls import CONTROL_SCHEMA_VERSION, SyntheticControlBundle
 from .evidence import _make_exact_wire_cloner, canonical_sha
 from .factory import (
     BasisManifest,
     FrozenComplexTensor,
+    FrozenSyntheticTarget,
+    LinearRealspaceFactory,
+    VerifiedFactory,
     _reverify_verified_factory,
     basis_manifest_payload,
     freeze_complex_tensor,
@@ -29,10 +32,15 @@ from .factory import (
     verify_basis_manifest,
 )
 from .parent_freeze import (
+    ParentFreezeManifest,
     VerifiedParentFreeze,
     _reverify_verified_parent_freeze,
 )
-from .trace import MechanismKind
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
+)
+from .trace import ConstructionTrace, MechanismKind
 
 
 READOUT_SPEC_SCHEMA_VERSION = "v3m0.control-readout-calibration-spec.v1"
@@ -186,6 +194,63 @@ _REGISTRY_WIRE_TYPES = (
 _clone_registry_wire = _make_exact_wire_cloner(_REGISTRY_WIRE_TYPES)
 
 
+def _require_exact_control_bundle(
+    control: object,
+    expected_control_id: str,
+    *,
+    _control_type=SyntheticControlBundle,
+    _target_type=FrozenSyntheticTarget,
+    _trace_type=ConstructionTrace,
+    _factory_type=VerifiedFactory,
+    _basis_type=BasisManifest,
+    _schema_version=CONTROL_SCHEMA_VERSION,
+    _type=type,
+    _vars=vars,
+    _frozenset=frozenset,
+    _sorted=sorted,
+    _str_type=str,
+    _int_type=int,
+    _type_error=TypeError,
+    _value_error=ValueError,
+) -> SyntheticControlBundle:
+    """Close the complete top-level control wire before authority use."""
+
+    if _type(control) is not _control_type:
+        raise _type_error("control dependency must be an exact SyntheticControlBundle")
+    expected_fields = _frozenset(_control_type.__dataclass_fields__)
+    observed_fields = _frozenset(_vars(control))
+    if observed_fields != expected_fields:
+        raise _value_error(
+            "control dependency fields are not exact: "
+            f"missing={_sorted(expected_fields - observed_fields)!r}, "
+            f"unknown={_sorted(observed_fields - expected_fields)!r}"
+        )
+    if control.control_schema_version != _schema_version:
+        raise _value_error("control_schema_version is not closed")
+    if _type(control.control_schema_version) is not _str_type:
+        raise _type_error("control_schema_version must be an exact string")
+    if (
+        _type(control.control_id) is not _str_type
+        or control.control_id != expected_control_id
+    ):
+        raise _value_error("control_id is not in the closed position")
+    if _type(control.mode_count) is not _int_type or control.mode_count <= 0:
+        raise _value_error("control mode_count must be a positive exact int")
+    if _type(control.target) is not _target_type:
+        raise _type_error("control target has the wrong exact type")
+    if _type(control.construction_trace) is not _trace_type:
+        raise _type_error("control construction_trace has the wrong exact type")
+    if _type(control.factory) is not _factory_type:
+        raise _type_error("control factory has the wrong exact type")
+    if _type(control.source_basis) is not _basis_type:
+        raise _type_error("control source_basis has the wrong exact type")
+    for field in ("expected_actual_rank", "expected_ablated_rank"):
+        value = getattr(control, field)
+        if _type(value) is not _int_type or value < 0:
+            raise _value_error(f"control {field} must be a non-negative exact int")
+    return control
+
+
 def _require_exact_registry_schema(
     registry: object,
     *,
@@ -331,11 +396,10 @@ def _build_readout_spec(
 def _verify_bundle(
     bundle: SyntheticControlBundle,
     expected_control_id: str,
+    *,
+    exact_control=_require_exact_control_bundle,
 ) -> object:
-    if not isinstance(bundle, SyntheticControlBundle):
-        raise TypeError("controls must contain SyntheticControlBundle records")
-    if bundle.control_id != expected_control_id:
-        raise ValueError("controls are not in the unique closed order")
+    exact_control(bundle, expected_control_id)
     view = _reverify_verified_factory(bundle.factory)
     if view.role != "actual":
         raise ValueError("closed control factory must have actual role")
@@ -618,12 +682,34 @@ class _VerifiedRegistryView:
 
 
 @dataclass(frozen=True)
+class _ControlDependencySnapshot:
+    control: SyntheticControlBundle
+    target: FrozenSyntheticTarget
+    construction_trace: ConstructionTrace
+    factory: VerifiedFactory
+    source_basis: BasisManifest
+    source_basis_identity: BasisManifest
+    control_schema_version: str
+    control_id: str
+    mode_count: int
+    expected_actual_rank: int
+    expected_ablated_rank: int
+    factory_body: LinearRealspaceFactory
+    factory_trace: ConstructionTrace
+    factory_target: FrozenSyntheticTarget
+    factory_role: str
+
+
+@dataclass(frozen=True)
 class _RegistryAuthority:
     registry: ClosedControlRegistry
     registry_snapshot: ClosedControlRegistry
     controls: tuple[SyntheticControlBundle, ...]
     parent: VerifiedParentFreeze
+    control_snapshots: tuple[_ControlDependencySnapshot, ...]
+    parent_snapshot: ParentFreezeManifest
     seal: str
+    replay_fingerprint: str
 
 
 def _registry_seal(
@@ -659,9 +745,232 @@ def _registry_seal(
     )
 
 
+def _capture_registry_dependencies(
+    controls: tuple[SyntheticControlBundle, ...],
+    parent: VerifiedParentFreeze,
+    *,
+    factory_reverifier=_reverify_verified_factory,
+    parent_reverifier=_reverify_verified_parent_freeze,
+    basis_verifier=verify_basis_manifest,
+    exact_control=_require_exact_control_bundle,
+    clone_registry_wire=_clone_registry_wire,
+    type_fn=type,
+    value_error=ValueError,
+) -> tuple[tuple[_ControlDependencySnapshot, ...], ParentFreezeManifest]:
+    """Take issuer-private snapshots after the complete registry replay."""
+
+    if type_fn(controls) is not tuple or len(controls) != len(CONTROL_ORDER):
+        raise value_error("closed registry dependency tuple drifted")
+    parent_snapshot = parent_reverifier(parent)
+    snapshots = []
+    for control, expected_control_id in zip(controls, CONTROL_ORDER):
+        exact_control(control, expected_control_id)
+        factory_view = factory_reverifier(control.factory)
+        source_basis = basis_verifier(control.source_basis)
+        if (
+            control.control_id != expected_control_id
+            or control.target != factory_view.target
+            or control.construction_trace != factory_view.trace
+            or factory_view.role != "actual"
+        ):
+            raise value_error("control dependency differs from factory authority")
+        snapshots.append(
+            _ControlDependencySnapshot(
+                control=control,
+                target=control.target,
+                construction_trace=control.construction_trace,
+                factory=control.factory,
+                source_basis=clone_registry_wire(source_basis),
+                source_basis_identity=control.source_basis,
+                control_schema_version=control.control_schema_version,
+                control_id=control.control_id,
+                mode_count=control.mode_count,
+                expected_actual_rank=control.expected_actual_rank,
+                expected_ablated_rank=control.expected_ablated_rank,
+                factory_body=factory_view.factory,
+                factory_trace=factory_view.trace,
+                factory_target=factory_view.target,
+                factory_role=factory_view.role,
+            )
+        )
+    return tuple(snapshots), parent_snapshot
+
+
+def _registry_replay_fingerprint(
+    registry: ClosedControlRegistry,
+    control_snapshots: tuple[_ControlDependencySnapshot, ...],
+    parent: VerifiedParentFreeze,
+    parent_snapshot: ParentFreezeManifest,
+    seal: str,
+    *,
+    canonical_hash=canonical_sha,
+    id_fn=id,
+    type_fn=type,
+    value_error=ValueError,
+) -> str:
+    if type_fn(control_snapshots) is not tuple or len(control_snapshots) != len(
+        CONTROL_ORDER
+    ):
+        raise value_error("control dependency snapshots drifted")
+    dependencies = []
+    for snapshot, expected_control_id in zip(control_snapshots, CONTROL_ORDER):
+        if type_fn(snapshot) is not _ControlDependencySnapshot:
+            raise TypeError("control dependency snapshot has the wrong exact type")
+        dependencies.append(
+            {
+                "control_identity": id_fn(snapshot.control),
+                "target_identity": id_fn(snapshot.target),
+                "trace_identity": id_fn(snapshot.construction_trace),
+                "factory_identity": id_fn(snapshot.factory),
+                "source_basis_identity": id_fn(snapshot.source_basis_identity),
+                "control_schema_version": snapshot.control_schema_version,
+                "control_id": snapshot.control_id,
+                "expected_control_id": expected_control_id,
+                "mode_count": snapshot.mode_count,
+                "expected_actual_rank": snapshot.expected_actual_rank,
+                "expected_ablated_rank": snapshot.expected_ablated_rank,
+                "source_manifest_id": snapshot.source_basis.manifest_id,
+                "factory_sha": snapshot.factory_body.factory_sha,
+                "factory_trace_sha": snapshot.factory_trace.trace_sha,
+                "factory_target_sha": snapshot.factory_target.target_spec_sha,
+                "factory_role": snapshot.factory_role,
+            }
+        )
+    return canonical_hash(
+        {
+            "replay_schema_version": "v3m0.verified-control-registry-replay.v1",
+            "registry_sha": registry.registry_sha,
+            "registry_seal": seal,
+            "parent_identity": id_fn(parent),
+            "parent_freeze_sha": parent_snapshot.parent_freeze_sha,
+            "dependencies": dependencies,
+        }
+    )
+
+
+def _validate_registry_dependency_snapshots(
+    authority: _RegistryAuthority,
+    *,
+    replay_dependencies: bool,
+    factory_reverifier=_reverify_verified_factory,
+    parent_reverifier=_reverify_verified_parent_freeze,
+    basis_verifier=verify_basis_manifest,
+    exact_control=_require_exact_control_bundle,
+    fingerprint_builder=_registry_replay_fingerprint,
+    type_fn=type,
+    str_type=str,
+    int_type=int,
+    value_error=ValueError,
+) -> None:
+    if type_fn(authority.controls) is not tuple or len(authority.controls) != len(
+        CONTROL_ORDER
+    ):
+        raise value_error("registry control dependencies drifted")
+    if type_fn(authority.control_snapshots) is not tuple or len(
+        authority.control_snapshots
+    ) != len(CONTROL_ORDER):
+        raise value_error("registry control snapshots drifted")
+    observed_fingerprint = fingerprint_builder(
+        authority.registry_snapshot,
+        authority.control_snapshots,
+        authority.parent,
+        authority.parent_snapshot,
+        authority.seal,
+    )
+    if observed_fingerprint != authority.replay_fingerprint:
+        raise value_error("registry dependency snapshot fingerprint mismatch")
+
+    if replay_dependencies:
+        parent_snapshot = parent_reverifier(authority.parent)
+    else:
+        parent_snapshot = authority.parent_snapshot
+    if parent_snapshot != authority.parent_snapshot:
+        raise value_error("registry parent dependency snapshot mismatch")
+
+    for index, (control, snapshot, entry, expected_control_id) in enumerate(
+        zip(
+            authority.controls,
+            authority.control_snapshots,
+            authority.registry_snapshot.entries,
+            CONTROL_ORDER,
+        )
+    ):
+        exact_control(control, expected_control_id)
+        if control is not snapshot.control:
+            raise value_error("registry control dependency identity mismatch")
+        if (
+            control.target is not snapshot.target
+            or control.construction_trace is not snapshot.construction_trace
+            or control.factory is not snapshot.factory
+            or control.source_basis is not snapshot.source_basis_identity
+            or type_fn(control.control_schema_version) is not str_type
+            or type_fn(control.control_id) is not str_type
+            or type_fn(control.mode_count) is not int_type
+            or type_fn(control.expected_actual_rank) is not int_type
+            or type_fn(control.expected_ablated_rank) is not int_type
+            or control.control_schema_version != snapshot.control_schema_version
+            or control.control_id != snapshot.control_id
+            or control.control_id != expected_control_id
+            or control.mode_count != snapshot.mode_count
+            or control.expected_actual_rank != snapshot.expected_actual_rank
+            or control.expected_ablated_rank != snapshot.expected_ablated_rank
+            or control.target != snapshot.factory_target
+            or control.construction_trace != snapshot.factory_trace
+        ):
+            raise value_error("registry control dependency snapshot mismatch")
+        source_basis = basis_verifier(control.source_basis)
+        if source_basis != snapshot.source_basis:
+            raise value_error("registry source-basis dependency snapshot mismatch")
+        if replay_dependencies:
+            factory_view = factory_reverifier(control.factory)
+            if (
+                factory_view.factory != snapshot.factory_body
+                or factory_view.trace != snapshot.factory_trace
+                or factory_view.target != snapshot.factory_target
+                or factory_view.role != snapshot.factory_role
+            ):
+                raise value_error("registry factory dependency snapshot mismatch")
+        else:
+            factory_view = snapshot
+        factory_body = (
+            factory_view.factory if replay_dependencies else snapshot.factory_body
+        )
+        factory_role = (
+            factory_view.role if replay_dependencies else snapshot.factory_role
+        )
+        if (
+            factory_role != "actual"
+            or entry.control_id != expected_control_id
+            or entry.factory_sha != factory_body.factory_sha
+            or entry.source_basis != source_basis
+            or entry.readout_basis != factory_body.readout_basis
+            or entry.mode_count != control.mode_count
+            or entry.expected_h_actual_rank != control.expected_actual_rank
+            or entry.expected_h_ablated_rank != control.expected_ablated_rank
+            or entry.expected_curv_actual_rank != control.expected_actual_rank
+            or entry.expected_curv_ablated_rank != control.expected_ablated_rank
+            or entry.parent_freeze_sha != parent_snapshot.parent_freeze_sha
+        ):
+            raise value_error("registry dependency binding mismatch")
+
+
+(
+    _capture_registry_dependencies,
+    _registry_replay_fingerprint,
+    _validate_registry_dependency_snapshots,
+) = _freeze_registry_authority_functions(
+    _capture_registry_dependencies,
+    _registry_replay_fingerprint,
+    _validate_registry_dependency_snapshots,
+)
+
+
 def _make_registry_authority(
     *,
     seal_builder=_registry_seal,
+    dependency_snapshot_builder=_capture_registry_dependencies,
+    dependency_snapshot_validator=_validate_registry_dependency_snapshots,
+    replay_fingerprint_builder=_registry_replay_fingerprint,
     authority_type=_RegistryAuthority,
     wrapper_type=VerifiedControlRegistry,
     view_type=_VerifiedRegistryView,
@@ -676,6 +985,10 @@ def _make_registry_authority(
     type_error=TypeError,
     value_error=ValueError,
     attribute_error=AttributeError,
+    canonical_hash=canonical_sha,
+    registry_payload=closed_control_registry_payload,
+    cached_replay_is_valid=_cached_replay_is_valid,
+    record_successful_replay=_record_successful_replay,
 ) -> tuple[
     Callable[..., VerifiedControlRegistry],
     Callable[[VerifiedControlRegistry], _VerifiedRegistryView],
@@ -700,12 +1013,26 @@ def _make_registry_authority(
         exact_schema(exposed)
         exact_schema(snapshot)
         seal = seal_builder(snapshot, controls, parent)
+        control_snapshots, parent_snapshot = dependency_snapshot_builder(
+            controls,
+            parent,
+        )
+        replay_fingerprint = replay_fingerprint_builder(
+            snapshot,
+            control_snapshots,
+            parent,
+            parent_snapshot,
+            seal,
+        )
         authority = authority_type(
             registry=exposed,
             registry_snapshot=snapshot,
             controls=controls,
             parent=parent,
+            control_snapshots=control_snapshots,
+            parent_snapshot=parent_snapshot,
             seal=seal,
+            replay_fingerprint=replay_fingerprint,
         )
         wrapper = wrapper_type(issuance_token, exposed, seal)
         identity = id_fn(wrapper)
@@ -722,6 +1049,16 @@ def _make_registry_authority(
         reference = weak_reference(wrapper, remove)
         with lock:
             live[identity] = (reference, authority)
+        record_successful_replay(
+            namespace="rulespace_v3.registry.VerifiedControlRegistry",
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=issuance_token,
+            exposed_bodies=(exposed,),
+            seal=seal,
+            authority=authority,
+            authority_digest=replay_fingerprint,
+        )
         return wrapper
 
     def reverify(
@@ -753,26 +1090,75 @@ def _make_registry_authority(
             ) from exc
         if token is not issuance_token:
             raise value_error("VerifiedControlRegistry token mismatch")
-        exact_schema(raw)
-        exact_schema(authority.registry)
-        exact_schema(authority.registry_snapshot)
+        namespace = "rulespace_v3.registry.VerifiedControlRegistry"
+
+        def validate_registry_body() -> None:
+            exact_schema(raw)
+            exact_schema(authority.registry)
+            exact_schema(authority.registry_snapshot)
+            raw_snapshot = clone(raw)
+            exposed_snapshot = clone(authority.registry)
+            closed_snapshot = clone(authority.registry_snapshot)
+            if (
+                raw is not authority.registry
+                or raw_snapshot != exposed_snapshot
+                or raw_snapshot != closed_snapshot
+                or raw.registry_sha != canonical_hash(registry_payload(raw))
+                or seal != authority.seal
+            ):
+                raise value_error("VerifiedControlRegistry immutable seal mismatch")
+
+        def cheap_validator() -> None:
+            validate_registry_body()
+            dependency_snapshot_validator(
+                authority,
+                replay_dependencies=True,
+            )
+
+        def verified_view() -> _VerifiedRegistryView:
+            return view_type(
+                registry=clone(authority.registry_snapshot),
+                controls=authority.controls,
+                parent=authority.parent,
+            )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=(raw,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.replay_fingerprint,
+            cheap_validator=cheap_validator,
+        ):
+            return verified_view()
+        validate_registry_body()
         expected_seal = seal_builder(
             authority.registry_snapshot,
             authority.controls,
             authority.parent,
         )
+        dependency_snapshot_validator(
+            authority,
+            replay_dependencies=False,
+        )
         if (
-            raw is not authority.registry
-            or raw != authority.registry_snapshot
-            or seal != authority.seal
-            or seal != expected_seal
+            seal != expected_seal
         ):
             raise value_error("VerifiedControlRegistry immutable seal mismatch")
-        return view_type(
-            registry=authority.registry,
-            controls=authority.controls,
-            parent=authority.parent,
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=(raw,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.replay_fingerprint,
         )
+        return verified_view()
 
     return issue, reverify
 

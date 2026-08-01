@@ -330,6 +330,7 @@ class AuthorityScopedReplayIntegrationTests(unittest.TestCase):
             "rulespace_v3.factory.VerifiedFactory",
             "rulespace_v3.parent_freeze.VerifiedParentFreeze",
             "rulespace_v3.prestructure.VerifiedPrestructureAuthority",
+            "rulespace_v3.registry.VerifiedControlRegistry",
         )
         self.assertEqual(
             tuple(namespace for namespace, count in statistics.full_records if count),
