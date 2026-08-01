@@ -4,10 +4,10 @@
 
 # docsv3：因果可识别涌现边界文档体系
 
-> 状态：**纲领 v3 已生效；V3-M0 实施中**，2026-07-30。
+> 状态：**纲领 v3 已生效；`HALT-V3M0-WINDOW` unchanged**，2026-08-01。
 > 本目录记录由 v2 M3′ 30 格无牙追因触发的范式修订。PI 已授权在北极星漂移审计通过后
 > 签发并开工；审计结论为 PASS。v2 证据链保持原样，V3-M1、新 family、pilot 与昂贵扫描
-> 继续锁定。
+> 继续锁定；`READY-V3-M1-ANCHOR-CERTIFICATION` 尚未签发。
 
 ## 为什么需要 v3
 
@@ -77,5 +77,18 @@ spin 0、spin 1 Maxwell、spin 2 Einstein 与未来 Yang–Mills 按 target 分�
 5. 校准 `ε_causal`、`δ_geom` 和 `σ` 的共同响应子空间、Fejér 窗及判别裕度；
 6. 只交付 R30/R23/R25 typed-adapter 合同，不执行其物理重测。
 
-V3-M0 的最高状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`。旧锚重测与有限物理正锚审计
+V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
+仍为 `HALT-V3M0-WINDOW`，该 READY **NOT ISSUED**。旧锚重测与有限物理正锚审计
 属于串行的 V3-M1；新 family、30 格 pilot、`10²–10³` 与 GPU 长跑仍全部锁定。
+
+## 非权威设计索引
+
+- [`v3-设计勘误-C19-refreeze-v2-2026-08-01.md`](v3-设计勘误-C19-refreeze-v2-2026-08-01.md)：
+  C19 20 实通道 refreeze v2 的 DRAFT 合同。当前 V2 wire 不可承载；新
+  `ParentFreezeV3Manifest` / `VerifiedParentFreezeV3` /
+  `issue_v3m0_parent_freeze_v3()`、`WindowThresholdCalibrationV3` 及
+  calibration/application/response/materialization schema、
+  Dynamics/Bridge 运行时派生 protocol、C19 10D geometry bundle、control-evidence issuer
+  与机械签发闭合均尚待实现。本 DRAFT 不改变 Parent、permit 或
+  `HALT-V3M0-WINDOW`，也不签发
+  `READY-V3-M1-ANCHOR-CERTIFICATION` 或任何下游解锁状态。
