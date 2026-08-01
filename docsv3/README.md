@@ -84,11 +84,15 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
 ## 非权威设计索引
 
 - [`v3-设计勘误-C19-refreeze-v2-2026-08-01.md`](v3-设计勘误-C19-refreeze-v2-2026-08-01.md)：
-  C19 20 实通道 refreeze v2 的 DRAFT 合同。当前 V2 wire 不可承载；新
+  C19 20 实通道 refreeze v2 的 DRAFT 合同。authority-neutral raw candidate、
+  两份预响应 grid-derivation protocol、唯一 Response manifest 与 10D conditional
+  geometry bundle 已在 commit `4217291` 实现并通过独立复审，但只是
+  `OBSERVER_COLLAPSE_TRIGGER_CONTROL_ONLY / NULL_INTERVENTION_INVARIANCE_CONTROL`，
+  明确不具备 physical-anchor 或 family 资格。当前 V2 wire 仍不可承载；新
   `ParentFreezeV3Manifest` / `VerifiedParentFreezeV3` /
   `issue_v3m0_parent_freeze_v3()`、`WindowThresholdCalibrationV3` 及
   calibration/application/response/materialization schema、
-  Dynamics/Bridge 运行时派生 protocol、C19 10D geometry bundle、control-evidence issuer
-  与机械签发闭合均尚待实现。本 DRAFT 不改变 Parent、permit 或
+  verified metric-support authority、Dynamics/Bridge 运行时 artifact 派生、
+  control-evidence issuer 与机械签发闭合均尚待实现。本 DRAFT 不改变 Parent、permit 或
   `HALT-V3M0-WINDOW`，也不签发
   `READY-V3-M1-ANCHOR-CERTIFICATION` 或任何下游解锁状态。
