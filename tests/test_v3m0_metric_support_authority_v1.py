@@ -425,6 +425,11 @@ def test_b4_exact_record_api_names_failure_vocabulary_and_public_surface() -> No
             facade.verify_c19_metric_signed_support_attestation_v1
         ).parameters
     ) == ("attestation", "parent", "materialization")
+    assert tuple(
+        inspect.signature(
+            facade.metric_signed_support_attestation_v1_payload
+        ).parameters
+    ) == ("attestation",)
     assert facade._FAILURE_REASON_IDS == frozenset(FAILURE_REASON_IDS)
     for reason_id in FAILURE_REASON_IDS:
         failure = facade.MetricSupportAuthorityV1Failure(reason_id, "probe")
@@ -974,6 +979,53 @@ def test_b4_public_api_closures_ignore_global_graph_dependency_and_resolver_redi
     assert issued.value.reason_id == "MATERIALIZATION_INVALID"
     with pytest.raises((TypeError, ValueError)):
         verifier(object(), object(), object())
+
+
+def test_b4_existing_graph_ignores_its_own_record_payload_and_literal_globals(
+    monkeypatch: pytest.MonkeyPatch,
+    exact_metric_protocol,
+) -> None:
+    fixture = _fixture(monkeypatch, exact_metric_protocol)
+    facade = fixture.facade
+    graph = fixture.graph
+    capability = graph.issue(
+        fixture.parent,
+        fixture.materialization,
+        "actual",
+    )
+    raw = capability.attestation
+    expected_view_type = facade._VerifiedMetricSupportAttestationV1View
+    expected_failure_type = facade.MetricSupportAuthorityV1Failure
+
+    def redirected(*_args, **_kwargs):
+        raise AssertionError("redirected metric-support owner global was consulted")
+
+    for name in (
+        "metric_signed_support_attestation_v1_payload",
+        "_VerifiedMetricSupportAttestationV1View",
+        "_MetricSupportAuthorityRecordV1",
+        "MetricSupportAuthorityV1Failure",
+    ):
+        monkeypatch.setattr(facade, name, redirected)
+    monkeypatch.setattr(facade, "weakref", SimpleNamespace(ref=redirected))
+    monkeypatch.setattr(facade, "id", redirected, raising=False)
+    monkeypatch.setattr(facade, "_PROPERTY_BINDING_TOKEN", object())
+    monkeypatch.setattr(facade, "_C19_STATE_SCHEMA_ID", "redirected-state")
+    monkeypatch.setattr(facade, "_C19_CHANNEL_ORDER", ("redirected-channel",))
+    monkeypatch.setattr(facade, "_C19_SPATIAL_SHAPE", (999,))
+    monkeypatch.setattr(facade, "_C19_METRIC_KIND", "redirected-metric")
+    monkeypatch.setattr(facade, "_C19_METRIC_SUPPORT", ((999,),))
+
+    replayed = graph.verify(raw, fixture.parent, fixture.materialization)
+    view = graph.reverify(replayed)
+    assert type(view) is expected_view_type
+    assert view.attestation == raw
+    assert view.factory_binding == fixture.body.actual_factory_binding
+
+    fixture.mode["value"] = "protocol"
+    with pytest.raises(expected_failure_type) as caught:
+        graph.issue(fixture.parent, fixture.materialization, "actual")
+    assert caught.value.reason_id == "METRIC_PROTOCOL_DRIFT"
 
 
 def _direct_rulespace_imports(path: Path) -> set[str]:

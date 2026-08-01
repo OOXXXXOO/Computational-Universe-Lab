@@ -109,15 +109,29 @@ def _support(value: object, field: str) -> tuple[tuple[int, ...], ...]:
     return answer
 
 
+def _make_metric_support_failure_initializer(
+    reason_ids,
+    text_validator,
+    base_error,
+):
+    def __init__(self, reason_id: str, detail: str) -> None:
+        if reason_id not in reason_ids:
+            raise base_error("metric-support-authority-v1 reason is not frozen")
+        self.reason_id = reason_id
+        self.detail = text_validator(detail, "metric-support-authority-v1 detail")
+        base_error.__init__(self, f"{reason_id}: {detail}")
+
+    return __init__
+
+
 class MetricSupportAuthorityV1Failure(ValueError):
     """Typed fail-closed result at the metric-support authority boundary."""
 
-    def __init__(self, reason_id: str, detail: str) -> None:
-        if reason_id not in _FAILURE_REASON_IDS:
-            raise ValueError("metric-support-authority-v1 reason is not frozen")
-        self.reason_id = reason_id
-        self.detail = _text(detail, "metric-support-authority-v1 detail")
-        super().__init__(f"{reason_id}: {detail}")
+    __init__ = _make_metric_support_failure_initializer(
+        _FAILURE_REASON_IDS,
+        _text,
+        ValueError,
+    )
 
 
 @dataclass(frozen=True)
@@ -139,10 +153,18 @@ class MetricSignedSupportAttestationV1:
     metric_support_sha: str
     attestation_sha: str
 
-    def __post_init__(self) -> None:
-        if self.attestation_schema_version != (
-            METRIC_SIGNED_SUPPORT_ATTESTATION_V1_SCHEMA_VERSION
-        ):
+    def __post_init__(
+        self,
+        *,
+        _schema_version=METRIC_SIGNED_SUPPORT_ATTESTATION_V1_SCHEMA_VERSION,
+        _sha_validator=_sha,
+        _text_validator=_text,
+        _channel_validator=_channel_order,
+        _shape_validator=_shape,
+        _support_validator=_support,
+        _metric_kind=_C19_METRIC_KIND,
+    ) -> None:
+        if self.attestation_schema_version != (_schema_version):
             raise ValueError("metric support attestation schema drifted")
         for name in (
             "parent_freeze_v3_sha",
@@ -155,50 +177,62 @@ class MetricSignedSupportAttestationV1:
             "metric_support_sha",
             "attestation_sha",
         ):
-            _sha(getattr(self, name), name)
+            _sha_validator(getattr(self, name), name)
         if self.factory_role not in ("actual", "matched_ablated"):
             raise ValueError("factory_role is not frozen")
-        _text(self.state_schema_id, "state_schema_id")
-        _channel_order(self.channel_order, "channel_order")
-        _shape(self.spatial_shape, "spatial_shape")
-        if self.metric_kind != _C19_METRIC_KIND:
+        _text_validator(self.state_schema_id, "state_schema_id")
+        _channel_validator(self.channel_order, "channel_order")
+        _shape_validator(self.spatial_shape, "spatial_shape")
+        if self.metric_kind != _metric_kind:
             raise ValueError("metric_kind is not frozen")
-        _support(self.metric_support_offsets, "metric_support_offsets")
+        _support_validator(self.metric_support_offsets, "metric_support_offsets")
 
 
-def metric_signed_support_attestation_v1_payload(
-    attestation: MetricSignedSupportAttestationV1,
-) -> dict[str, object]:
-    _exact_record(
-        attestation,
+def _make_metric_signed_support_attestation_v1_payload(
+    record_validator,
+    record_type,
+):
+    def metric_signed_support_attestation_v1_payload(attestation):
+        record_validator(
+            attestation,
+            record_type,
+            "metric signed support attestation v1",
+        )
+        return {
+            "attestation_schema_version": attestation.attestation_schema_version,
+            "parent_freeze_v3_sha": attestation.parent_freeze_v3_sha,
+            "current_application_authority_v3_sha": (
+                attestation.current_application_authority_v3_sha
+            ),
+            "current_scenario_authority_v3_sha": (
+                attestation.current_scenario_authority_v3_sha
+            ),
+            "response_contract_v3_sha": attestation.response_contract_v3_sha,
+            "metric_support_protocol_sha": attestation.metric_support_protocol_sha,
+            "application_scenario_materialization_v3_sha": (
+                attestation.application_scenario_materialization_v3_sha
+            ),
+            "factory_sha": attestation.factory_sha,
+            "factory_role": attestation.factory_role,
+            "state_schema_id": attestation.state_schema_id,
+            "channel_order": list(attestation.channel_order),
+            "spatial_shape": list(attestation.spatial_shape),
+            "metric_kind": attestation.metric_kind,
+            "metric_support_offsets": [
+                list(offset) for offset in attestation.metric_support_offsets
+            ],
+            "metric_support_sha": attestation.metric_support_sha,
+        }
+
+    return metric_signed_support_attestation_v1_payload
+
+
+metric_signed_support_attestation_v1_payload = (
+    _make_metric_signed_support_attestation_v1_payload(
+        _exact_record,
         MetricSignedSupportAttestationV1,
-        "metric signed support attestation v1",
     )
-    return {
-        "attestation_schema_version": attestation.attestation_schema_version,
-        "parent_freeze_v3_sha": attestation.parent_freeze_v3_sha,
-        "current_application_authority_v3_sha": (
-            attestation.current_application_authority_v3_sha
-        ),
-        "current_scenario_authority_v3_sha": (
-            attestation.current_scenario_authority_v3_sha
-        ),
-        "response_contract_v3_sha": attestation.response_contract_v3_sha,
-        "metric_support_protocol_sha": attestation.metric_support_protocol_sha,
-        "application_scenario_materialization_v3_sha": (
-            attestation.application_scenario_materialization_v3_sha
-        ),
-        "factory_sha": attestation.factory_sha,
-        "factory_role": attestation.factory_role,
-        "state_schema_id": attestation.state_schema_id,
-        "channel_order": list(attestation.channel_order),
-        "spatial_shape": list(attestation.spatial_shape),
-        "metric_kind": attestation.metric_kind,
-        "metric_support_offsets": [
-            list(offset) for offset in attestation.metric_support_offsets
-        ],
-        "metric_support_sha": attestation.metric_support_sha,
-    }
+)
 
 
 @dataclass(frozen=True)
@@ -237,13 +271,18 @@ class VerifiedMetricSignedSupportAttestationV1:
         raise AttributeError("metric support attestation is immutable")
 
 
-def _make_metric_support_property_dispatcher(binding_token: object):
+def _make_metric_support_property_dispatcher(
+    binding_token: object,
+    *,
+    _weak_reference=weakref.ref,
+    _id=id,
+):
     bindings: dict[int, tuple[weakref.ReferenceType[object], object]] = {}
     lock = threading.RLock()
 
     def require_binding(value: object, expected_resolver=None):
         with lock:
-            current = bindings.get(id(value))
+            current = bindings.get(_id(value))
             if current is None or current[0]() is not value:
                 raise ValueError("metric support property identity is not live")
             resolver = current[1]
@@ -259,7 +298,7 @@ def _make_metric_support_property_dispatcher(binding_token: object):
             raise TypeError("metric support property binding token mismatch")
         if not callable(resolver):
             raise TypeError("metric support property resolver must be callable")
-        identity = id(value)
+        identity = _id(value)
 
         def remove_stale(reference, wrapper_id=identity):
             with lock:
@@ -267,7 +306,7 @@ def _make_metric_support_property_dispatcher(binding_token: object):
                 if observed is not None and observed[0] is reference:
                     del bindings[wrapper_id]
 
-        reference = weakref.ref(value, remove_stale)
+        reference = _weak_reference(value, remove_stale)
         with lock:
             current = bindings.get(identity)
             if current is not None and current[0]() is not None:
@@ -318,8 +357,21 @@ def _make_metric_support_authority_v1_graph(
     replace_fn = replace
     type_fn = type
     id_fn = id
+    weak_reference = weakref.ref
     wrapper_type = VerifiedMetricSignedSupportAttestationV1
     body_type = MetricSignedSupportAttestationV1
+    view_type = _VerifiedMetricSupportAttestationV1View
+    authority_record_type = _MetricSupportAuthorityRecordV1
+    failure_type = MetricSupportAuthorityV1Failure
+    materialization_failure_type = ApplicationMaterializationV3Failure
+    attestation_payload_builder = metric_signed_support_attestation_v1_payload
+    property_binding_token = _PROPERTY_BINDING_TOKEN
+    schema_version = METRIC_SIGNED_SUPPORT_ATTESTATION_V1_SCHEMA_VERSION
+    c19_state_schema_id = _C19_STATE_SCHEMA_ID
+    c19_channel_order = _C19_CHANNEL_ORDER
+    c19_spatial_shape = _C19_SPATIAL_SHAPE
+    c19_metric_kind = _C19_METRIC_KIND
+    c19_metric_support = _C19_METRIC_SUPPORT
     bind_property = _bind_metric_support_property
     require_property_binding = _require_metric_support_property_binding
     registry: dict[
@@ -332,7 +384,7 @@ def _make_metric_support_authority_v1_graph(
     lock = threading.RLock()
 
     def fail(reason_id: str, detail: str, cause: Exception | None = None):
-        failure = MetricSupportAuthorityV1Failure(reason_id, detail)
+        failure = failure_type(reason_id, detail)
         if cause is None:
             raise failure
         raise failure from cause
@@ -340,7 +392,7 @@ def _make_metric_support_authority_v1_graph(
     def require_materialization(parent, materialization):
         try:
             return materialization_requirer(parent, materialization)
-        except ApplicationMaterializationV3Failure as exc:
+        except materialization_failure_type as exc:
             if exc.reason_id == "CROSS_PARENT_ROOT":
                 reason = "CROSS_PARENT_ROOT"
             elif exc.reason_id == "FACTORY_REPLAY_FAILED":
@@ -403,15 +455,15 @@ def _make_metric_support_authority_v1_graph(
                 or protocol.channel_order != application.channel_order
                 or protocol.spatial_shape != application.spatial_shape
                 or protocol.spatial_ndim != len(application.spatial_shape)
-                or protocol.metric_kind != _C19_METRIC_KIND
-                or protocol.metric_support_offsets != _C19_METRIC_SUPPORT
+                or protocol.metric_kind != c19_metric_kind
+                or protocol.metric_support_offsets != c19_metric_support
                 or protocol.caller_supplied_support_allowed is not False
             ):
                 fail("METRIC_PROTOCOL_DRIFT", "C19 metric protocol body drifted")
             if (
-                protocol.state_schema_id != _C19_STATE_SCHEMA_ID
-                or protocol.channel_order != _C19_CHANNEL_ORDER
-                or protocol.spatial_shape != _C19_SPATIAL_SHAPE
+                protocol.state_schema_id != c19_state_schema_id
+                or protocol.channel_order != c19_channel_order
+                or protocol.spatial_shape != c19_spatial_shape
             ):
                 fail("METRIC_PROTOCOL_DRIFT", "metric protocol is not exact C19")
             support_payload = support_payload_builder(protocol.metric_support_offsets)
@@ -419,9 +471,7 @@ def _make_metric_support_authority_v1_graph(
             if protocol.metric_support_sha != expected_support_sha:
                 fail("METRIC_PROTOCOL_DRIFT", "metric support SHA drifted")
             provisional = body_type(
-                attestation_schema_version=(
-                    METRIC_SIGNED_SUPPORT_ATTESTATION_V1_SCHEMA_VERSION
-                ),
+                attestation_schema_version=(schema_version),
                 parent_freeze_v3_sha=binding.parent_freeze_v3_sha,
                 current_application_authority_v3_sha=(
                     application.application_authority_sha
@@ -442,12 +492,10 @@ def _make_metric_support_authority_v1_graph(
             )
             body = replace_fn(
                 provisional,
-                attestation_sha=sha_builder(
-                    metric_signed_support_attestation_v1_payload(provisional)
-                ),
+                attestation_sha=sha_builder(attestation_payload_builder(provisional)),
             )
             return body, factory, binding
-        except MetricSupportAuthorityV1Failure:
+        except failure_type:
             raise
         except RuntimeError as exc:
             fail("METRIC_REPLAY_FAILED", str(exc), exc)
@@ -495,7 +543,7 @@ def _make_metric_support_authority_v1_graph(
 
     def property_view(value):
         authority = shallow(value)
-        return _VerifiedMetricSupportAttestationV1View(
+        return view_type(
             attestation=clone(authority.attestation),
             parent=authority.parent,
             materialization=authority.materialization,
@@ -516,7 +564,7 @@ def _make_metric_support_authority_v1_graph(
             "_VerifiedMetricSignedSupportAttestationV1__authority_seal",
             seal,
         )
-        authority = _MetricSupportAuthorityRecordV1(
+        authority = authority_record_type(
             attestation=clone(body),
             parent=parent,
             materialization=materialization,
@@ -532,7 +580,7 @@ def _make_metric_support_authority_v1_graph(
                 if observed is not None and observed[0] is reference:
                     del registry[wrapper_id]
 
-        reference = weakref.ref(wrapper, remove_stale)
+        reference = weak_reference(wrapper, remove_stale)
         with lock:
             current = registry.get(identity)
             if current is not None and current[0]() is not None:
@@ -541,7 +589,7 @@ def _make_metric_support_authority_v1_graph(
         bind_property(
             wrapper,
             property_view,
-            token=_PROPERTY_BINDING_TOKEN,
+            token=property_binding_token,
         )
         return wrapper
 
@@ -555,10 +603,10 @@ def _make_metric_support_authority_v1_graph(
         try:
             attestation.__post_init__()
             if attestation.attestation_sha != sha_builder(
-                metric_signed_support_attestation_v1_payload(attestation)
+                attestation_payload_builder(attestation)
             ):
                 fail("METRIC_REPLAY_FAILED", "attestation SHA does not match body")
-        except MetricSupportAuthorityV1Failure:
+        except failure_type:
             raise
         except (AttributeError, TypeError, ValueError) as exc:
             fail("METRIC_REPLAY_FAILED", str(exc), exc)
@@ -601,7 +649,7 @@ def _make_metric_support_authority_v1_graph(
         )
         if expected != authority.attestation or binding != authority.factory_binding:
             raise ValueError("metric support capability replay drifted")
-        return _VerifiedMetricSupportAttestationV1View(
+        return view_type(
             attestation=clone(authority.attestation),
             parent=authority.parent,
             materialization=authority.materialization,
