@@ -52,6 +52,75 @@ from rulespace_v3.registry import (
 )
 
 
+_LEGACY_PARENT_SHA = "f57079846203b2cbcf86da7ebfb06c8d6bc55c5a2c16e2548e009d2a6ce607d9"
+_LEGACY_SUPPORT_SHA = "c8733c2d64f71e9a917ffe4216ad17155da13784e44b1e51414aa8b1b8ab381f"
+_LEGACY_KERNEL_SHA = "77427d534de8da171591920360a0f2f9baf6b1fec07574ebd05c7555d9b5c146"
+_LEGACY_ROLE_GOLDENS = {
+    "actual": {
+        "factory_sha": (
+            "215aede03b7f5a08d6d9061c4fd5c9db1c79ec7b50cd96d1d1c3cf453c221411"
+        ),
+        "prestructure_authority_sha": (
+            "c899804ecd8937371837ca2f19545f38ec4dc415fa5b8ff88de2944ddacee9ea"
+        ),
+        "transition_sha": (
+            "853477d539484505f92b459933d4532dc97d3c2a7a3204322a807b1a04a4a7ec"
+        ),
+    },
+    "matched_ablated": {
+        "factory_sha": (
+            "b703ae19fda230949613b09593384d8fe6d9bcc6c4892e182551d7911b18fd33"
+        ),
+        "prestructure_authority_sha": (
+            "662626c7494eb2e640c1778604caa814e5bfd4bc0a7f00719dceaf445d07bc4c"
+        ),
+        "transition_sha": (
+            "2ad86d8645e79bbbec260722139f43852c73853c30b1d1e966f1b584e2e3ae7d"
+        ),
+    },
+}
+
+
+def _legacy_transition_payload_golden(role: str) -> dict[str, object]:
+    role_golden = _LEGACY_ROLE_GOLDENS[role]
+    values_wire = [[0.0, 0.0] for _ in range(20)]
+    values_wire[5] = [-1.0, 0.0]
+    values_wire[10] = [1.0, 0.0]
+    return {
+        "transition_schema_version": "v3m0.measured-transition.v1",
+        "parent_freeze_sha": _LEGACY_PARENT_SHA,
+        "prestructure_authority_sha": role_golden["prestructure_authority_sha"],
+        "factory_sha": role_golden["factory_sha"],
+        "factory_role": role,
+        "state_schema_id": "state.synthetic.local-linear.v1",
+        "channel_order": ["x.000", "y.000"],
+        "spatial_shape": [5],
+        "dt": 0.25,
+        "boundary_manifest_id": "periodic-v1",
+        "state_basis_convention_id": "channel-identity-v1",
+        "kernel": {
+            "tensor_schema_version": "v3m0.frozen-complex-tensor.v1",
+            "shape": [2, 2, 5],
+            "values_wire": values_wire,
+            "tensor_sha": _LEGACY_KERNEL_SHA,
+        },
+        "support_offsets": [[0]],
+        "support_sha": _LEGACY_SUPPORT_SHA,
+        "macro_steps": 1,
+    }
+
+
+def _legacy_support_payload_golden() -> dict[str, object]:
+    return {
+        "support_schema_version": "v3m0.transition-support.v1",
+        "support_offsets": [[0]],
+        "spatial_shape": [5],
+        "channel_order": ["x.000", "y.000"],
+        "state_basis_convention_id": "channel-identity-v1",
+        "origin_convention_id": "periodic-index-zero-origin-v1",
+    }
+
+
 def _quarter_turn_controls():
     shape = (5,)
     interface = PrimitiveInterface(
@@ -146,9 +215,7 @@ class FullStateTransitionTests(unittest.TestCase):
         )
         assert construction.pair is not None
         factory = (
-            construction.pair.actual
-            if role == "actual"
-            else construction.pair.ablated
+            construction.pair.actual if role == "actual" else construction.pair.ablated
         )
         transition = measure_transition(factory, authority)
         return construction, authority, factory, transition
@@ -161,7 +228,9 @@ class FullStateTransitionTests(unittest.TestCase):
         )
         for control, entry in zip(self.controls, raw.entries):
             self.assertEqual(entry.expected_h_actual_rank, control.expected_actual_rank)
-            self.assertEqual(entry.expected_h_ablated_rank, control.expected_ablated_rank)
+            self.assertEqual(
+                entry.expected_h_ablated_rank, control.expected_ablated_rank
+            )
             self.assertEqual(
                 entry.expected_curv_actual_rank,
                 control.expected_actual_rank,
@@ -193,9 +262,7 @@ class FullStateTransitionTests(unittest.TestCase):
         )
         changed_entry = dataclasses.replace(
             changed_entry,
-            entry_sha=canonical_sha(
-                control_registry_entry_payload(changed_entry)
-            ),
+            entry_sha=canonical_sha(control_registry_entry_payload(changed_entry)),
         )
         changed_registry = dataclasses.replace(
             raw,
@@ -248,9 +315,7 @@ class FullStateTransitionTests(unittest.TestCase):
         self.assertNotIsInstance(snapshot.actual_factory, VerifiedFactory)
         self.assertNotIsInstance(snapshot.ablated_factory, VerifiedFactory)
         self.assertEqual(raw.factory_sha, snapshot.actual_factory.factory_sha)
-        structure = frozen_tensor_array(
-            raw.synthetic_preregistration.structure_form
-        )
+        structure = frozen_tensor_array(raw.synthetic_preregistration.structure_form)
         np.testing.assert_array_equal(structure.T, -structure)
         hydrated = verify_synthetic_prestructure_authority(
             raw,
@@ -264,16 +329,12 @@ class FullStateTransitionTests(unittest.TestCase):
 
         changed = dataclasses.replace(
             raw,
-            synthetic_registry_entry_sha=(
-                self.registry.registry.entries[1].entry_sha
-            ),
+            synthetic_registry_entry_sha=(self.registry.registry.entries[1].entry_sha),
             authority_sha="0" * 64,
         )
         changed = dataclasses.replace(
             changed,
-            authority_sha=canonical_sha(
-                prestructure_authority_payload(changed)
-            ),
+            authority_sha=canonical_sha(prestructure_authority_payload(changed)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_synthetic_prestructure_authority(
@@ -303,9 +364,114 @@ class FullStateTransitionTests(unittest.TestCase):
         verified = verify_measured_transition(raw, factory, authority)
         self.assertEqual(verified.transition, raw)
 
+    def test_legacy_actual_and_matched_full_payload_sha_support_goldens(self):
+        for role in ("actual", "matched_ablated"):
+            with self.subTest(role=role):
+                _, _, _, transition = self._role_transition(0, role)
+                raw = transition.transition
+                payload = measured_transition_payload(raw)
+                expected_payload = _legacy_transition_payload_golden(role)
+                self.assertEqual(payload, expected_payload)
+                self.assertEqual(
+                    canonical_sha(payload),
+                    _LEGACY_ROLE_GOLDENS[role]["transition_sha"],
+                )
+                self.assertEqual(
+                    raw.transition_sha,
+                    _LEGACY_ROLE_GOLDENS[role]["transition_sha"],
+                )
+                support_payload = transition_support_payload(
+                    raw.support_offsets,
+                    raw.spatial_shape,
+                    raw.channel_order,
+                    raw.state_basis_convention_id,
+                )
+                self.assertEqual(
+                    support_payload,
+                    _legacy_support_payload_golden(),
+                )
+                self.assertEqual(canonical_sha(support_payload), _LEGACY_SUPPORT_SHA)
+                self.assertEqual(raw.support_sha, _LEGACY_SUPPORT_SHA)
+                self.assertEqual(raw.kernel.tensor_sha, _LEGACY_KERNEL_SHA)
+
+    def test_legacy_join_precedes_exactly_one_shared_core_call(self):
+        import rulespace_v3.dynamics as dynamics
+
+        construction = matched_ablation(self.controls[0].factory)
+        self.assertTrue(construction.status.defined)
+        assert construction.pair is not None
+        authority = issue_synthetic_prestructure_authority(
+            self.parent,
+            self.registry,
+            "full",
+            construction,
+            "actual",
+        )
+        factory = construction.pair.actual
+        shared_core = dynamics._measure_bound_realspace_transition
+
+        with (
+            mock.patch.object(
+                dynamics,
+                "_bind_inputs",
+                side_effect=ValueError("legacy join rejected"),
+            ) as bind_inputs,
+            mock.patch.object(
+                dynamics,
+                "_measure_bound_realspace_transition",
+                wraps=shared_core,
+            ) as core,
+        ):
+            with self.assertRaisesRegex(ValueError, "legacy join rejected"):
+                dynamics._remeasure_transition(factory, authority)
+        bind_inputs.assert_called_once_with(factory, authority)
+        core.assert_not_called()
+
+        call_order: list[str] = []
+        original_bind_inputs = dynamics._bind_inputs
+
+        def traced_bind_inputs(*args, **kwargs):
+            call_order.append("bind")
+            return original_bind_inputs(*args, **kwargs)
+
+        def traced_core(*args, **kwargs):
+            call_order.append("core")
+            return shared_core(*args, **kwargs)
+
+        with (
+            mock.patch.object(
+                dynamics,
+                "_bind_inputs",
+                side_effect=traced_bind_inputs,
+            ) as bind_inputs,
+            mock.patch.object(
+                dynamics,
+                "_measure_bound_realspace_transition",
+                side_effect=traced_core,
+            ) as core,
+        ):
+            raw = dynamics._remeasure_transition(factory, authority)
+        bind_inputs.assert_called_once_with(factory, authority)
+        core.assert_called_once_with(
+            factory,
+            parent_freeze_sha=_LEGACY_PARENT_SHA,
+            prestructure_authority_sha=(
+                _LEGACY_ROLE_GOLDENS["actual"]["prestructure_authority_sha"]
+            ),
+        )
+        self.assertEqual(call_order, ["bind", "core"])
+        self.assertEqual(
+            measured_transition_payload(raw),
+            _legacy_transition_payload_golden("actual"),
+        )
+        self.assertEqual(
+            raw.transition_sha,
+            _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
+        )
+
     def test_matched_ablated_role_is_bound_before_measurement(self):
-        construction, actual_authority, actual_factory, _ = (
-            self._role_transition(1, "actual")
+        construction, actual_authority, actual_factory, _ = self._role_transition(
+            1, "actual"
         )
         assert construction.pair is not None
         ablated_authority = issue_synthetic_prestructure_authority(
@@ -391,9 +557,7 @@ class FullStateTransitionTests(unittest.TestCase):
         _assert_no_wrap((3,), ((-1,), (0,), (1,)))
         with self.assertRaises((TypeError, ValueError)):
             _assert_no_wrap((2,), ((-1,), (0,), (1,)))
-        _assert_positive_bit_zero(
-            np.asarray((0.0 + 0.0j,), dtype=np.complex128)
-        )
+        _assert_positive_bit_zero(np.asarray((0.0 + 0.0j,), dtype=np.complex128))
         negative_zero = np.asarray(
             (complex(-0.0, 0.0),),
             dtype=np.complex128,
@@ -413,9 +577,7 @@ class FullStateTransitionTests(unittest.TestCase):
         )
         tampered = dataclasses.replace(
             tampered,
-            transition_sha=canonical_sha(
-                measured_transition_payload(tampered)
-            ),
+            transition_sha=canonical_sha(measured_transition_payload(tampered)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_measured_transition(tampered, factory, authority)

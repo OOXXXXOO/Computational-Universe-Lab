@@ -42,9 +42,7 @@ from .replay_scope import (
 TRANSITION_SCHEMA_VERSION = "v3m0.measured-transition.v1"
 TRANSITION_SUPPORT_SCHEMA_VERSION = "v3m0.transition-support.v1"
 TRANSITION_MAX_COMPLEX_ENTRIES = 16_777_216
-STATE_BASIS_CONVENTION_ID: Literal["channel-identity-v1"] = (
-    "channel-identity-v1"
-)
+STATE_BASIS_CONVENTION_ID: Literal["channel-identity-v1"] = "channel-identity-v1"
 ORIGIN_CONVENTION_ID = "periodic-index-zero-origin-v1"
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
@@ -95,9 +93,7 @@ def _support(
     result: list[tuple[int, ...]] = []
     for row_index, row in enumerate(value):
         if type(row) is not tuple or len(row) != ndim:
-            raise ValueError(
-                f"support_offsets[{row_index}] dimension mismatch"
-            )
+            raise ValueError(f"support_offsets[{row_index}] dimension mismatch")
         normalized: list[int] = []
         for item in row:
             if type(item) is not int:
@@ -194,9 +190,7 @@ def measured_transition_payload(
     return {
         "transition_schema_version": transition.transition_schema_version,
         "parent_freeze_sha": transition.parent_freeze_sha,
-        "prestructure_authority_sha": (
-            transition.prestructure_authority_sha
-        ),
+        "prestructure_authority_sha": (transition.prestructure_authority_sha),
         "factory_sha": transition.factory_sha,
         "factory_role": transition.factory_role,
         "state_schema_id": transition.state_schema_id,
@@ -204,9 +198,7 @@ def measured_transition_payload(
         "spatial_shape": list(transition.spatial_shape),
         "dt": transition.dt,
         "boundary_manifest_id": transition.boundary_manifest_id,
-        "state_basis_convention_id": (
-            transition.state_basis_convention_id
-        ),
+        "state_basis_convention_id": (transition.state_basis_convention_id),
         "kernel": _tensor_record(transition.kernel),
         "support_offsets": [list(item) for item in transition.support_offsets],
         "support_sha": transition.support_sha,
@@ -221,9 +213,7 @@ def _assert_no_wrap(
     for axis, length in enumerate(spatial_shape):
         radius = max(abs(item[axis]) for item in support)
         if length <= 2 * radius:
-            raise ValueError(
-                f"spatial axis {axis} violates no-wrap L_i > 2 r_i"
-            )
+            raise ValueError(f"spatial axis {axis} violates no-wrap L_i > 2 r_i")
 
 
 def _outside_support_mask(
@@ -233,8 +223,7 @@ def _outside_support_mask(
     mask = np.ones(spatial_shape, dtype=np.bool_)
     for offset in support:
         index = tuple(
-            coordinate % length
-            for coordinate, length in zip(offset, spatial_shape)
+            coordinate % length for coordinate, length in zip(offset, spatial_shape)
         )
         mask[index] = False
     return mask
@@ -243,20 +232,14 @@ def _outside_support_mask(
 def _assert_positive_bit_zero(values: np.ndarray) -> None:
     contiguous = np.ascontiguousarray(values, dtype=np.complex128)
     if np.any(contiguous.view(np.uint64) != np.uint64(0)):
-        raise ValueError(
-            "transition outside declared support is not bit-exact +0.0"
-        )
+        raise ValueError("transition outside declared support is not bit-exact +0.0")
 
 
 def _allocate_transition_kernel(
     state_count: int,
     spatial_shape: tuple[int, ...],
 ) -> np.ndarray:
-    entry_count = (
-        state_count
-        * state_count
-        * math.prod(spatial_shape)
-    )
+    entry_count = state_count * state_count * math.prod(spatial_shape)
     if entry_count > TRANSITION_MAX_COMPLEX_ENTRIES:
         raise ValueError("transition complex-entry cap exceeded")
     return np.zeros(
@@ -272,9 +255,7 @@ def _bind_inputs(
     factory_view = _reverify_verified_factory(factory)
     authority_view = _reverify_verified_prestructure_authority(authority)
     if factory is not authority_view.factory:
-        raise ValueError(
-            "factory is not the role-specific live authority factory"
-        )
+        raise ValueError("factory is not the role-specific live authority factory")
     if factory_view.factory.factory_sha != authority_view.authority.factory_sha:
         raise ValueError("factory SHA does not match prestructure authority")
     if factory_view.role != authority_view.authority.factory_role:
@@ -286,16 +267,29 @@ def _remeasure_transition(
     factory: VerifiedFactory,
     authority: VerifiedPrestructureAuthority,
 ) -> MeasuredTransition:
-    factory_view, authority_view = _bind_inputs(factory, authority)
+    _, authority_view = _bind_inputs(factory, authority)
+    return _measure_bound_realspace_transition(
+        factory,
+        parent_freeze_sha=authority_view.parent.manifest.parent_freeze_sha,
+        prestructure_authority_sha=authority_view.authority.authority_sha,
+    )
+
+
+def _measure_bound_realspace_transition(
+    factory: VerifiedFactory,
+    *,
+    parent_freeze_sha: str,
+    prestructure_authority_sha: str,
+) -> MeasuredTransition:
+    """Measure one live factory without choosing an authority owner."""
+
+    factory_view = _reverify_verified_factory(factory)
     payload = factory_view.factory
     spatial_shape = payload.state_shape[1:]
     stencil_support = factory_support_offsets(factory, 1)
     support = tuple(
         sorted(
-            {
-                tuple(-coordinate for coordinate in offset)
-                for offset in stencil_support
-            }
+            {tuple(-coordinate for coordinate in offset) for offset in stencil_support}
         )
     )
     _assert_no_wrap(spatial_shape, support)
@@ -323,15 +317,10 @@ def _remeasure_transition(
             STATE_BASIS_CONVENTION_ID,
         )
     )
-    parent_manifest = _reverify_verified_prestructure_authority(
-        authority
-    ).parent.manifest
     provisional = MeasuredTransition(
         transition_schema_version=TRANSITION_SCHEMA_VERSION,
-        parent_freeze_sha=parent_manifest.parent_freeze_sha,
-        prestructure_authority_sha=(
-            authority_view.authority.authority_sha
-        ),
+        parent_freeze_sha=parent_freeze_sha,
+        prestructure_authority_sha=prestructure_authority_sha,
         factory_sha=payload.factory_sha,
         factory_role=factory_view.role,
         state_schema_id=payload.state_schema_id,
@@ -348,9 +337,7 @@ def _remeasure_transition(
     )
     return replace(
         provisional,
-        transition_sha=canonical_sha(
-            measured_transition_payload(provisional)
-        ),
+        transition_sha=canonical_sha(measured_transition_payload(provisional)),
     )
 
 
@@ -407,9 +394,7 @@ def _transition_seal(transition: MeasuredTransition) -> str:
         raise ValueError("transition_sha does not match complete body")
     return canonical_sha(
         {
-            "verified_transition_schema_version": (
-                "v3m0.verified-transition.v1"
-            ),
+            "verified_transition_schema_version": ("v3m0.verified-transition.v1"),
             "transition": {
                 **measured_transition_payload(transition),
                 "transition_sha": transition.transition_sha,
@@ -482,9 +467,7 @@ def _make_transition_authority(
 
     def reverify(wrapper: VerifiedTransition) -> _TransitionAuthority:
         if type(wrapper) is not VerifiedTransition:
-            raise TypeError(
-                "runtime requires a module-issued VerifiedTransition"
-            )
+            raise TypeError("runtime requires a module-issued VerifiedTransition")
         with lock:
             current = live.get(id(wrapper))
             if current is None or current[0]() is not wrapper:
@@ -517,13 +500,9 @@ def _make_transition_authority(
                     "VerifiedTransition exposed body is malformed"
                 ) from exc
             if body_mismatch or seal != authority.seal:
-                raise ValueError(
-                    "VerifiedTransition cached immutable guard mismatch"
-                )
+                raise ValueError("VerifiedTransition cached immutable guard mismatch")
             factory_view = factory_reverifier(authority.factory)
-            prestructure_view = prestructure_reverifier(
-                authority.prestructure
-            )
+            prestructure_view = prestructure_reverifier(authority.prestructure)
             if (
                 authority.factory is not prestructure_view.factory
                 or transition.factory_sha != factory_view.factory.factory_sha
@@ -621,9 +600,7 @@ def verify_measured_transition(
         raise ValueError("transition_sha does not match complete body")
     expected = _remeasure_transition(factory, authority)
     if transition.transition_sha != expected.transition_sha:
-        raise ValueError(
-            "raw transition does not match executor remeasurement"
-        )
+        raise ValueError("raw transition does not match executor remeasurement")
     return _register_measured_transition(transition, factory, authority)
 
 
@@ -667,8 +644,7 @@ def _transition_symbol_from_raw(
     )
     for offset in raw.support_offsets:
         index = tuple(
-            coordinate % length
-            for coordinate, length in zip(offset, raw.spatial_shape)
+            coordinate % length for coordinate, length in zip(offset, raw.spatial_shape)
         )
         phase_argument = -float(
             sum(
