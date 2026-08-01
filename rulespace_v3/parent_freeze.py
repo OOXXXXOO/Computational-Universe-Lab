@@ -38,6 +38,10 @@ from .factory import (
     verify_basis_manifest,
     verify_frozen_tensor,
 )
+from .replay_scope import (
+    _cached_replay_is_valid,
+    _record_successful_replay,
+)
 
 
 PARENT_FREEZE_SCHEMA_VERSION = "v3m0.parent-freeze.v1"
@@ -5148,6 +5152,8 @@ def _make_parent_freeze_registry(
     wrapper_type=VerifiedParentFreeze,
     issuance_token=_ISSUANCE_TOKEN,
     clone=_clone_parent_wire,
+    exact_clone=_clone_parent_wire,
+    closed_snapshot=_clone_parent_wire(_CLOSED_PARENT_FREEZE_SNAPSHOT),
     weak_reference=weakref.ref,
     lock_builder=threading.RLock,
     type_fn=type,
@@ -5157,6 +5163,8 @@ def _make_parent_freeze_registry(
     value_error=ValueError,
     runtime_error=RuntimeError,
     attribute_error=AttributeError,
+    cached_replay_is_valid=_cached_replay_is_valid,
+    record_successful_replay=_record_successful_replay,
 ) -> tuple[
     Callable[[ParentFreezeManifest], VerifiedParentFreeze],
     Callable[[VerifiedParentFreeze], ParentFreezeManifest],
@@ -5169,6 +5177,8 @@ def _make_parent_freeze_registry(
         ],
     ] = {}
     lock = lock_builder()
+    namespace = "rulespace_v3.parent_freeze.VerifiedParentFreeze"
+    closed_binding = exact_clone(closed_snapshot)
 
     def issue_authorized(
         manifest: ParentFreezeManifest,
@@ -5204,6 +5214,20 @@ def _make_parent_freeze_registry(
             if current is not None and current[0]() is not None:
                 raise runtime_error("live VerifiedParentFreeze identity collision")
             registry[identity] = (reference, authority)
+        exposed_manifest = object_type.__getattribute__(
+            wrapper,
+            "_VerifiedParentFreeze__manifest",
+        )
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=issuance_token,
+            exposed_bodies=(exposed_manifest,),
+            seal=fingerprint,
+            authority=authority,
+            authority_digest=authority.fingerprint,
+        )
         return wrapper
 
     def reverify_authorized(
@@ -5238,6 +5262,33 @@ def _make_parent_freeze_registry(
             raise value_error(
                 "VerifiedParentFreeze authority record is incomplete"
             ) from exc
+
+        def cheap_validator() -> None:
+            exposed_snapshot = exact_clone(manifest)
+            authority_snapshot = exact_clone(authority.manifest)
+            if (
+                exposed_snapshot != authority.manifest
+                or authority_snapshot != authority.manifest
+                or exposed_snapshot != closed_binding
+                or authority_snapshot != closed_binding
+                or seal != authority.fingerprint
+            ):
+                raise value_error(
+                    "VerifiedParentFreeze cached immutable guard mismatch"
+                )
+
+        if cached_replay_is_valid(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=(manifest,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.fingerprint,
+            cheap_validator=cheap_validator,
+        ):
+            return clone(authority.manifest)
         if token is not issuance_token:
             raise value_error("VerifiedParentFreeze authority token mismatch")
         snapshot = manifest_validator(
@@ -5249,7 +5300,20 @@ def _make_parent_freeze_registry(
             raise value_error("VerifiedParentFreeze authority seal mismatch")
         if snapshot != authority.manifest:
             raise value_error("VerifiedParentFreeze manifest authority mismatch")
-        return clone(authority.manifest)
+        verified_authority = exact_clone(authority.manifest)
+        if verified_authority != closed_binding:
+            raise value_error("VerifiedParentFreeze closed authority mismatch")
+        record_successful_replay(
+            namespace=namespace,
+            wrapper=wrapper,
+            expected_type=wrapper_type,
+            token=token,
+            exposed_bodies=(manifest,),
+            seal=seal,
+            authority=authority,
+            authority_digest=authority.fingerprint,
+        )
+        return verified_authority
 
     return issue_authorized, reverify_authorized
 
