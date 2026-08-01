@@ -214,9 +214,7 @@ class Task11RunnerContractTests(unittest.TestCase):
 
         spliced = replace(
             replay,
-            matched_ablation_outcomes=tuple(
-                reversed(replay.matched_ablation_outcomes)
-            ),
+            matched_ablation_outcomes=tuple(reversed(replay.matched_ablation_outcomes)),
         )
         with self.assertRaises((TypeError, ValueError)):
             _build_task11_numerical_roots(
@@ -226,22 +224,83 @@ class Task11RunnerContractTests(unittest.TestCase):
                 current_window,
             )
 
-    def test_raw_numerical_replay_retains_six_orders_and_independent_2t(
+    def test_task8_private_helper_has_exact_authority_neutral_boundary(
+        self,
+    ) -> None:
+        from rulespace_v3.parent_freeze import VerifiedParentFreeze
+        from rulespace_v3.task11_runner import (
+            _run_task11_window_calibration_from_task8_replay,
+        )
+        from rulespace_v3.task8_control_replay import CurrentTask8ControlReplay
+
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    _run_task11_window_calibration_from_task8_replay
+                ).parameters
+            ),
+            ("historical_parent", "task8_replay"),
+        )
+        parent, replay, _, _ = self._current_inputs()
+        with self.assertRaises(TypeError):
+            _run_task11_window_calibration_from_task8_replay(object(), replay)
+        with self.assertRaises(TypeError):
+            _run_task11_window_calibration_from_task8_replay(parent, object())
+        forged_parent = object.__new__(VerifiedParentFreeze)
+        with self.assertRaises((TypeError, ValueError, AttributeError)):
+            _run_task11_window_calibration_from_task8_replay(
+                forged_parent,
+                replay,
+            )
+        forged_replay = object.__new__(CurrentTask8ControlReplay)
+        with self.assertRaises((TypeError, ValueError, AttributeError)):
+            _run_task11_window_calibration_from_task8_replay(
+                parent,
+                forged_replay,
+            )
+
+    def test_task8_and_current_v2_routes_share_one_numerical_core(self) -> None:
+        from rulespace_v3.task11_runner import (
+            _run_task11_window_calibration_core,
+            _run_task11_window_calibration_from_current_v2_replay,
+            _run_task11_window_calibration_from_replay,
+            _run_task11_window_calibration_from_task8_replay,
+        )
+
+        core_name = _run_task11_window_calibration_core.__name__
+        self.assertIn(
+            core_name,
+            _run_task11_window_calibration_from_task8_replay.__code__.co_names,
+        )
+        self.assertIn(
+            core_name,
+            _run_task11_window_calibration_from_current_v2_replay.__code__.co_names,
+        )
+        self.assertEqual(
+            tuple(
+                inspect.signature(_run_task11_window_calibration_from_replay).parameters
+            ),
+            ("parent", "task8_replay", "current_registry", "current_window"),
+        )
+        self.assertIn(
+            "_run_task11_window_calibration_from_current_v2_replay",
+            _run_task11_window_calibration_from_replay.__code__.co_names,
+        )
+
+    def test_raw_task8_replay_retains_six_orders_and_independent_2t(
         self,
     ) -> None:
         from rulespace_v3.calibration_authority import WindowCalibrationOutcome
         from rulespace_v3.contracts import UndefinedReason
         from rulespace_v3.task11_runner import (
-            _run_task11_window_calibration_from_replay,
+            _run_task11_window_calibration_from_task8_replay,
         )
         from rulespace_v3.thresholds import T_CANDIDATES
 
-        parent, replay, current_registry, current_window = self._current_inputs()
-        outcome = _run_task11_window_calibration_from_replay(
-            parent,
-            replay,
-            current_registry,
-            current_window,
+        parent, replay, _, _ = self._current_inputs()
+        outcome = _run_task11_window_calibration_from_task8_replay(
+            historical_parent=parent,
+            task8_replay=replay,
         )
         self.assertIs(type(outcome), WindowCalibrationOutcome)
         self.assertEqual(
@@ -267,11 +326,7 @@ class Task11RunnerContractTests(unittest.TestCase):
                     2 * order,
                 )
         first_passing = next(
-            (
-                item
-                for item in outcome.manifest.candidate_audits
-                if item.passed
-            ),
+            (item for item in outcome.manifest.candidate_audits if item.passed),
             None,
         )
         if first_passing is None:

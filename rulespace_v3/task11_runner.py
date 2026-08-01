@@ -101,44 +101,33 @@ class _Task11ControlDynamics:
     qualification: VerifiedCertificateBackedQualification
 
 
-def _build_task11_numerical_roots(
-    parent: VerifiedParentFreeze,
+def _verify_task11_historical_replay(
+    historical_parent: VerifiedParentFreeze,
     task8_replay: CurrentTask8ControlReplay,
-    current_registry: CurrentControlRegistryV2,
-    current_window: CurrentWindowCalibrationProtocolV2,
-):
-    """Bind the numerical registry to each canonical pair's actual identity."""
+) -> VerifiedControlRegistry:
+    """Verify the exact authority-neutral historical replay roots."""
 
-    if type(parent) is not VerifiedParentFreeze:
+    if type(historical_parent) is not VerifiedParentFreeze:
         raise TypeError("Task-11 roots require the exact historical Parent")
     if type(task8_replay) is not CurrentTask8ControlReplay:
         raise TypeError("Task-11 roots require an exact Task-8 replay")
-    if type(current_registry) is not CurrentControlRegistryV2:
-        raise TypeError("Task-11 roots require an exact current registry body")
-    if type(current_window) is not CurrentWindowCalibrationProtocolV2:
-        raise TypeError("Task-11 roots require an exact current window body")
-    _reverify_verified_parent_freeze(parent)
+    _reverify_verified_parent_freeze(historical_parent)
     replay_registry_view = _reverify_verified_control_registry(
         task8_replay.legacy_registry
     )
-    if replay_registry_view.parent is not parent:
+    if replay_registry_view.parent is not historical_parent:
         raise ValueError("Task-11 replay is not bound to this historical Parent")
-    verify_current_control_registry_v2_body(
-        current_registry,
-        current_registry.parent_freeze_v2_sha,
-        task8_replay,
-    )
-    verify_current_window_calibration_protocol_v2_body(
-        current_window,
-        current_registry,
-        task8_replay,
-    )
-    if current_window.current_control_registry != current_registry:
-        raise ValueError("Task-11 current registry/window roots are spliced")
-    if len(task8_replay.controls) != len(
-        task8_replay.matched_ablation_outcomes
-    ):
+    if len(task8_replay.controls) != len(task8_replay.matched_ablation_outcomes):
         raise ValueError("Task-11 replay control/construction counts differ")
+    return replay_registry_view
+
+
+def _rebuild_task11_numerical_roots(
+    historical_parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+    replay_registry_view: VerifiedControlRegistry,
+) -> tuple[VerifiedControlRegistry, VerifiedWindowCalibrationProtocol]:
+    """Bind the legacy numerical roots to canonical pair identities."""
 
     numerical_controls = []
     for control, construction in zip(
@@ -152,9 +141,7 @@ def _build_task11_numerical_roots(
         ):
             raise ValueError("Task-11 replay contains an undefined construction")
         original = _reverify_verified_factory(control.factory)
-        pair_actual = _reverify_verified_factory(
-            verified_construction.pair.actual
-        )
+        pair_actual = _reverify_verified_factory(verified_construction.pair.actual)
         if (
             original.factory != pair_actual.factory
             or original.trace != pair_actual.trace
@@ -165,11 +152,64 @@ def _build_task11_numerical_roots(
             replace(control, factory=verified_construction.pair.actual)
         )
 
-    registry = build_closed_control_registry(tuple(numerical_controls), parent)
+    registry = build_closed_control_registry(
+        tuple(numerical_controls),
+        historical_parent,
+    )
     if registry.registry != task8_replay.legacy_registry.registry:
         raise ValueError("Task-11 numerical registry body drifted during rebinding")
     entries = build_control_window_protocol_entries(registry)
     protocol = build_window_calibration_protocol(registry, entries)
+    return registry, protocol
+
+
+def _build_task11_numerical_roots_from_task8_replay(
+    historical_parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+) -> tuple[VerifiedControlRegistry, VerifiedWindowCalibrationProtocol]:
+    """Rebuild authority-neutral legacy registry/window from Task-8 replay."""
+
+    replay_registry_view = _verify_task11_historical_replay(
+        historical_parent,
+        task8_replay,
+    )
+    return _rebuild_task11_numerical_roots(
+        historical_parent,
+        task8_replay,
+        replay_registry_view,
+    )
+
+
+def _build_task11_numerical_roots(
+    parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+    current_registry: CurrentControlRegistryV2,
+    current_window: CurrentWindowCalibrationProtocolV2,
+) -> tuple[VerifiedControlRegistry, VerifiedWindowCalibrationProtocol]:
+    """Preserve the current-V2 root validation before numerical replay."""
+
+    if type(current_registry) is not CurrentControlRegistryV2:
+        raise TypeError("Task-11 roots require an exact current registry body")
+    if type(current_window) is not CurrentWindowCalibrationProtocolV2:
+        raise TypeError("Task-11 roots require an exact current window body")
+    replay_registry_view = _verify_task11_historical_replay(parent, task8_replay)
+    verify_current_control_registry_v2_body(
+        current_registry,
+        current_registry.parent_freeze_v2_sha,
+        task8_replay,
+    )
+    verify_current_window_calibration_protocol_v2_body(
+        current_window,
+        current_registry,
+        task8_replay,
+    )
+    if current_window.current_control_registry != current_registry:
+        raise ValueError("Task-11 current registry/window roots are spliced")
+    registry, protocol = _rebuild_task11_numerical_roots(
+        parent,
+        task8_replay,
+        replay_registry_view,
+    )
     if protocol.protocol != current_window.legacy_window_protocol:
         raise ValueError("Task-11 numerical window body drifted during rebinding")
     return registry, protocol
@@ -355,9 +395,7 @@ def _run_control_response_order(
     )
     attempt = replace(
         provisional_attempt,
-        attempt_sha=canonical_sha(
-            candidate_attempt_audit_payload(provisional_attempt)
-        ),
+        attempt_sha=canonical_sha(candidate_attempt_audit_payload(provisional_attempt)),
     )
     provisional_outcome = ControlCandidateOutcome(
         status=(
@@ -393,8 +431,7 @@ def _branch_spectrum(
     )
     n_singular = shape[1]
     rows = tuple(
-        raw[index : index + n_singular]
-        for index in range(0, len(raw), n_singular)
+        raw[index : index + n_singular] for index in range(0, len(raw), n_singular)
     )
     active = tuple(value for row in rows for value in row[:declared_rank])
     inactive = tuple(value for row in rows for value in row[declared_rank:])
@@ -526,8 +563,8 @@ def _build_control_candidate_audit(
             )
             for kind in ("h", "curv")
         )
-        phase_separation, overlap_margin, projector_distance = (
-            _shell_comparison_values(candidate, comparison)
+        phase_separation, overlap_margin, projector_distance = _shell_comparison_values(
+            candidate, comparison
         )
         bridge_signal_passed = all(
             branch.active_min is None or branch.active_min > bridge
@@ -598,8 +635,7 @@ def _build_window_candidate_audit(
         reached_spectra
         and all(item.passed for item in controls)
         and all(
-            item.absolute_signal_gate_passed
-            and item.relative_gap_gate_passed
+            item.absolute_signal_gate_passed and item.relative_gap_gate_passed
             for item in aggregates
         )
     )
@@ -616,47 +652,94 @@ def _build_window_candidate_audit(
     )
 
 
+def _run_task11_window_calibration_core(
+    historical_parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+    registry: VerifiedControlRegistry,
+    protocol: VerifiedWindowCalibrationProtocol,
+) -> WindowCalibrationOutcome:
+    """Run the shared six-order numerical body on verified legacy roots."""
+
+    chains = _build_task11_dynamics_chains(
+        historical_parent,
+        task8_replay,
+        registry,
+    )
+    candidates = tuple(
+        _build_window_candidate_audit(
+            registry,
+            protocol,
+            chains,
+            order,
+        )
+        for order in T_CANDIDATES
+    )
+    return calibrate_window_and_thresholds(
+        registry,
+        protocol,
+        candidates,
+    )
+
+
+def _run_task11_window_calibration_from_current_v2_replay(
+    historical_parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+    current_registry: CurrentControlRegistryV2,
+    current_window: CurrentWindowCalibrationProtocolV2,
+) -> WindowCalibrationOutcome:
+    """Keep the existing current-V2 validation route and shared core."""
+
+    with _scoped_replay_context():
+        registry, protocol = _build_task11_numerical_roots(
+            historical_parent,
+            task8_replay,
+            current_registry,
+            current_window,
+        )
+        return _run_task11_window_calibration_core(
+            historical_parent,
+            task8_replay,
+            registry,
+            protocol,
+        )
+
+
 def _run_task11_window_calibration_from_replay(
     parent: VerifiedParentFreeze,
     task8_replay: CurrentTask8ControlReplay,
     current_registry: CurrentControlRegistryV2,
     current_window: CurrentWindowCalibrationProtocolV2,
 ) -> WindowCalibrationOutcome:
-    """Numerical body helper; raw replay values carry no authority semantics."""
+    """Compatibility route for the frozen raw-replay experiment entry point."""
 
-    if type(parent) is not VerifiedParentFreeze:
+    return _run_task11_window_calibration_from_current_v2_replay(
+        parent,
+        task8_replay,
+        current_registry,
+        current_window,
+    )
+
+
+def _run_task11_window_calibration_from_task8_replay(
+    historical_parent: VerifiedParentFreeze,
+    task8_replay: CurrentTask8ControlReplay,
+) -> WindowCalibrationOutcome:
+    """Run authority-neutral Task-8 replay; the raw outcome is no capability."""
+
+    if type(historical_parent) is not VerifiedParentFreeze:
         raise TypeError("Task-11 runner requires the exact historical Parent")
     if type(task8_replay) is not CurrentTask8ControlReplay:
         raise TypeError("Task-11 runner requires an exact Task-8 replay")
-    if type(current_registry) is not CurrentControlRegistryV2:
-        raise TypeError("Task-11 runner requires an exact current registry body")
-    if type(current_window) is not CurrentWindowCalibrationProtocolV2:
-        raise TypeError("Task-11 runner requires an exact current window body")
     with _scoped_replay_context():
-        registry, protocol = _build_task11_numerical_roots(
-            parent,
+        registry, protocol = _build_task11_numerical_roots_from_task8_replay(
+            historical_parent,
             task8_replay,
-            current_registry,
-            current_window,
         )
-        chains = _build_task11_dynamics_chains(
-            parent,
+        return _run_task11_window_calibration_core(
+            historical_parent,
             task8_replay,
-            registry,
-        )
-        candidates = tuple(
-            _build_window_candidate_audit(
-                registry,
-                protocol,
-                chains,
-                order,
-            )
-            for order in T_CANDIDATES
-        )
-        return calibrate_window_and_thresholds(
             registry,
             protocol,
-            candidates,
         )
 
 
@@ -687,9 +770,7 @@ def _make_public_task11_runner(
             raise TypeError(
                 "Task-11 runner requires an exact live current-window capability"
             )
-        protocol, current_registry, task8_replay = window_replayer(
-            current_window
-        )
+        protocol, current_registry, task8_replay = window_replayer(current_window)
         parent = parent_resolver(task8_replay)
         return numerical_executor(
             parent,
@@ -708,7 +789,7 @@ run_task11_window_calibration = _make_public_task11_runner(
     # guard's private class snapshots.
     window_replayer=_replay_current_window_calibration_protocol_v2.__call__,
     parent_resolver=_historical_parent_from_task8_replay,
-    numerical_executor=_run_task11_window_calibration_from_replay,
+    numerical_executor=_run_task11_window_calibration_from_current_v2_replay,
 )
 
 
