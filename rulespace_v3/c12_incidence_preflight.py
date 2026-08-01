@@ -30,7 +30,6 @@ from .factory import (
     frozen_tensor_array,
     verify_frozen_tensor,
 )
-from .frozen_call_graph import freeze_rulespace_call_graph
 from .geometry_application_recipes import (
     _common_blind_steps,
     _common_semantic_basis,
@@ -65,31 +64,6 @@ C12_NORMALIZER_FORMULA_ID = "nu-inc-4-sum-sin2-half-v1"
 C12_RECIPE_SCHEMA_VERSION = "v3m0.c12-application-recipe.v1"
 C12_INCIDENCE_POINT_SCHEMA_VERSION = "v3m0.c12-incidence-point-wire.v1"
 C12_IR_CERTIFICATE_SCHEMA_VERSION = "v3m0.c12-ir-limit-certificate.v1"
-C12_ANALYTIC_INCIDENCE_CERTIFICATE_SCHEMA_VERSION = (
-    "v3m0.c12-analytic-incidence-certificate.v1"
-)
-C12_NORMALIZER_DERIVATION_ID = (
-    "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
-)
-C12_IR_LIMIT_FORMULA_ID = (
-    "lim-k-to-zero-nu-inc-over-k-squared-equals-one-v1"
-)
-C12_IR_CONCLUSION = "POSITIVE_SECOND_ORDER_UNIT_CONTINUUM_LIMIT"
-C12_POSITIVITY_DOMAIN_ID = (
-    "one-dimensional-minus-pi-open-pi-closed-excluding-zero-v1"
-)
-C12_ABSOLUTE_SIGNAL_THRESHOLD_AUTHORITY_REF = (
-    "WindowThresholdSelection.curv_tau_sig"
-)
-C12_RAW_BRIDGE_NOISE_EVIDENCE_REF = (
-    "SourceReadoutBridgeAudit.curv_operator_error_max"
-)
-C12_RAW_NOISE_ABSOLUTE_THRESHOLD_AUTHORITY_REF = (
-    "rulespace_v3.thresholds.BRIDGE_TOLERANCE"
-)
-C12_RELATIVE_GAP_THRESHOLD_AUTHORITY_REF = (
-    "rulespace_v3.thresholds.RAW_GAP_MIN"
-)
 C12_STRUCTURE_AUDIT_SCHEMA_VERSION = "v3m0.c12-structure-audit.v1"
 C12_BRANCH_POINT_AUDIT_SCHEMA_VERSION = "v3m0.c12-branch-point-audit.v1"
 C12_LEGACY_NO_GO_SCHEMA_VERSION = "v3m0.c12-legacy-no-go-audit.v1"
@@ -371,88 +345,6 @@ class C12IRLimitCertificate:
         ):
             raise TypeError("point_wires have the wrong strict type")
         _sha(self.certificate_sha, "certificate_sha")
-
-
-@dataclass(frozen=True)
-class C12AnalyticIncidenceCertificate:
-    """Authority-neutral exact certificate for the C12 incidence family."""
-
-    certificate_schema_version: str
-    incidence_family_id: str
-    normalizer_formula_id: str
-    normalizer_derivation_id: str
-    stencil_offsets: tuple[tuple[int, ...], ...]
-    stencil_coefficients: tuple[int, ...]
-    first_brillouin_domain_id: str
-    positivity_domain_id: str
-    ir_limit_formula_id: str
-    ir_limit_order: int
-    ir_limit_value: float
-    ir_conclusion: str
-    positivity_certified: bool
-    absolute_signal_threshold_authority_ref: str
-    raw_bridge_noise_evidence_ref: str
-    raw_noise_absolute_threshold_authority_ref: str
-    relative_gap_threshold_authority_ref: str
-    point_wires: tuple[C12IncidencePointWire, ...]
-    certificate_sha: str
-
-    def __post_init__(self) -> None:
-        if (
-            self.certificate_schema_version
-            != C12_ANALYTIC_INCIDENCE_CERTIFICATE_SCHEMA_VERSION
-        ):
-            raise ValueError("C12 analytic incidence certificate schema drifted")
-        for field in (
-            "incidence_family_id",
-            "normalizer_formula_id",
-            "normalizer_derivation_id",
-            "first_brillouin_domain_id",
-            "positivity_domain_id",
-            "ir_limit_formula_id",
-            "ir_conclusion",
-            "absolute_signal_threshold_authority_ref",
-            "raw_bridge_noise_evidence_ref",
-            "raw_noise_absolute_threshold_authority_ref",
-            "relative_gap_threshold_authority_ref",
-        ):
-            _text(getattr(self, field), field)
-        if (
-            type(self.stencil_offsets) is not tuple
-            or not all(
-                type(offset) is tuple
-                and all(type(value) is int for value in offset)
-                for offset in self.stencil_offsets
-            )
-        ):
-            raise TypeError("stencil_offsets must contain exact integer tuples")
-        if type(self.stencil_coefficients) is not tuple or not all(
-            type(value) is int for value in self.stencil_coefficients
-        ):
-            raise TypeError("stencil_coefficients must be exact integers")
-        if type(self.ir_limit_order) is not int:
-            raise TypeError("ir_limit_order must be an exact integer")
-        _finite(self.ir_limit_value, "ir_limit_value")
-        if type(self.positivity_certified) is not bool:
-            raise TypeError("positivity_certified must be an exact bool")
-        if type(self.point_wires) is not tuple or not all(
-            type(point) is C12IncidencePointWire for point in self.point_wires
-        ):
-            raise TypeError("point_wires have the wrong strict type")
-        _sha(self.certificate_sha, "certificate_sha")
-
-
-def _freeze_c12_record_post_init(record_type: type) -> None:
-    """Close one dataclass validator over its current module dependencies."""
-
-    record_type.__post_init__ = freeze_rulespace_call_graph(
-        record_type.__post_init__
-    )
-
-
-_freeze_c12_record_post_init(C12IncidencePointWire)
-_freeze_c12_record_post_init(C12AnalyticIncidenceCertificate)
-del _freeze_c12_record_post_init
 
 
 @dataclass(frozen=True)
@@ -771,46 +663,6 @@ def c12_ir_limit_certificate_payload(
         "ir_limit_order": certificate.ir_limit_order,
         "ir_limit_value": certificate.ir_limit_value,
         "positivity_certified": certificate.positivity_certified,
-        "point_wires": [_point_record(point) for point in certificate.point_wires],
-    }
-
-
-def c12_analytic_incidence_certificate_payload(
-    certificate: C12AnalyticIncidenceCertificate,
-) -> dict[str, object]:
-    """Return the complete hash body of an analytic-only C12 certificate."""
-
-    _exact_record(
-        certificate,
-        C12AnalyticIncidenceCertificate,
-        "C12 analytic incidence certificate",
-    )
-    return {
-        "certificate_schema_version": certificate.certificate_schema_version,
-        "incidence_family_id": certificate.incidence_family_id,
-        "normalizer_formula_id": certificate.normalizer_formula_id,
-        "normalizer_derivation_id": certificate.normalizer_derivation_id,
-        "stencil_offsets": [list(item) for item in certificate.stencil_offsets],
-        "stencil_coefficients": list(certificate.stencil_coefficients),
-        "first_brillouin_domain_id": certificate.first_brillouin_domain_id,
-        "positivity_domain_id": certificate.positivity_domain_id,
-        "ir_limit_formula_id": certificate.ir_limit_formula_id,
-        "ir_limit_order": certificate.ir_limit_order,
-        "ir_limit_value": certificate.ir_limit_value,
-        "ir_conclusion": certificate.ir_conclusion,
-        "positivity_certified": certificate.positivity_certified,
-        "absolute_signal_threshold_authority_ref": (
-            certificate.absolute_signal_threshold_authority_ref
-        ),
-        "raw_bridge_noise_evidence_ref": (
-            certificate.raw_bridge_noise_evidence_ref
-        ),
-        "raw_noise_absolute_threshold_authority_ref": (
-            certificate.raw_noise_absolute_threshold_authority_ref
-        ),
-        "relative_gap_threshold_authority_ref": (
-            certificate.relative_gap_threshold_authority_ref
-        ),
         "point_wires": [_point_record(point) for point in certificate.point_wires],
     }
 
@@ -1354,93 +1206,27 @@ def _build_incidence_point(reciprocal_index: tuple[int, ...]) -> C12IncidencePoi
     )
 
 
-def _make_c12_analytic_incidence_certificate(
-) -> C12AnalyticIncidenceCertificate:
+def _build_ir_certificate() -> C12IRLimitCertificate:
     momentum = sp.Symbol("k", real=True)
-    normalizer = 4 * sp.sin(momentum / 2) ** 2
-    centered_symbol = 2 - sp.exp(sp.I * momentum) - sp.exp(-sp.I * momentum)
-    if sp.simplify(centered_symbol - normalizer) != 0:
-        raise AssertionError("centered stencil did not reproduce nu_inc")
-    first_brillouin_domain = sp.Interval.Lopen(-sp.pi, sp.pi)
-    if sp.ask(sp.Q.nonnegative(normalizer)) is not True:
-        raise AssertionError("nu_inc is not nonnegative on the real line")
-    zero_set = sp.solveset(
-        sp.Eq(normalizer, 0),
-        momentum,
-        domain=first_brillouin_domain,
-    )
-    if zero_set != sp.FiniteSet(0):
-        raise AssertionError("nu_inc zero set in the first BZ is not {0}")
-    if sp.simplify(normalizer.subs(momentum, 0)) != 0:
-        raise AssertionError("nu_inc must vanish at zero momentum")
-    ir_limit = sp.simplify(sp.limit(normalizer / momentum**2, momentum, 0))
+    symbol = 2 - sp.exp(sp.I * momentum) - sp.exp(-sp.I * momentum)
+    ir_limit = sp.simplify(sp.limit(symbol / momentum**2, momentum, 0))
     if ir_limit != 1:
         raise AssertionError("centered incidence did not produce the exact IR limit")
-    point_wires = tuple(
-        _build_incidence_point(index)
-        for index in C12_RESPONSE_RECIPROCAL_INDICES
-    )
-    if any(
-        point.momentum == 0.0
-        or not -math.pi < point.momentum <= math.pi
-        or point.nu_value <= 0.0
-        for point in point_wires
-    ):
-        raise AssertionError("frozen C12 points are outside the positive domain")
-    provisional = C12AnalyticIncidenceCertificate(
-        certificate_schema_version=(
-            C12_ANALYTIC_INCIDENCE_CERTIFICATE_SCHEMA_VERSION
-        ),
-        incidence_family_id=C12_INCIDENCE_FAMILY_ID,
-        normalizer_formula_id=C12_NORMALIZER_FORMULA_ID,
-        normalizer_derivation_id=C12_NORMALIZER_DERIVATION_ID,
-        stencil_offsets=((-1,), (0,), (1,)),
-        stencil_coefficients=(-1, 2, -1),
-        first_brillouin_domain_id=(
-            "one-dimensional-minus-pi-open-pi-closed-v1"
-        ),
-        positivity_domain_id=C12_POSITIVITY_DOMAIN_ID,
-        ir_limit_formula_id=C12_IR_LIMIT_FORMULA_ID,
-        ir_limit_order=2,
-        ir_limit_value=1.0,
-        ir_conclusion=C12_IR_CONCLUSION,
-        positivity_certified=True,
-        absolute_signal_threshold_authority_ref=(
-            C12_ABSOLUTE_SIGNAL_THRESHOLD_AUTHORITY_REF
-        ),
-        raw_bridge_noise_evidence_ref=C12_RAW_BRIDGE_NOISE_EVIDENCE_REF,
-        raw_noise_absolute_threshold_authority_ref=(
-            C12_RAW_NOISE_ABSOLUTE_THRESHOLD_AUTHORITY_REF
-        ),
-        relative_gap_threshold_authority_ref=(
-            C12_RELATIVE_GAP_THRESHOLD_AUTHORITY_REF
-        ),
-        point_wires=point_wires,
-        certificate_sha="0" * 64,
-    )
-    return replace(
-        provisional,
-        certificate_sha=canonical_sha(
-            c12_analytic_incidence_certificate_payload(provisional)
-        ),
-    )
-
-
-def _build_ir_certificate() -> C12IRLimitCertificate:
-    analytic = build_c12_analytic_incidence_certificate()
     provisional = C12IRLimitCertificate(
         certificate_schema_version=C12_IR_CERTIFICATE_SCHEMA_VERSION,
-        incidence_family_id=analytic.incidence_family_id,
-        normalizer_formula_id=analytic.normalizer_formula_id,
-        symbol_formula_id=analytic.normalizer_derivation_id,
-        stencil_offsets=analytic.stencil_offsets,
-        stencil_coefficients=analytic.stencil_coefficients,
-        first_brillouin_domain_id=analytic.first_brillouin_domain_id,
-        ir_limit_formula_id=analytic.ir_limit_formula_id,
-        ir_limit_order=analytic.ir_limit_order,
-        ir_limit_value=analytic.ir_limit_value,
-        positivity_certified=analytic.positivity_certified,
-        point_wires=analytic.point_wires,
+        incidence_family_id=C12_INCIDENCE_FAMILY_ID,
+        normalizer_formula_id=C12_NORMALIZER_FORMULA_ID,
+        symbol_formula_id="2-exp(+ik)-exp(-ik)-centered-second-difference-v1",
+        stencil_offsets=((-1,), (0,), (1,)),
+        stencil_coefficients=(-1, 2, -1),
+        first_brillouin_domain_id="one-dimensional-minus-pi-open-pi-closed-v1",
+        ir_limit_formula_id="lim-k-to-zero-nu-inc-over-k-squared-equals-one-v1",
+        ir_limit_order=2,
+        ir_limit_value=1.0,
+        positivity_certified=True,
+        point_wires=tuple(
+            _build_incidence_point(index) for index in C12_RESPONSE_RECIPROCAL_INDICES
+        ),
         certificate_sha="0" * 64,
     )
     result = replace(
@@ -1504,54 +1290,19 @@ def _build_incidence_point_body(
     }
 
 
-def _verify_c12_analytic_incidence_certificate_body(
-    certificate: C12AnalyticIncidenceCertificate,
-) -> C12AnalyticIncidenceCertificate:
-    _exact_record(
-        certificate,
-        C12AnalyticIncidenceCertificate,
-        "C12 analytic incidence certificate",
-    )
-    certificate.__post_init__()
-    observed_payload = c12_analytic_incidence_certificate_payload(certificate)
-    if certificate.certificate_sha != canonical_sha(observed_payload):
-        raise ValueError(
-            "C12 analytic incidence certificate SHA does not match its body"
-        )
-    for point in certificate.point_wires:
-        _validate_incidence_point(point)
-    expected = _make_c12_analytic_incidence_certificate()
-    expected_payload = c12_analytic_incidence_certificate_payload(expected)
-    if (
-        observed_payload != expected_payload
-        or certificate.certificate_sha != expected.certificate_sha
-    ):
-        raise ValueError(
-            "C12 analytic incidence certificate differs from exact replay"
-        )
-    return certificate
-
-
 def _validate_ir_certificate(certificate: C12IRLimitCertificate) -> None:
     _exact_record(certificate, C12IRLimitCertificate, "C12 IR certificate")
     certificate.__post_init__()
-    analytic = verify_c12_analytic_incidence_certificate(
-        build_c12_analytic_incidence_certificate()
-    )
     if (
-        certificate.incidence_family_id != analytic.incidence_family_id
-        or certificate.normalizer_formula_id != analytic.normalizer_formula_id
-        or certificate.symbol_formula_id != analytic.normalizer_derivation_id
-        or certificate.stencil_offsets != analytic.stencil_offsets
-        or certificate.stencil_coefficients != analytic.stencil_coefficients
-        or certificate.first_brillouin_domain_id
-        != analytic.first_brillouin_domain_id
-        or certificate.ir_limit_formula_id != analytic.ir_limit_formula_id
-        or certificate.ir_limit_order != analytic.ir_limit_order
-        or certificate.ir_limit_value != analytic.ir_limit_value
-        or certificate.positivity_certified
-        is not analytic.positivity_certified
-        or certificate.point_wires != analytic.point_wires
+        certificate.incidence_family_id != C12_INCIDENCE_FAMILY_ID
+        or certificate.normalizer_formula_id != C12_NORMALIZER_FORMULA_ID
+        or certificate.stencil_offsets != ((-1,), (0,), (1,))
+        or certificate.stencil_coefficients != (-1, 2, -1)
+        or certificate.ir_limit_order != 2
+        or certificate.ir_limit_value != 1.0
+        or certificate.positivity_certified is not True
+        or tuple(point.reciprocal_index for point in certificate.point_wires)
+        != C12_RESPONSE_RECIPROCAL_INDICES
     ):
         raise ValueError("C12 IR certificate does not match the centered stencil")
     for point in certificate.point_wires:
@@ -1560,34 +1311,6 @@ def _validate_ir_certificate(certificate: C12IRLimitCertificate) -> None:
         c12_ir_limit_certificate_payload(certificate)
     ):
         raise ValueError("C12 IR certificate SHA does not match its body")
-
-
-def _raw_build_c12_analytic_incidence_certificate(
-) -> C12AnalyticIncidenceCertificate:
-    """Build the repository-closed analytic C12 incidence certificate."""
-
-    certificate = _make_c12_analytic_incidence_certificate()
-    return _verify_c12_analytic_incidence_certificate_body(certificate)
-
-
-def _raw_verify_c12_analytic_incidence_certificate(
-    certificate: C12AnalyticIncidenceCertificate,
-) -> C12AnalyticIncidenceCertificate:
-    """Verify an analytic C12 certificate against repository-owned replay."""
-
-    return _verify_c12_analytic_incidence_certificate_body(certificate)
-
-
-build_c12_analytic_incidence_certificate = freeze_rulespace_call_graph(
-    _raw_build_c12_analytic_incidence_certificate
-)
-verify_c12_analytic_incidence_certificate = freeze_rulespace_call_graph(
-    _raw_verify_c12_analytic_incidence_certificate
-)
-del (
-    _raw_build_c12_analytic_incidence_certificate,
-    _raw_verify_c12_analytic_incidence_certificate,
-)
 
 
 def _branch_steps(
@@ -2060,8 +1783,6 @@ def verify_c12_incidence_preflight(
 
 __all__ = [
     "C12_ABSOLUTE_SIGNAL_THRESHOLD",
-    "C12_ABSOLUTE_SIGNAL_THRESHOLD_AUTHORITY_REF",
-    "C12_ANALYTIC_INCIDENCE_CERTIFICATE_SCHEMA_VERSION",
     "C12_BRANCH_POINT_AUDIT_SCHEMA_VERSION",
     "C12_CONTROL_CASE_ID",
     "C12_FEJER_ORDERS",
@@ -2069,22 +1790,14 @@ __all__ = [
     "C12_INCIDENCE_POINT_SCHEMA_VERSION",
     "C12_INCIDENCE_PREFLIGHT_SCHEMA_VERSION",
     "C12_IR_CERTIFICATE_SCHEMA_VERSION",
-    "C12_IR_CONCLUSION",
-    "C12_IR_LIMIT_FORMULA_ID",
     "C12_LEGACY_NO_GO_SCHEMA_VERSION",
-    "C12_NORMALIZER_DERIVATION_ID",
     "C12_NORMALIZER_FORMULA_ID",
-    "C12_POSITIVITY_DOMAIN_ID",
     "C12_PREFLIGHT_STATE",
     "C12_RECIPE_SCHEMA_VERSION",
     "C12_RESPONSE_MOMENTA",
     "C12_RESPONSE_RECIPROCAL_INDICES",
-    "C12_RAW_BRIDGE_NOISE_EVIDENCE_REF",
-    "C12_RAW_NOISE_ABSOLUTE_THRESHOLD_AUTHORITY_REF",
-    "C12_RELATIVE_GAP_THRESHOLD_AUTHORITY_REF",
     "C12_SCENARIO_ID",
     "C12_STRUCTURE_AUDIT_SCHEMA_VERSION",
-    "C12AnalyticIncidenceCertificate",
     "C12ApplicationRecipe",
     "C12BranchPointAudit",
     "C12IncidencePointWire",
@@ -2092,9 +1805,7 @@ __all__ = [
     "C12IRLimitCertificate",
     "C12LegacyNoGoAudit",
     "C12StructureAudit",
-    "build_c12_analytic_incidence_certificate",
     "build_c12_incidence_preflight",
-    "c12_analytic_incidence_certificate_payload",
     "c12_application_recipe_payload",
     "c12_application_recipe_symbol",
     "c12_branch_point_audit_payload",
@@ -2103,6 +1814,5 @@ __all__ = [
     "c12_ir_limit_certificate_payload",
     "c12_legacy_no_go_audit_payload",
     "c12_structure_audit_payload",
-    "verify_c12_analytic_incidence_certificate",
     "verify_c12_incidence_preflight",
 ]

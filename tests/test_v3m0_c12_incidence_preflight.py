@@ -34,7 +34,7 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
         )
 
     def _resign_certificate(self, certificate, **changes):
-        from rulespace_v3.c12_incidence_preflight import (
+        from rulespace_v3.c12_analytic_incidence import (
             c12_analytic_incidence_certificate_payload,
         )
 
@@ -53,12 +53,12 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
     def test_analytic_builder_binds_formula_ir_and_four_authority_refs(
         self,
     ) -> None:
-        from rulespace_v3.c12_incidence_preflight import (
-            _build_ir_certificate,
+        from rulespace_v3.c12_analytic_incidence import (
             build_c12_analytic_incidence_certificate,
             c12_analytic_incidence_certificate_payload,
             verify_c12_analytic_incidence_certificate,
         )
+        from rulespace_v3.c12_incidence_preflight import _build_ir_certificate
 
         self.assertEqual(
             tuple(
@@ -120,6 +120,10 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
         )
         self.assertEqual(
             certificate.certificate_sha,
+            "3541648edbb0a4490654b9ddc8d0b870df9133afd8912c204a57110e03a1c91c",
+        )
+        self.assertEqual(
+            certificate.certificate_sha,
             canonical_sha(
                 c12_analytic_incidence_certificate_payload(certificate)
             ),
@@ -141,6 +145,10 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
             certificate.normalizer_derivation_id,
         )
         self.assertEqual(legacy.point_wires, certificate.point_wires)
+        self.assertEqual(
+            legacy.certificate_sha,
+            "1d456c262368268b3f0be12d0dc30af735b75c468a9a78886cb4d503de497309",
+        )
 
         with self.assertRaises(TypeError):
             build_c12_analytic_incidence_certificate(
@@ -155,6 +163,7 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
         self,
     ) -> None:
         import rulespace_v3.c12_incidence_preflight as c12
+        import rulespace_v3.c12_analytic_incidence as analytic
 
         poisoned_calls = []
 
@@ -188,14 +197,14 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
             ),
             patch.object(c12.np.linalg, "svd", poison("SVD")),
         ):
-            certificate = c12.build_c12_analytic_incidence_certificate()
-            c12.verify_c12_analytic_incidence_certificate(certificate)
+            certificate = analytic.build_c12_analytic_incidence_certificate()
+            analytic.verify_c12_analytic_incidence_certificate(certificate)
         self.assertEqual(poisoned_calls, [])
 
     def test_analytic_verifier_rejects_ulp_family_formula_index_and_refs(
         self,
     ) -> None:
-        from rulespace_v3.c12_incidence_preflight import (
+        from rulespace_v3.c12_analytic_incidence import (
             build_c12_analytic_incidence_certificate,
             verify_c12_analytic_incidence_certificate,
         )
@@ -261,7 +270,7 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
             )
 
     def test_analytic_public_api_captures_module_rebinding(self) -> None:
-        import rulespace_v3.c12_incidence_preflight as c12
+        import rulespace_v3.c12_analytic_incidence as c12
 
         builder = c12.build_c12_analytic_incidence_certificate
         verifier = c12.verify_c12_analytic_incidence_certificate
@@ -287,12 +296,12 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
             ),
             patch.object(
                 c12,
-                "_build_incidence_point",
+                "_build_analytic_incidence_point",
                 poison("incidence point builder"),
             ),
             patch.object(
                 c12,
-                "_build_incidence_point_body",
+                "_build_analytic_incidence_point_body",
                 poison("incidence point replay"),
             ),
         ):
@@ -301,7 +310,7 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
         self.assertEqual(poisoned_calls, [])
 
     def test_analytic_public_api_closes_record_method_globals(self) -> None:
-        import rulespace_v3.c12_incidence_preflight as c12
+        import rulespace_v3.c12_analytic_incidence as c12
 
         certificate = c12.build_c12_analytic_incidence_certificate()
         poisoned_calls = []
@@ -327,7 +336,7 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
         self.assertEqual(poisoned_calls, [])
 
     def test_analytic_positivity_is_only_strict_away_from_zero(self) -> None:
-        from rulespace_v3.c12_incidence_preflight import (
+        from rulespace_v3.c12_analytic_incidence import (
             C12_POSITIVITY_DOMAIN_ID,
             build_c12_analytic_incidence_certificate,
             verify_c12_analytic_incidence_certificate,
