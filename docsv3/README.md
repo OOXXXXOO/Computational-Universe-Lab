@@ -106,3 +106,7 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
   改为 P-epoch immutable Git-blob replay；S-epoch 只承载四份 signed sources、两把预注册
   Ed25519 reviewer keys 的 PASS receipts 与 exact signing literals，由 strict P..S blob audit
   连接。该文仍为 DRAFT；当前不存在 P、receipts、S 或 Parent-v3 capability。
+- [`v3-实施计划补遗-Parent-v3至GPU-checkpoint-2026-08-01.md`](v3-实施计划补遗-Parent-v3至GPU-checkpoint-2026-08-01.md)：
+  从当前 Parent-v3 root blocker 出发的 stage-gated delta plan。它先完成 V3-M0 production
+  authority；仅在逐级 READY/PASS 后才创建 V3-M1、V3-M2、pilot 与 V3-M3 任务书，并把终点
+  定义为正式 scan manifest 绑定的 CUDA fp64 preflight PASS 后、首个正式 kernel 启动前。
