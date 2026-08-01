@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import inspect
 import json
 import math
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
@@ -15,6 +17,288 @@ from rulespace_v3.parent_freeze import (
     build_v3m0_parent_freeze_candidate,
     parent_freeze_candidate_manifest_payload,
 )
+
+
+class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
+    def _resign_point(self, point, **changes):
+        from rulespace_v3.c12_incidence_preflight import (
+            c12_incidence_point_wire_payload,
+        )
+
+        provisional = replace(point, **changes, point_sha="0" * 64)
+        return replace(
+            provisional,
+            point_sha=canonical_sha(
+                c12_incidence_point_wire_payload(provisional)
+            ),
+        )
+
+    def _resign_certificate(self, certificate, **changes):
+        from rulespace_v3.c12_incidence_preflight import (
+            c12_analytic_incidence_certificate_payload,
+        )
+
+        provisional = replace(
+            certificate,
+            **changes,
+            certificate_sha="0" * 64,
+        )
+        return replace(
+            provisional,
+            certificate_sha=canonical_sha(
+                c12_analytic_incidence_certificate_payload(provisional)
+            ),
+        )
+
+    def test_analytic_builder_binds_formula_ir_and_four_authority_refs(
+        self,
+    ) -> None:
+        from rulespace_v3.c12_incidence_preflight import (
+            _build_ir_certificate,
+            build_c12_analytic_incidence_certificate,
+            c12_analytic_incidence_certificate_payload,
+            verify_c12_analytic_incidence_certificate,
+        )
+
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    build_c12_analytic_incidence_certificate
+                ).parameters
+            ),
+            (),
+        )
+        self.assertEqual(
+            tuple(
+                inspect.signature(
+                    verify_c12_analytic_incidence_certificate
+                ).parameters
+            ),
+            ("certificate",),
+        )
+        certificate = build_c12_analytic_incidence_certificate()
+        self.assertIs(
+            verify_c12_analytic_incidence_certificate(certificate),
+            certificate,
+        )
+        self.assertEqual(
+            certificate.incidence_family_id,
+            "synthetic-lattice-laplacian-incidence-v1",
+        )
+        self.assertEqual(
+            certificate.normalizer_formula_id,
+            "nu-inc-4-sum-sin2-half-v1",
+        )
+        self.assertEqual(
+            certificate.normalizer_derivation_id,
+            "2-exp(+ik)-exp(-ik)-centered-second-difference-v1",
+        )
+        self.assertEqual(
+            certificate.ir_limit_formula_id,
+            "lim-k-to-zero-nu-inc-over-k-squared-equals-one-v1",
+        )
+        self.assertEqual(certificate.ir_limit_order, 2)
+        self.assertEqual(certificate.ir_limit_value, 1.0)
+        self.assertEqual(
+            certificate.ir_conclusion,
+            "POSITIVE_SECOND_ORDER_UNIT_CONTINUUM_LIMIT",
+        )
+        self.assertTrue(certificate.positivity_certified)
+        self.assertEqual(
+            (
+                certificate.absolute_signal_threshold_authority_ref,
+                certificate.raw_bridge_noise_evidence_ref,
+                certificate.raw_noise_absolute_threshold_authority_ref,
+                certificate.relative_gap_threshold_authority_ref,
+            ),
+            (
+                "WindowThresholdSelection.curv_tau_sig",
+                "SourceReadoutBridgeAudit.curv_operator_error_max",
+                "rulespace_v3.thresholds.BRIDGE_TOLERANCE",
+                "rulespace_v3.thresholds.RAW_GAP_MIN",
+            ),
+        )
+        self.assertEqual(
+            certificate.certificate_sha,
+            canonical_sha(
+                c12_analytic_incidence_certificate_payload(certificate)
+            ),
+        )
+        first, second = certificate.point_wires
+        self.assertEqual(first.reciprocal_index, (1,))
+        self.assertEqual(first.nu_value, 2.0 - math.sqrt(2.0))
+        self.assertEqual(second.reciprocal_index, (2,))
+        self.assertEqual(second.nu_value, 2.0)
+
+        legacy = _build_ir_certificate()
+        self.assertEqual(legacy.incidence_family_id, certificate.incidence_family_id)
+        self.assertEqual(
+            legacy.normalizer_formula_id,
+            certificate.normalizer_formula_id,
+        )
+        self.assertEqual(
+            legacy.symbol_formula_id,
+            certificate.normalizer_derivation_id,
+        )
+        self.assertEqual(legacy.point_wires, certificate.point_wires)
+
+        with self.assertRaises(TypeError):
+            build_c12_analytic_incidence_certificate(
+                certificate_sha="f" * 64
+            )
+        with self.assertRaises(TypeError):
+            build_c12_analytic_incidence_certificate(
+                absolute_signal_threshold=0.0
+            )
+
+    def test_analytic_builder_never_enters_finite_response_svd_or_structure(
+        self,
+    ) -> None:
+        import rulespace_v3.c12_incidence_preflight as c12
+
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_, **__):
+                poisoned_calls.append(label)
+                raise AssertionError(f"analytic-only builder called {label}")
+
+            return poisoned
+
+        with (
+            patch.object(
+                c12,
+                "_finite_response_at_point",
+                poison("finite response"),
+            ),
+            patch.object(
+                c12,
+                "_build_structure_audits",
+                poison("structure audit"),
+            ),
+            patch.object(
+                c12,
+                "_build_point_audit",
+                poison("point SVD audit"),
+            ),
+            patch.object(
+                c12,
+                "compute_fejer_filtered_response",
+                poison("Fejer response"),
+            ),
+            patch.object(c12.np.linalg, "svd", poison("SVD")),
+        ):
+            certificate = c12.build_c12_analytic_incidence_certificate()
+            c12.verify_c12_analytic_incidence_certificate(certificate)
+        self.assertEqual(poisoned_calls, [])
+
+    def test_analytic_verifier_rejects_ulp_family_formula_index_and_refs(
+        self,
+    ) -> None:
+        from rulespace_v3.c12_incidence_preflight import (
+            build_c12_analytic_incidence_certificate,
+            verify_c12_analytic_incidence_certificate,
+        )
+
+        certificate = build_c12_analytic_incidence_certificate()
+        first = certificate.point_wires[0]
+        one_ulp = self._resign_point(
+            first,
+            nu_value=float(np.nextafter(first.nu_value, math.inf)),
+        )
+        wrong_index = self._resign_point(
+            first,
+            reciprocal_index=(3,),
+            momentum=3.0 * math.pi / 4.0,
+            root_of_unity_power=3,
+        )
+        point_attacks = (
+            one_ulp,
+            wrong_index,
+            self._resign_point(
+                first,
+                normalizer_formula_id="wrong-normalizer-formula-v1",
+            ),
+        )
+        for attacked_point in point_attacks:
+            attacked = self._resign_certificate(
+                certificate,
+                point_wires=(
+                    attacked_point,
+                    *certificate.point_wires[1:],
+                ),
+            )
+            with self.subTest(point=attacked_point):
+                with self.assertRaises((TypeError, ValueError)):
+                    verify_c12_analytic_incidence_certificate(attacked)
+
+        certificate_attacks = (
+            {"incidence_family_id": "wrong-family-v1"},
+            {"normalizer_formula_id": "wrong-formula-v1"},
+            {"normalizer_derivation_id": "wrong-derivation-v1"},
+            {
+                "absolute_signal_threshold_authority_ref": (
+                    "caller.threshold"
+                )
+            },
+            {"raw_bridge_noise_evidence_ref": "caller.noise"},
+            {
+                "raw_noise_absolute_threshold_authority_ref": (
+                    "caller.absolute"
+                )
+            },
+            {"relative_gap_threshold_authority_ref": "caller.gap"},
+        )
+        for changes in certificate_attacks:
+            attacked = self._resign_certificate(certificate, **changes)
+            with self.subTest(changes=changes):
+                with self.assertRaises((TypeError, ValueError)):
+                    verify_c12_analytic_incidence_certificate(attacked)
+
+        with self.assertRaisesRegex(ValueError, "SHA"):
+            verify_c12_analytic_incidence_certificate(
+                replace(certificate, certificate_sha="f" * 64)
+            )
+
+    def test_analytic_public_api_captures_module_rebinding(self) -> None:
+        import rulespace_v3.c12_incidence_preflight as c12
+
+        builder = c12.build_c12_analytic_incidence_certificate
+        verifier = c12.verify_c12_analytic_incidence_certificate
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_, **__):
+                poisoned_calls.append(label)
+                raise AssertionError(f"rebound {label} was called")
+
+            return poisoned
+
+        with (
+            patch.object(
+                c12,
+                "_make_c12_analytic_incidence_certificate",
+                poison("certificate maker"),
+            ),
+            patch.object(
+                c12,
+                "_verify_c12_analytic_incidence_certificate_body",
+                poison("certificate verifier"),
+            ),
+            patch.object(
+                c12,
+                "_build_incidence_point",
+                poison("incidence point builder"),
+            ),
+            patch.object(
+                c12,
+                "_build_incidence_point_body",
+                poison("incidence point replay"),
+            ),
+        ):
+            certificate = builder()
+            self.assertIs(verifier(certificate), certificate)
+        self.assertEqual(poisoned_calls, [])
 
 
 class C12IncidencePreflightTests(unittest.TestCase):
