@@ -305,8 +305,10 @@ verify_reviewed_current_application_authorities_v2_raw(
 
 这两个 API 不进入 `parent_authority.py`，不签 capability，不读取 Parent-v2 signing constants；
 V3 candidate builder 必须 fresh replay 全量 raw tuple，再机械分离 historical C19，不能由 caller
-传入已删减 tuple。C01–C18 的 raw source mapping 继承该 tuple 的 exact Parent-v1 ordinal 与
-Candidate-v2 refreeze，C19 是唯一 supersession；分析专用 C20 不伪造 application authority。
+传入已删减 tuple。C01–C18 与 C20 的 raw source mapping继承该 tuple 的 exact Parent-v1
+ordinal 与 Candidate-v2 refreeze，C19 是唯一 supersession。C20 保留 exact inherited
+`CurrentApplicationAuthorityV2`，但它只有 `ANALYSIS_CONTROL` lanes，不伪造或进入
+`block_success_scenario_ids`。
 
 C19 current body 在 P/S 两端的唯一内部入口为：
 
