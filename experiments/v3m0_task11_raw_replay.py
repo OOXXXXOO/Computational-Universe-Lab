@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 from rulespace_v3.task11_evidence import (  # noqa: E402
     TASK11_RAW_REPLAY_PARENT_V2_PLACEHOLDER_SHA,
+    TASK11_RAW_REPLAY_REPOSITORY_MEASUREMENT_SCOPE,
     TASK11_RAW_REPLAY_REQUIRED_SOURCE_PATHS,
     TASK11_RAW_REPLAY_SCOPE,
     build_task11_raw_replay_evidence_payload,
@@ -42,16 +43,19 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _git_output(*arguments: str) -> str:
+def _git_output_bytes(*arguments: str) -> bytes:
     completed = subprocess.run(
         ("git", *arguments),
         cwd=ROOT,
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
     )
-    return completed.stdout.strip()
+    return completed.stdout
+
+
+def _git_output(*arguments: str) -> str:
+    return _git_output_bytes(*arguments).decode("utf-8").strip()
 
 
 def _source_provenance(command: tuple[str, ...]) -> dict[str, object]:
@@ -66,11 +70,15 @@ def _source_provenance(command: tuple[str, ...]) -> dict[str, object]:
         or not all(type(item) is str and item for item in command)
     ):
         raise TypeError("command must be a non-empty exact string tuple")
+    status_porcelain = _git_output_bytes(
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+    )
     return {
         "git_head": _git_output("rev-parse", "HEAD"),
-        "git_worktree_dirty": bool(
-            _git_output("status", "--porcelain", "--untracked-files=all")
-        ),
+        "git_worktree_dirty": bool(status_porcelain),
+        "git_status_porcelain_sha256": hashlib.sha256(status_porcelain).hexdigest(),
         "source_files": [
             {
                 "relative_path": relative_path,
@@ -81,32 +89,53 @@ def _source_provenance(command: tuple[str, ...]) -> dict[str, object]:
         "runtime_manifest": runtime_evidence_manifest_to_wire(
             issue_runtime_evidence_manifest()
         ),
+        "repository_measurement_scope": (
+            TASK11_RAW_REPLAY_REPOSITORY_MEASUREMENT_SCOPE
+        ),
         "command": list(command),
     }
+
+
+def _execute_with_stable_source_provenance(
+    command: tuple[str, ...],
+    execute: Callable[[dict[str, object]], object],
+    *,
+    measure: Callable[[tuple[str, ...]], dict[str, object]] = _source_provenance,
+) -> object:
+    """Bracket one execution with exact repository/runtime measurements."""
+
+    before = measure(command)
+    result = execute(before)
+    after = measure(command)
+    if before != after:
+        raise RuntimeError(
+            "Task-11 replay source/runtime provenance drifted during execution"
+        )
+    return result
 
 
 def execute_raw_historical_replay(
     *,
     command: tuple[str, ...] | None = None,
-) -> tuple[dict[str, object], str, dict[str, object]]:
-    """Execute the expensive raw path; returned values still carry no authority."""
+) -> dict[str, object]:
+    """Execute and production-validate one non-authoritative raw artifact."""
 
-    from rulespace_v3.calibration_authority import (
-        window_calibration_outcome_payload,
-    )
     from rulespace_v3.current_window_replay import (
         _build_current_window_calibration_protocol_v2_body,
+        current_window_calibration_protocol_v2_payload,
     )
     from rulespace_v3.parent_freeze import issue_v3m0_parent_freeze
     from rulespace_v3.parent_freeze_v2 import (
         _build_reviewed_unchanged_scenario_authorities,
     )
     from rulespace_v3.task11_runner import (
+        _build_task11_numerical_roots,
         _run_task11_window_calibration_from_replay,
     )
     from rulespace_v3.task8_control_replay import (
         _build_current_control_registry_v2_body,
         _replay_current_task8_control_roots,
+        current_control_registry_v2_payload,
     )
 
     launch_command = (
@@ -116,49 +145,75 @@ def execute_raw_historical_replay(
         if command is None
         else command
     )
-    source = _source_provenance(launch_command)
-    parent = issue_v3m0_parent_freeze()
-    authorities = tuple(
-        item
-        for item in _build_reviewed_unchanged_scenario_authorities()
-        if item.control_case_id.startswith(("C01_", "C02_", "C03_"))
+
+    def numerical_replay(source: dict[str, object]) -> dict[str, object]:
+        parent = issue_v3m0_parent_freeze()
+        authorities = tuple(
+            item
+            for item in _build_reviewed_unchanged_scenario_authorities()
+            if item.control_case_id.startswith(("C01_", "C02_", "C03_"))
+        )
+        if len(authorities) != 3:
+            raise RuntimeError("raw Task-11 replay did not resolve C01-C03 exactly")
+        replay = _replay_current_task8_control_roots(parent, authorities)
+        current_registry = _build_current_control_registry_v2_body(
+            TASK11_RAW_REPLAY_PARENT_V2_PLACEHOLDER_SHA,
+            replay,
+        )
+        current_window = _build_current_window_calibration_protocol_v2_body(
+            current_registry,
+            replay,
+        )
+        outcome = _run_task11_window_calibration_from_replay(
+            parent,
+            replay,
+            current_registry,
+            current_window,
+        )
+        registry_cap, protocol_cap = _build_task11_numerical_roots(
+            parent,
+            replay,
+            current_registry,
+            current_window,
+        )
+        current_registry_wire = {
+            **current_control_registry_v2_payload(current_registry),
+            "registry_sha": current_registry.registry_sha,
+        }
+        current_window_wire = {
+            **current_window_calibration_protocol_v2_payload(current_window),
+            "protocol_sha": current_window.protocol_sha,
+        }
+        provenance = {
+            "replay_scope": TASK11_RAW_REPLAY_SCOPE,
+            "historical_parent_v1_sha": parent.manifest.parent_freeze_sha,
+            "placeholder_parent_freeze_v2_sha": (
+                TASK11_RAW_REPLAY_PARENT_V2_PLACEHOLDER_SHA
+            ),
+            "legacy_registry_sha": replay.legacy_registry.registry.registry_sha,
+            "current_control_registry_sha": current_registry.registry_sha,
+            "legacy_window_protocol_sha": (
+                current_window.legacy_window_protocol.protocol_sha
+            ),
+            "current_window_protocol_sha": current_window.protocol_sha,
+            "current_control_registry": current_registry_wire,
+            "current_window_protocol": current_window_wire,
+            "scenario_authority_shas": [
+                item.scenario_authority_sha for item in authorities
+            ],
+            **source,
+        }
+        return build_task11_raw_replay_evidence_payload(
+            outcome,
+            registry_cap,
+            protocol_cap,
+            provenance=provenance,
+        )
+
+    return _execute_with_stable_source_provenance(
+        launch_command,
+        numerical_replay,
     )
-    if len(authorities) != 3:
-        raise RuntimeError("raw Task-11 replay did not resolve C01-C03 exactly")
-    replay = _replay_current_task8_control_roots(parent, authorities)
-    current_registry = _build_current_control_registry_v2_body(
-        TASK11_RAW_REPLAY_PARENT_V2_PLACEHOLDER_SHA,
-        replay,
-    )
-    current_window = _build_current_window_calibration_protocol_v2_body(
-        current_registry,
-        replay,
-    )
-    outcome = _run_task11_window_calibration_from_replay(
-        parent,
-        replay,
-        current_registry,
-        current_window,
-    )
-    outcome_payload = window_calibration_outcome_payload(outcome)
-    provenance = {
-        "replay_scope": TASK11_RAW_REPLAY_SCOPE,
-        "historical_parent_v1_sha": parent.manifest.parent_freeze_sha,
-        "placeholder_parent_freeze_v2_sha": (
-            TASK11_RAW_REPLAY_PARENT_V2_PLACEHOLDER_SHA
-        ),
-        "legacy_registry_sha": replay.legacy_registry.registry.registry_sha,
-        "current_control_registry_sha": current_registry.registry_sha,
-        "legacy_window_protocol_sha": (
-            current_window.legacy_window_protocol.protocol_sha
-        ),
-        "current_window_protocol_sha": current_window.protocol_sha,
-        "scenario_authority_shas": [
-            item.scenario_authority_sha for item in authorities
-        ],
-        **source,
-    }
-    return outcome_payload, outcome.outcome_sha, provenance
 
 
 def write_task11_raw_replay_evidence_create_only(
@@ -212,9 +267,7 @@ def write_task11_raw_replay_evidence_create_only(
 def run_raw_replay(
     output: Path,
     *,
-    execute: Callable[
-        [], tuple[dict[str, object], str, dict[str, object]]
-    ] = execute_raw_historical_replay,
+    command: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Preflight create-only policy before starting the expensive execution."""
 
@@ -224,12 +277,7 @@ def run_raw_replay(
         raise FileNotFoundError(f"output directory does not exist: {output.parent}")
     if os.path.lexists(output):
         raise FileExistsError(f"Task-11 evidence already exists: {output}")
-    outcome_payload, outcome_sha, provenance = execute()
-    evidence = build_task11_raw_replay_evidence_payload(
-        outcome_payload,
-        outcome_sha=outcome_sha,
-        provenance=provenance,
-    )
+    evidence = execute_raw_historical_replay(command=command)
     write_task11_raw_replay_evidence_create_only(output, evidence)
     return evidence
 
@@ -260,7 +308,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     evidence = run_raw_replay(
         arguments.output,
-        execute=lambda: execute_raw_historical_replay(command=command),
+        command=command,
     )
     print(
         json.dumps(
@@ -268,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
                 "输出": str(arguments.output),
                 "权威状态": evidence["authority_state"],
                 "科学裁定": evidence["scientific_verdict"],
-                "数值终态": evidence["summary"]["outcome_status"],
+                "数值终态": evidence["outcome"]["status"],
                 "evidence_sha": evidence["evidence_sha"],
             },
             allow_nan=False,
