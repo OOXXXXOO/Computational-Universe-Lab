@@ -5,6 +5,8 @@ import functools
 import subprocess
 import sys
 import textwrap
+import threading
+import time
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +44,7 @@ from rulespace_v3.replay_scope import (
     _replay_scope_statistics,
     _scoped_replay_context,
 )
+from rulespace_v3.runtime import RuntimeEvidenceManifest
 from rulespace_v3.window import (
     build_control_window_protocol_entries,
     build_window_calibration_protocol,
@@ -51,6 +54,8 @@ from tests.test_v3m0_window_thresholds import _window_controls
 
 from rulespace_v3.calibration_authority import (
     CalibrationApplicationPermit,
+    ControlCandidateFailure,
+    ExpectedRankDeclaration,
     ResponseBlockAttemptOutcome,
     SelectedControlEvidenceRef,
     V3M0ScenarioConstruction,
@@ -89,6 +94,444 @@ class _CandidateAudit:
     def __deepcopy__(self, memo):
         del memo
         raise AssertionError("authority cloning dispatched to __deepcopy__")
+
+
+@dataclass(frozen=True)
+class _RuntimeEnvelope:
+    runtime: RuntimeEvidenceManifest
+    evidence_sha: str
+
+
+@dataclass(frozen=True)
+class _SlottedCodecBase:
+    __slots__ = ("base",)
+
+    base: int
+
+
+@dataclass(frozen=True)
+class _SlottedCodecChild(_SlottedCodecBase):
+    __slots__ = ("child",)
+
+    child: int
+
+
+@dataclass(frozen=True)
+class _ExtraSlotRecord:
+    __slots__ = ("value", "caller_extra")
+
+    value: int
+
+
+@dataclass(frozen=True)
+class _CodecNode:
+    nested: object
+
+
+@dataclass(frozen=True)
+class _AliasEnvelope:
+    first: _CodecNode
+    delay: tuple[int, ...]
+    second: _CodecNode
+    evidence_sha: str
+
+
+class CalibrationExactDataclassCodecTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        codec = authority_module._make_closed_dataclass_codec(
+            (
+                _RuntimeEnvelope,
+                _SlottedCodecBase,
+                _SlottedCodecChild,
+                _CodecNode,
+                _AliasEnvelope,
+                RuntimeEvidenceManifest,
+            ),
+            (),
+        )
+        for name, function in zip(
+            (
+                "_local_items",
+                "_local_exact_record",
+                "_local_preflight",
+                "_local_wire",
+                "_local_payload",
+            ),
+            codec,
+        ):
+            setattr(cls, name, staticmethod(function))
+
+    @staticmethod
+    def _declaration() -> ExpectedRankDeclaration:
+        return ExpectedRankDeclaration(
+            declaration_schema_version=(
+                authority_module.EXPECTED_RANK_DECLARATION_SCHEMA_VERSION
+            ),
+            control_registry_sha="1" * 64,
+            control_registry_entry_sha="2" * 64,
+            control_id="full",
+            expected_h_actual_rank=2,
+            expected_h_ablated_rank=2,
+            expected_curv_actual_rank=2,
+            expected_curv_ablated_rank=2,
+            parent_freeze_sha="3" * 64,
+            declaration_sha="4" * 64,
+        )
+
+    @staticmethod
+    def _runtime() -> RuntimeEvidenceManifest:
+        return RuntimeEvidenceManifest(
+            runtime_schema_version="v3m0.runtime-evidence-manifest.v1",
+            evaluator_id="codec-regression",
+            source_closure=(("rulespace_v3/runtime.py", "a" * 64),),
+            python_version="codec-python",
+            numpy_version="codec-numpy",
+            scipy_version="codec-scipy",
+            blas_config_sha="b" * 64,
+            lapack_config_sha="c" * 64,
+            platform_id="codec-platform",
+            runtime_manifest_sha="d" * 64,
+        )
+
+    def test_nested_slotted_runtime_manifest_reaches_exact_wire(self) -> None:
+        runtime = self._runtime()
+        envelope = _RuntimeEnvelope(runtime=runtime, evidence_sha="e" * 64)
+
+        payload = self._local_payload(
+            envelope,
+            "evidence_sha",
+        )
+
+        self.assertEqual(payload["runtime"]["evaluator_id"], "codec-regression")
+        self.assertEqual(
+            payload["runtime"]["source_closure"],
+            [["rulespace_v3/runtime.py", "a" * 64]],
+        )
+        self.assertNotIn("evidence_sha", payload)
+        self._local_exact_record(
+            runtime,
+            RuntimeEvidenceManifest,
+            "runtime",
+        )
+        self.assertEqual(
+            self._local_wire(runtime)["runtime_manifest_sha"],
+            "d" * 64,
+        )
+
+    def test_exact_codec_reads_manual_slots_across_the_full_mro(self) -> None:
+        record = _SlottedCodecChild(base=1, child=2)
+        self._local_exact_record(
+            record,
+            _SlottedCodecChild,
+            "record",
+        )
+        self.assertEqual(
+            self._local_wire(record),
+            {"base": 1, "child": 2},
+        )
+
+    def test_exact_codec_rejects_unknown_missing_and_extra_slot_storage(
+        self,
+    ) -> None:
+        runtime = self._runtime()
+        unknown = _RuntimeEnvelope(runtime=runtime, evidence_sha="e" * 64)
+        object.__setattr__(unknown, "caller_unknown", True)
+        with self.assertRaisesRegex(ValueError, "missing|unknown"):
+            self._local_payload(unknown, "evidence_sha")
+
+        missing = _RuntimeEnvelope(runtime=runtime, evidence_sha="e" * 64)
+        object.__delattr__(missing, "runtime")
+        with self.assertRaisesRegex(ValueError, "missing|unknown"):
+            self._local_payload(missing, "evidence_sha")
+
+        with self.assertRaisesRegex(ValueError, "missing|unknown"):
+            authority_module._make_closed_dataclass_codec(
+                (_ExtraSlotRecord,),
+                (),
+            )
+
+    def test_exact_codec_rejects_cycles_and_enforces_node_cap(self) -> None:
+        cyclic = object.__new__(_CodecNode)
+        object.__setattr__(cyclic, "nested", cyclic)
+        with self.assertRaisesRegex(ValueError, "cyclic"):
+            self._local_preflight(cyclic, "cyclic")
+
+        bounded = _CodecNode(_CodecNode(None))
+        with self.assertRaisesRegex(ValueError, "node cap"):
+            self._local_preflight(
+                bounded,
+                "bounded",
+                _node_cap=2,
+            )
+
+    def test_exact_codec_ignores_module_global_helper_rebinding(self) -> None:
+        envelope = _RuntimeEnvelope(
+            runtime=self._runtime(),
+            evidence_sha="e" * 64,
+        )
+        with (
+            mock.patch.object(
+                authority_module,
+                "_exact_dataclass_items",
+                side_effect=AssertionError("rebound exact helper was consulted"),
+            ) as rebound_items,
+            mock.patch.object(
+                authority_module,
+                "_preflight_tree",
+                side_effect=AssertionError("rebound preflight was consulted"),
+            ) as rebound_preflight,
+            mock.patch.object(
+                authority_module,
+                "_wire",
+                side_effect=AssertionError("rebound wire was consulted"),
+            ) as rebound_wire,
+        ):
+            payload = self._local_payload(
+                envelope,
+                "evidence_sha",
+            )
+        self.assertEqual(payload["runtime"]["runtime_manifest_sha"], "d" * 64)
+        rebound_items.assert_not_called()
+        rebound_preflight.assert_not_called()
+        rebound_wire.assert_not_called()
+
+    def test_actual_authority_codec_ignores_direct_builtin_rebinding(self) -> None:
+        declaration = self._declaration()
+
+        def poison(*args, **kwargs):
+            del args, kwargs
+            raise AssertionError("live module builtin was consulted")
+
+        with (
+            mock.patch.object(authority_module, "vars", poison, create=True),
+            mock.patch.object(authority_module, "getattr", poison, create=True),
+            mock.patch.object(authority_module, "type", poison, create=True),
+        ):
+            payload = authority_module._payload_without_hash(
+                declaration,
+                "declaration_sha",
+            )
+        self.assertEqual(payload["control_id"], "full")
+
+    def test_actual_authority_codec_ignores_enumerate_rebinding(self) -> None:
+        with mock.patch.object(
+            authority_module,
+            "enumerate",
+            return_value=(),
+            create=True,
+        ) as rebound_enumerate:
+            wire = authority_module._wire((1, 2, 3))
+
+        self.assertEqual(wire, [1, 2, 3])
+        rebound_enumerate.assert_not_called()
+
+    def test_actual_authority_codec_never_dispatches_field_descriptors(
+        self,
+    ) -> None:
+        declaration = self._declaration()
+        calls = []
+
+        def poison(_instance):
+            calls.append("called")
+            raise AssertionError("field property was dispatched")
+
+        with mock.patch.object(
+            ExpectedRankDeclaration,
+            "control_id",
+            property(poison),
+            create=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "class|schema|storage"):
+                authority_module._payload_without_hash(
+                    declaration,
+                    "declaration_sha",
+                )
+        self.assertEqual(calls, [])
+
+    def test_actual_authority_codec_rejects_dataclass_field_drift(self) -> None:
+        declaration = self._declaration()
+        object.__setattr__(declaration, "caller_extra", 99)
+        fields = ExpectedRankDeclaration.__dataclass_fields__
+        fields["caller_extra"] = fields["control_id"]
+        try:
+            with self.assertRaisesRegex(ValueError, "class|schema|field"):
+                authority_module._payload_without_hash(
+                    declaration,
+                    "declaration_sha",
+                )
+        finally:
+            fields.pop("caller_extra")
+
+    def test_actual_authority_codec_rejects_slot_declaration_drift(self) -> None:
+        runtime = self._runtime()
+        original_slots = RuntimeEvidenceManifest.__slots__
+        fields = RuntimeEvidenceManifest.__dataclass_fields__
+        original_fields = tuple(fields.items())
+        RuntimeEvidenceManifest.__slots__ = ()
+        fields.clear()
+        try:
+            with self.assertRaisesRegex(ValueError, "class|schema|slot"):
+                authority_module._exact_record(
+                    runtime,
+                    RuntimeEvidenceManifest,
+                    "runtime",
+                )
+        finally:
+            RuntimeEvidenceManifest.__slots__ = original_slots
+            fields.update(original_fields)
+
+    def test_actual_authority_codec_rejects_recursive_enum_value_without_dispatch(
+        self,
+    ) -> None:
+        failure = ControlCandidateFailure.REFERENCE_FAILED
+        calls = []
+
+        def poison(_instance):
+            calls.append("called")
+            return failure
+
+        with mock.patch.object(
+            ControlCandidateFailure,
+            "value",
+            property(poison),
+            create=True,
+        ):
+            with self.assertRaisesRegex(ValueError, "class|enum|schema"):
+                authority_module._wire(failure)
+        self.assertEqual(calls, [])
+
+    def test_existing_authority_payload_and_hash_spelling_is_unchanged(self) -> None:
+        declaration = self._declaration()
+        payload = authority_module.expected_rank_declaration_payload(declaration)
+
+        self.assertEqual(tuple(payload), tuple(declaration.__dataclass_fields__)[:-1])
+        self.assertEqual(
+            canonical_sha(payload),
+            "b431c2a0eb05c4a539961715c5f7142b930fd95587ff23beb92884d8eef78d6e",
+        )
+
+    def test_closed_codec_exposes_no_external_registration_capability(self) -> None:
+        for function in (
+            authority_module._exact_dataclass_items,
+            authority_module._exact_record,
+            authority_module._preflight_tree,
+            authority_module._wire,
+            authority_module._payload_without_hash,
+        ):
+            self.assertFalse(hasattr(function, "_register_closed_types"))
+
+    def test_task11_registration_state_is_private_and_root_rebinding_fails(
+        self,
+    ) -> None:
+        import rulespace_v3.response as response_module
+
+        self.assertFalse(
+            hasattr(authority_module, "_TASK11_CODEC_REGISTRATION_STATE")
+        )
+        authority_module._task11_response_types()
+        original = response_module.EndpointReferenceOutcome
+        with mock.patch.object(
+            response_module,
+            "EndpointReferenceOutcome",
+            _RuntimeEnvelope,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "root|binding|drift"):
+                authority_module._task11_response_types()
+        self.assertIs(response_module.EndpointReferenceOutcome, original)
+
+    def test_task11_00_forward_reference_is_never_evaluated_or_registered(
+        self,
+    ) -> None:
+        import rulespace_v3.response as response_module
+
+        @dataclass(frozen=True)
+        class InjectedAuthorityRecord:
+            value: int
+
+        InjectedAuthorityRecord.__module__ = "rulespace_v3.response"
+        calls = []
+
+        def annotation_side_effect():
+            calls.append("called")
+            return InjectedAuthorityRecord
+
+        annotations = response_module.EndpointReferenceOutcome.__annotations__
+        with (
+            mock.patch.dict(
+                annotations,
+                {
+                    "caller_injected": InjectedAuthorityRecord,
+                    "caller_forward": "annotation_side_effect()",
+                },
+            ),
+            mock.patch.object(
+                response_module,
+                "annotation_side_effect",
+                annotation_side_effect,
+                create=True,
+            ),
+        ):
+            authority_module._task11_response_types()
+        self.assertEqual(calls, [])
+        with self.assertRaisesRegex(TypeError, "unsupported"):
+            authority_module._wire(InjectedAuthorityRecord(1))
+
+    def test_task11_10_closed_graph_encodes_certificate_with_slotted_runtime(
+        self,
+    ) -> None:
+        from rulespace_v3.certificate import DynamicsCertificate
+
+        authority_module._task11_response_types()
+        certificate = object.__new__(DynamicsCertificate)
+        runtime = self._runtime()
+        for field in dataclasses.fields(DynamicsCertificate):
+            object.__setattr__(
+                certificate,
+                field.name,
+                runtime if field.name == "runtime" else field.name,
+            )
+
+        wire = authority_module._wire(certificate)
+
+        self.assertEqual(wire["runtime"]["evaluator_id"], "codec-regression")
+        self.assertEqual(tuple(wire), tuple(DynamicsCertificate.__dataclass_fields__))
+
+    def test_shared_alias_cannot_encode_two_torn_storage_snapshots(self) -> None:
+        shared = _CodecNode(0)
+        envelope = _AliasEnvelope(
+            first=shared,
+            delay=tuple(range(600_000)),
+            second=shared,
+            evidence_sha="e" * 64,
+        )
+
+        def mutate_between_alias_visits() -> None:
+            time.sleep(0.01)
+            object.__setattr__(shared, "nested", 1)
+
+        mutator = threading.Thread(target=mutate_between_alias_visits)
+        mutator.start()
+        try:
+            with self.assertRaisesRegex(ValueError, "alias|mutat|snapshot|torn"):
+                self._local_payload(envelope, "evidence_sha")
+        finally:
+            mutator.join()
+        self.assertEqual(shared.nested, 1)
+
+    def test_shared_alias_may_reappear_deeper_within_the_depth_cap(self) -> None:
+        shared = _CodecNode(7)
+        envelope = _AliasEnvelope(
+            first=shared,
+            delay=(),
+            second=_CodecNode(shared),
+            evidence_sha="e" * 64,
+        )
+
+        payload = self._local_payload(envelope, "evidence_sha")
+
+        self.assertEqual(payload["first"], {"nested": 7})
+        self.assertEqual(payload["second"]["nested"], {"nested": 7})
 
 
 def task12_sealed_without_strict_task11_replay(test_method):

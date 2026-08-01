@@ -14,11 +14,18 @@ from __future__ import annotations
 import math
 import re
 import struct
+import sys
 import threading
 import weakref
 from dataclasses import dataclass, replace
 from enum import Enum
-from typing import TYPE_CHECKING, Literal, Optional
+from types import GetSetDescriptorType, MemberDescriptorType
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    NamedTuple,
+    Optional,
+)
 
 import numpy as np
 import sympy as sp
@@ -77,6 +84,7 @@ from .registry import (
     _reverify_verified_control_registry,
     readout_calibration_spec_payload,
 )
+from .runtime import RuntimeEvidenceManifest
 from .thresholds import (
     BRIDGE_TOLERANCE,
     EPS_FP64,
@@ -148,6 +156,7 @@ _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _GENERAL_BODY_CAP = 256 * 1024 * 1024
 _TEXT_CAP = 16_384
 _TREE_DEPTH_CAP = 128
+_TREE_NODE_CAP = _GENERAL_BODY_CAP // 32
 _ISSUANCE_TOKEN = object()
 
 
@@ -752,128 +761,603 @@ def _finite_positive(value: object, field: str) -> float:
     return value
 
 
-def _exact_record(value: object, record_type: type, field: str) -> None:
-    if type(value) is not record_type:
-        raise TypeError(f"{field} must be an exact {record_type.__name__}")
-    try:
-        observed = frozenset(vars(value))
-    except TypeError as exc:
-        raise TypeError(f"{field} has no exact record body") from exc
-    expected = frozenset(record_type.__dataclass_fields__)
-    if observed != expected:
-        raise ValueError(
-            f"{field} fields are not exact: "
-            f"missing={sorted(expected - observed)!r}, "
-            f"unknown={sorted(observed - expected)!r}"
+class _CodecStoragePlan(NamedTuple):
+    field_name: str
+    storage_kind: str
+    descriptor: object
+    descriptor_owner: type
+
+
+class _CodecRecordSchema(NamedTuple):
+    record_type: type
+    record_name: str
+    mro: tuple[type, ...]
+    field_items: tuple[tuple[str, object, str], ...]
+    slot_declarations: tuple[tuple[type, tuple[str, ...]], ...]
+    field_bindings: tuple[tuple[str, tuple[tuple[type, bool, object], ...]], ...]
+    dict_descriptor: object
+    dict_descriptor_owner: object
+    storage_plans: tuple[_CodecStoragePlan, ...]
+
+
+class _CodecEnumSchema(NamedTuple):
+    enum_type: type
+    enum_name: str
+    members: tuple[tuple[object, object], ...]
+    value_bindings: tuple[tuple[type, bool, object], ...]
+
+
+class _CodecMemoEntry(NamedTuple):
+    original: object
+    storage_snapshot: object
+    encoded: object
+    charged_bytes: int
+    visited_nodes: int
+    max_relative_depth: int
+
+
+def _make_closed_dataclass_codec(
+    allowed_record_types: tuple[type, ...],
+    allowed_enum_types: tuple[type, ...],
+    *,
+    _type=type,
+    _type_getattribute=type.__getattribute__,
+    _dict_type=dict,
+    _tuple_type=tuple,
+    _list_type=list,
+    _str_type=str,
+    _int_type=int,
+    _float_type=float,
+    _bool_type=bool,
+    _frozenset=frozenset,
+    _len=len,
+    _id=id,
+    _any=any,
+    _enumerate=enumerate,
+    _zip=zip,
+    _set_type=set,
+    _isinstance=isinstance,
+    _issubclass=issubclass,
+    _sorted=sorted,
+    _str_encode=str.encode,
+    _int_bit_length=int.bit_length,
+    _dict_getitem=dict.__getitem__,
+    _getset_get=GetSetDescriptorType.__get__,
+    _member_get=MemberDescriptorType.__get__,
+    _member_descriptor_type=MemberDescriptorType,
+    _getset_descriptor_type=GetSetDescriptorType,
+    _enum_base=Enum,
+    _enum_value_descriptor=vars(Enum)["value"],
+    _math_isfinite=math.isfinite,
+    _struct_pack=struct.pack,
+    _object_getattribute=object.__getattribute__,
+    _attribute_error=AttributeError,
+    _type_error=TypeError,
+    _value_error=ValueError,
+    _codec_storage_plan_type=_CodecStoragePlan,
+    _codec_record_schema_type=_CodecRecordSchema,
+    _codec_enum_schema_type=_CodecEnumSchema,
+    _codec_memo_entry_type=_CodecMemoEntry,
+) -> tuple[object, object, object, object, object, object]:
+    """Build a descriptor-free codec over one closed, frozen type graph."""
+
+    missing = object()
+
+    def class_mapping(record_type: type) -> object:
+        return _type_getattribute(record_type, "__dict__")
+
+    def normalized_slots(owner: type, mapping: object) -> tuple[str, ...]:
+        raw = mapping.get("__slots__", ())
+        if _type(raw) is _str_type:
+            declared = (raw,)
+        elif _type(raw) in (_tuple_type, _list_type):
+            declared = _tuple_type(raw)
+        else:
+            raise _type_error("closed codec found an invalid slot declaration")
+        answer = []
+        owner_name = _type_getattribute(owner, "__name__").lstrip("_")
+        for name in declared:
+            if _type(name) is not _str_type:
+                raise _type_error("closed codec found a non-text slot declaration")
+            if name.startswith("__") and not name.endswith("__"):
+                name = f"_{owner_name}{name}"
+            answer.append(name)
+        return _tuple_type(answer)
+
+    def field_bindings(
+        mro: tuple[type, ...],
+        name: str,
+    ) -> tuple[tuple[type, bool, object], ...]:
+        answer = []
+        for owner in mro:
+            mapping = class_mapping(owner)
+            present = name in mapping
+            answer.append((owner, present, mapping.get(name, missing)))
+        return _tuple_type(answer)
+
+    def capture_record_schema(record_type: type) -> _CodecRecordSchema:
+        if _type(record_type) is not _type:
+            raise _type_error("closed codec record types must use the exact metaclass")
+        mro = _tuple_type(_type_getattribute(record_type, "__mro__"))
+        mapping = class_mapping(record_type)
+        fields = mapping.get("__dataclass_fields__", missing)
+        if _type(fields) is not _dict_type:
+            raise _type_error("closed codec type has no exact dataclass fields")
+        captured_fields = []
+        for name, dataclass_field in fields.items():
+            if _type(name) is not _str_type:
+                raise _type_error("closed codec field name is not exact text")
+            captured_name = _object_getattribute(dataclass_field, "name")
+            if captured_name != name:
+                raise _value_error("closed codec dataclass field metadata drifted")
+            captured_fields.append((name, dataclass_field, captured_name))
+
+        slot_declarations = []
+        slot_descriptors = {}
+        dict_descriptor = None
+        dict_descriptor_owner = None
+        for owner in mro:
+            owner_mapping = class_mapping(owner)
+            slots = normalized_slots(owner, owner_mapping)
+            slot_declarations.append((owner, slots))
+            for slot_name in slots:
+                if slot_name in ("__dict__", "__weakref__"):
+                    continue
+                descriptor = owner_mapping.get(slot_name, missing)
+                if _type(descriptor) is not _member_descriptor_type:
+                    raise _value_error("closed codec slot descriptor is not exact")
+                if slot_name in slot_descriptors:
+                    raise _value_error("closed codec contains duplicate slot storage")
+                slot_descriptors[slot_name] = (descriptor, owner)
+            candidate = owner_mapping.get("__dict__", missing)
+            if _type(candidate) is _getset_descriptor_type:
+                if dict_descriptor is None:
+                    dict_descriptor = candidate
+                    dict_descriptor_owner = owner
+
+        expected = _frozenset(name for name, _, _ in captured_fields)
+        unknown_slots = _frozenset(slot_descriptors).difference(expected)
+        if unknown_slots:
+            raise _value_error(
+                f"closed codec contains unknown slots: {_sorted(unknown_slots)!r}"
+            )
+        plans = []
+        bindings = []
+        for name, _, _ in captured_fields:
+            bindings.append((name, field_bindings(mro, name)))
+            if name in slot_descriptors:
+                descriptor, owner = slot_descriptors[name]
+                plans.append(
+                    _codec_storage_plan_type(name, "slot", descriptor, owner)
+                )
+            else:
+                if dict_descriptor is None:
+                    raise _value_error(
+                        f"closed codec field {name!r} has no exact storage"
+                    )
+                plans.append(
+                    _codec_storage_plan_type(
+                        name,
+                        "dict",
+                        dict_descriptor,
+                        dict_descriptor_owner,
+                    )
+                )
+        return _codec_record_schema_type(
+            record_type=record_type,
+            record_name=_type_getattribute(record_type, "__name__"),
+            mro=mro,
+            field_items=_tuple_type(captured_fields),
+            slot_declarations=_tuple_type(slot_declarations),
+            field_bindings=_tuple_type(bindings),
+            dict_descriptor=dict_descriptor,
+            dict_descriptor_owner=dict_descriptor_owner,
+            storage_plans=_tuple_type(plans),
         )
 
+    def capture_enum_schema(enum_type: type) -> _CodecEnumSchema:
+        if not _issubclass(enum_type, _enum_base):
+            raise _type_error("closed codec enum type is not an Enum")
+        mro = _tuple_type(_type_getattribute(enum_type, "__mro__"))
+        members_mapping = _type_getattribute(enum_type, "__members__")
+        members = []
+        for member in members_mapping.values():
+            if not _any(member is observed for observed, _ in members):
+                raw_value = _enum_value_descriptor.__get__(member, enum_type)
+                members.append((member, raw_value))
+        return _codec_enum_schema_type(
+            enum_type=enum_type,
+            enum_name=_type_getattribute(enum_type, "__name__"),
+            members=_tuple_type(members),
+            value_bindings=field_bindings(mro, "value"),
+        )
 
-def _preflight_tree(value: object, field: str) -> None:
-    """Reject unknown recursive fields and cap a body before hashing."""
+    record_schemas = {}
+    enum_schemas = {}
 
-    used = 0
-    active: set[int] = set()
-    stack: list[tuple[object, str, int, bool]] = [(value, field, 0, False)]
+    def capture_closed_types(
+        record_types: tuple[type, ...],
+        enum_types: tuple[type, ...],
+    ) -> tuple[dict[type, _CodecRecordSchema], dict[type, _CodecEnumSchema]]:
+        captured_records = {}
+        captured_enums = {}
+        for record_type in record_types:
+            if record_type not in record_schemas and record_type not in captured_records:
+                captured_records[record_type] = capture_record_schema(record_type)
+        for enum_type in enum_types:
+            if enum_type not in enum_schemas and enum_type not in captured_enums:
+                captured_enums[enum_type] = capture_enum_schema(enum_type)
+        return captured_records, captured_enums
 
-    def charge(amount: int) -> None:
-        nonlocal used
-        used += amount
-        if used > _GENERAL_BODY_CAP:
-            raise ValueError(f"{field} serialized body exceeds resource cap")
+    initial_records, initial_enums = capture_closed_types(
+        allowed_record_types,
+        allowed_enum_types,
+    )
+    record_schemas.update(initial_records)
+    enum_schemas.update(initial_enums)
+    deferred_registration_used = False
 
-    while stack:
-        item, path, depth, leaving = stack.pop()
-        identity = id(item)
-        if leaving:
-            active.remove(identity)
-            continue
-        if depth > _TREE_DEPTH_CAP:
-            raise ValueError(f"{path} nesting exceeds resource cap")
-        charge(32)
-        item_type = type(item)
-        if item is None or item_type is bool:
-            continue
-        if isinstance(item, Enum):
-            stack.append((item.value, f"{path}.value", depth + 1, False))
-            continue
-        if item_type is str:
-            encoded = item.encode("utf-8")
-            if len(encoded) > _TEXT_CAP:
-                raise ValueError(f"{path} text exceeds resource cap")
-            charge(len(encoded))
-            continue
-        if item_type is int:
-            charge(4 + item.bit_length() // 3)
-            continue
-        if item_type is float:
-            if not math.isfinite(item):
-                raise ValueError(f"{path} must be finite")
-            charge(32)
-            continue
-        fields = getattr(item_type, "__dataclass_fields__", None)
-        if fields is not None:
-            if identity in active:
-                raise ValueError(f"{path} contains a cyclic record")
+    def register_closed_types_once(
+        record_types: tuple[type, ...],
+        enum_types: tuple[type, ...],
+    ) -> None:
+        nonlocal deferred_registration_used
+        if deferred_registration_used:
+            raise _value_error("closed codec deferred type graph is already frozen")
+        captured_records, captured_enums = capture_closed_types(
+            record_types,
+            enum_types,
+        )
+        record_schemas.update(captured_records)
+        enum_schemas.update(captured_enums)
+        deferred_registration_used = True
+
+    def validate_bindings(
+        bindings: tuple[tuple[type, bool, object], ...],
+        field: str,
+    ) -> None:
+        for owner, expected_present, expected_value in bindings:
+            mapping = class_mapping(owner)
+            present = field in mapping
+            if present is not expected_present or (
+                present and mapping.get(field, missing) is not expected_value
+            ):
+                raise _value_error("closed codec class storage schema drifted")
+
+    def validate_record_schema(schema: _CodecRecordSchema) -> None:
+        record_type = schema.record_type
+        if _tuple_type(_type_getattribute(record_type, "__mro__")) != schema.mro:
+            raise _value_error("closed codec class MRO schema drifted")
+        fields = class_mapping(record_type).get("__dataclass_fields__", missing)
+        if _type(fields) is not _dict_type:
+            raise _value_error("closed codec dataclass schema drifted")
+        observed_items = _tuple_type(fields.items())
+        if _len(observed_items) != _len(schema.field_items):
+            raise _value_error("closed codec dataclass field schema drifted")
+        for observed, expected in _zip(observed_items, schema.field_items):
+            name, dataclass_field = observed
+            expected_name, expected_field, captured_field_name = expected
+            if (
+                name != expected_name
+                or dataclass_field is not expected_field
+                or _object_getattribute(dataclass_field, "name")
+                != captured_field_name
+            ):
+                raise _value_error("closed codec dataclass field schema drifted")
+        for owner, expected_slots in schema.slot_declarations:
+            if normalized_slots(owner, class_mapping(owner)) != expected_slots:
+                raise _value_error("closed codec slot declaration schema drifted")
+        for name, bindings in schema.field_bindings:
+            validate_bindings(bindings, name)
+
+    def exact_items(value: object, field: str) -> tuple[tuple[str, object], ...]:
+        item_type = _type(value)
+        schema = record_schemas.get(item_type)
+        if schema is None:
+            raise _type_error(
+                f"{field} contains unsupported exact record type "
+                f"{_type_getattribute(item_type, '__name__')}"
+            )
+        validate_record_schema(schema)
+        body = None
+        if schema.dict_descriptor is not None:
             try:
-                body = vars(item)
-            except TypeError as exc:
-                raise TypeError(f"{path} has no exact record body") from exc
-            if frozenset(body) != frozenset(fields):
-                raise ValueError(f"{path} contains missing or unknown fields")
+                body = _getset_get(
+                    schema.dict_descriptor,
+                    value,
+                    schema.dict_descriptor_owner,
+                )
+            except _attribute_error as exc:
+                raise _value_error(f"{field} has no exact record body") from exc
+            if _type(body) is not _dict_type:
+                raise _type_error(f"{field} has no exact record body")
+        expected_dict_names = _frozenset(
+            plan.field_name
+            for plan in schema.storage_plans
+            if plan.storage_kind == "dict"
+        )
+        body_names = _frozenset() if body is None else _frozenset(body)
+        if body_names != expected_dict_names:
+            raise _value_error(
+                f"{field} fields are not exact: "
+                f"missing={_sorted(expected_dict_names - body_names)!r}, "
+                f"unknown={_sorted(body_names - expected_dict_names)!r}"
+            )
+        answer = []
+        for plan in schema.storage_plans:
+            if plan.storage_kind == "dict":
+                nested = _dict_getitem(body, plan.field_name)
+            else:
+                try:
+                    nested = _member_get(
+                        plan.descriptor,
+                        value,
+                        plan.descriptor_owner,
+                    )
+                except _attribute_error as exc:
+                    raise _value_error(
+                        f"{field} contains a missing field: {plan.field_name}"
+                    ) from exc
+            answer.append((plan.field_name, nested))
+        return _tuple_type(answer)
+
+    def exact_dataclass_items(
+        value: object,
+        field: str,
+        fields: object = None,
+    ) -> tuple[tuple[str, object], ...]:
+        del fields
+        return exact_items(value, field)
+
+    def exact_record(value: object, record_type: type, field: str) -> None:
+        if _type(value) is not record_type:
+            expected_name = _type_getattribute(record_type, "__name__")
+            raise _type_error(f"{field} must be an exact {expected_name}")
+        exact_items(value, field)
+
+    def storage_snapshots_match(
+        first: tuple[tuple[str, object], ...],
+        second: tuple[tuple[str, object], ...],
+    ) -> bool:
+        if _len(first) != _len(second):
+            return False
+        for (first_name, first_value), (second_name, second_value) in _zip(
+            first,
+            second,
+        ):
+            if first_name != second_name or _type(first_value) is not _type(
+                second_value
+            ):
+                return False
+            value_type = _type(first_value)
+            if value_type is _float_type:
+                if _struct_pack(">d", first_value) != _struct_pack(
+                    ">d",
+                    second_value,
+                ):
+                    return False
+            elif value_type in (_str_type, _int_type, _bool_type):
+                if first_value != second_value:
+                    return False
+            elif first_value is not second_value:
+                return False
+        return True
+
+    def encode_tree(
+        value: object,
+        field: str,
+        *,
+        omit_root_field: object = None,
+        body_cap: int = _GENERAL_BODY_CAP,
+        text_cap: int = _TEXT_CAP,
+        depth_cap: int = _TREE_DEPTH_CAP,
+        node_cap: int = _TREE_NODE_CAP,
+    ) -> object:
+        used = 0
+        visited = 0
+        active = _set_type()
+        memo: dict[int, _CodecMemoEntry] = {}
+
+        def charge(amount: int) -> None:
+            nonlocal used
+            used += amount
+            if used > body_cap:
+                raise _value_error(f"{field} serialized body exceeds resource cap")
+
+        def visit(amount: int) -> None:
+            nonlocal visited
+            visited += amount
+            if visited > node_cap:
+                raise _value_error(f"{field} serialized body exceeds node cap")
+
+        def replay_memo(
+            entry: _CodecMemoEntry,
+            depth: int,
+            path: str,
+        ) -> tuple[object, int]:
+            if depth + entry.max_relative_depth > depth_cap:
+                raise _value_error(f"{path} nesting exceeds resource cap")
+            visit(entry.visited_nodes - 1)
+            charge(entry.charged_bytes - 32)
+            return entry.encoded, entry.max_relative_depth
+
+        def encode(
+            item: object,
+            path: str,
+            depth: int,
+            root: bool = False,
+        ) -> tuple[object, int]:
+            start_used = used
+            start_visited = visited
+            visit(1)
+            if depth > depth_cap:
+                raise _value_error(f"{path} nesting exceeds resource cap")
+            charge(32)
+            item_type = _type(item)
+            if item is None or item_type is _bool_type:
+                return item, 0
+            enum_schema = enum_schemas.get(item_type)
+            if enum_schema is not None:
+                validate_bindings(enum_schema.value_bindings, "value")
+                for member, raw_value in enum_schema.members:
+                    if item is member:
+                        encoded, nested_depth = encode(
+                            raw_value,
+                            f"{path}.value",
+                            depth + 1,
+                        )
+                        return encoded, nested_depth + 1
+                raise _value_error(f"{path} is not a frozen enum member")
+            if _isinstance(item, _enum_base):
+                raise _type_error(f"{path} contains an unsupported enum type")
+            if item_type is _str_type:
+                encoded = _str_encode(item, "utf-8")
+                if _len(encoded) > text_cap:
+                    raise _value_error(f"{path} text exceeds resource cap")
+                charge(_len(encoded))
+                return item, 0
+            if item_type is _int_type:
+                charge(4 + _int_bit_length(item) // 3)
+                return item, 0
+            if item_type is _float_type:
+                if not _math_isfinite(item):
+                    raise _value_error(f"{path} must be finite")
+                charge(32)
+                return item, 0
+            identity = _id(item)
+            if item_type is _tuple_type:
+                if identity in active:
+                    raise _value_error(f"{path} contains a cyclic tuple")
+                cached = memo.get(identity)
+                if cached is not None and cached.original is item:
+                    return replay_memo(cached, depth, path)
+                charge(8 * _len(item))
+                active.add(identity)
+                try:
+                    answer = []
+                    max_relative_depth = 0
+                    for index, nested in _enumerate(item):
+                        encoded, nested_depth = encode(
+                            nested,
+                            f"{path}[{index}]",
+                            depth + 1,
+                        )
+                        answer.append(encoded)
+                        candidate_depth = nested_depth + 1
+                        if candidate_depth > max_relative_depth:
+                            max_relative_depth = candidate_depth
+                finally:
+                    active.remove(identity)
+                memo[identity] = _codec_memo_entry_type(
+                    original=item,
+                    storage_snapshot=None,
+                    encoded=answer,
+                    charged_bytes=used - start_used,
+                    visited_nodes=visited - start_visited,
+                    max_relative_depth=max_relative_depth,
+                )
+                return answer, max_relative_depth
+            if identity in active:
+                raise _value_error(f"{path} contains a cyclic record")
+            cached = memo.get(identity)
+            if cached is not None and cached.original is item:
+                current_items = exact_items(item, path)
+                if not storage_snapshots_match(
+                    cached.storage_snapshot,
+                    current_items,
+                ):
+                    raise _value_error("shared alias storage mutated during encoding")
+                return replay_memo(cached, depth, path)
+            items = exact_items(item, path)
             active.add(identity)
-            stack.append((item, path, depth, True))
-            for name in reversed(tuple(fields)):
-                charge(len(name.encode("utf-8")))
-                stack.append(
-                    (
-                        body[name],
+            try:
+                answer = {}
+                max_relative_depth = 0
+                for name, nested in items:
+                    charge(_len(_str_encode(name, "utf-8")))
+                    encoded, nested_depth = encode(
+                        nested,
                         f"{path}.{name}",
                         depth + 1,
-                        False,
                     )
-                )
-            continue
-        if item_type is tuple:
-            if identity in active:
-                raise ValueError(f"{path} contains a cyclic tuple")
-            charge(8 * len(item))
-            active.add(identity)
-            stack.append((item, path, depth, True))
-            for index in range(len(item) - 1, -1, -1):
-                stack.append(
-                    (
-                        item[index],
-                        f"{path}[{index}]",
-                        depth + 1,
-                        False,
-                    )
-                )
-            continue
-        raise TypeError(f"{path} contains unsupported type {item_type.__name__}")
+                    candidate_depth = nested_depth + 1
+                    if candidate_depth > max_relative_depth:
+                        max_relative_depth = candidate_depth
+                    if not (root and name == omit_root_field):
+                        answer[name] = encoded
+            finally:
+                active.remove(identity)
+            current_items = exact_items(item, path)
+            if not storage_snapshots_match(items, current_items):
+                raise _value_error("record storage mutated during encoding")
+            memo[identity] = _codec_memo_entry_type(
+                original=item,
+                storage_snapshot=items,
+                encoded=answer,
+                charged_bytes=used - start_used,
+                visited_nodes=visited - start_visited,
+                max_relative_depth=max_relative_depth,
+            )
+            return answer, max_relative_depth
 
+        result, _ = encode(value, field, 0, True)
+        for entry in _tuple_type(memo.values()):
+            if entry.storage_snapshot is None:
+                continue
+            current_items = exact_items(entry.original, field)
+            if not storage_snapshots_match(
+                entry.storage_snapshot,
+                current_items,
+            ):
+                raise _value_error("record alias mutated before encoding completed")
+        return result
 
-def _wire(value: object) -> object:
-    """Return a strict JSON tree, including nested evidence hashes."""
+    def preflight_tree(
+        value: object,
+        field: str,
+        *,
+        _body_cap: int = _GENERAL_BODY_CAP,
+        _text_cap: int = _TEXT_CAP,
+        _depth_cap: int = _TREE_DEPTH_CAP,
+        _node_cap: int = _TREE_NODE_CAP,
+    ) -> None:
+        encode_tree(
+            value,
+            field,
+            body_cap=_body_cap,
+            text_cap=_text_cap,
+            depth_cap=_depth_cap,
+            node_cap=_node_cap,
+        )
 
-    if value is None or type(value) in (str, int, float, bool):
-        return value
-    if isinstance(value, Enum):
-        return value.value
-    if type(value) is tuple:
-        return [_wire(item) for item in value]
-    fields = getattr(type(value), "__dataclass_fields__", None)
-    if fields is None:
-        raise TypeError(f"unsupported evidence value {type(value).__name__}")
-    _exact_record(value, type(value), type(value).__name__)
-    return {name: _wire(getattr(value, name)) for name in fields}
+    def wire(value: object) -> object:
+        item_type = _type(value)
+        return encode_tree(value, _type_getattribute(item_type, "__name__"))
 
+    def payload_without_hash(value: object, hash_field: str) -> dict[str, object]:
+        item_type = _type(value)
+        schema = record_schemas.get(item_type)
+        if schema is None or hash_field not in (
+            name for name, _, _ in schema.field_items
+        ):
+            raise _type_error("payload requires an exact hashed dataclass")
+        result = encode_tree(
+            value,
+            schema.record_name,
+            omit_root_field=hash_field,
+        )
+        if _type(result) is not _dict_type:
+            raise _type_error("payload requires an exact hashed dataclass")
+        return result
 
-def _payload_without_hash(value: object, hash_field: str) -> dict[str, object]:
-    _preflight_tree(value, type(value).__name__)
-    fields = getattr(type(value), "__dataclass_fields__", None)
-    if fields is None or hash_field not in fields:
-        raise TypeError("payload requires an exact hashed dataclass")
-    return {name: _wire(getattr(value, name)) for name in fields if name != hash_field}
+    return (
+        exact_dataclass_items,
+        exact_record,
+        preflight_tree,
+        wire,
+        payload_without_hash,
+        register_closed_types_once,
+    )
 
 
 def _record_with_hash(
@@ -909,12 +1393,302 @@ def _optional_nonnegative(value: object, field: str) -> Optional[float]:
     return _finite_nonnegative(value, field)
 
 
-def _task11_response_types():
-    """Load response wires lazily to keep the prestructure import DAG acyclic."""
+_TASK11_CODEC_ALLOWED_TYPE_IDENTITIES = (
+        ("rulespace_v3.ablation", "AblationManifest"),
+        ("rulespace_v3.ablation", "AblationReplacement"),
+        ("rulespace_v3.bridge", "BridgeAudit"),
+        ("rulespace_v3.bridge", "BridgeCaseAudit"),
+        ("rulespace_v3.bridge", "FullStateBridgeSpec"),
+        ("rulespace_v3.certificate", "DynamicsCertificate"),
+        ("rulespace_v3.contracts", "BlockStatus"),
+        ("rulespace_v3.contracts", "UndefinedReason"),
+        ("rulespace_v3.dynamics", "MeasuredTransition"),
+        ("rulespace_v3.factory", "BasisManifest"),
+        ("rulespace_v3.factory", "FrozenComplexTensor"),
+        ("rulespace_v3.factory", "LinearRealspaceFactory"),
+        ("rulespace_v3.factory", "Primitive"),
+        ("rulespace_v3.factory", "PrimitiveInterface"),
+        ("rulespace_v3.fp64_protocol", "Fp64EnclosureProtocol"),
+        ("rulespace_v3.grids", "BridgeKGridManifest"),
+        ("rulespace_v3.grids", "DirectionManifest"),
+        ("rulespace_v3.grids", "DynamicsKGridManifest"),
+        ("rulespace_v3.grids", "ResponseKGridManifest"),
+        ("rulespace_v3.laurent", "LaurentResidualCertificate"),
+        ("rulespace_v3.metric", "MetricOriginManifest"),
+        ("rulespace_v3.metric", "StabilityMetricWitness"),
+        ("rulespace_v3.pair_snapshot", "AblationPairSnapshot"),
+        (
+            "rulespace_v3.parent_freeze",
+            "ApplicationScenarioExecutionSpec",
+        ),
+        ("rulespace_v3.parent_freeze", "DirectionPathClosure"),
+        ("rulespace_v3.parent_freeze", "ParentFreezeManifest"),
+        (
+            "rulespace_v3.parent_freeze",
+            "SyntheticApplicationBasisProtocol",
+        ),
+        (
+            "rulespace_v3.parent_freeze",
+            "SyntheticApplicationGridProtocol",
+        ),
+        ("rulespace_v3.parent_freeze", "SyntheticApplicationOperation"),
+        (
+            "rulespace_v3.parent_freeze",
+            "SyntheticApplicationPredictionProfile",
+        ),
+        (
+            "rulespace_v3.parent_freeze",
+            "SyntheticApplicationProtocolConstants",
+        ),
+        (
+            "rulespace_v3.parent_freeze",
+            "SyntheticApplicationReadoutProtocol",
+        ),
+        ("rulespace_v3.parent_freeze", "TaggedScalarWire"),
+        (
+            "rulespace_v3.parent_freeze",
+            "V3M0SyntheticControlApplicationSpec",
+        ),
+        ("rulespace_v3.prestructure", "PrestructureAuthority"),
+        (
+            "rulespace_v3.prestructure",
+            "SyntheticStructurePreregistration",
+        ),
+        ("rulespace_v3.registry", "ClosedControlRegistry"),
+        ("rulespace_v3.registry", "ControlReadoutCalibrationSpec"),
+        ("rulespace_v3.registry", "ControlRegistryEntry"),
+        ("rulespace_v3.response", "EndpointReferenceAttemptAudit"),
+        ("rulespace_v3.response", "EndpointReferenceFailure"),
+        ("rulespace_v3.response", "EndpointReferenceOutcome"),
+        ("rulespace_v3.response", "EndpointReferenceProjector"),
+        ("rulespace_v3.response", "EndpointReferenceSpec"),
+        ("rulespace_v3.response", "EndpointShellAttemptAudit"),
+        ("rulespace_v3.response", "EndpointShellFailure"),
+        ("rulespace_v3.response", "EndpointShellManifest"),
+        ("rulespace_v3.response", "EndpointShellOutcome"),
+        ("rulespace_v3.response", "EndpointShellSpec"),
+        ("rulespace_v3.response", "PairedFilteredResponse"),
+        ("rulespace_v3.response", "PairedResponseAttemptAudit"),
+        ("rulespace_v3.response", "PairedResponseFailure"),
+        ("rulespace_v3.response", "PairedResponseOutcome"),
+        ("rulespace_v3.response", "ResponseRunSpec"),
+        ("rulespace_v3.response", "ShellCandidatePointAttempt"),
+        ("rulespace_v3.response", "ShellPointAudit"),
+        ("rulespace_v3.response", "SourceFrameCoverageCertificate"),
+        ("rulespace_v3.response", "SourceReadoutBranchAttemptAudit"),
+        ("rulespace_v3.response", "SourceReadoutBridgeAudit"),
+        ("rulespace_v3.response", "SourceReadoutBridgeMatrixAudit"),
+        ("rulespace_v3.response", "SourceReadoutResponse"),
+        ("rulespace_v3.root64", "Fp64RootIntervalEntry"),
+        ("rulespace_v3.root64", "Fp64RootOfUnityIntervalTable"),
+        ("rulespace_v3.runtime", "RuntimeEvidenceManifest"),
+        ("rulespace_v3.spectral", "NormalizedMetricResidualAudit"),
+        ("rulespace_v3.spectral", "PowerDriftAudit"),
+        ("rulespace_v3.spectral", "SpectralMarginCoverage"),
+        (
+            "rulespace_v3.spectral",
+            "SpectralPointEnclosureColumnarSidecar",
+        ),
+        ("rulespace_v3.structure", "RealityCertificate"),
+        ("rulespace_v3.structure", "StructureManifest"),
+        ("rulespace_v3.window", "ControlWindowProtocolEntry"),
+        ("rulespace_v3.window", "WindowCalibrationProtocol"),
+)
 
-    from . import response
+_TASK11_CODEC_ENUM_TYPE_IDENTITIES = (
+    ("rulespace_v3.contracts", "UndefinedReason"),
+    ("rulespace_v3.response", "EndpointReferenceFailure"),
+    ("rulespace_v3.response", "EndpointShellFailure"),
+    ("rulespace_v3.response", "PairedResponseFailure"),
+)
 
-    return response
+_TASK11_CODEC_RESPONSE_RECORD_ROOT_IDENTITIES = (
+    ("rulespace_v3.response", "ResponseRunSpec"),
+    ("rulespace_v3.response", "EndpointReferenceSpec"),
+    ("rulespace_v3.response", "EndpointReferenceProjector"),
+    ("rulespace_v3.response", "EndpointReferenceAttemptAudit"),
+    ("rulespace_v3.response", "EndpointReferenceOutcome"),
+    ("rulespace_v3.response", "EndpointShellSpec"),
+    ("rulespace_v3.response", "ShellPointAudit"),
+    ("rulespace_v3.response", "EndpointShellManifest"),
+    ("rulespace_v3.response", "ShellCandidatePointAttempt"),
+    ("rulespace_v3.response", "EndpointShellAttemptAudit"),
+    ("rulespace_v3.response", "EndpointShellOutcome"),
+    ("rulespace_v3.response", "SourceFrameCoverageCertificate"),
+    ("rulespace_v3.response", "SourceReadoutBridgeMatrixAudit"),
+    ("rulespace_v3.response", "SourceReadoutBridgeAudit"),
+    ("rulespace_v3.response", "SourceReadoutResponse"),
+    ("rulespace_v3.response", "PairedFilteredResponse"),
+    ("rulespace_v3.response", "SourceReadoutBranchAttemptAudit"),
+    ("rulespace_v3.response", "PairedResponseAttemptAudit"),
+    ("rulespace_v3.response", "PairedResponseOutcome"),
+)
+
+_TASK11_CODEC_RESPONSE_ENUM_ROOT_IDENTITIES = (
+    ("rulespace_v3.response", "EndpointReferenceFailure"),
+    ("rulespace_v3.response", "EndpointShellFailure"),
+    ("rulespace_v3.response", "PairedResponseFailure"),
+)
+
+
+def _make_task11_response_loader(
+    register_closed_types_once,
+    *,
+    _vars=vars,
+    _tuple_type=tuple,
+    _type=type,
+    _type_getattribute=type.__getattribute__,
+    _str_type=str,
+    _dict_type=dict,
+    _module_type=type(sys),
+    _object=object,
+    _len=len,
+    _any=any,
+    _zip=zip,
+    _frozenset=frozenset,
+    _issubclass=issubclass,
+    _enum_base=Enum,
+    _enum_metaclass=type(Enum),
+    _runtime_error=RuntimeError,
+    _allowed_type_identities=_TASK11_CODEC_ALLOWED_TYPE_IDENTITIES,
+    _enum_type_identities=_TASK11_CODEC_ENUM_TYPE_IDENTITIES,
+    _record_root_identities=_TASK11_CODEC_RESPONSE_RECORD_ROOT_IDENTITIES,
+    _enum_root_identities=_TASK11_CODEC_RESPONSE_ENUM_ROOT_IDENTITIES,
+    _modules=sys.modules,
+    _lock_factory=threading.Lock,
+):
+    """Build the sole one-shot loader for the frozen Task-11 wire graph."""
+
+    missing = _object()
+    allowed_set = _frozenset(_allowed_type_identities)
+    enum_set = _frozenset(_enum_type_identities)
+    record_root_set = _frozenset(_record_root_identities)
+    enum_root_set = _frozenset(_enum_root_identities)
+    all_root_identities = (*_record_root_identities, *_enum_root_identities)
+    if _len(_allowed_type_identities) != 72 or _len(allowed_set) != 72:
+        raise _runtime_error("Task-11 codec allowlist is not exactly frozen")
+    if _len(enum_set) != 4:
+        raise _runtime_error("Task-11 codec enum allowlist is not exactly frozen")
+    if _len(record_root_set) != 19 or _len(enum_root_set) != 3:
+        raise _runtime_error("Task-11 codec root set is not exactly frozen")
+    for identity in _allowed_type_identities:
+        if (
+            _type(identity) is not _tuple_type
+            or _len(identity) != 2
+            or _type(identity[0]) is not _str_type
+            or _type(identity[1]) is not _str_type
+            or not identity[0].startswith("rulespace_v3.")
+            or not identity[1]
+        ):
+            raise _runtime_error("Task-11 codec allowlist identity is malformed")
+    if (
+        not enum_set.issubset(allowed_set)
+        or not record_root_set.issubset(allowed_set)
+        or not enum_root_set.issubset(enum_set)
+        or record_root_set.intersection(enum_set)
+        or _any(identity[0] != "rulespace_v3.response" for identity in all_root_identities)
+    ):
+        raise _runtime_error("Task-11 codec root subset is not exactly frozen")
+
+    loader_lock = _lock_factory()
+    frozen_response = missing
+    frozen_types = missing
+    frozen_modules = missing
+    frozen_roots = missing
+
+    def resolve_closed_graph(response):
+        response_module = _modules.get("rulespace_v3.response")
+        if response_module is not response or _type(response) is not _module_type:
+            raise _runtime_error("Task-11 codec response root module binding drifted")
+        resolved = []
+        resolved_modules = []
+        resolved_by_identity = {}
+        records = []
+        enums = []
+        for identity in _allowed_type_identities:
+            module_name, type_name = identity
+            module = _modules.get(module_name)
+            if module is None or _type(module) is not _module_type:
+                raise _runtime_error("Task-11 codec module binding drifted")
+            module_namespace = _vars(module)
+            if _type(module_namespace) is not _dict_type:
+                raise _runtime_error("Task-11 codec module namespace drifted")
+            candidate = module_namespace.get(type_name, missing)
+            if candidate is missing:
+                raise _runtime_error("Task-11 codec type binding drifted")
+            candidate_type = _type(candidate)
+            if identity in enum_set:
+                if candidate_type is not _enum_metaclass or not _issubclass(
+                    candidate,
+                    _enum_base,
+                ):
+                    raise _runtime_error("Task-11 codec enum binding drifted")
+            elif candidate_type is not _type:
+                raise _runtime_error("Task-11 codec record metaclass drifted")
+            candidate_namespace = _type_getattribute(candidate, "__dict__")
+            if (
+                candidate_namespace.get("__module__", missing) != module_name
+                or _type_getattribute(candidate, "__name__") != type_name
+            ):
+                raise _runtime_error("Task-11 codec type identity drifted")
+            if identity in enum_set:
+                enums.append(candidate)
+            elif (
+                _type(candidate_namespace.get("__dataclass_fields__", missing))
+                is not _dict_type
+            ):
+                raise _runtime_error("Task-11 codec record binding drifted")
+            else:
+                records.append(candidate)
+            resolved.append(candidate)
+            resolved_modules.append(module)
+            resolved_by_identity[identity] = candidate
+        roots = _tuple_type(
+            resolved_by_identity[identity] for identity in all_root_identities
+        )
+        return (
+            _tuple_type(resolved),
+            _tuple_type(resolved_modules),
+            _tuple_type(roots),
+            _tuple_type(records),
+            _tuple_type(enums),
+        )
+
+    def load_response_types():
+        """Load and freeze Task-11 response types without consulting annotations."""
+
+        nonlocal frozen_response, frozen_types, frozen_modules, frozen_roots
+        with loader_lock:
+            from . import response
+
+            current_types, current_modules, current_roots, records, enums = (
+                resolve_closed_graph(response)
+            )
+            if frozen_response is missing:
+                register_closed_types_once(records, enums)
+                frozen_response = response
+                frozen_types = current_types
+                frozen_modules = current_modules
+                frozen_roots = current_roots
+                return response
+            if response is not frozen_response or _any(
+                current is not expected
+                for current, expected in _zip(current_roots, frozen_roots)
+            ):
+                raise _runtime_error("Task-11 codec root type graph drifted")
+            if _any(
+                current is not expected
+                for current, expected in _zip(current_modules, frozen_modules)
+            ):
+                raise _runtime_error("Task-11 codec module binding drifted")
+            if _any(
+                current is not expected
+                for current, expected in _zip(current_types, frozen_types)
+            ):
+                raise _runtime_error("Task-11 codec type binding drifted")
+            return response
+
+    return load_response_types
 
 
 @dataclass(frozen=True)
@@ -5584,6 +6358,47 @@ def reverify_verified_response_block_attempt_outcome(
     """Strict public consumer boundary for downstream Task 17 aggregation."""
 
     return _reverify_verified_response_block_attempt_outcome(wrapper).outcome
+
+
+_CALIBRATION_CODEC_RECORD_TYPES = (
+    *_UPSTREAM_TASK12_WIRE_TYPES,
+    RuntimeEvidenceManifest,
+    C04LocalShearStep,
+    C04CanonicalAngleRecipe,
+    ExpectedRankDeclaration,
+    CandidateAttemptAudit,
+    ControlCandidateOutcome,
+    BranchSpectrumAudit,
+    PerControlReadoutSpectrumAudit,
+    ReadoutAggregateCalibrationAudit,
+    ControlCandidateAudit,
+    WindowCandidateAudit,
+    SelectedControlEvidenceRef,
+    WindowThresholdSelection,
+    WindowThresholdCalibrationManifest,
+    WindowCalibrationOutcome,
+    CalibrationApplicationPermit,
+    V3M0ApplicationResponseRunSpec,
+    V3M0ScenarioOperationEvaluation,
+    V3M0ScenarioConstruction,
+    ResponseBlockAttemptPrecursorEvidence,
+    ResponseBlockAttemptOutcome,
+)
+(
+    _exact_dataclass_items,
+    _exact_record,
+    _preflight_tree,
+    _wire,
+    _payload_without_hash,
+    _task11_codec_register_once,
+) = _make_closed_dataclass_codec(
+    _CALIBRATION_CODEC_RECORD_TYPES,
+    (UndefinedReason, ControlCandidateFailure),
+)
+_task11_response_types = _make_task11_response_loader(
+    _task11_codec_register_once,
+)
+del _task11_codec_register_once
 
 
 __all__ = [
