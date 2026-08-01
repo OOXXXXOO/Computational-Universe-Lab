@@ -101,3 +101,8 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
   `MetricSupportDerivationProtocolV1` 和无环 Parent-v3→Materialization-v3→runtime
   拓扑。当前不存在合法 Parent-v3/materialization lineage，因此本 DRAFT 只能
   定义预响应 raw protocol，不能签发 production attestation 或解锁 GPU。
+- [`v3-设计勘误-Parent-v3-P-epoch签发闭合-2026-08-01.md`](v3-设计勘误-Parent-v3-P-epoch签发闭合-2026-08-01.md)：
+  修复 `P` 后 `DRAFT→SIGNED` 导致 live closure/candidate root 漂移的签发环。唯一候选方案
+  改为 P-epoch immutable Git-blob replay；S-epoch 只承载四份 signed sources、两把预注册
+  Ed25519 reviewer keys 的 PASS receipts 与 exact signing literals，由 strict P..S blob audit
+  连接。该文仍为 DRAFT；当前不存在 P、receipts、S 或 Parent-v3 capability。
