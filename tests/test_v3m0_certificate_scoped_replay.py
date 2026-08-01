@@ -328,6 +328,7 @@ class AuthorityScopedReplayIntegrationTests(unittest.TestCase):
         expected = (
             "rulespace_v3.dynamics.VerifiedTransition",
             "rulespace_v3.factory.VerifiedFactory",
+            "rulespace_v3.parent_freeze.VerifiedParentFreeze",
             "rulespace_v3.prestructure.VerifiedPrestructureAuthority",
         )
         self.assertEqual(
