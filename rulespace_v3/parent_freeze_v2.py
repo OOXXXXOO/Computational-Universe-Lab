@@ -1169,10 +1169,7 @@ def _preparation_commit_blocking_reasons(
 ) -> tuple[str, ...]:
     """Prove that P exists, is ancestral, and freezes reviewed source bytes."""
 
-    if (
-        type(commit_sha) is not str
-        or _LOWER_GIT_SHA.fullmatch(commit_sha) is None
-    ):
+    if type(commit_sha) is not str or _LOWER_GIT_SHA.fullmatch(commit_sha) is None:
         return ("reviewed preparation commit P is not injected",)
     commit = _git_read_object("cat-file", "-e", f"{commit_sha}^{{commit}}")
     if commit.returncode != 0:
@@ -1231,9 +1228,7 @@ def _finalization_input_state(
 ) -> tuple[str, tuple[str, ...]]:
     reasons: list[str] = []
     reasons.extend(
-        _preparation_commit_blocking_reasons(
-            PARENT_V2_PREPARATION_COMMIT_SHA
-        )
+        _preparation_commit_blocking_reasons(PARENT_V2_PREPARATION_COMMIT_SHA)
     )
     if (
         PARENT_V2_REVIEWED_CANDIDATE_V2_SHA256 is None
@@ -1409,22 +1404,95 @@ def _group_application_authorities(
     return tuple(grouped)
 
 
+def build_reviewed_current_application_authorities_v2_raw() -> tuple[
+    CurrentApplicationAuthorityV2, ...
+]:
+    """Replay detached authority-neutral Parent-v2 application bodies."""
+
+    candidate_v1 = _live_candidate_v1()
+    scenario_authorities = _ordered_current_scenario_authorities(
+        _build_reviewed_modified_scenario_authorities(),
+        _build_reviewed_unchanged_scenario_authorities(),
+    )
+    return _group_application_authorities(scenario_authorities, candidate_v1)
+
+
+def _current_application_authority_v2_record(
+    authority: CurrentApplicationAuthorityV2,
+    *,
+    field: str,
+) -> dict[str, object]:
+    _exact_record(authority, CurrentApplicationAuthorityV2, field)
+    authority.__post_init__()
+    for index, scenario in enumerate(authority.scenario_authorities):
+        scenario_field = f"{field}.scenario_authorities[{index}]"
+        _exact_record(scenario, CurrentScenarioAuthorityV2, scenario_field)
+        scenario.__post_init__()
+        response = scenario.response_contract
+        _exact_record(
+            response,
+            CurrentScenarioResponseContractV2,
+            f"{scenario_field}.response_contract",
+        )
+        response.__post_init__()
+        if response.response_contract_sha != canonical_sha(
+            current_scenario_response_contract_v2_payload(response)
+        ):
+            raise ValueError(f"{scenario_field} response-contract SHA drifted")
+        if scenario.scenario_authority_sha != canonical_sha(
+            current_scenario_authority_v2_payload(scenario)
+        ):
+            raise ValueError(f"{scenario_field} scenario-authority SHA drifted")
+    if authority.application_authority_sha != canonical_sha(
+        current_application_authority_v2_payload(authority)
+    ):
+        raise ValueError(f"{field} application-authority SHA drifted")
+    return {
+        **current_application_authority_v2_payload(authority),
+        "application_authority_sha": authority.application_authority_sha,
+    }
+
+
+def verify_reviewed_current_application_authorities_v2_raw(
+    authorities: tuple[CurrentApplicationAuthorityV2, ...],
+) -> tuple[CurrentApplicationAuthorityV2, ...]:
+    """Verify an exact raw tuple against a fresh closed Parent-v2 replay."""
+
+    if type(authorities) is not tuple or not authorities:
+        raise TypeError(
+            "reviewed current application authorities must be an exact tuple"
+        )
+    observed = tuple(
+        _current_application_authority_v2_record(
+            authority,
+            field=f"reviewed current application authorities[{index}]",
+        )
+        for index, authority in enumerate(authorities)
+    )
+    expected_authorities = build_reviewed_current_application_authorities_v2_raw()
+    expected = tuple(
+        _current_application_authority_v2_record(
+            authority,
+            field=f"fresh reviewed current application authorities[{index}]",
+        )
+        for index, authority in enumerate(expected_authorities)
+    )
+    if observed != expected:
+        raise ValueError(
+            "current application authorities differ from the fresh reviewed replay"
+        )
+    return authorities
+
+
 def _build_closed_parent_v2_manifest() -> ParentFreezeV2Manifest:
     """Build the sole current raw body, or fail before any capability exists."""
 
     audit = audit_v3m0_parent_v2_readiness()
     if not audit.can_issue:
         raise ParentV2IssuanceBlocked(audit.blocking_reasons)
-    candidate_v1 = _live_candidate_v1()
     candidate_v2 = _live_candidate_v2()
-    scenario_authorities = _ordered_current_scenario_authorities(
-        _build_reviewed_modified_scenario_authorities(),
-        _build_reviewed_unchanged_scenario_authorities(),
-    )
-    applications = _group_application_authorities(
-        scenario_authorities,
-        candidate_v1,
-    )
+    candidate_v1 = _live_candidate_v1()
+    applications = build_reviewed_current_application_authorities_v2_raw()
     historical_parent: ParentFreezeManifest = issue_v3m0_parent_freeze().manifest
     provisional = ParentFreezeV2Manifest(
         parent_freeze_schema_version=PARENT_FREEZE_V2_SCHEMA_VERSION,
@@ -1454,7 +1522,9 @@ __all__ = [
     "PARENT_V2_SIGNED_ERRATUM_SOURCE_PATH",
     "ParentV2IssuanceBlocked",
     "audit_v3m0_parent_v2_readiness",
+    "build_reviewed_current_application_authorities_v2_raw",
     "expected_block_success_scenario_ids",
+    "verify_reviewed_current_application_authorities_v2_raw",
     "verify_reviewed_modified_scenario_authority",
     "verify_reviewed_unchanged_scenario_authority",
 ]

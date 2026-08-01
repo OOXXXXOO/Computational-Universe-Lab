@@ -13,6 +13,7 @@ import inspect
 from dataclasses import fields, replace
 from pathlib import Path
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,9 +27,7 @@ class ParentPreparationCommitAnchorTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(PARENT_V2_PREPARATION_COMMIT_SHA)
-        reasons = _preparation_commit_blocking_reasons(
-            PARENT_V2_PREPARATION_COMMIT_SHA
-        )
+        reasons = _preparation_commit_blocking_reasons(PARENT_V2_PREPARATION_COMMIT_SHA)
         self.assertTrue(reasons)
         self.assertTrue(
             any(
@@ -38,6 +37,116 @@ class ParentPreparationCommitAnchorTests(unittest.TestCase):
             ),
             reasons,
         )
+
+
+class ParentV2RawHandoffTests(unittest.TestCase):
+    def test_public_raw_handoff_replays_without_parent_v2_signing_inputs(self) -> None:
+        import rulespace_v3.parent_freeze_v2 as freeze
+        from rulespace_v3.parent_v2_contracts import CurrentApplicationAuthorityV2
+
+        self.assertIn(
+            "build_reviewed_current_application_authorities_v2_raw",
+            freeze.__all__,
+        )
+        self.assertIn(
+            "verify_reviewed_current_application_authorities_v2_raw",
+            freeze.__all__,
+        )
+        builder = freeze.build_reviewed_current_application_authorities_v2_raw
+        verifier = freeze.verify_reviewed_current_application_authorities_v2_raw
+        self.assertEqual(len(inspect.signature(builder).parameters), 0)
+        self.assertEqual(len(inspect.signature(verifier).parameters), 1)
+
+        with (
+            mock.patch.object(
+                freeze,
+                "audit_v3m0_parent_v2_readiness",
+                side_effect=AssertionError("raw handoff consulted readiness"),
+            ),
+            mock.patch.object(
+                freeze,
+                "_build_closed_parent_v2_manifest",
+                side_effect=AssertionError("raw handoff consulted Parent-v2 issuance"),
+            ),
+        ):
+            applications = builder()
+
+        self.assertIs(type(applications), tuple)
+        self.assertEqual(len(applications), 20)
+        self.assertTrue(
+            all(type(item) is CurrentApplicationAuthorityV2 for item in applications)
+        )
+        self.assertIs(verifier(applications), applications)
+        candidate_applications = freeze._live_candidate_v1().application_candidates
+        self.assertEqual(
+            tuple(item.control_case_id for item in applications),
+            tuple(item.control_case_id for item in candidate_applications),
+        )
+        c20 = applications[-1]
+        self.assertEqual(
+            c20.control_case_id, candidate_applications[-1].control_case_id
+        )
+        self.assertEqual(c20.scenario_authorities, ())
+        self.assertTrue(c20.complete_scenario_execution_specs)
+        self.assertTrue(
+            all(
+                item.execution_lane == "ANALYSIS_CONTROL"
+                for item in c20.complete_scenario_execution_specs
+            )
+        )
+
+    def test_raw_handoff_is_detached_and_verifier_rejects_forgery(self) -> None:
+        import rulespace_v3.parent_freeze_v2 as freeze
+        from rulespace_v3.evidence import canonical_sha
+        from rulespace_v3.parent_v2_contracts import (
+            CurrentApplicationAuthorityV2,
+            current_application_authority_v2_payload,
+        )
+
+        builder = freeze.build_reviewed_current_application_authorities_v2_raw
+        verifier = freeze.verify_reviewed_current_application_authorities_v2_raw
+        first = builder()
+        expected_sha = first[0].application_authority_sha
+        object.__setattr__(first[0], "application_authority_sha", "f" * 64)
+        with self.assertRaises(ValueError):
+            verifier(first)
+        second = builder()
+        self.assertIsNot(first, second)
+        self.assertEqual(second[0].application_authority_sha, expected_sha)
+
+        provisional = replace(
+            second[0],
+            source_candidate_v1_application_sha="a" * 64,
+            application_authority_sha="0" * 64,
+        )
+        resigned = replace(
+            provisional,
+            application_authority_sha=canonical_sha(
+                current_application_authority_v2_payload(provisional)
+            ),
+        )
+        with self.assertRaises(ValueError):
+            verifier((resigned, *second[1:]))
+
+        unknown = copy.deepcopy(second[0])
+        object.__setattr__(unknown, "unhashed_override", True)
+        with self.assertRaises(ValueError):
+            verifier((unknown, *second[1:]))
+
+        class HostileApplication(CurrentApplicationAuthorityV2):
+            pass
+
+        hostile = HostileApplication(**vars(second[0]))
+        with self.assertRaises(TypeError):
+            verifier((hostile, *second[1:]))
+
+        class HostileTuple(tuple):
+            pass
+
+        with self.assertRaises(TypeError):
+            verifier(HostileTuple(second))
+        with self.assertRaises(TypeError):
+            verifier(tuple(vars(item) for item in second))
 
 
 class ParentFreezeV2ContractTests(unittest.TestCase):
@@ -452,8 +561,7 @@ class ParentFreezeV2ContractTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     tuple(
-                        item.scenario_id
-                        for item in application.scenario_authorities
+                        item.scenario_id for item in application.scenario_authorities
                     ),
                     tuple(
                         item.scenario_id

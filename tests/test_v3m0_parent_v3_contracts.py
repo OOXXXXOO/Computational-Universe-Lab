@@ -4,6 +4,8 @@ import copy
 import hashlib
 import importlib.util
 import inspect
+import os
+import subprocess
 from dataclasses import fields as dataclass_fields, replace
 from pathlib import Path
 
@@ -60,6 +62,234 @@ def test_parent_v3_raw_contract_api_is_present() -> None:
         "verify_current_application_authority_v3",
     }
     assert expected <= set(vars(contracts))
+
+
+def _git(repository: Path, *arguments: str) -> bytes:
+    return subprocess.run(
+        ("git", *arguments),
+        cwd=repository,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+
+
+def test_preparation_blob_reader_enforces_commit_path_type_and_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    (repository / "plain.txt").write_bytes(b"plain\n")
+    executable = repository / "executable.sh"
+    executable.write_bytes(b"#!/bin/sh\n")
+    executable.chmod(0o755)
+    (repository / "tree").mkdir()
+    (repository / "tree" / "child.txt").write_bytes(b"child\n")
+    (repository / "invalid.md").write_bytes(b"\xff")
+    os.symlink("plain.txt", repository / "link")
+    _git(repository, "add", "--", ".")
+    _git(repository, "commit", "-qm", "fixture")
+    first_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    _git(
+        repository,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{first_commit},nested-submodule",
+    )
+    _git(repository, "commit", "-qm", "add gitlink")
+    preparation_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    plain_blob = (
+        _git(repository, "rev-parse", f"{preparation_commit}:plain.txt")
+        .decode("ascii")
+        .strip()
+    )
+    tree_oid = (
+        _git(repository, "rev-parse", f"{preparation_commit}^{{tree}}")
+        .decode("ascii")
+        .strip()
+    )
+    merge_commit = (
+        _git(
+            repository,
+            "commit-tree",
+            tree_oid,
+            "-p",
+            preparation_commit,
+            "-p",
+            first_commit,
+            "-m",
+            "merge fixture",
+        )
+        .decode("ascii")
+        .strip()
+    )
+
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+    reader = contracts._read_preparation_commit_blob
+    assert reader(preparation_commit, "plain.txt") == b"plain\n"
+    assert reader(preparation_commit, "executable.sh") == b"#!/bin/sh\n"
+
+    for invalid_commit in (
+        b"a" * 40,
+        Path(preparation_commit),
+    ):
+        with pytest.raises(TypeError):
+            reader(invalid_commit, "plain.txt")
+    for invalid_commit in ("a" * 64, "A" * 40, "f" * 40, plain_blob):
+        with pytest.raises(ValueError):
+            reader(invalid_commit, "plain.txt")
+    with pytest.raises(ValueError, match="UTF-8"):
+        reader(preparation_commit, "invalid.md")
+    with pytest.raises(ValueError, match="merge"):
+        reader(merge_commit, "plain.txt")
+
+    for invalid_path in (
+        Path("plain.txt"),
+        "/plain.txt",
+        "../plain.txt",
+        "tree/../plain.txt",
+        "./plain.txt",
+        "tree//child.txt",
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            reader(preparation_commit, invalid_path)
+
+    for forbidden_path in ("link", "tree", "nested-submodule", "missing.txt"):
+        with pytest.raises(ValueError):
+            reader(preparation_commit, forbidden_path)
+
+
+def test_preparation_blob_reader_ignores_replace_grafts_and_ambient_git_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "reviewed"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    (repository / "reviewed.txt").write_bytes(b"reviewed\n")
+    _git(repository, "add", "--", "reviewed.txt")
+    _git(repository, "commit", "-qm", "reviewed preparation")
+    preparation_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+
+    (repository / "reviewed.txt").write_bytes(b"replacement\n")
+    _git(repository, "add", "--", "reviewed.txt")
+    _git(repository, "commit", "-qm", "replacement body")
+    replacement_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    _git(repository, "replace", preparation_commit, replacement_commit)
+
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+    reader = contracts._read_preparation_commit_blob
+    assert reader(preparation_commit, "reviewed.txt") == b"reviewed\n"
+
+    _git(repository, "replace", "-d", preparation_commit)
+    preparation_tree = (
+        _git(repository, "rev-parse", f"{preparation_commit}^{{tree}}")
+        .decode("ascii")
+        .strip()
+    )
+    unrelated_commit = (
+        _git(
+            repository,
+            "commit-tree",
+            preparation_tree,
+            "-m",
+            "unrelated root",
+        )
+        .decode("ascii")
+        .strip()
+    )
+    grafts_path = repository / ".git" / "info" / "grafts"
+    grafts_path.write_text(
+        f"{preparation_commit} {replacement_commit} {unrelated_commit}\n",
+        encoding="ascii",
+    )
+    assert reader(preparation_commit, "reviewed.txt") == b"reviewed\n"
+
+    attacker = tmp_path / "attacker"
+    attacker.mkdir()
+    _git(attacker, "init", "-q")
+    _git(attacker, "config", "user.name", "V3-M0 Test")
+    _git(attacker, "config", "user.email", "v3m0@example.invalid")
+    (attacker / "reviewed.txt").write_bytes(b"attacker\n")
+    _git(attacker, "add", "--", "reviewed.txt")
+    _git(attacker, "commit", "-qm", "attacker body")
+    poison_config = tmp_path / "poison.gitconfig"
+    poison_config.write_text(
+        "[core]\n\trepositoryformatversion = 0\n", encoding="ascii"
+    )
+    monkeypatch.setenv("GIT_DIR", str(attacker / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(attacker))
+    monkeypatch.setenv("GIT_OBJECT_DIRECTORY", str(attacker / ".git" / "objects"))
+    monkeypatch.setenv(
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        str(attacker / ".git" / "objects"),
+    )
+    monkeypatch.setenv("GIT_REPLACE_REF_BASE", "refs/attacker/")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(poison_config))
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(poison_config))
+    assert reader(preparation_commit, "reviewed.txt") == b"reviewed\n"
+
+
+def test_c19_preparation_replay_is_private_stable_and_rejects_duplicate_closure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    replay = (
+        contracts._replay_c19_current_application_authority_v3_at_preparation_commit
+    )
+    assert (
+        "_replay_c19_current_application_authority_v3_at_preparation_commit"
+        not in contracts.__all__
+    )
+    assert tuple(inspect.signature(replay).parameters) == ("preparation_commit_sha",)
+    workspace = Path(__file__).resolve().parents[1]
+    repository = tmp_path / "preparation"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    for relative_path in contracts._CONSTRUCTION_DEPENDENCY_PATHS:
+        destination = repository / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((workspace / relative_path).read_bytes())
+    _git(repository, "add", "--", ".")
+    _git(repository, "commit", "-qm", "controlled non-merge preparation")
+    preparation_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    parent_record = _git(repository, "cat-file", "commit", preparation_commit).split(
+        b"\n\n", 1
+    )[0]
+    assert sum(line.startswith(b"parent ") for line in parent_record.splitlines()) <= 1
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+
+    expected = replay(preparation_commit)
+    dependency_path = repository / contracts._CONSTRUCTION_DEPENDENCY_PATHS[0]
+    dependency_path.write_bytes(dependency_path.read_bytes() + b"\nworktree mutation\n")
+    replayed = replay(preparation_commit)
+    live = contracts.build_c19_current_application_authority_v3()
+    assert replayed.application_authority_sha == expected.application_authority_sha
+    assert (
+        replayed.construction_dependency_closure_sha
+        == expected.construction_dependency_closure_sha
+    )
+    assert live.application_authority_sha != expected.application_authority_sha
+
+    monkeypatch.setattr(
+        contracts,
+        "_CONSTRUCTION_DEPENDENCY_PATHS",
+        (
+            contracts._CONSTRUCTION_DEPENDENCY_PATHS[0],
+            contracts._CONSTRUCTION_DEPENDENCY_PATHS[0],
+        ),
+    )
+    with pytest.raises(ValueError, match="unique"):
+        replay(preparation_commit)
 
 
 @pytest.fixture(scope="module")

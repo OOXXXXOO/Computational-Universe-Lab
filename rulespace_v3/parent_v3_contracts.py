@@ -8,7 +8,10 @@ with a fresh closed replay of the committed C19 construction.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, fields as dataclass_fields, is_dataclass, replace
 from enum import Enum
 from pathlib import Path, PurePosixPath
@@ -61,6 +64,9 @@ METRIC_SUPPORT_DERIVATION_PROTOCOL_V1_SCHEMA_VERSION = (
     "v3m0.metric-support-derivation-protocol.v1"
 )
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
+_LOWER_GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_REGULAR_GIT_MODES = frozenset(("100644", "100755"))
 
 _CONSTRUCTION_DEPENDENCY_PATHS = (
     C19_DESIGN_SOURCE_PATH_V2,
@@ -97,6 +103,154 @@ def _sha(value: object, field: str) -> str:
     if _LOWER_SHA.fullmatch(result) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256")
     return result
+
+
+def _canonical_repository_relative_path(value: object, field: str) -> str:
+    if type(value) is not str:
+        raise TypeError(f"{field} must be an exact string")
+    if not value or "\x00" in value or "\\" in value:
+        raise ValueError(f"{field} is not a canonical repository-relative path")
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or path.as_posix() != value
+        or "." in path.parts
+        or ".." in path.parts
+    ):
+        raise ValueError(f"{field} is not a canonical repository-relative path")
+    return value
+
+
+def _git_read_object(*arguments: str) -> subprocess.CompletedProcess[bytes]:
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+            "LC_ALL": "C",
+        }
+    )
+    try:
+        return subprocess.run(
+            ("git", *arguments),
+            cwd=_REPOSITORY_ROOT,
+            check=False,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        raise ValueError("Git object reader is unavailable") from exc
+
+
+def _require_preparation_commit_sha(value: object) -> tuple[str, str]:
+    if type(value) is not str:
+        raise TypeError("preparation_commit_sha must be an exact string")
+    if _LOWER_GIT_SHA.fullmatch(value) is None:
+        raise ValueError("preparation_commit_sha must be a lowercase Git SHA-1")
+    observed_type = _git_read_object("cat-file", "-t", value)
+    if (
+        observed_type.returncode != 0
+        or observed_type.stderr != b""
+        or observed_type.stdout != b"commit\n"
+    ):
+        raise ValueError("preparation_commit_sha is not an available commit")
+    commit_object = _git_read_object("cat-file", "commit", value)
+    if commit_object.returncode != 0 or commit_object.stderr != b"":
+        raise ValueError("preparation commit object cannot be read")
+    header, separator, _ = commit_object.stdout.partition(b"\n\n")
+    if separator != b"\n\n" or not header:
+        raise ValueError("preparation commit object is malformed")
+    tree_headers = tuple(
+        line.removeprefix(b"tree ")
+        for line in header.splitlines()
+        if line.startswith(b"tree ")
+    )
+    if len(tree_headers) != 1:
+        raise ValueError("preparation commit tree header is malformed")
+    try:
+        tree_sha = tree_headers[0].decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise ValueError("preparation commit tree header is not ASCII") from exc
+    if _LOWER_GIT_SHA.fullmatch(tree_sha) is None:
+        raise ValueError("preparation commit tree header is malformed")
+    parents: list[str] = []
+    for line in header.splitlines():
+        if not line.startswith(b"parent"):
+            continue
+        if not line.startswith(b"parent "):
+            raise ValueError("preparation commit parent header is malformed")
+        try:
+            parent_sha = line.removeprefix(b"parent ").decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise ValueError("preparation commit parent header is not ASCII") from exc
+        if _LOWER_GIT_SHA.fullmatch(parent_sha) is None:
+            raise ValueError("preparation commit parent header is malformed")
+        parents.append(parent_sha)
+    if len(parents) > 1:
+        raise ValueError("preparation commit must not be a merge commit")
+    return value, tree_sha
+
+
+def _read_preparation_commit_blob(
+    preparation_commit_sha: str,
+    relative_path: str,
+) -> bytes:
+    """Read one exact regular blob from an immutable preparation commit."""
+
+    commit_sha, tree_sha = _require_preparation_commit_sha(preparation_commit_sha)
+    canonical_path = _canonical_repository_relative_path(relative_path, "relative_path")
+    tree_entry = _git_read_object(
+        "ls-tree",
+        "-z",
+        tree_sha,
+        "--",
+        canonical_path,
+    )
+    if tree_entry.returncode != 0 or tree_entry.stderr != b"":
+        raise ValueError("preparation path cannot be read from its Git tree")
+    records = tree_entry.stdout.split(b"\x00")
+    if not records or records[-1] != b"" or len(records) != 2 or not records[0]:
+        raise ValueError("preparation path must resolve to exactly one Git tree entry")
+    metadata, separator, observed_path = records[0].partition(b"\t")
+    if separator != b"\t" or observed_path != canonical_path.encode("utf-8"):
+        raise ValueError("preparation Git tree entry path drifted")
+    metadata_fields = metadata.split(b" ")
+    if len(metadata_fields) != 3:
+        raise ValueError("preparation Git tree entry is malformed")
+    mode_bytes, object_type, object_id_bytes = metadata_fields
+    try:
+        mode = mode_bytes.decode("ascii")
+        object_id = object_id_bytes.decode("ascii")
+    except UnicodeDecodeError as exc:
+        raise ValueError("preparation Git tree metadata is not ASCII") from exc
+    if mode not in _REGULAR_GIT_MODES or object_type != b"blob":
+        raise ValueError("preparation path is not a regular Git blob")
+    if _LOWER_GIT_SHA.fullmatch(object_id) is None:
+        raise ValueError("preparation blob OID is not a lowercase Git SHA-1")
+    blob = _git_read_object(
+        "cat-file",
+        "blob",
+        f"{commit_sha}:{canonical_path}",
+    )
+    if blob.returncode != 0 or blob.stderr != b"":
+        raise ValueError("preparation Git blob cannot be read")
+    if canonical_path.endswith(".md"):
+        try:
+            blob.stdout.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("preparation Markdown blob must be strict UTF-8") from exc
+    return blob.stdout
+
+
+def _read_live_dependency_blob(relative_path: str) -> bytes:
+    canonical_path = _canonical_repository_relative_path(relative_path, "relative_path")
+    return (_REPOSITORY_ROOT / canonical_path).read_bytes()
 
 
 def _positive_int(value: object, field: str) -> int:
@@ -771,27 +925,38 @@ def _operation_registry_root(
     )
 
 
-def _build_dependency_closure() -> tuple[tuple[str, str], ...]:
-    repository = Path(__file__).resolve().parents[1]
+def _build_dependency_closure(
+    read_dependency_blob: Callable[[str], bytes] = _read_live_dependency_blob,
+) -> tuple[tuple[str, str], ...]:
+    if not callable(read_dependency_blob):
+        raise TypeError("dependency blob reader must be callable")
     if tuple(sorted(_CONSTRUCTION_DEPENDENCY_PATHS)) != (
         _CONSTRUCTION_DEPENDENCY_PATHS
     ):
         raise RuntimeError("construction dependency paths are not canonical")
+    if len(_CONSTRUCTION_DEPENDENCY_PATHS) != len(set(_CONSTRUCTION_DEPENDENCY_PATHS)):
+        raise ValueError("construction dependency paths must be unique")
     result: list[tuple[str, str]] = []
     for relative_path in _CONSTRUCTION_DEPENDENCY_PATHS:
-        path = PurePosixPath(relative_path)
-        if path.is_absolute() or path.as_posix() != relative_path or ".." in path.parts:
-            raise ValueError("construction dependency path is not repository-relative")
+        canonical_path = _canonical_repository_relative_path(
+            relative_path,
+            "construction dependency path",
+        )
+        raw = read_dependency_blob(canonical_path)
+        if type(raw) is not bytes:
+            raise TypeError("dependency blob reader must return exact bytes")
         result.append(
             (
-                relative_path,
-                hashlib.sha256((repository / relative_path).read_bytes()).hexdigest(),
+                canonical_path,
+                hashlib.sha256(raw).hexdigest(),
             )
         )
     return tuple(result)
 
 
-def _build_c19_current_application_authority_v3() -> CurrentApplicationAuthorityV3:
+def _build_c19_current_application_authority_v3(
+    read_dependency_blob: Callable[[str], bytes] = _read_live_dependency_blob,
+) -> CurrentApplicationAuthorityV3:
     candidate = verify_c19_refreeze_v2_candidate(build_c19_refreeze_v2_candidate())
     runtime = candidate.runtime_construction
     basis = candidate.basis_contract
@@ -853,7 +1018,7 @@ def _build_c19_current_application_authority_v3() -> CurrentApplicationAuthority
         ),
     )
     registry = _operation_registry(runtime)
-    closure = _build_dependency_closure()
+    closure = _build_dependency_closure(read_dependency_blob)
     closure_sha = canonical_sha(
         {
             "closure_state": CONSTRUCTION_DEPENDENCY_CLOSURE_STATE,
@@ -928,6 +1093,19 @@ def build_c19_current_application_authority_v3() -> CurrentApplicationAuthorityV
     """Build the sole raw provisional C19 application body."""
 
     return _build_c19_current_application_authority_v3()
+
+
+def _replay_c19_current_application_authority_v3_at_preparation_commit(
+    preparation_commit_sha: str,
+) -> CurrentApplicationAuthorityV3:
+    """Replay the C19 raw body with dependency bytes fixed at Git commit P."""
+
+    commit_sha, _ = _require_preparation_commit_sha(preparation_commit_sha)
+
+    def read_preparation_blob(relative_path: str) -> bytes:
+        return _read_preparation_commit_blob(commit_sha, relative_path)
+
+    return _build_c19_current_application_authority_v3(read_preparation_blob)
 
 
 def verify_current_application_authority_v3(
