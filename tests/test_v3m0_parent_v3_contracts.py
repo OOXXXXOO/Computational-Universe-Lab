@@ -5,7 +5,9 @@ import hashlib
 import importlib.util
 import inspect
 import os
+import sys
 import subprocess
+import time
 from dataclasses import fields as dataclass_fields, replace
 from pathlib import Path
 
@@ -235,6 +237,278 @@ def test_preparation_blob_reader_ignores_replace_grafts_and_ambient_git_environm
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(poison_config))
     monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(poison_config))
     assert reader(preparation_commit, "reviewed.txt") == b"reviewed\n"
+
+
+def test_security_s1_preparation_blob_reader_ignores_fake_git_on_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "reviewed"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    (repository / "reviewed.txt").write_bytes(b"reviewed P bytes\n")
+    _git(repository, "add", "--", "reviewed.txt")
+    _git(repository, "commit", "-qm", "reviewed preparation")
+    preparation_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+
+    attacker_bin = tmp_path / "attacker-bin"
+    attacker_bin.mkdir()
+    fake_git_marker = tmp_path / "fake-git-was-called"
+    fake_git = attacker_bin / "git"
+    fake_git.write_text(
+        "#!/bin/sh\n"
+        "printf 'called\\n' > \"$FAKE_GIT_MARKER\"\n"
+        "printf 'attacker bytes\\n'\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("FAKE_GIT_MARKER", str(fake_git_marker))
+    monkeypatch.setenv(
+        "PATH",
+        str(attacker_bin) + os.pathsep + os.environ.get("PATH", ""),
+    )
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+
+    assert (
+        contracts._read_preparation_commit_blob(
+            preparation_commit,
+            "reviewed.txt",
+        )
+        == b"reviewed P bytes\n"
+    )
+    assert not fake_git_marker.exists()
+
+
+def test_security_s2p0_trusted_git_resolver_ignores_fake_developer_toolchain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if sys.platform == "darwin":
+        expected = subprocess.run(
+            ("/usr/bin/xcrun", "--find", "git"),
+            cwd="/",
+            check=True,
+            env={"PATH": os.defpath, "LANG": "C", "LC_ALL": "C"},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ).stdout.strip()
+    else:
+        expected = str(Path(contracts._TRUSTED_GIT_EXECUTABLE_REALPATH).resolve())
+
+    fake_developer = tmp_path / "FakeXcode.app/Contents/Developer"
+    fake_git = fake_developer / "usr/bin/git"
+    fake_git.parent.mkdir(parents=True)
+    fake_git.write_text("#!/bin/sh\nprintf 'attacker git\\n'\n", encoding="utf-8")
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("DEVELOPER_DIR", str(fake_developer))
+    monkeypatch.setenv("TOOLCHAINS", "attacker.toolchain")
+
+    observed = contracts._resolve_trusted_git_executable_realpath()
+    assert observed == str(Path(expected).resolve(strict=True))
+    assert observed != str(fake_git.resolve(strict=True))
+    if sys.platform == "darwin":
+        assert observed != "/usr/bin/git"
+
+
+def test_security_s3p0_trusted_executable_identity_rejects_same_path_replacement(
+    tmp_path: Path,
+) -> None:
+    executable = tmp_path / "tool"
+    executable.write_bytes(b"#!/bin/sh\nprintf 'trusted\\n'\n")
+    executable.chmod(0o755)
+    identity = contracts._freeze_trusted_executable(
+        executable,
+        "test executable",
+    )
+
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(b"#!/bin/sh\nprintf 'attacker\\n'\n")
+    replacement.chmod(0o755)
+    os.replace(replacement, executable)
+
+    with pytest.raises(RuntimeError, match="identity drifted"):
+        contracts._verify_trusted_executable_identity(identity)
+
+
+def test_security_s3p0_trusted_runtime_executables_have_frozen_exact_identity() -> None:
+    for identity, realpath in (
+        (
+            contracts._TRUSTED_GIT_EXECUTABLE_IDENTITY,
+            contracts._TRUSTED_GIT_EXECUTABLE_REALPATH,
+        ),
+        (
+            contracts._TRUSTED_PYTHON_EXECUTABLE_IDENTITY,
+            contracts._TRUSTED_PYTHON_EXECUTABLE_REALPATH,
+        ),
+    ):
+        assert identity.realpath == realpath
+        assert identity.sha256 == hashlib.sha256(Path(realpath).read_bytes()).hexdigest()
+        contracts._verify_trusted_executable_identity(identity)
+
+
+def test_security_s3p0_darwin_framework_bin_launcher_resolves_to_application() -> None:
+    if sys.platform != "darwin":
+        pytest.skip("Darwin framework executable layout only")
+    running = Path(sys.executable).resolve(strict=True)
+    if running.parent.name != "bin":
+        pytest.skip("current Python is not a framework bin launcher")
+    application = (
+        running.parent.parent
+        / "Resources"
+        / "Python.app"
+        / "Contents"
+        / "MacOS"
+        / "Python"
+    )
+    if not application.is_file():
+        pytest.skip("current bin launcher has no sibling Python.app")
+    framework_image = running.parent.parent / "Python3"
+    assert contracts._TRUSTED_PYTHON_LAUNCHER_PATH == os.path.abspath(
+        sys.executable
+    )
+    assert contracts._TRUSTED_PYTHON_EXECUTABLE_REALPATH == os.fspath(
+        application.resolve(strict=True)
+    )
+    assert contracts._TRUSTED_PYTHON_FRAMEWORK_REALPATH == os.fspath(
+        framework_image.resolve(strict=True)
+    )
+
+
+def test_security_s4p1_bounded_process_rejects_stdout_overflow() -> None:
+    identity = contracts._freeze_trusted_executable(
+        sys.executable,
+        "test Python executable",
+    )
+    with pytest.raises(ValueError, match="stdout limit"):
+        contracts._run_bounded_process(
+            (identity.realpath, "-c", "import sys; sys.stdout.buffer.write(b'x'*65536)"),
+            cwd=Path.cwd(),
+            env=contracts._minimal_process_environment(),
+            input_bytes=b"",
+            timeout_seconds=5.0,
+            max_stdout_bytes=1024,
+            max_stderr_bytes=1024,
+            executable_identity=identity,
+        )
+
+
+def test_security_s4p1_bounded_process_times_out_without_blocking_on_stdin() -> None:
+    identity = contracts._freeze_trusted_executable(
+        sys.executable,
+        "test Python executable",
+    )
+    started = time.monotonic()
+    with pytest.raises(ValueError, match="timed out"):
+        contracts._run_bounded_process(
+            (identity.realpath, "-c", "import time; time.sleep(10)"),
+            cwd=Path.cwd(),
+            env=contracts._minimal_process_environment(),
+            input_bytes=b"z" * (8 << 20),
+            timeout_seconds=0.2,
+            max_stdout_bytes=1024,
+            max_stderr_bytes=1024,
+            executable_identity=identity,
+        )
+    assert time.monotonic() - started < 3.0
+
+
+def test_security_s4p1_git_blob_reader_enforces_output_cap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "reviewed"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    (repository / "huge.bin").write_bytes(b"z" * 8192)
+    _git(repository, "add", "--", "huge.bin")
+    _git(repository, "commit", "-qm", "huge bounded blob")
+    commit_sha = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+    monkeypatch.setattr(contracts, "_TRUSTED_GIT_MAX_STDOUT_BYTES", 1024)
+
+    with pytest.raises(ValueError, match="stdout limit"):
+        contracts._read_preparation_commit_blob(commit_sha, "huge.bin")
+
+
+def test_security_s4p1_git_reader_times_out_and_reaps_hanging_tool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hanging_git = tmp_path / "git"
+    hanging_git.write_bytes(b"#!/bin/sh\nsleep 10\n")
+    hanging_git.chmod(0o755)
+    identity = contracts._freeze_trusted_executable(hanging_git, "hanging Git")
+    monkeypatch.setattr(contracts, "_TRUSTED_GIT_EXECUTABLE_IDENTITY", identity)
+    monkeypatch.setattr(contracts, "_TRUSTED_GIT_EXECUTABLE_REALPATH", identity.realpath)
+    monkeypatch.setattr(contracts, "_TRUSTED_GIT_TIMEOUT_SECONDS", 0.2)
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", tmp_path)
+    started = time.monotonic()
+    with pytest.raises(ValueError, match="timed out"):
+        contracts._git_read_object("cat-file", "-t", "0" * 40)
+    assert time.monotonic() - started < 3.0
+
+
+def test_security_s2p0_git_reader_uses_exact_minimal_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "reviewed"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.name", "V3-M0 Test")
+    _git(repository, "config", "user.email", "v3m0@example.invalid")
+    (repository / "reviewed.txt").write_bytes(b"reviewed P bytes\n")
+    _git(repository, "add", "--", "reviewed.txt")
+    _git(repository, "commit", "-qm", "reviewed preparation")
+    preparation_commit = _git(repository, "rev-parse", "HEAD").decode("ascii").strip()
+    monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", repository)
+    for name in (
+        "DEVELOPER_DIR",
+        "TOOLCHAINS",
+        "DYLD_INSERT_LIBRARIES",
+        "LD_PRELOAD",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "BASH_ENV",
+        "ENV",
+        "CDPATH",
+        "ATTACKER_CANARY",
+    ):
+        monkeypatch.setenv(name, f"attacker:{name}")
+
+    expected_environment = {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_WORK_TREE": str(repository.resolve(strict=True)),
+        "LANG": "C",
+        "LC_ALL": "C",
+        "PATH": os.defpath,
+    }
+    real_run = contracts._run_bounded_process
+    observed_environments: list[dict[str, str]] = []
+
+    def observing_run(*args, **kwargs):
+        observed_environments.append(dict(kwargs["env"]))
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr(contracts, "_run_bounded_process", observing_run)
+    assert (
+        contracts._read_preparation_commit_blob(
+            preparation_commit,
+            "reviewed.txt",
+        )
+        == b"reviewed P bytes\n"
+    )
+    assert observed_environments
+    assert all(environment == expected_environment for environment in observed_environments)
 
 
 def test_c19_preparation_replay_is_private_stable_and_rejects_duplicate_closure(

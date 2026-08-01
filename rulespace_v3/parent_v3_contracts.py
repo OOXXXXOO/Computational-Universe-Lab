@@ -10,7 +10,13 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import selectors
+import shutil
+import signal
+import stat
 import subprocess
+import sys
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields as dataclass_fields, is_dataclass, replace
 from enum import Enum
@@ -67,6 +73,434 @@ _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _LOWER_GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _REGULAR_GIT_MODES = frozenset(("100644", "100755"))
+_MINIMAL_PROCESS_ENVIRONMENT_ITEMS = (
+    ("LANG", "C"),
+    ("LC_ALL", "C"),
+    ("PATH", os.defpath),
+)
+_TRUSTED_GIT_ENVIRONMENT_ITEMS = (
+    ("GIT_CONFIG_GLOBAL", os.devnull),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
+    ("GIT_NO_REPLACE_OBJECTS", "1"),
+    ("GIT_OPTIONAL_LOCKS", "0"),
+    ("GIT_TERMINAL_PROMPT", "0"),
+    *_MINIMAL_PROCESS_ENVIRONMENT_ITEMS,
+)
+_TRUSTED_GIT_TIMEOUT_SECONDS = 30.0
+_TRUSTED_GIT_MAX_STDOUT_BYTES = 64 << 20
+_TRUSTED_GIT_MAX_STDERR_BYTES = 1 << 20
+
+
+def _minimal_process_environment() -> dict[str, str]:
+    return dict(_MINIMAL_PROCESS_ENVIRONMENT_ITEMS)
+
+
+def _trusted_git_environment() -> dict[str, str]:
+    return dict(_TRUSTED_GIT_ENVIRONMENT_ITEMS)
+
+
+def _validated_regular_executable_realpath(
+    raw_path: object,
+    field: str,
+) -> str:
+    if type(raw_path) is not str or not raw_path:
+        raise RuntimeError(f"{field} is not an exact non-empty string")
+    path = Path(raw_path)
+    if not path.is_absolute():
+        raise RuntimeError(f"{field} is not absolute")
+    try:
+        resolved = path.resolve(strict=True)
+        metadata = resolved.stat()
+    except OSError as exc:
+        raise RuntimeError(f"{field} cannot be resolved") from exc
+    if (
+        not resolved.is_absolute()
+        or not stat.S_ISREG(metadata.st_mode)
+        or not os.access(resolved, os.X_OK)
+    ):
+        raise RuntimeError(f"{field} is not a regular executable")
+    return os.fspath(resolved)
+
+
+@dataclass(frozen=True)
+class _TrustedExecutableIdentity:
+    """Exact identity frozen from one stable open of an executable."""
+
+    realpath: str
+    st_dev: int
+    st_ino: int
+    st_mode: int
+    st_uid: int
+    st_gid: int
+    st_size: int
+    st_mtime_ns: int
+    sha256: str
+
+
+def _executable_metadata_fingerprint(metadata: os.stat_result) -> tuple[int, ...]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_uid,
+        metadata.st_gid,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+    )
+
+
+def _freeze_trusted_executable(
+    raw_path: object,
+    field: str,
+) -> _TrustedExecutableIdentity:
+    if isinstance(raw_path, os.PathLike):
+        raw_path = os.fspath(raw_path)
+    realpath = _validated_regular_executable_realpath(raw_path, field)
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        lexical_metadata = os.lstat(realpath)
+        descriptor = os.open(realpath, flags)
+    except OSError as exc:
+        raise RuntimeError(f"{field} cannot be opened stably") from exc
+    digest = hashlib.sha256()
+    try:
+        opened_metadata = os.fstat(descriptor)
+        if (
+            stat.S_ISLNK(lexical_metadata.st_mode)
+            or not stat.S_ISREG(opened_metadata.st_mode)
+            or _executable_metadata_fingerprint(lexical_metadata)
+            != _executable_metadata_fingerprint(opened_metadata)
+            or opened_metadata.st_mode & 0o111 == 0
+        ):
+            raise RuntimeError(f"{field} is not a stable regular executable")
+        while True:
+            chunk = os.read(descriptor, 1 << 20)
+            if not chunk:
+                break
+            digest.update(chunk)
+        final_opened_metadata = os.fstat(descriptor)
+    finally:
+        os.close(descriptor)
+    try:
+        final_lexical_metadata = os.lstat(realpath)
+    except OSError as exc:
+        raise RuntimeError(f"{field} changed during identity freeze") from exc
+    fingerprint = _executable_metadata_fingerprint(opened_metadata)
+    if (
+        _executable_metadata_fingerprint(final_opened_metadata) != fingerprint
+        or _executable_metadata_fingerprint(final_lexical_metadata) != fingerprint
+    ):
+        raise RuntimeError(f"{field} changed during identity freeze")
+    return _TrustedExecutableIdentity(
+        realpath=realpath,
+        st_dev=opened_metadata.st_dev,
+        st_ino=opened_metadata.st_ino,
+        st_mode=opened_metadata.st_mode,
+        st_uid=opened_metadata.st_uid,
+        st_gid=opened_metadata.st_gid,
+        st_size=opened_metadata.st_size,
+        st_mtime_ns=opened_metadata.st_mtime_ns,
+        sha256=digest.hexdigest(),
+    )
+
+
+def _verify_trusted_executable_identity(
+    identity: _TrustedExecutableIdentity,
+    executable_path: object | None = None,
+) -> None:
+    if type(identity) is not _TrustedExecutableIdentity:
+        raise TypeError("trusted executable identity has the wrong type")
+    observed = _freeze_trusted_executable(
+        identity.realpath if executable_path is None else executable_path,
+        "trusted executable",
+    )
+    if executable_path is None:
+        expected = identity
+    else:
+        expected = replace(identity, realpath=observed.realpath)
+    if observed != expected:
+        raise RuntimeError("trusted executable identity drifted")
+
+
+def _kill_and_reap_bounded_process(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            process.kill()
+    try:
+        process.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def _run_bounded_process(
+    command: tuple[str, ...],
+    *,
+    cwd: Path | str,
+    env: dict[str, str],
+    input_bytes: bytes,
+    timeout_seconds: float,
+    max_stdout_bytes: int,
+    max_stderr_bytes: int,
+    executable_identity: _TrustedExecutableIdentity,
+) -> subprocess.CompletedProcess[bytes]:
+    """Run a subprocess with nonblocking input and bounded output/time."""
+
+    if (
+        type(command) is not tuple
+        or not command
+        or any(type(argument) is not str or not argument for argument in command)
+    ):
+        raise TypeError("bounded process command must be a non-empty exact string tuple")
+    if type(input_bytes) is not bytes:
+        raise TypeError("bounded process input must be exact bytes")
+    if (
+        type(timeout_seconds) not in (int, float)
+        or timeout_seconds <= 0
+        or type(max_stdout_bytes) is not int
+        or max_stdout_bytes < 0
+        or type(max_stderr_bytes) is not int
+        or max_stderr_bytes < 0
+    ):
+        raise ValueError("bounded process limits are invalid")
+    if type(env) is not dict or any(
+        type(key) is not str or type(value) is not str
+        for key, value in env.items()
+    ):
+        raise TypeError("bounded process environment must contain exact strings")
+    _verify_trusted_executable_identity(executable_identity)
+    _verify_trusted_executable_identity(executable_identity, command[0])
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=env,
+            shell=False,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+            close_fds=True,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        raise ValueError("bounded process is unavailable") from exc
+    if process.stdin is None or process.stdout is None or process.stderr is None:
+        _kill_and_reap_bounded_process(process)
+        raise RuntimeError("bounded process pipes are unavailable")
+    selector = selectors.DefaultSelector()
+    stdout = bytearray()
+    stderr = bytearray()
+    input_offset = 0
+    try:
+        for stream in (process.stdin, process.stdout, process.stderr):
+            os.set_blocking(stream.fileno(), False)
+        if input_bytes:
+            selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
+        else:
+            process.stdin.close()
+        selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+        selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+        deadline = time.monotonic() + float(timeout_seconds)
+        open_outputs = 2
+        while open_outputs:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ValueError("bounded process timed out")
+            events = selector.select(min(remaining, 0.1))
+            for key, _ in events:
+                stream = key.fileobj
+                if key.data == "stdin":
+                    try:
+                        sent = os.write(
+                            stream.fileno(),
+                            input_bytes[input_offset : input_offset + (1 << 16)],
+                        )
+                    except BlockingIOError:
+                        continue
+                    except BrokenPipeError:
+                        sent = 0
+                        input_offset = len(input_bytes)
+                    else:
+                        input_offset += sent
+                    if input_offset == len(input_bytes):
+                        selector.unregister(stream)
+                        stream.close()
+                    continue
+                try:
+                    chunk = os.read(stream.fileno(), 1 << 16)
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    selector.unregister(stream)
+                    stream.close()
+                    open_outputs -= 1
+                    continue
+                target = stdout if key.data == "stdout" else stderr
+                target.extend(chunk)
+                limit = (
+                    max_stdout_bytes
+                    if key.data == "stdout"
+                    else max_stderr_bytes
+                )
+                if len(target) > limit:
+                    raise ValueError(f"bounded process {key.data} limit exceeded")
+        returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
+        _verify_trusted_executable_identity(executable_identity)
+        _verify_trusted_executable_identity(executable_identity, command[0])
+        return subprocess.CompletedProcess(
+            command,
+            returncode,
+            bytes(stdout),
+            bytes(stderr),
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError("bounded process timed out") from exc
+    finally:
+        selector.close()
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None and not stream.closed:
+                stream.close()
+        if process.poll() is None:
+            _kill_and_reap_bounded_process(process)
+
+
+def _resolve_trusted_git_executable_realpath() -> str:
+    discovered = shutil.which("git", path=os.defpath)
+    if discovered is None:
+        raise RuntimeError("trusted Git executable is unavailable on os.defpath")
+    discovered_realpath = _validated_regular_executable_realpath(
+        discovered,
+        "trusted Git discovery",
+    )
+    if sys.platform != "darwin":
+        return discovered_realpath
+
+    xcrun = _validated_regular_executable_realpath(
+        "/usr/bin/xcrun",
+        "trusted xcrun executable",
+    )
+    xcrun_identity = _freeze_trusted_executable(xcrun, "trusted xcrun executable")
+    resolved_tool = _run_bounded_process(
+        (xcrun, "--find", "git"),
+        cwd="/",
+        env=_minimal_process_environment(),
+        input_bytes=b"",
+        timeout_seconds=10.0,
+        max_stdout_bytes=4096,
+        max_stderr_bytes=4096,
+        executable_identity=xcrun_identity,
+    )
+    if resolved_tool.returncode != 0 or resolved_tool.stderr != b"":
+        raise RuntimeError("trusted xcrun Git resolution was not clean")
+    try:
+        raw_tool_path = resolved_tool.stdout.removesuffix(b"\n").decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError("trusted xcrun Git path is not UTF-8") from exc
+    if resolved_tool.stdout != raw_tool_path.encode("utf-8") + b"\n":
+        raise RuntimeError("trusted xcrun Git output is not canonical")
+    direct_git = _validated_regular_executable_realpath(
+        raw_tool_path,
+        "trusted direct Git executable",
+    )
+    if direct_git == discovered_realpath:
+        raise RuntimeError("trusted Git resolution retained the Apple shim")
+    return direct_git
+
+
+def _resolve_trusted_python_executable_realpath() -> str:
+    if sys.platform == "darwin":
+        running = Path(sys.executable).resolve(strict=True)
+        if tuple(running.parts[-5:]) == (
+            "Resources",
+            "Python.app",
+            "Contents",
+            "MacOS",
+            "Python",
+        ):
+            return _validated_regular_executable_realpath(
+                os.fspath(running),
+                "trusted Python application executable",
+            )
+        if running.parent.name == "bin":
+            application_executable = (
+                running.parent.parent
+                / "Resources"
+                / "Python.app"
+                / "Contents"
+                / "MacOS"
+                / "Python"
+            )
+            if application_executable.is_file():
+                return _validated_regular_executable_realpath(
+                    os.fspath(application_executable),
+                    "trusted Python application executable",
+                )
+        application_executable = (
+            Path(sys.prefix)
+            / "Resources"
+            / "Python.app"
+            / "Contents"
+            / "MacOS"
+            / "Python"
+        )
+        if application_executable.is_file():
+            return _validated_regular_executable_realpath(
+                os.fspath(application_executable),
+                "trusted Python application executable",
+            )
+    return _validated_regular_executable_realpath(
+        sys.executable,
+        "trusted Python executable",
+    )
+
+
+def _resolve_trusted_python_framework_realpath(
+    executable_realpath: str,
+) -> str | None:
+    if sys.platform != "darwin":
+        return None
+    executable = Path(executable_realpath)
+    if tuple(executable.parts[-5:]) != (
+        "Resources",
+        "Python.app",
+        "Contents",
+        "MacOS",
+        "Python",
+    ):
+        return None
+    return _validated_regular_executable_realpath(
+        os.fspath(executable.parents[4] / "Python3"),
+        "trusted Python framework image",
+    )
+
+
+_TRUSTED_GIT_EXECUTABLE_IDENTITY = _freeze_trusted_executable(
+    _resolve_trusted_git_executable_realpath(),
+    "trusted Git executable",
+)
+_TRUSTED_GIT_EXECUTABLE_REALPATH = _TRUSTED_GIT_EXECUTABLE_IDENTITY.realpath
+_TRUSTED_PYTHON_EXECUTABLE_IDENTITY = _freeze_trusted_executable(
+    _resolve_trusted_python_executable_realpath(),
+    "trusted Python executable",
+)
+_TRUSTED_PYTHON_EXECUTABLE_REALPATH = _TRUSTED_PYTHON_EXECUTABLE_IDENTITY.realpath
+_TRUSTED_PYTHON_LAUNCHER_PATH = os.path.abspath(sys.executable)
+_TRUSTED_PYTHON_FRAMEWORK_REALPATH = _resolve_trusted_python_framework_realpath(
+    _TRUSTED_PYTHON_EXECUTABLE_REALPATH
+)
+_TRUSTED_PYTHON_FRAMEWORK_IDENTITY = (
+    None
+    if _TRUSTED_PYTHON_FRAMEWORK_REALPATH is None
+    else _freeze_trusted_executable(
+        _TRUSTED_PYTHON_FRAMEWORK_REALPATH,
+        "trusted Python framework image",
+    )
+)
 
 _CONSTRUCTION_DEPENDENCY_PATHS = (
     C19_DESIGN_SOURCE_PATH_V2,
@@ -122,30 +556,18 @@ def _canonical_repository_relative_path(value: object, field: str) -> str:
 
 
 def _git_read_object(*arguments: str) -> subprocess.CompletedProcess[bytes]:
-    environment = {
-        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
-    }
-    environment.update(
-        {
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_NO_REPLACE_OBJECTS": "1",
-            "GIT_OPTIONAL_LOCKS": "0",
-            "GIT_TERMINAL_PROMPT": "0",
-            "LC_ALL": "C",
-        }
+    environment = _trusted_git_environment()
+    environment["GIT_WORK_TREE"] = os.fspath(_REPOSITORY_ROOT.resolve(strict=True))
+    return _run_bounded_process(
+        (_TRUSTED_GIT_EXECUTABLE_REALPATH, *arguments),
+        cwd=_REPOSITORY_ROOT,
+        env=environment,
+        input_bytes=b"",
+        timeout_seconds=_TRUSTED_GIT_TIMEOUT_SECONDS,
+        max_stdout_bytes=_TRUSTED_GIT_MAX_STDOUT_BYTES,
+        max_stderr_bytes=_TRUSTED_GIT_MAX_STDERR_BYTES,
+        executable_identity=_TRUSTED_GIT_EXECUTABLE_IDENTITY,
     )
-    try:
-        return subprocess.run(
-            ("git", *arguments),
-            cwd=_REPOSITORY_ROOT,
-            check=False,
-            env=environment,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except OSError as exc:
-        raise ValueError("Git object reader is unavailable") from exc
 
 
 def _require_preparation_commit_sha(value: object) -> tuple[str, str]:
@@ -197,11 +619,11 @@ def _require_preparation_commit_sha(value: object) -> tuple[str, str]:
     return value, tree_sha
 
 
-def _read_preparation_commit_blob(
+def _read_preparation_commit_regular_blob(
     preparation_commit_sha: str,
     relative_path: str,
-) -> bytes:
-    """Read one exact regular blob from an immutable preparation commit."""
+) -> tuple[str, bytes]:
+    """Read one exact regular blob and its Git mode from immutable P."""
 
     commit_sha, tree_sha = _require_preparation_commit_sha(preparation_commit_sha)
     canonical_path = _canonical_repository_relative_path(relative_path, "relative_path")
@@ -245,7 +667,20 @@ def _read_preparation_commit_blob(
             blob.stdout.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise ValueError("preparation Markdown blob must be strict UTF-8") from exc
-    return blob.stdout
+    return mode, blob.stdout
+
+
+def _read_preparation_commit_blob(
+    preparation_commit_sha: str,
+    relative_path: str,
+) -> bytes:
+    """Read one exact regular blob from an immutable preparation commit."""
+
+    _mode, raw = _read_preparation_commit_regular_blob(
+        preparation_commit_sha,
+        relative_path,
+    )
+    return raw
 
 
 def _read_live_dependency_blob(relative_path: str) -> bytes:
