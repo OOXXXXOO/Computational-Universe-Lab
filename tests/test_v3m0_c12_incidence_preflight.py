@@ -300,6 +300,62 @@ class C12AnalyticIncidenceCertificateTests(unittest.TestCase):
             self.assertIs(verifier(certificate), certificate)
         self.assertEqual(poisoned_calls, [])
 
+    def test_analytic_public_api_closes_record_method_globals(self) -> None:
+        import rulespace_v3.c12_incidence_preflight as c12
+
+        certificate = c12.build_c12_analytic_incidence_certificate()
+        poisoned_calls = []
+
+        def poison(label):
+            def poisoned(*_, **__):
+                poisoned_calls.append(label)
+                raise AssertionError(f"record method reached live {label}")
+
+            return poisoned
+
+        with (
+            patch.object(c12, "type", poison("type"), create=True),
+            patch.object(c12, "_text", poison("_text")),
+            patch.object(c12, "getattr", poison("getattr"), create=True),
+        ):
+            rebuilt = c12.build_c12_analytic_incidence_certificate()
+            self.assertIs(
+                c12.verify_c12_analytic_incidence_certificate(certificate),
+                certificate,
+            )
+            self.assertEqual(rebuilt, certificate)
+        self.assertEqual(poisoned_calls, [])
+
+    def test_analytic_positivity_is_only_strict_away_from_zero(self) -> None:
+        from rulespace_v3.c12_incidence_preflight import (
+            C12_POSITIVITY_DOMAIN_ID,
+            build_c12_analytic_incidence_certificate,
+            verify_c12_analytic_incidence_certificate,
+        )
+
+        certificate = build_c12_analytic_incidence_certificate()
+        self.assertEqual(
+            C12_POSITIVITY_DOMAIN_ID,
+            "one-dimensional-minus-pi-open-pi-closed-excluding-zero-v1",
+        )
+        self.assertEqual(
+            certificate.positivity_domain_id,
+            C12_POSITIVITY_DOMAIN_ID,
+        )
+        self.assertEqual(4.0 * math.sin(0.0 / 2.0) ** 2, 0.0)
+        for point in certificate.point_wires:
+            self.assertNotEqual(point.momentum, 0.0)
+            self.assertGreater(point.nu_value, 0.0)
+
+        attacked = self._resign_certificate(
+            certificate,
+            positivity_domain_id=(
+                "one-dimensional-minus-pi-open-pi-closed-including-zero-v1"
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "exact replay"):
+            verify_c12_analytic_incidence_certificate(attacked)
+
 
 class C12IncidencePreflightTests(unittest.TestCase):
     @classmethod
