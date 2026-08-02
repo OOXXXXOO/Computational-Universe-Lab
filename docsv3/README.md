@@ -9,6 +9,12 @@
 > 签发并开工；审计结论为 PASS。v2 证据链保持原样，V3-M1、新 family、pilot 与昂贵扫描
 > 继续锁定；`READY-V3-M1-ANCHOR-CERTIFICATION` 尚未签发。
 
+> **实施覆盖（2026-08-03）：** production 分支 HEAD 为 `18b0d43`；Phase A 的 A1–A5 与
+> Phase B 的 B0–B6 已有源码实现。当前边界是 B7；v8 的 response wire 合同因
+> prefix/provenance 矛盾重新打开。PI 已批准 D0+D1 的 A/B/C 三路线隔离并行对照，最终仍只允许
+> 一个 production schema。v9 P0 会改写尚未签发的 current response raw body，所以
+> A1–B6 须在新 root 上重放与复审。真实 P/S、V3-M0 run 与所有下游 READY/PASS 均尚未执行。
+
 ## 为什么需要 v3
 
 v2 把“涌现度”压缩为单一 `ε`。M3′ pilot 之后的交叉审计发现，仓库实际运行着三个不同的
@@ -84,18 +90,14 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
 ## 非权威设计索引
 
 - [`v3-设计勘误-C19-refreeze-v2-2026-08-01.md`](v3-设计勘误-C19-refreeze-v2-2026-08-01.md)：
-  C19 20 实通道 refreeze v2 的 DRAFT 合同。authority-neutral raw candidate、
+  C19 20 实通道 refreeze v2 的历史 DRAFT 合同。authority-neutral raw candidate、
   两份预响应 grid-derivation protocol、唯一 Response manifest 与 10D conditional
-  geometry bundle 已在 commit `4217291` 实现并通过独立复审，但只是
+  geometry bundle 已在 commit `4217291` 实现，但只是
   `OBSERVER_COLLAPSE_TRIGGER_CONTROL_ONLY / NULL_INTERVENTION_INVARIANCE_CONTROL`，
-  明确不具备 physical-anchor 或 family 资格。当前 V2 wire 仍不可承载；新
-  `ParentFreezeV3Manifest` / `VerifiedParentFreezeV3` /
-  `issue_v3m0_parent_freeze_v3()`、`WindowThresholdCalibrationV3` 及
-  calibration/application/response/materialization schema、
-  verified metric-support authority、Dynamics/Bridge 运行时 artifact 派生、
-  control-evidence issuer 与机械签发闭合均尚待实现。本 DRAFT 不改变 Parent、permit 或
-  `HALT-V3M0-WINDOW`，也不签发
-  `READY-V3-M1-ANCHOR-CERTIFICATION` 或任何下游解锁状态。
+  明确不具备 physical-anchor 或 family 资格。其当时列为“待实现”的
+  Parent-v3 上游至 B6 已在 `18b0d43` 源基线实现；当前仍缺 B7–B10、
+  真实 P/S 与 run。v9 P0 会在签发前改写 current response raw body，因此
+  A1–B6 须按新 root 重放；顶部“实施覆盖”是当前状态权威。
 - [`v3-设计勘误-metric-support-authority-v1-2026-08-01.md`](v3-设计勘误-metric-support-authority-v1-2026-08-01.md)：
   冻结 C19 production Dynamics grid 所需的独立 metric-support authority、exact
   `MetricSupportDerivationProtocolV1` 和无环 Parent-v3→Materialization-v3→runtime
@@ -110,3 +112,6 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
   从当前 Parent-v3 root blocker 出发的 stage-gated delta plan。它先完成 V3-M0 production
   authority；仅在逐级 READY/PASS 后才创建 V3-M1、V3-M2、pilot 与 V3-M3 任务书，并把终点
   定义为正式 scan manifest 绑定的 CUDA fp64 preflight PASS 后、首个正式 kernel 启动前。
+- [`v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md`](v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md)：
+  修复 v8 B7 prefix 与 provenance 缺口；允许 A/B/C 在非 authority 实验域中以同一 transcript
+  并行对照，并冻结在 B8/issuer/artifact 之前收敛为唯一 production schema 的硬门。

@@ -12,6 +12,14 @@ manifest 与 GPU preflight，并停在首个正式扫描 kernel 启动前。
 `READY-V3-M1-ANCHOR-CERTIFICATION` 未签发；当前 `rulespace_gpu.verify` 仅是 backend smoke，
 不是 GPU science permit。
 
+> **执行覆盖（2026-08-03）：** 上述 commit 是本计划的历史起点，不再是当前 HEAD。
+> A1–A5、B0–B6 已实现；B6 封闭提交为 `18b0d43`。当前在 B7，并以
+> `v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md` 覆盖本文原 B7 实施入口。
+> v9 同时是 pre-B7 breaking P0；它会在签发前改写 current response raw body，
+> 因此 `18b0d43` 仅保留为 source/legacy-golden 基线，A1–B6 必须按 P0 新 root
+> refreeze/replay/review。v9 只允许冻结前 D0/D1 三路线非 authority 对照，
+> 随后唯一 production 收敛；C1 真实 P readiness、P/S、V3-M0 run 与下游均未执行。
+
 **架构：** authority/data flow 唯一为：
 
 ```text
@@ -42,7 +50,9 @@ V3-M0 READY
 
 ## 共同执行规则
 
-1. 工作树固定为 `.worktrees/v3m0-instrument`，分支 `v3m0-instrument`；保留用户改动。
+1. production 工作树固定为 `.worktrees/v3m0-instrument`，分支
+   `v3m0-instrument`；保留用户改动。v9 唯一允许的例外是 B7 `NON_AUTHORITY`
+   schema lab 的 A/B/C 隔离 worktree；它们不得进入 production preparation branch。
 2. Python 固定使用
    `/Users/prismer/workspace/science/ca-universe-lab/.venv/bin/python`。
 3. 每个实现任务：先写缺失行为/攻击测试并看到预期 RED，再做最小 GREEN；不得先写 production
@@ -335,15 +345,18 @@ full-64 spectral margin、fp64 symplectic/unitary error。复用纯数值核，�
 
 ### Task B7：atomic paired response
 
-**Files:**
+> **TOMBSTONE / v9 覆盖：** 本段不得直接创建 production module。先执行
+> `v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md` 的
+> legacy golden、P0 breaking refreeze、A1–B6 重放、D0/D1 A/B/C 隔离对照与唯一
+> schema 收敛。只有 `B7_UNIQUE_SCHEMA_SELECTED_FOR_IMPLEMENTATION` 非 authority disposition
+> 通过双复核后，才恢复以下文件与 commit 目标。
+
+**收敛后 Files:**
 
 - Create: `rulespace_v3/application_response_v3.py`
 - Create: `tests/test_v3m0_application_response_v3.py`
 
-只在 actual certificate上选 endpoint reference/shell；matched不得重寻 shell。两支共享 exact
-scenario/run/basis/Response grid/Bridge grid/Fejér order；任何一支失败不产生 half-pair capability。
-
-**Commit:** `feat(v3m0): issue Parent-v3 paired responses`
+**收敛后 Commit:** `feat(v3m0): issue Parent-v3 paired responses`
 
 ### Task B8：closed control evidence 与 permitted blocks
 
