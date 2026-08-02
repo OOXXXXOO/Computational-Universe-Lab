@@ -22,6 +22,7 @@ from typing import Callable, Literal, Optional, Sequence
 import numpy as np
 
 from .evidence import canonical_sha
+from .frozen_call_graph import _freeze_project_class_methods
 from .replay_scope import (
     _cached_replay_is_valid,
     _record_successful_replay,
@@ -68,9 +69,7 @@ def _text(value: object, field: str) -> str:
 def _sha(value: object, field: str) -> str:
     text = _text(value, field)
     if _LOWER_SHA.fullmatch(text) is None:
-        raise ValueError(
-            f"{field} must be a 64-digit lowercase hexadecimal SHA"
-        )
+        raise ValueError(f"{field} must be a 64-digit lowercase hexadecimal SHA")
     return text
 
 
@@ -105,8 +104,7 @@ def _shape(value: object, field: str) -> tuple[int, ...]:
     if not value:
         raise ValueError(f"{field} must be non-empty")
     return tuple(
-        _positive_int(item, f"{field}[{index}]")
-        for index, item in enumerate(value)
+        _positive_int(item, f"{field}[{index}]") for index, item in enumerate(value)
     )
 
 
@@ -216,9 +214,7 @@ class BasisManifest:
             if type(row) is not tuple:
                 raise TypeError(f"vectors_wire[{row_index}] must be a tuple")
             if len(row) != len(channels):
-                raise ValueError(
-                    "vectors_wire must have shape (n_vector,n_channel)"
-                )
+                raise ValueError("vectors_wire must have shape (n_vector,n_channel)")
             for column_index, wire in enumerate(row):
                 _complex_wire(
                     wire,
@@ -477,8 +473,7 @@ def _snapshot_basis_manifest(basis: BasisManifest) -> BasisManifest:
         state_schema_id=basis.state_schema_id,
         channel_order=tuple(basis.channel_order),
         vectors_wire=tuple(
-            tuple((real, imag) for real, imag in row)
-            for row in basis.vectors_wire
+            tuple((real, imag) for real, imag in row) for row in basis.vectors_wire
         ),
         manifest_id=basis.manifest_id,
     )
@@ -490,9 +485,7 @@ def _snapshot_complex_tensor(
     return FrozenComplexTensor(
         tensor_schema_version=tensor.tensor_schema_version,
         shape=tuple(tensor.shape),
-        values_wire=tuple(
-            (real, imag) for real, imag in tensor.values_wire
-        ),
+        values_wire=tuple((real, imag) for real, imag in tensor.values_wire),
         tensor_sha=tensor.tensor_sha,
     )
 
@@ -519,9 +512,7 @@ def _snapshot_primitive(primitive: Primitive) -> Primitive:
         source_channel=primitive.source_channel,
         destination_channel=primitive.destination_channel,
         offset=tuple(primitive.offset),
-        support_offsets=tuple(
-            tuple(offset) for offset in primitive.support_offsets
-        ),
+        support_offsets=tuple(tuple(offset) for offset in primitive.support_offsets),
         coefficient_wire=(
             primitive.coefficient_wire[0],
             primitive.coefficient_wire[1],
@@ -552,8 +543,7 @@ def _snapshot_factory(
         backend=factory.backend,
         dt=factory.dt,
         target_blind_parameters=tuple(
-            (name, value)
-            for name, value in factory.target_blind_parameters
+            (name, value) for name, value in factory.target_blind_parameters
         ),
         layer_slot_ids=tuple(factory.layer_slot_ids),
         source_manifest_id=factory.source_manifest_id,
@@ -561,8 +551,7 @@ def _snapshot_factory(
         boundary_manifest_id=factory.boundary_manifest_id,
         run_length=factory.run_length,
         primitives=tuple(
-            _snapshot_primitive(primitive)
-            for primitive in factory.primitives
+            _snapshot_primitive(primitive) for primitive in factory.primitives
         ),
         factory_sha=factory.factory_sha,
     )
@@ -577,9 +566,7 @@ def _snapshot_observation(
         runtime_operator_sha=observation.runtime_operator_sha,
         holdout_source_manifest_id=observation.holdout_source_manifest_id,
         readout_manifest_id=observation.readout_manifest_id,
-        response_tensor=_snapshot_complex_tensor(
-            observation.response_tensor
-        ),
+        response_tensor=_snapshot_complex_tensor(observation.response_tensor),
         observation_sha=observation.observation_sha,
     )
 
@@ -706,9 +693,7 @@ def _make_verified_factory_authority_registry(
             authority_target = _snapshot_target(target)
             authority_factory = _snapshot_factory(factory)
         except (AttributeError, IndexError) as exc:
-            raise ValueError(
-                "factory issuance record is incomplete"
-            ) from exc
+            raise ValueError("factory issuance record is incomplete") from exc
         _verify_factory_payload(
             authority_factory,
             authority_trace,
@@ -729,9 +714,7 @@ def _make_verified_factory_authority_registry(
         wrapper = VerifiedFactory(
             _ISSUANCE_TOKEN,
             _snapshot_factory(authority_factory),
-            verify_construction_trace(
-                construction_trace_payload(authority_trace)
-            ),
+            verify_construction_trace(construction_trace_payload(authority_trace)),
             _snapshot_target(authority_target),
         )
         identity = id(wrapper)
@@ -762,8 +745,7 @@ def _make_verified_factory_authority_registry(
             current = registry.get(id(wrapper))
             if current is None or current[0]() is not wrapper:
                 raise ValueError(
-                    "VerifiedFactory identity is absent from the authority "
-                    "registry"
+                    "VerifiedFactory identity is absent from the authority registry"
                 )
             authority = current[1]
         try:
@@ -788,9 +770,7 @@ def _make_verified_factory_authority_registry(
                 "_VerifiedFactory__target",
             )
         except AttributeError as exc:
-            raise ValueError(
-                "VerifiedFactory authority record is incomplete"
-            ) from exc
+            raise ValueError("VerifiedFactory authority record is incomplete") from exc
         namespace = "rulespace_v3.factory.VerifiedFactory"
 
         def cheap_validator() -> None:
@@ -801,17 +781,13 @@ def _make_verified_factory_authority_registry(
                     or target != authority.target
                 )
             except (AttributeError, IndexError, TypeError) as exc:
-                raise ValueError(
-                    "VerifiedFactory exposed body is malformed"
-                ) from exc
+                raise ValueError("VerifiedFactory exposed body is malformed") from exc
             if (
                 body_mismatch
                 or payload.factory_role != authority.role
                 or seal != authority.fingerprint
             ):
-                raise ValueError(
-                    "VerifiedFactory cached immutable guard mismatch"
-                )
+                raise ValueError("VerifiedFactory cached immutable guard mismatch")
 
         if cached_replay_is_valid(
             namespace=namespace,
@@ -853,9 +829,7 @@ def _make_verified_factory_authority_registry(
             authority_target,
         )
         if authority_fingerprint != authority.fingerprint:
-            raise ValueError(
-                "VerifiedFactory authority snapshot fingerprint mismatch"
-            )
+            raise ValueError("VerifiedFactory authority snapshot fingerprint mismatch")
         wrapper_fingerprint = _verified_factory_seal(payload, trace, target)
         if (
             seal != wrapper_fingerprint
@@ -933,9 +907,7 @@ def _blind_parameters(
     seen = set()
     for index, entry in enumerate(parameters):
         if type(entry) is not tuple or len(entry) != 2:
-            raise TypeError(
-                f"target_blind_parameters[{index}] must be a pair"
-            )
+            raise TypeError(f"target_blind_parameters[{index}] must be a pair")
         name = _text(entry[0], f"target_blind_parameters[{index}][0]")
         value = _finite_float(
             entry[1],
@@ -999,9 +971,10 @@ def build_basis_manifest(
     if array.shape[1] != len(channels):
         raise ValueError("vectors channel dimension does not match channel_order")
     complex_array = np.asarray(array, dtype=np.complex128)
-    if not np.isfinite(complex_array.real).all() or not np.isfinite(
-        complex_array.imag
-    ).all():
+    if (
+        not np.isfinite(complex_array.real).all()
+        or not np.isfinite(complex_array.imag).all()
+    ):
         raise ValueError("vectors must contain finite complex128 values")
     wire = tuple(
         tuple(_wire_from_complex(complex(value)) for value in row)
@@ -1024,10 +997,7 @@ def build_basis_manifest(
 def basis_manifest_array(basis: BasisManifest) -> np.ndarray:
     verified = verify_basis_manifest(basis)
     return np.asarray(
-        [
-            [complex(real, imag) for real, imag in row]
-            for row in verified.vectors_wire
-        ],
+        [[complex(real, imag) for real, imag in row] for row in verified.vectors_wire],
         dtype=np.complex128,
     ).copy()
 
@@ -1063,9 +1033,10 @@ def freeze_complex_tensor(values: np.ndarray) -> FrozenComplexTensor:
     if array.ndim <= 0 or any(length <= 0 for length in array.shape):
         raise ValueError("tensor shape must have non-empty positive dimensions")
     complex_array = np.asarray(array, dtype=np.complex128)
-    if not np.isfinite(complex_array.real).all() or not np.isfinite(
-        complex_array.imag
-    ).all():
+    if (
+        not np.isfinite(complex_array.real).all()
+        or not np.isfinite(complex_array.imag).all()
+    ):
         raise ValueError("tensor values must be finite")
     wire = tuple(
         _wire_from_complex(complex(value))
@@ -1085,10 +1056,14 @@ def freeze_complex_tensor(values: np.ndarray) -> FrozenComplexTensor:
 
 def frozen_tensor_array(tensor: FrozenComplexTensor) -> np.ndarray:
     verified = verify_frozen_tensor(tensor)
-    return np.asarray(
-        [complex(real, imag) for real, imag in verified.values_wire],
-        dtype=np.complex128,
-    ).reshape(verified.shape, order="C").copy()
+    return (
+        np.asarray(
+            [complex(real, imag) for real, imag in verified.values_wire],
+            dtype=np.complex128,
+        )
+        .reshape(verified.shape, order="C")
+        .copy()
+    )
 
 
 def primitive_operator_payload(
@@ -1286,9 +1261,7 @@ def _validate_operator(
         raise ValueError("canonical shear requires distinct channels")
     _offset(operator.offset, "operator.offset", ndim=interface.spatial_ndim)
     if _wire_is_zero(operator.coefficient_wire):
-        raise ValueError(
-            "local_canonical_shear coefficient_wire must be non-zero"
-        )
+        raise ValueError("local_canonical_shear coefficient_wire must be non-zero")
 
 
 def _verify_calibration_seed(seed: CalibrationSeed) -> CalibrationSeed:
@@ -1428,9 +1401,7 @@ def _minkowski(
     result: set[tuple[int, ...]] = set()
     for first in left:
         for second in right:
-            result.add(
-                tuple(a + b for a, b in zip(first, second))
-            )
+            result.add(tuple(a + b for a, b in zip(first, second)))
             if len(result) > FACTORY_SUPPORT_MAX_CARDINALITY:
                 raise ValueError("support cardinality limit exceeded")
     return tuple(sorted(result))
@@ -1495,9 +1466,7 @@ def _assert_no_wrap(
     for axis, length in enumerate(spatial_shape):
         radius = max(abs(offset[axis]) for offset in support)
         if length <= 2 * radius:
-            raise ValueError(
-                f"spatial axis {axis} violates no-wrap L_i > 2 r_i"
-            )
+            raise ValueError(f"spatial axis {axis} violates no-wrap L_i > 2 r_i")
 
 
 def _apply_primitive(
@@ -1524,9 +1493,7 @@ def _apply_primitive(
     output = state.copy()
     if primitive.operation_id == _NEUTRAL_OPERATION:
         return output
-    source_index = verified_interface.channel_order.index(
-        primitive.source_channel
-    )
+    source_index = verified_interface.channel_order.index(primitive.source_channel)
     destination_index = verified_interface.channel_order.index(
         primitive.destination_channel
     )
@@ -1545,8 +1512,7 @@ def measure_calibration_holdout(
     holdout = basis_manifest_array(verified.holdout_source_basis)
     readout = basis_manifest_array(verified.readout_basis)
     primitives = tuple(
-        _calibration_primitive(item)
-        for item in verified.runtime_operator_payload
+        _calibration_primitive(item) for item in verified.runtime_operator_payload
     )
     spatial_shape = verified.state_shape[1:]
     support = _primitive_sequence_support(
@@ -1579,9 +1545,7 @@ def measure_calibration_holdout(
     )
     return replace(
         provisional,
-        observation_sha=canonical_sha(
-            calibration_observation_payload(provisional)
-        ),
+        observation_sha=canonical_sha(calibration_observation_payload(provisional)),
     )
 
 
@@ -1766,8 +1730,7 @@ def _verify_factory_payload(
         raise ValueError("primitive count mismatch")
 
     records = {
-        record.mechanism_id: record
-        for record in verified_trace.coefficient_records
+        record.mechanism_id: record for record in verified_trace.coefficient_records
     }
     for index, (primitive, traced) in enumerate(
         zip(factory.primitives, verified_trace.primitives)
@@ -1787,9 +1750,10 @@ def _verify_factory_payload(
             raise ValueError(f"{prefix}.destination_channel mismatch")
         if primitive.source_channel == primitive.destination_channel:
             raise ValueError(f"{prefix} canonical shear channels must differ")
-        if tuple(
-            sorted((primitive.source_channel, primitive.destination_channel))
-        ) != traced.state_channels:
+        if (
+            tuple(sorted((primitive.source_channel, primitive.destination_channel)))
+            != traced.state_channels
+        ):
             raise ValueError(f"{prefix}.state_channels mismatch")
         if primitive.coefficient_digest != traced.coefficient_digest:
             raise ValueError(f"{prefix}.coefficient_digest mismatch")
@@ -1807,13 +1771,9 @@ def _verify_factory_payload(
                 raise ValueError(f"{prefix}.support_offsets mismatch")
             if traced.support_offsets != expected_support:
                 raise ValueError(f"{prefix}.trace support mismatch")
-            expected_wire = _wire_from_complex(
-                evaluate_closed_coefficient(record)
-            )
+            expected_wire = _wire_from_complex(evaluate_closed_coefficient(record))
             if _wire_is_zero(primitive.coefficient_wire):
-                raise ValueError(
-                    f"{prefix}.coefficient_wire must be bitwise non-zero"
-                )
+                raise ValueError(f"{prefix}.coefficient_wire must be bitwise non-zero")
             if not _wire_equal(primitive.coefficient_wire, expected_wire):
                 raise ValueError(f"{prefix}.coefficient_wire mismatch")
             if primitive.neutral_identity_id is not None:
@@ -1830,16 +1790,12 @@ def _verify_factory_payload(
             if primitive.offset != zero:
                 raise ValueError(f"{prefix}.offset is not canonical neutral")
             if primitive.support_offsets != (zero,):
-                raise ValueError(
-                    f"{prefix}.support_offsets is not canonical neutral"
-                )
+                raise ValueError(f"{prefix}.support_offsets is not canonical neutral")
             if not _wire_equal(
                 primitive.coefficient_wire,
                 (0.0, 0.0),
             ):
-                raise ValueError(
-                    f"{prefix}.coefficient_wire is not canonical neutral"
-                )
+                raise ValueError(f"{prefix}.coefficient_wire is not canonical neutral")
             if primitive.neutral_identity_id != NEUTRAL_IDENTITY_ID:
                 raise ValueError(f"{prefix}.neutral_identity_id mismatch")
         else:
@@ -1910,8 +1866,7 @@ def build_factory_from_trace(
     if len(slots) != len(operators):
         raise ValueError("layer_slot_ids count does not match operator_payload")
     records = {
-        record.mechanism_id: record
-        for record in verified_trace.coefficient_records
+        record.mechanism_id: record for record in verified_trace.coefficient_records
     }
     primitives = []
     for index, (operator, traced) in enumerate(
@@ -1989,10 +1944,7 @@ def build_full_factory_from_seed(
         raise ValueError("FULL construction trace must be entirely target-blind")
     if verified_target.seed_sha != verified_seed.seed_sha:
         raise ValueError("target seed_sha does not match calibration seed")
-    if (
-        verified_target.calibration_protocol_id
-        != verified_seed.calibration_protocol_id
-    ):
+    if verified_target.calibration_protocol_id != verified_seed.calibration_protocol_id:
         raise ValueError(
             "target calibration_protocol_id does not match calibration seed"
         )
@@ -2067,12 +2019,26 @@ def factory_support_offsets(
         snapshot.factory.primitives,
         snapshot.factory.spatial_ndim,
     )
-    result: tuple[tuple[int, ...], ...] = (
-        (0,) * snapshot.factory.spatial_ndim,
-    )
+    result: tuple[tuple[int, ...], ...] = ((0,) * snapshot.factory.spatial_ndim,)
     for _ in range(steps):
         result = _minkowski(result, one_step)
     return result
+
+
+_freeze_project_class_methods(
+    BasisManifest,
+    FrozenComplexTensor,
+    PrimitiveInterface,
+    Primitive,
+    LinearRealspaceFactory,
+    PrimitiveOperatorWire,
+    CalibrationSeed,
+    CalibrationObservation,
+    FrozenSyntheticTarget,
+    VerifiedFactory,
+    _VerifiedFactoryAuthority,
+    _VerifiedFactoryView,
+)
 
 
 __all__ = [

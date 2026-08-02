@@ -156,6 +156,19 @@ class DynamicsCertificateTests(unittest.TestCase):
             cls.runtime,
         )
 
+    def test_laurent_resource_preflight_captures_owner_neutral_raw_core(self):
+        raw_core = certificate_module._laurent._preflight_laurent_resources_from_raw
+        legacy = certificate_module._preflight_laurent_resources
+        self.assertIn(
+            raw_core,
+            tuple(cell.cell_contents for cell in (legacy.__closure__ or ())),
+        )
+        self.assertEqual(
+            tuple(inspect.signature(legacy).parameters),
+            ("transition", "stability_metric"),
+        )
+        self.assertIsNone(legacy(self.transition, self.metric))
+
     def _certify(self, *, core: bool = False):
         issuer = (
             certificate_module._certify_transition_dynamics_core
@@ -214,12 +227,9 @@ class DynamicsCertificateTests(unittest.TestCase):
         )
         self.assertTrue(hydrated.outcome.status.defined)
 
-        certificate_namespace = (
-            "rulespace_v3.certificate.VerifiedDynamicsCertificate"
-        )
+        certificate_namespace = "rulespace_v3.certificate.VerifiedDynamicsCertificate"
         outcome_namespace = (
-            "rulespace_v3.certificate."
-            "VerifiedDynamicsCertificationOutcome"
+            "rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"
         )
         for statistics in (build_statistics, hydrate_statistics):
             full_records = dict(statistics.full_records)
@@ -303,9 +313,7 @@ class DynamicsCertificateTests(unittest.TestCase):
     def test_certificate_hit_revalidates_factory_and_prestructure_dependencies(self):
         certificate = self.result.certificate
         assert certificate is not None
-        namespace = (
-            "rulespace_v3.certificate.VerifiedDynamicsCertificate"
-        )
+        namespace = "rulespace_v3.certificate.VerifiedDynamicsCertificate"
         factory_primitive = self.factory.factory.primitives[0]
         prestructure_snapshot = self.authority.authority.ablation_pair_snapshot
         cases = (
@@ -326,9 +334,7 @@ class DynamicsCertificateTests(unittest.TestCase):
             ),
         )
         with _scoped_replay_context():
-            certificate_module._reverify_verified_dynamics_certificate_core(
-                certificate
-            )
+            certificate_module._reverify_verified_dynamics_certificate_core(certificate)
             for label, target, field, changed in cases:
                 with self.subTest(dependency=label):
                     original = getattr(target, field)
@@ -350,8 +356,7 @@ class DynamicsCertificateTests(unittest.TestCase):
                     )
                     self.assertEqual(hits_after, hits_before)
             outcome_namespace = (
-                "rulespace_v3.certificate."
-                "VerifiedDynamicsCertificationOutcome"
+                "rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"
             )
             child_body = object.__getattribute__(
                 certificate,
@@ -361,13 +366,11 @@ class DynamicsCertificateTests(unittest.TestCase):
                 self.result.outcome,
                 certificate=dataclasses.replace(child_body),
             )
-            outcome = (
-                certificate_module._issue_verified_dynamics_certification_outcome(
-                    outcome_body,
-                    certificate,
-                    self.factory,
-                    self.authority,
-                )
+            outcome = certificate_module._issue_verified_dynamics_certification_outcome(
+                outcome_body,
+                certificate,
+                self.factory,
+                self.authority,
             )
             outcome_hits_before = dict(_replay_scope_statistics().hits).get(
                 outcome_namespace,

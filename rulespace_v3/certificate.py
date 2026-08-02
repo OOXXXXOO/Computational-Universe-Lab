@@ -184,8 +184,7 @@ def _snapshot_exact_wire(
         finally:
             active.remove(identity)
         raise TypeError(
-            "authority snapshot encountered a non-wire value "
-            f"{type(item).__name__}"
+            f"authority snapshot encountered a non-wire value {type(item).__name__}"
         )
 
     return snapshot(value)
@@ -1201,8 +1200,7 @@ def _make_certificate_authority(
             authority_view = prestructure_reverifier(record.authority)
             if (
                 record.factory is not authority_view.factory
-                or certificate.prestructure_authority
-                != authority_view.authority
+                or certificate.prestructure_authority != authority_view.authority
                 or certificate.transition.factory_sha
                 != factory_view.factory.factory_sha
                 or certificate.transition.factory_role != factory_view.role
@@ -1210,8 +1208,7 @@ def _make_certificate_authority(
                 != authority_view.authority.authority_sha
             ):
                 raise ValueError(
-                    "VerifiedDynamicsCertificate cached dependency binding "
-                    "mismatch"
+                    "VerifiedDynamicsCertificate cached dependency binding mismatch"
                 )
 
         if cached_replay_is_valid(
@@ -1421,16 +1418,9 @@ def _make_outcome_authority(
         reference = weakref.ref(wrapper, remove)
         with lock:
             live[identity] = (reference, record)
-        exposed_bodies = (
-            (outcome,)
-            if certificate is None
-            else (outcome, certificate)
-        )
+        exposed_bodies = (outcome,) if certificate is None else (outcome, certificate)
         record_successful_replay(
-            namespace=(
-                "rulespace_v3.certificate."
-                "VerifiedDynamicsCertificationOutcome"
-            ),
+            namespace=("rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"),
             wrapper=wrapper,
             expected_type=VerifiedDynamicsCertificationOutcome,
             token=_ISSUANCE_TOKEN,
@@ -1474,9 +1464,7 @@ def _make_outcome_authority(
             raise ValueError(
                 "VerifiedDynamicsCertificationOutcome record is incomplete"
             ) from exc
-        namespace = (
-            "rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"
-        )
+        namespace = "rulespace_v3.certificate.VerifiedDynamicsCertificationOutcome"
 
         def cheap_validator() -> None:
             try:
@@ -1520,11 +1508,7 @@ def _make_outcome_authority(
                         "context mismatch"
                     )
 
-        exposed_bodies = (
-            (outcome,)
-            if certificate is None
-            else (outcome, certificate)
-        )
+        exposed_bodies = (outcome,) if certificate is None else (outcome, certificate)
         if cached_replay_is_valid(
             namespace=namespace,
             wrapper=wrapper,
@@ -1694,40 +1678,37 @@ def _failed(
     )
 
 
-def _preflight_laurent_resources(
-    transition: VerifiedTransition,
-    stability_metric: StabilityMetricWitness,
-) -> None:
-    transition_view = _reverify_verified_transition(transition)
-    _exact_type(
-        stability_metric,
-        StabilityMetricWitness,
-        "stability_metric",
-    )
-    transition_support = transition_view.transition.support_offsets
-    metric_support = stability_metric.metric_support_offsets
-    if type(metric_support) is not tuple or not metric_support:
-        raise ValueError("metric support is absent")
-    n_state = len(transition_view.transition.channel_order)
-    ndim = len(transition_view.transition.spatial_shape)
-    zero_support = ((0,) * ndim,)
-    left_support = tuple(
-        sorted(
-            tuple(-coordinate for coordinate in offset) for offset in transition_support
+def _make_laurent_resource_preflight(
+    raw_preflight,
+    *,
+    transition_reverifier,
+    exact_type_validator,
+    metric_type,
+):
+    def _preflight_laurent_resources(
+        transition: VerifiedTransition,
+        stability_metric: StabilityMetricWitness,
+    ) -> None:
+        transition_view = transition_reverifier(transition)
+        exact_type_validator(
+            stability_metric,
+            metric_type,
+            "stability_metric",
         )
-    )
-    _laurent._preflight_convolution_chain(
-        left_support,
-        zero_support,
-        transition_support,
-        n_state,
-    )
-    _laurent._preflight_convolution_chain(
-        left_support,
-        metric_support,
-        transition_support,
-        n_state,
-    )
+        raw_preflight(
+            transition_view.transition,
+            stability_metric,
+        )
+
+    return _preflight_laurent_resources
+
+
+_preflight_laurent_resources = _make_laurent_resource_preflight(
+    _laurent._preflight_laurent_resources_from_raw,
+    transition_reverifier=_reverify_verified_transition,
+    exact_type_validator=_exact_type,
+    metric_type=StabilityMetricWitness,
+)
 
 
 def _build_laurent_residual(

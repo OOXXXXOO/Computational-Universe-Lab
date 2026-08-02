@@ -5,13 +5,19 @@ from __future__ import annotations
 import math
 import re
 import json  # noqa: F401  # Compatibility probe; sizing is closure-captured.
+import sys
 from dataclasses import dataclass, replace
 from fractions import Fraction
-from typing import Literal
+from types import CodeType, FunctionType
+from typing import Literal, NamedTuple
 
 import numpy as np
 
-from .dynamics import VerifiedTransition, _reverify_verified_transition
+from .dynamics import (
+    MeasuredTransition,
+    VerifiedTransition,
+    _reverify_verified_transition,
+)
 from .evidence import _EXACT_JSON_UTF8_SIZE, canonical_sha
 from .factory import (
     TENSOR_SCHEMA_VERSION,
@@ -61,6 +67,36 @@ ErrorMap = dict[Offset, list[list[Fraction]]]
 ExactComplex = tuple[Fraction, Fraction]
 ExactMatrix = list[list[ExactComplex]]
 ExactMap = dict[Offset, ExactMatrix]
+
+
+class _LaurentNumpyPrimitives(NamedTuple):
+    asarray: object
+    complex128: object
+    dtype: object
+    ndarray: object
+    stack: object
+    zeros: object
+
+
+class _LaurentMathPrimitives(NamedTuple):
+    inf: object
+    isfinite: object
+    nextafter: object
+
+
+_LAURENT_NUMPY = _LaurentNumpyPrimitives(
+    asarray=np.asarray,
+    complex128=np.complex128,
+    dtype=np.dtype,
+    ndarray=np.ndarray,
+    stack=np.stack,
+    zeros=np.zeros,
+)
+_LAURENT_MATH = _LaurentMathPrimitives(
+    inf=math.inf,
+    isfinite=math.isfinite,
+    nextafter=math.nextafter,
+)
 
 
 def _text(value: object, field: str) -> str:
@@ -940,12 +976,12 @@ def _coefficient_frobenius_upper_sum(
     return _minimal_float_upper(total)
 
 
-def _transition_map(
-    transition: VerifiedTransition,
+def _transition_map_from_raw(
+    transition: MeasuredTransition,
 ) -> tuple[CenterMap, int]:
-    view = _reverify_verified_transition(transition)
-    raw = view.transition
-    values = frozen_tensor_array(raw.kernel)
+    if type(transition) is not MeasuredTransition:
+        raise TypeError("transition must be an exact MeasuredTransition")
+    values = frozen_tensor_array(transition.kernel)
     result = {
         offset: values[
             (slice(None), slice(None))
@@ -953,13 +989,86 @@ def _transition_map(
                 coordinate % length
                 for coordinate, length in zip(
                     offset,
-                    raw.spatial_shape,
+                    transition.spatial_shape,
                 )
             )
         ].copy()
-        for offset in raw.support_offsets
+        for offset in transition.support_offsets
     }
-    return result, len(raw.channel_order)
+    return result, len(transition.channel_order)
+
+
+def _transition_map(
+    transition: VerifiedTransition,
+) -> tuple[CenterMap, int]:
+    view = _reverify_verified_transition(transition)
+    return _transition_map_from_raw(view.transition)
+
+
+def _make_laurent_resource_preflight_from_raw(
+    *,
+    transition_type,
+    metric_type,
+    convolution_preflight,
+    type_fn,
+    tuple_type,
+    tuple_builder,
+    sorted_builder,
+    len_fn,
+    type_error,
+    value_error,
+):
+    def _preflight_laurent_resources_from_raw(
+        transition: MeasuredTransition,
+        stability_metric: StabilityMetricWitness,
+    ) -> None:
+        """Preflight both residual DAGs after an owner supplies raw bodies."""
+
+        if type_fn(transition) is not transition_type:
+            raise type_error("transition must be an exact MeasuredTransition")
+        if type_fn(stability_metric) is not metric_type:
+            raise type_error("stability_metric must be an exact StabilityMetricWitness")
+        transition_support = transition.support_offsets
+        metric_support = stability_metric.metric_support_offsets
+        if type_fn(metric_support) is not tuple_type or not metric_support:
+            raise value_error("metric support is absent")
+        n_state = len_fn(transition.channel_order)
+        ndim = len_fn(transition.spatial_shape)
+        zero_support = ((0,) * ndim,)
+        left_support = tuple_builder(
+            sorted_builder(
+                tuple_builder(-coordinate for coordinate in offset)
+                for offset in transition_support
+            )
+        )
+        convolution_preflight(
+            left_support,
+            zero_support,
+            transition_support,
+            n_state,
+        )
+        convolution_preflight(
+            left_support,
+            metric_support,
+            transition_support,
+            n_state,
+        )
+
+    return _preflight_laurent_resources_from_raw
+
+
+_preflight_laurent_resources_from_raw = _make_laurent_resource_preflight_from_raw(
+    transition_type=MeasuredTransition,
+    metric_type=StabilityMetricWitness,
+    convolution_preflight=_preflight_convolution_chain,
+    type_fn=type,
+    tuple_type=tuple,
+    tuple_builder=tuple,
+    sorted_builder=sorted,
+    len_fn=len,
+    type_error=TypeError,
+    value_error=ValueError,
+)
 
 
 def _constant_map(
@@ -990,34 +1099,29 @@ def _metric_map(witness: StabilityMetricWitness) -> CenterMap:
     }
 
 
-def _build_residual(
-    *,
-    kind: Literal["canonical-structure", "stability-metric"],
-    transition: VerifiedTransition,
+def _build_laurent_residual_from_raw(
+    transition: MeasuredTransition,
     structure: StructureManifest,
     metric: StabilityMetricWitness,
     protocol: Fp64EnclosureProtocol,
+    *,
+    kind: Literal["canonical-structure", "stability-metric"],
 ) -> LaurentResidualCertificate:
-    transition_view = _reverify_verified_transition(transition)
-    factory = transition_view.factory
-    authority = transition_view.prestructure
-    verified_structure = verify_structure_manifest(
-        structure,
-        factory,
-        authority,
-    )
-    verified_metric = verify_stability_metric_witness(
-        metric,
-        factory,
-        authority,
-        structure,
-    )
-    verified_protocol = verify_fp64_enclosure_protocol(protocol)
-    transition_map, n_state = _transition_map(transition)
-    ndim = len(transition_view.transition.spatial_shape)
+    if type(transition) is not MeasuredTransition:
+        raise TypeError("transition must be an exact MeasuredTransition")
+    if type(structure) is not StructureManifest:
+        raise TypeError("structure must be an exact StructureManifest")
+    if type(metric) is not StabilityMetricWitness:
+        raise TypeError("metric must be an exact StabilityMetricWitness")
+    if type(protocol) is not Fp64EnclosureProtocol:
+        raise TypeError("protocol must be an exact Fp64EnclosureProtocol")
+    if kind not in ("canonical-structure", "stability-metric"):
+        raise ValueError("Laurent residual kind is not frozen")
+    transition_map, n_state = _transition_map_from_raw(transition)
+    ndim = len(transition.spatial_shape)
     if kind == "canonical-structure":
         middle = _constant_map(
-            frozen_tensor_array(verified_structure.structure_form),
+            frozen_tensor_array(structure.structure_form),
             ndim,
         )
         left = _left_adjoint_map(
@@ -1025,20 +1129,20 @@ def _build_residual(
             conjugate=False,
         )
         operands = (
-            transition_view.transition.transition_sha,
-            verified_structure.structure_manifest_sha,
-            verified_structure.structure_form.tensor_sha,
+            transition.transition_sha,
+            structure.structure_manifest_sha,
+            structure.structure_form.tensor_sha,
         )
     else:
-        middle = _metric_map(verified_metric)
+        middle = _metric_map(metric)
         left = _left_adjoint_map(
             transition_map,
             conjugate=True,
         )
         operands = (
-            transition_view.transition.transition_sha,
-            verified_metric.witness_sha,
-            verified_metric.metric_kernel.tensor_sha,
+            transition.transition_sha,
+            metric.witness_sha,
+            metric.metric_kernel.tensor_sha,
         )
     planned_first_support, planned_second_support = _preflight_convolution_chain(
         tuple(left),
@@ -1103,7 +1207,7 @@ def _build_residual(
         operands=operands,
         ndim=ndim,
         n_state=n_state,
-        protocol_sha=verified_protocol.protocol_sha,
+        protocol_sha=protocol.protocol_sha,
         support=support,
         centers=residual,
         pair_counts=(first_pairs, second_pairs),
@@ -1119,7 +1223,7 @@ def _build_residual(
         operand_shas=operands,
         spatial_ndim=ndim,
         n_state=n_state,
-        fp64_enclosure_protocol_sha=verified_protocol.protocol_sha,
+        fp64_enclosure_protocol_sha=protocol.protocol_sha,
         fourier_convention_id=FOURIER_CONVENTION_ID,
         matrix_norm_id=MATRIX_NORM_ID,
         momentum_supremum_method_id=MOMENTUM_SUPREMUM_METHOD_ID,
@@ -1140,6 +1244,216 @@ def _build_residual(
         provisional,
         residual_sha=canonical_sha(laurent_residual_payload(provisional)),
     )
+
+
+def _freeze_laurent_neutral_core(
+    root: FunctionType,
+    *,
+    global_overrides: dict[str, object] | None = None,
+) -> FunctionType:
+    """Detach reachable project functions from later global rebinding."""
+
+    cache: dict[int, FunctionType] = {}
+    module_name = __name__
+    frozen_marker = "__laurent_project_frozen__"
+    reclone_project_graph = global_overrides is not None
+    overrides = {
+        "math": _LAURENT_MATH,
+        "np": _LAURENT_NUMPY,
+    }
+    if global_overrides is not None:
+        overrides.update(global_overrides)
+
+    def is_unfrozen_project_function(value: object) -> bool:
+        if type(value) is not FunctionType:
+            return False
+        function = value
+        if not function.__module__.startswith("rulespace_v3."):
+            return False
+        if function.__dict__.get(frozen_marker) is True and not reclone_project_graph:
+            return False
+        if function.__module__ == "rulespace_v3.frozen_call_graph":
+            return False
+        owner = sys.modules.get(function.__module__)
+        if (
+            owner is not None
+            and function.__globals__ is not vars(owner)
+            and not reclone_project_graph
+        ):
+            return False
+        return True
+
+    def referenced_names(code: CodeType) -> tuple[str, ...]:
+        names = list(code.co_names)
+        for constant in code.co_consts:
+            if type(constant) is CodeType:
+                names.extend(referenced_names(constant))
+        return tuple(dict.fromkeys(names))
+
+    def make_cell(value):
+        def read_cell():
+            return value
+
+        return read_cell.__closure__[0]
+
+    def contains_unfrozen_project_function(
+        value: object,
+        seen: set[int] | None = None,
+    ) -> bool:
+        if is_unfrozen_project_function(value):
+            return True
+        if type(value) not in (tuple, list, dict):
+            return False
+        if seen is None:
+            seen = set()
+        identity = id(value)
+        if identity in seen:
+            return False
+        seen.add(identity)
+        items = value.values() if type(value) is dict else value
+        return any(contains_unfrozen_project_function(item, seen) for item in items)
+
+    def freeze_value(value):
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        if type(value) is list:
+            if contains_unfrozen_project_function(value):
+                return [freeze_value(item) for item in value]
+            return value
+        if type(value) is dict:
+            if contains_unfrozen_project_function(value):
+                return {key: freeze_value(item) for key, item in value.items()}
+            return value
+        return value
+
+    def freeze_closure_value(value):
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_closure_value(item) for item in value)
+        if type(value) is list and contains_unfrozen_project_function(value):
+            return [freeze_closure_value(item) for item in value]
+        if type(value) is dict and contains_unfrozen_project_function(value):
+            return {key: freeze_closure_value(item) for key, item in value.items()}
+        return value
+
+    def freeze_function(function: FunctionType) -> FunctionType:
+        cached = cache.get(id(function))
+        if cached is not None:
+            return cached
+        source_globals = function.__globals__
+        builtins_body = source_globals.get("__builtins__", {})
+        private_builtins = (
+            dict(builtins_body)
+            if type(builtins_body) is dict
+            else dict(vars(builtins_body))
+        )
+        frozen_globals: dict[str, object] = {
+            "__builtins__": private_builtins,
+            "__name__": source_globals.get("__name__", function.__module__),
+            "__package__": source_globals.get("__package__", __package__),
+        }
+        source_closure = function.__closure__
+        frozen_cells = (
+            None
+            if source_closure is None
+            else tuple(make_cell(None) for _ in source_closure)
+        )
+        frozen = FunctionType(
+            function.__code__,
+            frozen_globals,
+            function.__name__,
+            None,
+            frozen_cells,
+        )
+        cache[id(function)] = frozen
+        if source_closure is not None:
+            assert frozen_cells is not None
+            for frozen_cell, source_cell in zip(frozen_cells, source_closure):
+                frozen_cell.cell_contents = freeze_closure_value(
+                    source_cell.cell_contents
+                )
+        for name in referenced_names(function.__code__):
+            if name in source_globals:
+                value = source_globals[name]
+                if function.__module__ == module_name and name in overrides:
+                    value = overrides[name]
+                frozen_globals[name] = freeze_value(value)
+        frozen.__defaults__ = freeze_value(function.__defaults__)
+        frozen.__kwdefaults__ = freeze_value(function.__kwdefaults__)
+        frozen.__annotations__ = dict(function.__annotations__)
+        frozen.__dict__.update(function.__dict__)
+        frozen.__dict__[frozen_marker] = True
+        frozen.__doc__ = function.__doc__
+        frozen.__module__ = function.__module__
+        frozen.__qualname__ = function.__qualname__
+        return frozen
+
+    return freeze_function(root)
+
+
+LaurentResidualCertificate.__post_init__ = _freeze_laurent_neutral_core(
+    LaurentResidualCertificate.__post_init__
+)
+_preflight_laurent_resources_from_raw = _freeze_laurent_neutral_core(
+    _preflight_laurent_resources_from_raw
+)
+_build_laurent_residual_from_raw = _freeze_laurent_neutral_core(
+    _build_laurent_residual_from_raw
+)
+
+
+def _make_legacy_residual_builder(
+    raw_builder,
+    *,
+    transition_reverifier,
+    structure_verifier,
+    metric_verifier,
+    protocol_verifier,
+):
+    def _build_residual(
+        *,
+        kind: Literal["canonical-structure", "stability-metric"],
+        transition: VerifiedTransition,
+        structure: StructureManifest,
+        metric: StabilityMetricWitness,
+        protocol: Fp64EnclosureProtocol,
+    ) -> LaurentResidualCertificate:
+        transition_view = transition_reverifier(transition)
+        factory = transition_view.factory
+        authority = transition_view.prestructure
+        verified_structure = structure_verifier(
+            structure,
+            factory,
+            authority,
+        )
+        verified_metric = metric_verifier(
+            metric,
+            factory,
+            authority,
+            structure,
+        )
+        verified_protocol = protocol_verifier(protocol)
+        return raw_builder(
+            transition_view.transition,
+            verified_structure,
+            verified_metric,
+            verified_protocol,
+            kind=kind,
+        )
+
+    return _build_residual
+
+
+_build_residual = _make_legacy_residual_builder(
+    _build_laurent_residual_from_raw,
+    transition_reverifier=_reverify_verified_transition,
+    structure_verifier=verify_structure_manifest,
+    metric_verifier=verify_stability_metric_witness,
+    protocol_verifier=verify_fp64_enclosure_protocol,
+)
 
 
 def certify_laurent_residuals(
@@ -1192,6 +1506,12 @@ def verify_laurent_residual_certificate(
     if certificate.residual_sha != expected.residual_sha:
         raise ValueError("Laurent residual does not match reconstruction")
     return certificate
+
+
+certify_laurent_residuals = _freeze_laurent_neutral_core(certify_laurent_residuals)
+verify_laurent_residual_certificate = _freeze_laurent_neutral_core(
+    verify_laurent_residual_certificate
+)
 
 
 __all__ = [

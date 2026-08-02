@@ -5,16 +5,20 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import sys
 from dataclasses import dataclass, replace
 from fractions import Fraction
-from typing import Literal
+from types import CodeType, FunctionType
+from typing import Literal, NamedTuple
 
 import numpy as np
 
 from .dynamics import (
+    MeasuredTransition,
     VerifiedTransition,
     _reverify_verified_transition,
-    transition_symbol,
+    _transition_symbol_from_raw,
+    measured_transition_payload,
 )
 from .evidence import canonical_sha
 from .factory import (
@@ -58,6 +62,60 @@ BRIDGE_MAX_K_POINTS = 64
 BRIDGE_MAX_COMPLEX_ENTRIES = 16_777_216
 BRIDGE_MAX_EXECUTOR_WORK = 2_000_000_000
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
+
+
+class _BridgeLinalgPrimitives(NamedTuple):
+    norm: object
+
+
+class _BridgeNumpyPrimitives(NamedTuple):
+    arange: object
+    asarray: object
+    ascontiguousarray: object
+    complex128: object
+    dtype: object
+    empty: object
+    exp: object
+    eye: object
+    float64: object
+    linalg: _BridgeLinalgPrimitives
+    ndarray: object
+    ones: object
+    pi: object
+    sum: object
+    zeros: object
+
+
+class _BridgeMathPrimitives(NamedTuple):
+    isfinite: object
+    ldexp: object
+    prod: object
+    sqrt: object
+
+
+_BRIDGE_NUMPY = _BridgeNumpyPrimitives(
+    arange=np.arange,
+    asarray=np.asarray,
+    ascontiguousarray=np.ascontiguousarray,
+    complex128=np.complex128,
+    dtype=np.dtype,
+    empty=np.empty,
+    exp=np.exp,
+    eye=np.eye,
+    float64=np.float64,
+    linalg=_BridgeLinalgPrimitives(norm=np.linalg.norm),
+    ndarray=np.ndarray,
+    ones=np.ones,
+    pi=np.pi,
+    sum=np.sum,
+    zeros=np.zeros,
+)
+_BRIDGE_MATH = _BridgeMathPrimitives(
+    isfinite=math.isfinite,
+    ldexp=math.ldexp,
+    prod=math.prod,
+    sqrt=math.sqrt,
+)
 
 
 def _text(value: object, field: str) -> str:
@@ -289,6 +347,151 @@ def bridge_audit_payload(audit: BridgeAudit) -> dict[str, object]:
     }
 
 
+def _freeze_bridge_owner_graph(root: FunctionType) -> FunctionType:
+    """Detach reachable project functions from later global rebinding."""
+
+    cache: dict[int, FunctionType] = {}
+    module_name = __name__
+    frozen_marker = "__bridge_project_frozen__"
+
+    def is_unfrozen_project_function(value: object) -> bool:
+        if type(value) is not FunctionType:
+            return False
+        function = value
+        if not function.__module__.startswith("rulespace_v3."):
+            return False
+        if function.__dict__.get(frozen_marker) is True:
+            return False
+        if function.__module__ == "rulespace_v3.frozen_call_graph":
+            return False
+        owner = sys.modules.get(function.__module__)
+        if owner is not None and function.__globals__ is not vars(owner):
+            return False
+        return True
+
+    def referenced_names(code: CodeType) -> tuple[str, ...]:
+        names = list(code.co_names)
+        for constant in code.co_consts:
+            if type(constant) is CodeType:
+                names.extend(referenced_names(constant))
+        return tuple(dict.fromkeys(names))
+
+    def make_cell(value):
+        def read_cell():
+            return value
+
+        return read_cell.__closure__[0]
+
+    def contains_unfrozen_project_function(
+        value: object,
+        seen: set[int] | None = None,
+    ) -> bool:
+        if is_unfrozen_project_function(value):
+            return True
+        if type(value) not in (tuple, list, dict):
+            return False
+        if seen is None:
+            seen = set()
+        identity = id(value)
+        if identity in seen:
+            return False
+        seen.add(identity)
+        items = value.values() if type(value) is dict else value
+        return any(contains_unfrozen_project_function(item, seen) for item in items)
+
+    def freeze_value(value):
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        if type(value) is list:
+            if contains_unfrozen_project_function(value):
+                return [freeze_value(item) for item in value]
+            return value
+        if type(value) is dict:
+            if contains_unfrozen_project_function(value):
+                return {key: freeze_value(item) for key, item in value.items()}
+            return value
+        return value
+
+    def freeze_closure_value(value):
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_closure_value(item) for item in value)
+        if type(value) is list and contains_unfrozen_project_function(value):
+            return [freeze_closure_value(item) for item in value]
+        if type(value) is dict and contains_unfrozen_project_function(value):
+            return {key: freeze_closure_value(item) for key, item in value.items()}
+        return value
+
+    def freeze_function(function: FunctionType) -> FunctionType:
+        cached = cache.get(id(function))
+        if cached is not None:
+            return cached
+        source_globals = function.__globals__
+        builtins_body = source_globals.get("__builtins__", {})
+        private_builtins = (
+            dict(builtins_body)
+            if type(builtins_body) is dict
+            else dict(vars(builtins_body))
+        )
+        frozen_globals: dict[str, object] = {
+            "__builtins__": private_builtins,
+            "__name__": source_globals.get("__name__", function.__module__),
+            "__package__": source_globals.get("__package__", __package__),
+        }
+        source_closure = function.__closure__
+        frozen_cells = (
+            None
+            if source_closure is None
+            else tuple(make_cell(None) for _ in source_closure)
+        )
+        frozen = FunctionType(
+            function.__code__,
+            frozen_globals,
+            function.__name__,
+            None,
+            frozen_cells,
+        )
+        cache[id(function)] = frozen
+        if source_closure is not None:
+            assert frozen_cells is not None
+            for frozen_cell, source_cell in zip(frozen_cells, source_closure):
+                frozen_cell.cell_contents = freeze_closure_value(
+                    source_cell.cell_contents
+                )
+        for name in referenced_names(function.__code__):
+            if name in source_globals:
+                value = source_globals[name]
+                if function.__module__ == module_name:
+                    if name == "math":
+                        value = _BRIDGE_MATH
+                    elif name == "np":
+                        value = _BRIDGE_NUMPY
+                frozen_globals[name] = freeze_value(value)
+        frozen.__defaults__ = freeze_value(function.__defaults__)
+        frozen.__kwdefaults__ = freeze_value(function.__kwdefaults__)
+        frozen.__annotations__ = dict(function.__annotations__)
+        frozen.__dict__.update(function.__dict__)
+        frozen.__dict__[frozen_marker] = True
+        frozen.__doc__ = function.__doc__
+        frozen.__module__ = function.__module__
+        frozen.__qualname__ = function.__qualname__
+        return frozen
+
+    return freeze_function(root)
+
+
+FullStateBridgeSpec.__post_init__ = _freeze_bridge_owner_graph(
+    FullStateBridgeSpec.__post_init__
+)
+BridgeCaseAudit.__post_init__ = _freeze_bridge_owner_graph(
+    BridgeCaseAudit.__post_init__
+)
+BridgeAudit.__post_init__ = _freeze_bridge_owner_graph(BridgeAudit.__post_init__)
+
+
 def _bind_factory_authority(
     factory: VerifiedFactory,
     authority: VerifiedPrestructureAuthority,
@@ -505,61 +708,144 @@ def _preflight(
         raise ValueError("bridge executor work cap exceeded")
 
 
-def _expected_spec(
-    factory: VerifiedFactory,
-    authority: VerifiedPrestructureAuthority,
-) -> FullStateBridgeSpec:
-    factory_view, authority_view = _bind_factory_authority(
-        factory,
-        authority,
-    )
-    payload = factory_view.factory
-    signed_support = _signed_support(factory)
-    grid = build_bridge_grid_manifest(
-        payload.state_shape[1:],
-        signed_support,
-    )
-    state_count = len(payload.channel_order)
-    trial_count = min(state_count, 32)
-    _preflight(
-        k_count=len(grid.reciprocal_indices),
-        trial_count=trial_count,
-        state_count=state_count,
-        spatial_shape=payload.state_shape[1:],
-        primitive_count=len(payload.primitives),
-    )
-    parent_sha = authority_view.authority.parent_freeze.parent_freeze_sha
-    trial_seed_sha = _trial_seed(
-        payload.factory_sha,
-        parent_sha,
-    )
-    trials, gram_upper = generate_bridge_trial_vectors(
-        state_count,
-        trial_seed_sha,
-    )
-    provisional = FullStateBridgeSpec(
-        bridge_spec_schema_version=BRIDGE_SPEC_SCHEMA_VERSION,
-        factory_sha=payload.factory_sha,
-        parent_freeze_sha=parent_sha,
-        prestructure_authority_sha=(authority_view.authority.authority_sha),
-        state_schema_id=payload.state_schema_id,
-        channel_order=payload.channel_order,
-        spatial_shape=payload.state_shape[1:],
-        bridge_grid=grid,
+def _make_bound_full_state_bridge_spec_core(
+    *,
+    factory_reverifier,
+    support_builder,
+    grid_verifier,
+    resource_preflight,
+    seed_builder,
+    trial_builder,
+    payload_builder,
+    sha_builder,
+    replace_fn,
+    body_type,
+    schema_version,
+    macro_steps,
+    trial_generation_id,
+    trial_domain_separator,
+    trial_gram_method,
+    tolerance,
+):
+    def _build_bound_full_state_bridge_spec(
+        factory: VerifiedFactory,
+        bridge_grid: BridgeKGridManifest,
+        *,
+        parent_freeze_sha: str,
+        prestructure_authority_sha: str,
+    ) -> FullStateBridgeSpec:
+        factory_view = factory_reverifier(factory)
+        payload = factory_view.factory
+        signed_support = support_builder(factory)
+        grid_verifier(
+            bridge_grid,
+            payload.state_shape[1:],
+            signed_support,
+        )
+        state_count = len(payload.channel_order)
+        trial_count = min(state_count, 32)
+        resource_preflight(
+            k_count=len(bridge_grid.reciprocal_indices),
+            trial_count=trial_count,
+            state_count=state_count,
+            spatial_shape=payload.state_shape[1:],
+            primitive_count=len(payload.primitives),
+        )
+        trial_seed_sha = seed_builder(
+            payload.factory_sha,
+            parent_freeze_sha,
+        )
+        trials, gram_upper = trial_builder(
+            state_count,
+            trial_seed_sha,
+        )
+        provisional = body_type(
+            bridge_spec_schema_version=schema_version,
+            factory_sha=payload.factory_sha,
+            parent_freeze_sha=parent_freeze_sha,
+            prestructure_authority_sha=prestructure_authority_sha,
+            state_schema_id=payload.state_schema_id,
+            channel_order=payload.channel_order,
+            spatial_shape=payload.state_shape[1:],
+            bridge_grid=bridge_grid,
+            macro_steps=macro_steps,
+            state_trial_vectors=trials,
+            trial_generation_id=trial_generation_id,
+            trial_seed_sha=trial_seed_sha,
+            trial_domain_separator=trial_domain_separator,
+            trial_gram_frobenius_upper=gram_upper,
+            trial_gram_gate_method_id=trial_gram_method,
+            bridge_tolerance=tolerance,
+            bridge_spec_sha="0" * 64,
+        )
+        return replace_fn(
+            provisional,
+            bridge_spec_sha=sha_builder(payload_builder(provisional)),
+        )
+
+    return _build_bound_full_state_bridge_spec
+
+
+_build_bound_full_state_bridge_spec = _freeze_bridge_owner_graph(
+    _make_bound_full_state_bridge_spec_core(
+        factory_reverifier=_reverify_verified_factory,
+        support_builder=_signed_support,
+        grid_verifier=verify_bridge_grid_manifest,
+        resource_preflight=_preflight,
+        seed_builder=_trial_seed,
+        trial_builder=generate_bridge_trial_vectors,
+        payload_builder=full_state_bridge_spec_payload,
+        sha_builder=canonical_sha,
+        replace_fn=replace,
+        body_type=FullStateBridgeSpec,
+        schema_version=BRIDGE_SPEC_SCHEMA_VERSION,
         macro_steps=BRIDGE_MACRO_STEPS,
-        state_trial_vectors=trials,
         trial_generation_id=TRIAL_GENERATION_ID,
-        trial_seed_sha=trial_seed_sha,
         trial_domain_separator=TRIAL_DOMAIN_SEPARATOR,
-        trial_gram_frobenius_upper=gram_upper,
-        trial_gram_gate_method_id=TRIAL_GRAM_GATE_METHOD_ID,
-        bridge_tolerance=BRIDGE_TOLERANCE,
-        bridge_spec_sha="0" * 64,
+        trial_gram_method=TRIAL_GRAM_GATE_METHOD_ID,
+        tolerance=BRIDGE_TOLERANCE,
     )
-    return replace(
-        provisional,
-        bridge_spec_sha=canonical_sha(full_state_bridge_spec_payload(provisional)),
-    )
+)
+
+
+def _make_expected_spec(
+    *,
+    authority_binder,
+    support_builder,
+    grid_builder,
+    bound_spec_builder,
+):
+    def _expected_spec(
+        factory: VerifiedFactory,
+        authority: VerifiedPrestructureAuthority,
+    ) -> FullStateBridgeSpec:
+        factory_view, authority_view = authority_binder(
+            factory,
+            authority,
+        )
+        payload = factory_view.factory
+        grid = grid_builder(
+            payload.state_shape[1:],
+            support_builder(factory),
+        )
+        return bound_spec_builder(
+            factory,
+            grid,
+            parent_freeze_sha=(
+                authority_view.authority.parent_freeze.parent_freeze_sha
+            ),
+            prestructure_authority_sha=authority_view.authority.authority_sha,
+        )
+
+    return _expected_spec
+
+
+_expected_spec = _make_expected_spec(
+    authority_binder=_bind_factory_authority,
+    support_builder=_signed_support,
+    grid_builder=build_bridge_grid_manifest,
+    bound_spec_builder=_build_bound_full_state_bridge_spec,
+)
 
 
 def build_full_state_bridge_spec(
@@ -651,96 +937,135 @@ def _readback_plane_wave(
     return result
 
 
-def _expected_audit(
-    transition: VerifiedTransition,
-    factory: VerifiedFactory,
-    authority: VerifiedPrestructureAuthority,
-    spec: FullStateBridgeSpec,
-) -> BridgeAudit:
-    verified_spec = verify_full_state_bridge_spec(
-        spec,
-        factory,
-        authority,
+def _audit_full_state_bridge_from_raw_impl(
+    transition,
+    factory,
+    spec,
+    *,
+    measured_type,
+    spec_type,
+    case_type,
+    audit_type,
+    factory_reverifier,
+    support_builder,
+    grid_verifier,
+    tensor_array_builder,
+    raw_symbol_builder,
+    plane_wave_builder,
+    readback_builder,
+    factory_step,
+    transition_payload_builder,
+    spec_payload_builder,
+    audit_payload_builder,
+    sha_builder,
+    replace_fn,
+    np_module,
+    audit_schema,
+    bridge_kind,
+):
+    if type(transition) is not measured_type:
+        raise TypeError("transition must be an exact MeasuredTransition")
+    if type(spec) is not spec_type:
+        raise TypeError("spec must be an exact FullStateBridgeSpec")
+    transition.__post_init__()
+    spec.__post_init__()
+    if transition.transition_sha != sha_builder(transition_payload_builder(transition)):
+        raise ValueError("transition_sha does not match complete body")
+    if spec.bridge_spec_sha != sha_builder(spec_payload_builder(spec)):
+        raise ValueError("bridge_spec_sha does not match complete body")
+    factory_view = factory_reverifier(factory)
+    payload = factory_view.factory
+    grid_verifier(
+        spec.bridge_grid,
+        payload.state_shape[1:],
+        support_builder(factory),
     )
-    transition_authority = _reverify_verified_transition(transition)
     if (
-        transition_authority.factory is not factory
-        or transition_authority.prestructure is not authority
+        transition.factory_sha != payload.factory_sha
+        or transition.factory_role != factory_view.role
+        or transition.state_schema_id != payload.state_schema_id
+        or transition.channel_order != payload.channel_order
+        or transition.spatial_shape != payload.state_shape[1:]
+        or spec.factory_sha != payload.factory_sha
+        or spec.parent_freeze_sha != transition.parent_freeze_sha
+        or spec.prestructure_authority_sha != transition.prestructure_authority_sha
+        or spec.state_schema_id != payload.state_schema_id
+        or spec.channel_order != payload.channel_order
+        or spec.spatial_shape != payload.state_shape[1:]
     ):
-        raise ValueError("transition is not bound to bridge inputs")
-    raw_transition = transition_authority.transition
-    if raw_transition.factory_sha != verified_spec.factory_sha:
-        raise ValueError("transition factory SHA does not match bridge spec")
-    if raw_transition.transition_sha != transition.transition.transition_sha:
-        raise ValueError("transition authority mismatch")
-    trials = frozen_tensor_array(verified_spec.state_trial_vectors)
+        raise ValueError("raw bridge inputs do not share one factory/state lineage")
+    trials = tensor_array_builder(spec.state_trial_vectors)
     cases: list[BridgeCaseAudit] = []
-    for reciprocal_index in verified_spec.bridge_grid.reciprocal_indices:
-        momentum = np.asarray(
+    for reciprocal_index in spec.bridge_grid.reciprocal_indices:
+        momentum = np_module.asarray(
             tuple(
-                2.0 * np.pi * float(index) / float(length)
+                2.0 * np_module.pi * float(index) / float(length)
                 for index, length in zip(
                     reciprocal_index,
-                    verified_spec.spatial_shape,
+                    spec.spatial_shape,
                 )
             ),
-            dtype=np.float64,
+            dtype=np_module.float64,
         )
-        symbol = transition_symbol(transition, momentum)
-        for steps in verified_spec.macro_steps:
+        symbol = raw_symbol_builder(transition, momentum)
+        for steps in spec.macro_steps:
             for trial_index, vector in enumerate(trials):
-                initial = _plane_wave(
+                initial = plane_wave_builder(
                     vector,
                     reciprocal_index,
-                    verified_spec.spatial_shape,
+                    spec.spatial_shape,
                 )
-                initial_readback = _readback_plane_wave(
+                initial_readback = readback_builder(
                     initial,
                     reciprocal_index,
-                    verified_spec.spatial_shape,
+                    spec.spatial_shape,
                 )
                 initial_readback_error = float(
-                    np.linalg.norm(initial_readback - vector)
+                    np_module.linalg.norm(initial_readback - vector)
                 )
-                if initial_readback_error > verified_spec.bridge_tolerance:
+                if initial_readback_error > spec.bridge_tolerance:
                     raise ValueError("bridge lift/readback convention is inconsistent")
                 executor = initial.copy()
                 for _ in range(steps):
-                    executor = apply_factory_step(factory, executor)
+                    executor = factory_step(factory, executor)
                 symbolic_vector = vector.copy()
                 for _ in range(steps):
                     symbolic_vector = symbol @ symbolic_vector
-                symbolic = _plane_wave(
+                symbolic = plane_wave_builder(
                     symbolic_vector,
                     reciprocal_index,
-                    verified_spec.spatial_shape,
+                    spec.spatial_shape,
                 )
                 raw = float(
-                    np.linalg.norm((executor - symbolic).reshape(-1, order="C"))
+                    np_module.linalg.norm((executor - symbolic).reshape(-1, order="C"))
                 )
-                executor_norm = float(np.linalg.norm(executor.reshape(-1, order="C")))
-                symbolic_norm = float(np.linalg.norm(symbolic.reshape(-1, order="C")))
+                executor_norm = float(
+                    np_module.linalg.norm(executor.reshape(-1, order="C"))
+                )
+                symbolic_norm = float(
+                    np_module.linalg.norm(symbolic.reshape(-1, order="C"))
+                )
                 scale = float(max(1.0, executor_norm, symbolic_norm))
                 normalized = float(raw / scale)
-                readback = _readback_plane_wave(
+                readback = readback_builder(
                     executor,
                     reciprocal_index,
-                    verified_spec.spatial_shape,
+                    spec.spatial_shape,
                 )
-                readback_raw = float(np.linalg.norm(readback - symbolic_vector))
+                readback_raw = float(np_module.linalg.norm(readback - symbolic_vector))
                 readback_scale = float(
                     max(
                         1.0,
-                        np.linalg.norm(readback),
-                        np.linalg.norm(symbolic_vector),
+                        np_module.linalg.norm(readback),
+                        np_module.linalg.norm(symbolic_vector),
                     )
                 )
                 if readback_raw / readback_scale > max(
-                    normalized, verified_spec.bridge_tolerance
+                    normalized, spec.bridge_tolerance
                 ):
                     raise ValueError("bridge executor readback disagrees with symbol")
                 cases.append(
-                    BridgeCaseAudit(
+                    case_type(
                         reciprocal_index=reciprocal_index,
                         macro_steps=steps,
                         trial_index=trial_index,
@@ -751,21 +1076,148 @@ def _expected_audit(
                 )
     raw_max = float(max(item.raw_abs_residual for item in cases))
     normalized_max = float(max(item.normalized_residual for item in cases))
-    provisional = BridgeAudit(
-        bridge_schema_version=BRIDGE_AUDIT_SCHEMA_VERSION,
-        bridge_kind=BRIDGE_KIND,
-        factory_sha=verified_spec.factory_sha,
-        transition_sha=raw_transition.transition_sha,
-        bridge_spec_sha=verified_spec.bridge_spec_sha,
+    provisional = audit_type(
+        bridge_schema_version=audit_schema,
+        bridge_kind=bridge_kind,
+        factory_sha=spec.factory_sha,
+        transition_sha=transition.transition_sha,
+        bridge_spec_sha=spec.bridge_spec_sha,
         cases=tuple(cases),
         raw_abs_max=raw_max,
         normalized_max=normalized_max,
         bridge_sha="0" * 64,
     )
-    return replace(
+    return replace_fn(
         provisional,
-        bridge_sha=canonical_sha(bridge_audit_payload(provisional)),
+        bridge_sha=sha_builder(audit_payload_builder(provisional)),
     )
+
+
+def _make_audit_full_state_bridge_from_raw_core(
+    audit_impl,
+    *,
+    measured_type,
+    spec_type,
+    case_type,
+    audit_type,
+    factory_reverifier,
+    support_builder,
+    grid_verifier,
+    tensor_array_builder,
+    raw_symbol_builder,
+    plane_wave_builder,
+    readback_builder,
+    factory_step,
+    transition_payload_builder,
+    spec_payload_builder,
+    audit_payload_builder,
+    sha_builder,
+    replace_fn,
+    np_module,
+    audit_schema,
+    bridge_kind,
+):
+    def _audit_full_state_bridge_from_raw(
+        transition: MeasuredTransition,
+        factory: VerifiedFactory,
+        spec: FullStateBridgeSpec,
+    ) -> BridgeAudit:
+        return audit_impl(
+            transition,
+            factory,
+            spec,
+            measured_type=measured_type,
+            spec_type=spec_type,
+            case_type=case_type,
+            audit_type=audit_type,
+            factory_reverifier=factory_reverifier,
+            support_builder=support_builder,
+            grid_verifier=grid_verifier,
+            tensor_array_builder=tensor_array_builder,
+            raw_symbol_builder=raw_symbol_builder,
+            plane_wave_builder=plane_wave_builder,
+            readback_builder=readback_builder,
+            factory_step=factory_step,
+            transition_payload_builder=transition_payload_builder,
+            spec_payload_builder=spec_payload_builder,
+            audit_payload_builder=audit_payload_builder,
+            sha_builder=sha_builder,
+            replace_fn=replace_fn,
+            np_module=np_module,
+            audit_schema=audit_schema,
+            bridge_kind=bridge_kind,
+        )
+
+    return _audit_full_state_bridge_from_raw
+
+
+_audit_full_state_bridge_from_raw = _freeze_bridge_owner_graph(
+    _make_audit_full_state_bridge_from_raw_core(
+        _audit_full_state_bridge_from_raw_impl,
+        measured_type=MeasuredTransition,
+        spec_type=FullStateBridgeSpec,
+        case_type=BridgeCaseAudit,
+        audit_type=BridgeAudit,
+        factory_reverifier=_reverify_verified_factory,
+        support_builder=_signed_support,
+        grid_verifier=verify_bridge_grid_manifest,
+        tensor_array_builder=frozen_tensor_array,
+        raw_symbol_builder=_transition_symbol_from_raw,
+        plane_wave_builder=_plane_wave,
+        readback_builder=_readback_plane_wave,
+        factory_step=apply_factory_step,
+        transition_payload_builder=measured_transition_payload,
+        spec_payload_builder=full_state_bridge_spec_payload,
+        audit_payload_builder=bridge_audit_payload,
+        sha_builder=canonical_sha,
+        replace_fn=replace,
+        np_module=_BRIDGE_NUMPY,
+        audit_schema=BRIDGE_AUDIT_SCHEMA_VERSION,
+        bridge_kind=BRIDGE_KIND,
+    )
+)
+
+
+def _make_expected_audit(
+    *,
+    spec_verifier,
+    transition_reverifier,
+    raw_audit_builder,
+):
+    def _expected_audit(
+        transition: VerifiedTransition,
+        factory: VerifiedFactory,
+        authority: VerifiedPrestructureAuthority,
+        spec: FullStateBridgeSpec,
+    ) -> BridgeAudit:
+        verified_spec = spec_verifier(
+            spec,
+            factory,
+            authority,
+        )
+        transition_authority = transition_reverifier(transition)
+        if (
+            transition_authority.factory is not factory
+            or transition_authority.prestructure is not authority
+        ):
+            raise ValueError("transition is not bound to bridge inputs")
+        raw_transition = transition_authority.transition
+        if raw_transition.transition_sha != transition.transition.transition_sha:
+            raise ValueError("transition authority mismatch")
+        return raw_audit_builder(
+            raw_transition,
+            factory,
+            verified_spec,
+        )
+
+    return _expected_audit
+
+
+_expected_audit = _make_expected_audit(
+    spec_verifier=verify_full_state_bridge_spec,
+    transition_reverifier=_reverify_verified_transition,
+    raw_audit_builder=_audit_full_state_bridge_from_raw,
+)
 
 
 def audit_full_state_bridge(
@@ -801,6 +1253,16 @@ def verify_full_state_bridge_audit(
     if audit.bridge_sha != expected.bridge_sha:
         raise ValueError("bridge audit does not match executor replay")
     return audit
+
+
+build_full_state_bridge_spec = _freeze_bridge_owner_graph(build_full_state_bridge_spec)
+verify_full_state_bridge_spec = _freeze_bridge_owner_graph(
+    verify_full_state_bridge_spec
+)
+audit_full_state_bridge = _freeze_bridge_owner_graph(audit_full_state_bridge)
+verify_full_state_bridge_audit = _freeze_bridge_owner_graph(
+    verify_full_state_bridge_audit
+)
 
 
 __all__ = [

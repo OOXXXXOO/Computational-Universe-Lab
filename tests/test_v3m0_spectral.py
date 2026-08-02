@@ -8,6 +8,9 @@ import struct
 import unittest
 from unittest import mock
 
+import rulespace_v3.fp64 as fp64_module
+import rulespace_v3.fp64_protocol as fp64_protocol_module
+import rulespace_v3.spectral as spectral
 from rulespace_v3.ablation import matched_ablation
 from rulespace_v3.dynamics import VerifiedTransition, measure_transition
 from rulespace_v3.evidence import canonical_sha
@@ -27,9 +30,6 @@ from rulespace_v3.spectral import (
     PowerDriftAudit,
     VerifiedNormalizedMetricResidualAudit,
     _preflight_spectral_resources,
-    _scalar_gauss_jordan_inverse,
-    _scalar_hermitian_cholesky,
-    _scalar_lower_triangular_inverse,
     _spectral_ordered_complex_dot_values,
     build_exact_zero_spectral_margin_coverage,
     build_power_drift_audit,
@@ -48,9 +48,7 @@ from tests.test_v3m0_dynamics import _quarter_turn_controls
 
 def _decode_column(value: str) -> tuple[float, ...]:
     raw = base64.b64decode(value, validate=True)
-    return tuple(
-        item[0] for item in struct.iter_unpack(">d", raw)
-    )
+    return tuple(item[0] for item in struct.iter_unpack(">d", raw))
 
 
 class ExactZeroSpectralAuditTests(unittest.TestCase):
@@ -110,6 +108,187 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         )
         return coverage, verified
 
+    def test_owner_neutral_raw_chain_is_bit_identical_to_legacy(self):
+        coverage = self._coverage()
+        raw_coverage = spectral._build_spectral_margin_coverage_from_raw(
+            self.transition.transition,
+            self.metric,
+            self.protocol,
+            dynamics_grid=coverage.qualification_grid,
+        )
+        self.assertEqual(raw_coverage, coverage)
+        self.assertIs(
+            raw_coverage.qualification_grid,
+            raw_coverage.spectral_diagnostic_grid,
+        )
+        self.assertEqual(
+            raw_coverage.coverage_sha,
+            "81f4eeb0a2cb003035d04905701e57da057b4e91667b6b61eeee8f9bc5f7951e",
+        )
+        self.assertEqual(
+            raw_coverage.point_enclosures.sidecar_sha,
+            "e7179576b2c9fc524c6db8011ee7c2b956d527fb423d75ae0992fad9281e031c",
+        )
+        with self.assertRaises(TypeError):
+            spectral._build_spectral_margin_coverage_from_raw(
+                self.transition,
+                self.metric,
+                self.protocol,
+                dynamics_grid=coverage.qualification_grid,
+            )
+        wrong_grid = spectral.build_dynamics_grid_manifest(
+            ((1,),),
+            self.metric.metric_support_offsets,
+        )
+        with self.assertRaises(ValueError):
+            spectral._build_spectral_margin_coverage_from_raw(
+                self.transition.transition,
+                self.metric,
+                self.protocol,
+                dynamics_grid=wrong_grid,
+            )
+
+        verified = certify_normalized_metric_residual_audit(
+            self.metric_residual,
+            coverage,
+            self.transition,
+            self.metric,
+        )
+        raw_normalized = spectral._build_normalized_metric_residual_audit_from_raw(
+            self.metric_residual,
+            coverage,
+        )
+        self.assertEqual(raw_normalized, verified.audit)
+        self.assertEqual(
+            raw_normalized.audit_sha,
+            "0efa6b19208e9b804c7231626fb265547f0f7b9b6cc987a8aa802b07541a2620",
+        )
+        normalized_redirects = (
+            "directed_div_upper",
+            "canonical_sha",
+            "replace",
+            "type",
+        )
+        normalized_mocks = {
+            name: mock.Mock(side_effect=AssertionError(f"redirected normalized {name}"))
+            for name in normalized_redirects
+        }
+        with (
+            mock.patch.object(
+                spectral,
+                "directed_div_upper",
+                normalized_mocks["directed_div_upper"],
+            ),
+            mock.patch.object(
+                spectral,
+                "canonical_sha",
+                normalized_mocks["canonical_sha"],
+            ),
+            mock.patch.object(
+                spectral,
+                "replace",
+                normalized_mocks["replace"],
+            ),
+            mock.patch.object(
+                spectral,
+                "type",
+                normalized_mocks["type"],
+                create=True,
+            ),
+        ):
+            redirected_normalized = (
+                spectral._build_normalized_metric_residual_audit_from_raw(
+                    self.metric_residual,
+                    coverage,
+                )
+            )
+        self.assertEqual(redirected_normalized, raw_normalized)
+        for redirected in normalized_mocks.values():
+            redirected.assert_not_called()
+        protocol_mismatch = dataclasses.replace(
+            self.metric_residual,
+            fp64_enclosure_protocol_sha="4" * 64,
+        )
+        with self.assertRaises(ValueError):
+            spectral._build_normalized_metric_residual_audit_from_raw(
+                protocol_mismatch,
+                coverage,
+            )
+
+        legacy_power = build_power_drift_audit(verified)
+        raw_power = spectral._build_power_drift_audit_from_raw(raw_normalized)
+        self.assertEqual(raw_power, legacy_power)
+        self.assertEqual(
+            raw_power.audit_sha,
+            "630e99481c684e24704ec3764e3dcbaecfedb5482f9773539e6715472f6d7e74",
+        )
+
+    def test_saved_coverage_raw_core_ignores_transitive_runtime_redirect(self):
+        coverage = self._coverage()
+        saved = spectral._build_spectral_margin_coverage_from_raw
+        redirected = mock.Mock(
+            side_effect=AssertionError("redirected fp64 runtime verifier")
+        )
+        builtin_redirect = mock.Mock(
+            side_effect=AssertionError("redirected fp64 protocol builtin")
+        )
+        with mock.patch.object(
+            fp64_protocol_module,
+            "_require_fp64_runtime_environment",
+            redirected,
+        ):
+            observed = saved(
+                self.transition.transition,
+                self.metric,
+                self.protocol,
+                dynamics_grid=coverage.qualification_grid,
+            )
+        self.assertEqual(observed, coverage)
+        redirected.assert_not_called()
+        with mock.patch.object(
+            fp64_protocol_module,
+            "type",
+            builtin_redirect,
+            create=True,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "fp64_protocol owner dependency drifted",
+            ):
+                saved(
+                    self.transition.transition,
+                    self.metric,
+                    self.protocol,
+                    dynamics_grid=coverage.qualification_grid,
+                )
+        builtin_redirect.assert_not_called()
+
+    def test_saved_normalized_raw_core_ignores_directed_binary_redirect(self):
+        coverage = self._coverage()
+        saved = spectral._build_normalized_metric_residual_audit_from_raw
+        expected = saved(self.metric_residual, coverage)
+        redirected = mock.Mock(side_effect=AssertionError("redirected directed binary"))
+        builtin_redirect = mock.Mock(
+            side_effect=AssertionError("redirected fp64 builtin")
+        )
+        with (
+            mock.patch.object(
+                fp64_module,
+                "_directed_binary",
+                redirected,
+            ),
+            mock.patch.object(
+                fp64_module,
+                "type",
+                builtin_redirect,
+                create=True,
+            ),
+        ):
+            observed = saved(self.metric_residual, coverage)
+        self.assertEqual(observed, expected)
+        redirected.assert_not_called()
+        builtin_redirect.assert_not_called()
+
     def test_exact_zero_coverage_has_root64_fill_and_fourteen_hard_columns(self):
         coverage = self._coverage()
         self.assertEqual(
@@ -124,9 +303,8 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
             coverage.spectral_diagnostic_grid,
             coverage.qualification_grid,
         )
-        pi_hi = (
-            self.protocol.root_interval_table.pi_upper_numerator
-            / float(1 << self.protocol.root_interval_table.dyadic_exponent)
+        pi_hi = self.protocol.root_interval_table.pi_upper_numerator / float(
+            1 << self.protocol.root_interval_table.dyadic_exponent
         )
         self.assertGreaterEqual(coverage.fill_distance, pi_hi)
         self.assertGreater(coverage.fill_distance, 3.14)
@@ -147,15 +325,11 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
                 self.assertTrue(math.isfinite(values[0]))
         self.assertTrue(
             is_positive_zero(
-                _decode_column(
-                    sidecar.transition_symbol_error_upper_b64
-                )[0]
+                _decode_column(sidecar.transition_symbol_error_upper_b64)[0]
             )
         )
         self.assertTrue(
-            is_positive_zero(
-                _decode_column(sidecar.metric_symbol_error_upper_b64)[0]
-            )
+            is_positive_zero(_decode_column(sidecar.metric_symbol_error_upper_b64)[0])
         )
         for values in (
             coverage.m_sigma_min_axis_derivative_bounds,
@@ -194,9 +368,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
     def test_coverage_has_no_laurent_input_or_reverse_dependency(self):
         self.assertEqual(
             tuple(
-                inspect.signature(
-                    build_exact_zero_spectral_margin_coverage
-                ).parameters
+                inspect.signature(build_exact_zero_spectral_margin_coverage).parameters
             ),
             ("transition", "stability_metric", "fp64_protocol"),
         )
@@ -207,19 +379,25 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
             self._coverage()
 
     def test_exact_origin_uses_the_frozen_scalar_candidate_path(self):
+        expected = self._coverage()
+        saved = spectral._build_spectral_margin_coverage_from_raw
         with (
             mock.patch(
                 "rulespace_v3.spectral._scalar_gauss_jordan_inverse",
-                wraps=_scalar_gauss_jordan_inverse,
+                side_effect=AssertionError("redirected inverse"),
             ) as inverse,
             mock.patch(
                 "rulespace_v3.spectral._scalar_hermitian_cholesky",
-                wraps=_scalar_hermitian_cholesky,
+                side_effect=AssertionError("redirected Cholesky"),
             ) as cholesky,
             mock.patch(
                 "rulespace_v3.spectral._scalar_lower_triangular_inverse",
-                wraps=_scalar_lower_triangular_inverse,
+                side_effect=AssertionError("redirected triangular inverse"),
             ) as triangular_inverse,
+            mock.patch(
+                "rulespace_v3.spectral.canonical_sha",
+                side_effect=AssertionError("redirected coverage hash"),
+            ) as coverage_hash,
             mock.patch(
                 "numpy.linalg.inv",
                 side_effect=AssertionError("LAPACK inverse"),
@@ -237,21 +415,26 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
                 side_effect=AssertionError("LAPACK eigh"),
             ),
         ):
-            coverage = self._coverage()
-        inverse.assert_called_once()
-        cholesky.assert_called_once()
-        triangular_inverse.assert_called_once()
+            coverage = saved(
+                self.transition.transition,
+                self.metric,
+                self.protocol,
+                dynamics_grid=expected.qualification_grid,
+            )
+        self.assertEqual(coverage, expected)
+        inverse.assert_not_called()
+        cholesky.assert_not_called()
+        triangular_inverse.assert_not_called()
+        coverage_hash.assert_not_called()
         self.assertGreater(
             _decode_column(
-                coverage.point_enclosures
-                .inverse_residual_frobenius_upper_b64
+                coverage.point_enclosures.inverse_residual_frobenius_upper_b64
             )[0],
             0.0,
         )
         self.assertGreater(
             _decode_column(
-                coverage.point_enclosures
-                .cholesky_factorization_residual_frobenius_upper_b64
+                coverage.point_enclosures.cholesky_factorization_residual_frobenius_upper_b64
             )[0],
             0.0,
         )
@@ -303,7 +486,11 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         self.assertEqual(directed_multiply.call_count, 8)
         self.assertEqual(directed_accumulate.call_count, 8)
 
-    def test_cholesky_inverse_lower_requires_residual_strictly_below_one(self):
+    def test_raw_cholesky_inverse_lower_requires_residual_strictly_below_one(self):
+        dynamics_grid = spectral.build_dynamics_grid_manifest(
+            self.transition.transition.support_offsets,
+            self.metric.metric_support_offsets,
+        )
         with mock.patch(
             "rulespace_v3.spectral._matrix_product_subtraction_roundoff_upper",
             side_effect=(+0.0, +0.0, 2.0),
@@ -312,7 +499,12 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
                 ValueError,
                 "Cholesky inverse residual must be below one",
             ):
-                self._coverage()
+                spectral._build_exact_zero_spectral_margin_coverage_from_raw_lane(
+                    self.transition.transition,
+                    self.metric,
+                    self.protocol,
+                    dynamics_grid=dynamics_grid,
+                )
 
     def test_resigned_fill_sidecar_or_semantic_negative_zero_is_rejected(self):
         coverage = self._coverage()
@@ -323,9 +515,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         )
         changed_fill = dataclasses.replace(
             changed_fill,
-            coverage_sha=canonical_sha(
-                spectral_margin_coverage_payload(changed_fill)
-            ),
+            coverage_sha=canonical_sha(spectral_margin_coverage_payload(changed_fill)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_spectral_margin_coverage(
@@ -346,9 +536,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
             changed_sidecar,
             column_data_sha=canonical_sha(
                 {
-                    "column_data_schema_version": (
-                        "v3m0.spectral-column-data.v1"
-                    ),
+                    "column_data_schema_version": ("v3m0.spectral-column-data.v1"),
                     "ordered_columns": [
                         [name, getattr(changed_sidecar, name)]
                         for name in HARD_COLUMN_NAMES
@@ -358,9 +546,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         )
         changed_sidecar = dataclasses.replace(
             changed_sidecar,
-            sidecar_sha=canonical_sha(
-                spectral_point_sidecar_payload(changed_sidecar)
-            ),
+            sidecar_sha=canonical_sha(spectral_point_sidecar_payload(changed_sidecar)),
         )
         changed_coverage = dataclasses.replace(
             coverage,
@@ -404,9 +590,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
                             coverage.qualification_grid,
                             item.name,
                         )
-                        for item in dataclasses.fields(
-                            DynamicsKGridManifest
-                        )
+                        for item in dataclasses.fields(DynamicsKGridManifest)
                     }
                 )
                 changed = dataclasses.replace(
@@ -635,22 +819,17 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
             "raw_diagnostic_unavailable_reason",
             "x" * 65,
         )
-        with (
-            mock.patch(
-                "rulespace_v3.spectral.SPECTRAL_MAX_CANONICAL_BODY_BYTES",
-                64,
-            ),
-            mock.patch(
-                "rulespace_v3.spectral.canonical_sha",
-                side_effect=AssertionError("hash before body preflight"),
-            ) as canonical,
-        ):
+        low_cap_checker = spectral._make_coverage_body_cap_checker(
+            maximum_bytes=64,
+            exact_size=spectral._EXACT_JSON_UTF8_SIZE,
+            payload_builder=spectral.spectral_margin_coverage_payload,
+        )
+        with mock.patch(
+            "rulespace_v3.spectral.canonical_sha",
+            side_effect=AssertionError("hash before body preflight"),
+        ) as canonical:
             with self.assertRaises(ValueError):
-                verify_spectral_margin_coverage(
-                    forged,
-                    self.transition,
-                    self.metric,
-                )
+                low_cap_checker(forged)
         canonical.assert_not_called()
 
     def test_normalized_audit_rebuilds_complete_residual_and_coverage(self):
@@ -699,9 +878,7 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         )
         changed = dataclasses.replace(
             changed,
-            audit_sha=canonical_sha(
-                normalized_metric_residual_audit_payload(changed)
-            ),
+            audit_sha=canonical_sha(normalized_metric_residual_audit_payload(changed)),
         )
         with self.assertRaises((TypeError, ValueError)):
             verify_normalized_metric_residual_audit(
@@ -715,16 +892,13 @@ class ExactZeroSpectralAuditTests(unittest.TestCase):
         changed_residual = dataclasses.replace(
             self.metric_residual,
             raw_global_momentum_supremum_bound=(
-                self.metric_residual.raw_global_momentum_supremum_bound
-                * 0.5
+                self.metric_residual.raw_global_momentum_supremum_bound * 0.5
             ),
             residual_sha="0" * 64,
         )
         changed_residual = dataclasses.replace(
             changed_residual,
-            residual_sha=canonical_sha(
-                laurent_residual_payload(changed_residual)
-            ),
+            residual_sha=canonical_sha(laurent_residual_payload(changed_residual)),
         )
         with self.assertRaises((TypeError, ValueError)):
             certify_normalized_metric_residual_audit(

@@ -154,9 +154,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
                 path,
                 "f" * 64 if index == 0 else source_sha,
             )
-            for index, (path, source_sha) in enumerate(
-                self.manifest.source_closure
-            )
+            for index, (path, source_sha) in enumerate(self.manifest.source_closure)
         )
         resigned = dataclasses.replace(
             self.manifest,
@@ -171,9 +169,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
         )
         with mock.patch(
             "rulespace_v3.runtime._run_fresh_probe",
-            side_effect=AssertionError(
-                "fresh imports ran before source SHA preflight"
-            ),
+            side_effect=AssertionError("fresh imports ran before source SHA preflight"),
         ) as fresh_probe:
             with self.assertRaisesRegex(ValueError, "source preflight"):
                 verify_runtime_evidence_manifest(resigned)
@@ -181,8 +177,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
 
     def test_manifest_and_nested_probe_records_have_exact_slots(self):
         expected_manifest_slots = tuple(
-            field.name
-            for field in dataclasses.fields(RuntimeEvidenceManifest)
+            field.name for field in dataclasses.fields(RuntimeEvidenceManifest)
         )
         self.assertEqual(
             tuple(RuntimeEvidenceManifest.__slots__),
@@ -340,9 +335,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
             output_path = Path(directory) / "probe.json"
             with mock.patch(
                 "subprocess.run",
-                side_effect=AssertionError(
-                    "reduced roots reached the child"
-                ),
+                side_effect=AssertionError("reduced roots reached the child"),
             ) as reduced_runner:
                 with self.assertRaisesRegex(
                     ValueError,
@@ -361,11 +354,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
                 self.assertIs(kwargs["stdout"], subprocess.DEVNULL)
                 self.assertIsNot(kwargs["stderr"], subprocess.PIPE)
                 kwargs["stderr"].write(
-                    b"x"
-                    * (
-                        runtime.RUNTIME_MAX_SUBPROCESS_STDERR_BYTES
-                        + 1
-                    )
+                    b"x" * (runtime.RUNTIME_MAX_SUBPROCESS_STDERR_BYTES + 1)
                 )
                 kwargs["stderr"].flush()
                 return types.SimpleNamespace(returncode=1)
@@ -386,9 +375,7 @@ class RuntimeEvidenceManifestTests(unittest.TestCase):
             self.manifest.runtime_manifest_sha,
             canonical_sha(payload),
         )
-        self.assertFalse(
-            {"timestamp", "issued_at", "sequence"} & set(payload)
-        )
+        self.assertFalse({"timestamp", "issued_at", "sequence"} & set(payload))
         repeated = issue_runtime_evidence_manifest()
         self.assertEqual(repeated, self.manifest)
 
@@ -398,9 +385,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
         provisional = RuntimeEvidenceManifest(
             runtime_schema_version=RUNTIME_SCHEMA_VERSION,
             evaluator_id=RUNTIME_EVALUATOR_ID,
-            source_closure=(
-                ("rulespace_v3/runtime.py", "0" * 64),
-            ),
+            source_closure=(("rulespace_v3/runtime.py", "0" * 64),),
             python_version="fixture-python",
             numpy_version="fixture-numpy",
             scipy_version="fixture-scipy",
@@ -453,9 +438,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
         with mock.patch.object(
             runtime,
             "_SOURCE_ENTRY_FIELDS",
-            frozenset(
-                (*runtime._SOURCE_ENTRY_FIELDS, "caller_label")
-            ),
+            frozenset((*runtime._SOURCE_ENTRY_FIELDS, "caller_label")),
         ):
             with self.assertRaisesRegex(
                 ValueError,
@@ -497,9 +480,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
         wire = runtime_evidence_manifest_to_wire(self._manifest())
         wire["source_closure"] = [
             {
-                "relative_path": (
-                    f"rulespace_v3/x_{index:03d}.py"
-                ),
+                "relative_path": (f"rulespace_v3/x_{index:03d}.py"),
                 "sha256": "0" * 64,
             }
             for index in range(RUNTIME_MAX_SOURCE_FILES + 1)
@@ -711,9 +692,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
     def test_json_and_hash_primitive_rebinding_cannot_forge_self_hash(self):
         for primitive in ("json", "hash"):
             with self.subTest(primitive=primitive):
-                wire = runtime_evidence_manifest_to_wire(
-                    self._manifest()
-                )
+                wire = runtime_evidence_manifest_to_wire(self._manifest())
                 wire["python_version"] = "caller-python"
                 if primitive == "json":
                     forged_bytes = b"caller-controlled-canonical-body"
@@ -744,7 +723,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
     def test_frozen_json_encoder_matches_contract_on_allowed_domain(self):
         value = {
             "z": [
-                "quote\" slash\\ controls\b\f\n\r\t\u0001",
+                'quote" slash\\ controls\b\f\n\r\t\u0001',
                 "雪",
                 None,
                 True,
@@ -874,9 +853,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
         ):
             body = dict(wire)
             body.pop("runtime_manifest_sha")
-            wire["runtime_manifest_sha"] = runtime._RUNTIME_CANONICAL_SHA(
-                body
-            )
+            wire["runtime_manifest_sha"] = runtime._RUNTIME_CANONICAL_SHA(body)
             with self.assertRaisesRegex(ValueError, "canonical"):
                 runtime_evidence_manifest_from_wire(wire)
 
@@ -886,9 +863,7 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
             with mock.patch.object(
                 runtime.subprocess,
                 "Popen",
-                side_effect=AssertionError(
-                    "module Popen rebinding reached the probe"
-                ),
+                side_effect=AssertionError("module Popen rebinding reached the probe"),
             ) as rebound:
                 runtime._launch_probe_subprocess(
                     runtime._MODULE_RUNTIME_AUTHORITY.import_roots,
@@ -920,12 +895,156 @@ class RuntimeWireAuthorityAttackTests(unittest.TestCase):
             with mock.patch.object(
                 runtime,
                 "_PROBE_FIELDS",
-                frozenset(
-                    (*runtime._PROBE_FIELDS, "caller_probe_label")
-                ),
+                frozenset((*runtime._PROBE_FIELDS, "caller_probe_label")),
             ):
                 with self.assertRaisesRegex(ValueError, "unknown"):
                     runtime._load_probe_output(path)
+
+
+class RuntimeV3PrivateAuthorityTests(unittest.TestCase):
+    def test_v3_authority_is_private_parallel_and_root_exact(self):
+        authority = runtime._V3_RUNTIME_AUTHORITY
+        self.assertEqual(
+            authority.evaluator_id,
+            "rulespace-v3m0-parent-v3-certificate-closure-v1",
+        )
+        self.assertEqual(
+            authority.import_roots,
+            ("rulespace_v3.certificate_v3",),
+        )
+        self.assertIsInstance(authority, tuple)
+        self.assertFalse(hasattr(authority, "__dict__"))
+        self.assertEqual(
+            runtime._MODULE_RUNTIME_AUTHORITY.evaluator_id,
+            "rulespace-v3m0-certificate-closure-v1",
+        )
+        self.assertEqual(
+            runtime._MODULE_RUNTIME_AUTHORITY.import_roots,
+            (
+                "rulespace_v3.bridge",
+                "rulespace_v3.certificate",
+                "rulespace_v3.dynamics",
+                "rulespace_v3.fp64_protocol",
+                "rulespace_v3.grids",
+                "rulespace_v3.instability",
+                "rulespace_v3.laurent",
+                "rulespace_v3.metric",
+                "rulespace_v3.parent_freeze",
+                "rulespace_v3.prestructure",
+                "rulespace_v3.qualification",
+                "rulespace_v3.registry",
+                "rulespace_v3.runtime",
+                "rulespace_v3.spectral",
+                "rulespace_v3.structure",
+            ),
+        )
+
+    def test_v3_private_api_has_exact_signature_and_is_not_exported(self):
+        expected = {
+            "_runtime_evidence_manifest_v3_payload": (
+                ("manifest",),
+                "dict[str, object]",
+            ),
+            "_issue_runtime_evidence_manifest_v3": (
+                (),
+                "RuntimeEvidenceManifest",
+            ),
+            "_verify_runtime_evidence_manifest_v3": (
+                ("manifest",),
+                "RuntimeEvidenceManifest",
+            ),
+        }
+        for name, (parameters, return_annotation) in expected.items():
+            with self.subTest(name=name):
+                function = getattr(runtime, name)
+                signature = inspect.signature(function)
+                self.assertEqual(tuple(signature.parameters), parameters)
+                self.assertTrue(
+                    all(
+                        parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+                        for parameter in signature.parameters.values()
+                    )
+                )
+                self.assertEqual(
+                    signature.return_annotation,
+                    return_annotation,
+                )
+                self.assertNotIn(name, runtime.__all__)
+        self.assertEqual(
+            runtime.__all__,
+            [
+                "RUNTIME_EVALUATOR_ID",
+                "RUNTIME_MAX_CANONICAL_BODY_BYTES",
+                "RUNTIME_MAX_IMPORT_ROOTS",
+                "RUNTIME_MAX_PROBE_JSON_BYTES",
+                "RUNTIME_MAX_SOURCE_FILE_BYTES",
+                "RUNTIME_MAX_SOURCE_FILES",
+                "RUNTIME_MAX_TOTAL_SOURCE_BYTES",
+                "RUNTIME_SCHEMA_VERSION",
+                "RuntimeEvidenceManifest",
+                "issue_runtime_evidence_manifest",
+                "runtime_evidence_manifest_from_wire",
+                "runtime_evidence_manifest_payload",
+                "runtime_evidence_manifest_to_wire",
+                "verify_runtime_evidence_manifest",
+            ],
+        )
+
+    def test_v3_payload_and_legacy_payload_are_authority_separated(self):
+        probe = runtime._RuntimeProbe(
+            source_closure=(("rulespace_v3/runtime.py", "0" * 64),),
+            python_version="fixture-python",
+            numpy_version="fixture-numpy",
+            scipy_version="fixture-scipy",
+            blas_config_sha="1" * 64,
+            lapack_config_sha="2" * 64,
+            platform_id="fixture-platform",
+        )
+        manifest = runtime._manifest_from_probe(
+            probe,
+            _authority=runtime._V3_RUNTIME_AUTHORITY,
+        )
+        payload = runtime._runtime_evidence_manifest_v3_payload(manifest)
+        self.assertEqual(
+            payload["evaluator_id"],
+            "rulespace-v3m0-parent-v3-certificate-closure-v1",
+        )
+        with self.assertRaisesRegex(ValueError, "evaluator_id"):
+            runtime_evidence_manifest_payload(manifest)
+
+        legacy = RuntimeWireAuthorityAttackTests()._manifest()
+        with self.assertRaisesRegex(ValueError, "evaluator_id"):
+            runtime._runtime_evidence_manifest_v3_payload(legacy)
+
+
+class RuntimeV3PrivateFreshProbeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.manifest = runtime._issue_runtime_evidence_manifest_v3()
+
+    def test_v3_fresh_probe_inventories_the_actual_certificate_closure(self):
+        manifest = self.manifest
+        self.assertEqual(
+            manifest.evaluator_id,
+            "rulespace-v3m0-parent-v3-certificate-closure-v1",
+        )
+        paths = {path for path, _ in manifest.source_closure}
+        self.assertIn("rulespace_v3/certificate_v3.py", paths)
+        self.assertIn("rulespace_v3/runtime.py", paths)
+        self.assertGreater(len(paths), 20)
+        self.assertFalse(any(path.startswith("tests/") for path in paths))
+        for relative_path, source_sha in manifest.source_closure:
+            source = runtime._repository_root() / relative_path
+            self.assertEqual(
+                hashlib.sha256(source.read_bytes()).hexdigest(),
+                source_sha,
+            )
+        self.assertIs(
+            runtime._verify_runtime_evidence_manifest_v3(manifest),
+            manifest,
+        )
+        with self.assertRaisesRegex(ValueError, "evaluator_id"):
+            runtime_evidence_manifest_payload(manifest)
 
 
 if __name__ == "__main__":

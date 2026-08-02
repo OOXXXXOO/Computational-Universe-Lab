@@ -20,6 +20,7 @@ from typing import Any, Optional, Union
 import sympy as sp
 
 from .evidence import canonical_sha
+from .frozen_call_graph import _freeze_project_class_methods
 
 
 FROZEN_GRAMMAR_ID = "v3m0.local-linear-primitive.v1"
@@ -177,15 +178,11 @@ def _support_tuple(
                     f"{field}[{row_index}][{column_index}] rejects bool offsets"
                 )
             if type(coordinate) is not int:
-                raise TypeError(
-                    f"{field}[{row_index}][{column_index}] must be an int"
-                )
+                raise TypeError(f"{field}[{row_index}][{column_index}] must be an int")
             normalized.append(coordinate)
         normalized_offset = tuple(normalized)
         if normalized_offset in seen:
-            raise ValueError(
-                f"{field} contains duplicate offset {normalized_offset!r}"
-            )
+            raise ValueError(f"{field} contains duplicate offset {normalized_offset!r}")
         seen.add(normalized_offset)
         result.append(normalized_offset)
     if canonicalize:
@@ -475,9 +472,7 @@ def _topological_order(
     if len(entries) > DAG_MAX_NODES:
         raise ValueError(f"{noun} DAG node limit exceeded")
     indegree: dict[str, int] = {}
-    dependents: dict[str, list[str]] = {
-        identifier: [] for identifier in entries
-    }
+    dependents: dict[str, list[str]] = {identifier: [] for identifier in entries}
     edge_count = 0
     for identifier, dependencies in entries.items():
         indegree[identifier] = len(dependencies)
@@ -487,16 +482,11 @@ def _topological_order(
         for dependency in dependencies:
             if dependency not in entries:
                 raise ValueError(
-                    f"{noun} {identifier!r} references missing {noun} "
-                    f"{dependency!r}"
+                    f"{noun} {identifier!r} references missing {noun} {dependency!r}"
                 )
             dependents[dependency].append(identifier)
 
-    queue = deque(
-        identifier
-        for identifier in entries
-        if indegree[identifier] == 0
-    )
+    queue = deque(identifier for identifier in entries if indegree[identifier] == 0)
     order: list[str] = []
     depths: dict[str, int] = {}
     while queue:
@@ -678,9 +668,7 @@ def _validate_pow_exponent_ast(expression_ast: tuple[object, ...]) -> None:
         if magnitude <= COEFFICIENT_POW_MAX_MAGNITUDE:
             return
     elif tag == "Rational" and len(arguments) == 2:
-        numerator = abs(
-            _parse_decimal_integer(arguments[0], "Pow exponent numerator")
-        )
+        numerator = abs(_parse_decimal_integer(arguments[0], "Pow exponent numerator"))
         denominator = _parse_decimal_integer(
             arguments[1],
             "Pow exponent denominator",
@@ -710,10 +698,7 @@ def _validate_eager_numeric_pow(base: sp.Basic, exponent: sp.Basic) -> None:
         if abs(component) <= 1:
             continue
         component_digits = len(str(abs(component)))
-        if (
-            component_digits * exponent_magnitude
-            > COEFFICIENT_INTEGER_MAX_DIGITS
-        ):
+        if component_digits * exponent_magnitude > COEFFICIENT_INTEGER_MAX_DIGITS:
             raise ValueError("Pow eager numeric result limit exceeded")
 
 
@@ -849,9 +834,7 @@ def _build_coefficient_record(specification: PrimitiveSpec) -> CoefficientRecord
         _seen_symbols=normalized_seen_symbols,
     )
     if normalized_seen_symbols != registered_symbols:
-        raise ValueError(
-            "coefficient variable_order changed during canonicalization"
-        )
+        raise ValueError("coefficient variable_order changed during canonicalization")
     digest_body = _coefficient_digest_body(
         mechanism_id=specification.mechanism_id,
         expression_schema=COEFFICIENT_EXPRESSION_SCHEMA,
@@ -884,10 +867,7 @@ def _evaluate_closed_ast(expression_ast: tuple[object, ...]) -> complex:
         raise ValueError("runtime lowering requires a closed coefficient")
     if tag == "Add":
         return sum(
-            (
-                _evaluate_closed_ast(_as_ast_tuple(argument))
-                for argument in arguments
-            ),
+            (_evaluate_closed_ast(_as_ast_tuple(argument)) for argument in arguments),
             complex(0.0),
         )
     if tag == "Mul":
@@ -931,7 +911,9 @@ def evaluate_closed_coefficient(record: CoefficientRecord) -> complex:
     try:
         value = _evaluate_closed_ast(record.expression_ast)
     except (ArithmeticError, TypeError, ValueError) as exc:
-        raise ValueError("closed coefficient cannot be lowered to finite complex") from exc
+        raise ValueError(
+            "closed coefficient cannot be lowered to finite complex"
+        ) from exc
     if not math.isfinite(value.real) or not math.isfinite(value.imag):
         raise ValueError("closed coefficient must lower to a finite complex")
     return value
@@ -950,10 +932,7 @@ def _provenance_analysis(
     search_ids: dict[str, frozenset[str]] = {}
     traceable_provenance: dict[str, bool] = {}
 
-    entries = {
-        identifier: node.depends_on
-        for identifier, node in nodes_by_id.items()
-    }
+    entries = {identifier: node.depends_on for identifier, node in nodes_by_id.items()}
     for identifier in _topological_order(entries, noun="provenance"):
         current = nodes_by_id[identifier]
         dependency_kinds = [kinds[item] for item in current.depends_on]
@@ -1057,8 +1036,7 @@ def _primitive_kinds(
     provenance_search_ids: Mapping[str, frozenset[str]],
 ) -> dict[str, MechanismKind]:
     specifications_by_id = {
-        specification.mechanism_id: specification
-        for specification in specifications
+        specification.mechanism_id: specification for specification in specifications
     }
     kinds: dict[str, MechanismKind] = {}
     entries = {
@@ -1077,8 +1055,7 @@ def _primitive_kinds(
             *dependency_kinds,
         ]
         target_symbolic = any(
-            tag.lower() in _TARGET_SYMBOLIC_TAGS
-            or tag.lower().startswith("target:")
+            tag.lower() in _TARGET_SYMBOLIC_TAGS or tag.lower().startswith("target:")
             for tag in specification.symbolic_origin_tags
         )
         if target_symbolic:
@@ -1090,12 +1067,8 @@ def _primitive_kinds(
         inherited_searches = provenance_search_ids[root]
         if recorded_objectives != inherited_objectives:
             kinds_to_join.append(MechanismKind.UNCLASSIFIED)
-        if (
-            (recorded_search is None and inherited_searches)
-            or (
-                recorded_search is not None
-                and recorded_search not in inherited_searches
-            )
+        if (recorded_search is None and inherited_searches) or (
+            recorded_search is not None and recorded_search not in inherited_searches
         ):
             kinds_to_join.append(MechanismKind.UNCLASSIFIED)
         kinds[identifier] = _join_kinds(kinds_to_join)
@@ -1133,9 +1106,7 @@ def _primitive_payload(primitive: PrimitiveTrace) -> dict[str, object]:
         "production_id": primitive.production_id,
         "kind": primitive.kind.value,
         "depends_on": list(primitive.depends_on),
-        "support_offsets": [
-            list(offset) for offset in primitive.support_offsets
-        ],
+        "support_offsets": [list(offset) for offset in primitive.support_offsets],
         "state_channels": list(primitive.state_channels),
         "coefficient_digest": primitive.coefficient_digest,
         "symbolic_origin_tags": list(primitive.symbolic_origin_tags),
@@ -1190,9 +1161,7 @@ def build_construction_trace(
     if grammar_id != FROZEN_GRAMMAR_ID:
         raise ValueError(f"grammar_id must be {FROZEN_GRAMMAR_ID!r}")
     if schema_version != CONSTRUCTION_TRACE_SCHEMA:
-        raise ValueError(
-            f"schema_version must be {CONSTRUCTION_TRACE_SCHEMA!r}"
-        )
+        raise ValueError(f"schema_version must be {CONSTRUCTION_TRACE_SCHEMA!r}")
     if not isinstance(provenance_nodes, Sequence) or isinstance(
         provenance_nodes,
         (str, bytes, bytearray),
@@ -1210,17 +1179,13 @@ def build_construction_trace(
     nodes_by_id: dict[str, ProvenanceNode] = {}
     for node_value in normalized_nodes_input:
         if node_value.provenance_id in nodes_by_id:
-            raise ValueError(
-                f"duplicate provenance ID {node_value.provenance_id!r}"
-            )
+            raise ValueError(f"duplicate provenance ID {node_value.provenance_id!r}")
         nodes_by_id[node_value.provenance_id] = node_value
     _validate_dag(
         {key: value.depends_on for key, value in nodes_by_id.items()},
         noun="provenance",
     )
-    normalized_nodes = tuple(
-        nodes_by_id[key] for key in sorted(nodes_by_id)
-    )
+    normalized_nodes = tuple(nodes_by_id[key] for key in sorted(nodes_by_id))
 
     normalized_specs = tuple(_normalize_spec(item) for item in primitive_specs)
     if not normalized_specs:
@@ -1228,9 +1193,7 @@ def build_construction_trace(
     specs_by_id: dict[str, PrimitiveSpec] = {}
     for specification in normalized_specs:
         if specification.mechanism_id in specs_by_id:
-            raise ValueError(
-                f"duplicate mechanism ID {specification.mechanism_id!r}"
-            )
+            raise ValueError(f"duplicate mechanism ID {specification.mechanism_id!r}")
         if specification.design_provenance not in nodes_by_id:
             raise ValueError(
                 f"mechanism {specification.mechanism_id!r} references missing "
@@ -1256,12 +1219,9 @@ def build_construction_trace(
     )
 
     coefficient_records = tuple(
-        _build_coefficient_record(specification)
-        for specification in normalized_specs
+        _build_coefficient_record(specification) for specification in normalized_specs
     )
-    records_by_id = {
-        record.mechanism_id: record for record in coefficient_records
-    }
+    records_by_id = {record.mechanism_id: record for record in coefficient_records}
     primitives = tuple(
         PrimitiveTrace(
             grammar_id=grammar_id,
@@ -1353,9 +1313,7 @@ def _snapshot_json(
             return memo_entry[1]
         active_containers.add(container_id)
         try:
-            raw_items = tuple(
-                islice(iter(value.items()), SNAPSHOT_MAX_NODES + 1)
-            )
+            raw_items = tuple(islice(iter(value.items()), SNAPSHOT_MAX_NODES + 1))
             if len(raw_items) > SNAPSHOT_MAX_NODES:
                 raise ValueError(f"{path} exceeds the snapshot node limit")
             result: dict[str, object] = {}
@@ -1409,9 +1367,7 @@ def _snapshot_json(
             return frozen_result
         finally:
             active_containers.remove(container_id)
-    raise TypeError(
-        f"{path} contains a non-JSON value of type {type(value).__name__}"
-    )
+    raise TypeError(f"{path} contains a non-JSON value of type {type(value).__name__}")
 
 
 def _strict_fields(
@@ -1456,9 +1412,7 @@ def _payload_ast(value: object, field: str) -> tuple[object, ...]:
     if type(value) is not tuple:
         raise TypeError(f"{field} must be a JSON array")
     return tuple(
-        _payload_ast(item, f"{field}[{index}]")
-        if type(item) is tuple
-        else item
+        _payload_ast(item, f"{field}[{index}]") if type(item) is tuple else item
         for index, item in enumerate(value)
     )
 
@@ -1510,9 +1464,7 @@ def _parse_trace_payload(snapshot: Mapping[str, object]) -> ConstructionTrace:
         try:
             operation = ProvenanceOperation(raw["operation"])
         except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"provenance_nodes[{index}].operation is unknown"
-            ) from exc
+            raise ValueError(f"provenance_nodes[{index}].operation is unknown") from exc
         nodes.append(
             ProvenanceNode(
                 provenance_id=_require_nonempty_string(
@@ -1729,9 +1681,7 @@ def verify_construction_trace(
     nodes_by_id: dict[str, ProvenanceNode] = {}
     for node_value in parsed.provenance_nodes:
         if node_value.provenance_id in node_ids:
-            raise ValueError(
-                f"duplicate provenance ID {node_value.provenance_id!r}"
-            )
+            raise ValueError(f"duplicate provenance ID {node_value.provenance_id!r}")
         node_ids.add(node_value.provenance_id)
         nodes_by_id[node_value.provenance_id] = node_value
         if node_value.depends_on != tuple(sorted(node_value.depends_on)):
@@ -1760,10 +1710,7 @@ def verify_construction_trace(
             raise ValueError("unknown coefficient expression_schema")
         if record.provenance_root_id not in nodes_by_id:
             raise ValueError("coefficient references missing provenance root")
-        symbols = {
-            name: sp.Symbol(name)
-            for name in record.variable_order
-        }
+        symbols = {name: sp.Symbol(name) for name in record.variable_order}
         expression = _expression_from_ast(record.expression_ast, symbols)
         seen_symbols: set[str] = set()
         canonical_ast = _expression_to_ast(
@@ -1791,9 +1738,7 @@ def verify_construction_trace(
     primitives_by_id: dict[str, PrimitiveTrace] = {}
     for primitive in parsed.primitives:
         if primitive.mechanism_id in primitive_ids:
-            raise ValueError(
-                f"duplicate mechanism ID {primitive.mechanism_id!r}"
-            )
+            raise ValueError(f"duplicate mechanism ID {primitive.mechanism_id!r}")
         primitive_ids.add(primitive.mechanism_id)
         primitives_by_id[primitive.mechanism_id] = primitive
         if primitive.grammar_id != parsed.grammar_id:
@@ -1828,10 +1773,7 @@ def verify_construction_trace(
     if tuple(records_by_id) != tuple(primitives_by_id):
         raise ValueError("coefficient sidecar order must match primitive order")
     _validate_dag(
-        {
-            key: value.depends_on
-            for key, value in primitives_by_id.items()
-        },
+        {key: value.depends_on for key, value in primitives_by_id.items()},
         noun="primitive",
     )
 
@@ -1869,10 +1811,17 @@ def verify_construction_trace(
     )
     for primitive in parsed.primitives:
         if primitive.kind is not computed_kinds[primitive.mechanism_id]:
-            raise ValueError(
-                f"computed kind mismatch for {primitive.mechanism_id!r}"
-            )
+            raise ValueError(f"computed kind mismatch for {primitive.mechanism_id!r}")
     return parsed
+
+
+_freeze_project_class_methods(
+    ProvenanceNode,
+    CoefficientRecord,
+    PrimitiveSpec,
+    PrimitiveTrace,
+    ConstructionTrace,
+)
 
 
 __all__ = [

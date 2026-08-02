@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import math
 import re
+import sys
 import threading
 import weakref
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, replace
-from typing import Callable, Literal
+from types import CodeType, FunctionType
+from typing import Literal
 
 import numpy as np
 
@@ -38,7 +41,6 @@ from .replay_scope import (
     _record_successful_replay,
 )
 
-
 TRANSITION_SCHEMA_VERSION = "v3m0.measured-transition.v1"
 TRANSITION_SUPPORT_SCHEMA_VERSION = "v3m0.transition-support.v1"
 TRANSITION_MAX_COMPLEX_ENTRIES = 16_777_216
@@ -46,6 +48,162 @@ STATE_BASIS_CONVENTION_ID: Literal["channel-identity-v1"] = "channel-identity-v1
 ORIGIN_CONVENTION_ID = "periodic-index-zero-origin-v1"
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
+
+
+def _freeze_dynamics_project_call_graphs(
+    *roots: FunctionType,
+) -> tuple[FunctionType, ...]:
+    """Detach reachable project functions from later module-global rebinding."""
+
+    function_memo: dict[int, FunctionType] = {}
+    container_memo: dict[int, tuple[object, object]] = {}
+    frozen_marker = "__dynamics_project_frozen__"
+
+    def is_unfrozen_project_function(value: object) -> bool:
+        if type(value) is not FunctionType:
+            return False
+        function = value
+        if not function.__module__.startswith("rulespace_v3."):
+            return False
+        if function.__dict__.get(frozen_marker) is True:
+            return False
+        # The shared freezer's guarded roots are already closed and must not be
+        # recursively cloned through their class-snapshot bookkeeping tuples.
+        if function.__module__ == "rulespace_v3.frozen_call_graph":
+            return False
+        owner = sys.modules.get(function.__module__)
+        return owner is None or function.__globals__ is vars(owner)
+
+    def referenced_names(code: CodeType) -> tuple[str, ...]:
+        names = list(code.co_names)
+        for constant in code.co_consts:
+            if type(constant) is CodeType:
+                names.extend(referenced_names(constant))
+        return tuple(dict.fromkeys(names))
+
+    def make_cell(value: object) -> object:
+        def read_cell() -> object:
+            return value
+
+        return read_cell.__closure__[0]
+
+    def contains_unfrozen_project_function(
+        value: object,
+        seen: set[int] | None = None,
+    ) -> bool:
+        if is_unfrozen_project_function(value):
+            return True
+        if type(value) not in (tuple, list, dict):
+            return False
+        if seen is None:
+            seen = set()
+        identity = id(value)
+        if identity in seen:
+            return False
+        seen.add(identity)
+        items = value.values() if type(value) is dict else value
+        return any(contains_unfrozen_project_function(item, seen) for item in items)
+
+    def cached_container(value: object) -> object | None:
+        cached = container_memo.get(id(value))
+        if cached is not None and cached[0] is value:
+            return cached[1]
+        return None
+
+    def freeze_container(value: object, item_freezer: Callable) -> object:
+        cached = cached_container(value)
+        if cached is not None:
+            return cached
+        if type(value) is tuple:
+            result = tuple(item_freezer(item) for item in value)
+            cached = cached_container(value)
+            if cached is not None:
+                return cached
+            container_memo[id(value)] = (value, result)
+            return result
+        if type(value) is list:
+            if not contains_unfrozen_project_function(value):
+                return value
+            result: list[object] = []
+            container_memo[id(value)] = (value, result)
+            result.extend(item_freezer(item) for item in value)
+            return result
+        if type(value) is dict:
+            if not contains_unfrozen_project_function(value):
+                return value
+            result: dict[object, object] = {}
+            container_memo[id(value)] = (value, result)
+            result.update((key, item_freezer(item)) for key, item in value.items())
+            return result
+        raise TypeError("dynamics call-graph container type is not supported")
+
+    def freeze_value(value: object) -> object:
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) in (tuple, list, dict):
+            return freeze_container(value, freeze_value)
+        # Exact classes are owner-frozen before Dynamics can import them.
+        return value
+
+    def freeze_closure_value(value: object) -> object:
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) in (tuple, list, dict):
+            return freeze_container(value, freeze_closure_value)
+        # Runtime registries, ordinary mutable containers, modules and locks
+        # deliberately retain their exact shared identity.
+        return value
+
+    def freeze_function(function: FunctionType) -> FunctionType:
+        cached = function_memo.get(id(function))
+        if cached is not None:
+            return cached
+        source_globals = function.__globals__
+        builtins_body = source_globals.get("__builtins__", {})
+        private_builtins = (
+            dict(builtins_body)
+            if type(builtins_body) is dict
+            else dict(vars(builtins_body))
+        )
+        private_globals: dict[str, object] = {
+            "__builtins__": private_builtins,
+            "__name__": source_globals.get("__name__", function.__module__),
+            "__package__": source_globals.get("__package__", __package__),
+        }
+        source_closure = function.__closure__
+        private_cells = (
+            None
+            if source_closure is None
+            else tuple(make_cell(None) for _ in source_closure)
+        )
+        clone = FunctionType(
+            function.__code__,
+            private_globals,
+            function.__name__,
+            None,
+            private_cells,
+        )
+        function_memo[id(function)] = clone
+        if source_closure is not None:
+            assert private_cells is not None
+            for private_cell, source_cell in zip(private_cells, source_closure):
+                private_cell.cell_contents = freeze_closure_value(
+                    source_cell.cell_contents
+                )
+        for name in referenced_names(function.__code__):
+            if name in source_globals:
+                private_globals[name] = freeze_value(source_globals[name])
+        clone.__defaults__ = freeze_value(function.__defaults__)
+        clone.__kwdefaults__ = freeze_value(function.__kwdefaults__)
+        clone.__annotations__ = dict(function.__annotations__)
+        clone.__dict__.update(function.__dict__)
+        clone.__dict__[frozen_marker] = True
+        clone.__doc__ = function.__doc__
+        clone.__module__ = function.__module__
+        clone.__qualname__ = function.__qualname__
+        return clone
+
+    return tuple(freeze_function(root) for root in roots)
 
 
 class _MeasuredTransitionSupportFailure(ValueError):
@@ -161,6 +319,13 @@ class MeasuredTransition:
             raise ValueError("MeasuredTransition macro_steps must equal one")
 
 
+# Keep the legacy class object while detaching its constructor validation from
+# later rebinding of Dynamics owner globals.
+(MeasuredTransition.__post_init__,) = _freeze_dynamics_project_call_graphs(
+    MeasuredTransition.__post_init__,
+)
+
+
 def transition_support_payload(
     support_offsets: tuple[tuple[int, ...], ...],
     spatial_shape: tuple[int, ...],
@@ -227,10 +392,11 @@ def _outside_support_mask(
     spatial_shape: tuple[int, ...],
     support: tuple[tuple[int, ...], ...],
     *,
-    _np=np,
+    _ones=np.ones,
+    _bool_dtype=np.bool_,
     _zip=zip,
 ) -> np.ndarray:
-    mask = _np.ones(spatial_shape, dtype=_np.bool_)
+    mask = _ones(spatial_shape, dtype=_bool_dtype)
     for offset in support:
         index = tuple(
             coordinate % length for coordinate, length in _zip(offset, spatial_shape)
@@ -239,9 +405,16 @@ def _outside_support_mask(
     return mask
 
 
-def _assert_positive_bit_zero(values: np.ndarray, *, _np=np) -> None:
-    contiguous = _np.ascontiguousarray(values, dtype=_np.complex128)
-    if _np.any(contiguous.view(_np.uint64) != _np.uint64(0)):
+def _assert_positive_bit_zero(
+    values: np.ndarray,
+    *,
+    _ascontiguousarray=np.ascontiguousarray,
+    _complex_dtype=np.complex128,
+    _any=np.any,
+    _uint64=np.uint64,
+) -> None:
+    contiguous = _ascontiguousarray(values, dtype=_complex_dtype)
+    if _any(contiguous.view(_uint64) != _uint64(0)):
         raise ValueError("transition outside declared support is not bit-exact +0.0")
 
 
@@ -262,16 +435,17 @@ def _allocate_transition_kernel(
     state_count: int,
     spatial_shape: tuple[int, ...],
     *,
-    _math=math,
-    _np=np,
+    _product=math.prod,
+    _zeros=np.zeros,
+    _complex_dtype=np.complex128,
     _entry_cap=TRANSITION_MAX_COMPLEX_ENTRIES,
 ) -> np.ndarray:
-    entry_count = state_count * state_count * _math.prod(spatial_shape)
+    entry_count = state_count * state_count * _product(spatial_shape)
     if entry_count > _entry_cap:
         raise ValueError("transition complex-entry cap exceeded")
-    return _np.zeros(
+    return _zeros(
         (state_count, state_count) + spatial_shape,
-        dtype=_np.complex128,
+        dtype=_complex_dtype,
     )
 
 
@@ -384,7 +558,9 @@ def _make_bound_realspace_transition_core(
             transition_sha=sha_builder(measured_payload_builder(provisional)),
         )
 
-    return _measure_bound_realspace_transition
+    return _freeze_dynamics_project_call_graphs(
+        _measure_bound_realspace_transition,
+    )[0]
 
 
 _measure_bound_realspace_transition = _make_bound_realspace_transition_core(
@@ -421,7 +597,7 @@ def _make_remeasure_transition(input_binder, measurement_core):
             prestructure_authority_sha=authority_view.authority.authority_sha,
         )
 
-    return _remeasure_transition
+    return _freeze_dynamics_project_call_graphs(_remeasure_transition)[0]
 
 
 _remeasure_transition = _make_remeasure_transition(
@@ -466,6 +642,19 @@ class VerifiedTransition:
     @property
     def transition(self) -> MeasuredTransition:
         return self.__transition
+
+
+# Preserve exact wrapper identity while closing every same-owner method used by
+# the legacy route before its live registry is assembled.
+(VerifiedTransition.__init__, VerifiedTransition.__setattr__) = (
+    _freeze_dynamics_project_call_graphs(
+        VerifiedTransition.__init__,
+        VerifiedTransition.__setattr__,
+    )
+)
+VerifiedTransition.transition = property(
+    _freeze_dynamics_project_call_graphs(VerifiedTransition.transition.fget)[0]
+)
 
 
 @dataclass(frozen=True)
@@ -644,7 +833,11 @@ def _make_transition_authority(
         )
         return authority
 
-    return issue, register_measured, reverify
+    return _freeze_dynamics_project_call_graphs(
+        issue,
+        register_measured,
+        reverify,
+    )
 
 
 (
@@ -810,7 +1003,7 @@ def _make_legacy_transition_public_apis(
         authority = transition_reverifier(transition)
         return raw_symbol_builder(authority.transition, momentum)
 
-    return (
+    return _freeze_dynamics_project_call_graphs(
         measure_transition,
         verify_measured_transition,
         transition_kernel_array,

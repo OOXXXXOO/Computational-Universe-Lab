@@ -1334,6 +1334,62 @@ def test_b3_dynamics_shared_core_is_exact_private_realspace_full_state(
     )
     assert result.transition_sha == canonical_sha(measured_payload_builder(result))
 
+    owner_redirect_violations: list[str] = []
+
+    def redirected_owner_global(*args, **kwargs):
+        del args, kwargs
+        raise AssertionError("post-freeze dynamics owner global was consulted")
+
+    for name in (
+        "len",
+        "range",
+        "tuple",
+        "bool",
+        "type",
+        "int",
+        "float",
+        "list",
+        "set",
+        "sorted",
+        "enumerate",
+        "isinstance",
+        "getattr",
+        "str",
+        "_text",
+        "_sha",
+        "_channels",
+        "_shape",
+        "_support",
+        "_tensor_record",
+        "frozen_tensor_payload",
+        "MeasuredTransition",
+        "FrozenComplexTensor",
+        "TRANSITION_SUPPORT_SCHEMA_VERSION",
+        "ORIGIN_CONVENTION_ID",
+        "STATE_BASIS_CONVENTION_ID",
+        "_LOWER_SHA",
+    ):
+        with monkeypatch.context() as attack:
+            attack.setattr(
+                dynamics,
+                name,
+                redirected_owner_global,
+                raising=False,
+            )
+            try:
+                observed = core(
+                    factory,
+                    parent_freeze_sha="a" * 64,
+                    prestructure_authority_sha="b" * 64,
+                )
+            except Exception as exc:  # report the entire redirect matrix
+                owner_redirect_violations.append(f"{name}: {type(exc).__name__}: {exc}")
+            else:
+                if observed != result:
+                    owner_redirect_violations.append(f"{name}: output changed")
+
+    assert owner_redirect_violations == []
+
     # The same executor with an under-declared support must die; the core may
     # not silently truncate, project, or tolerate a nonzero coefficient.
     factory.stencil_support = ((0,),)

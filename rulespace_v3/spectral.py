@@ -11,19 +11,24 @@ consumed by the normalized-residual issuer, never by spectral coverage.
 from __future__ import annotations
 
 import base64
+import dis
+import inspect
 import json  # noqa: F401  # Compatibility probe; sizing is closure-captured.
 import math
 import re
 import struct
+import sys
 import threading
 import weakref
 from dataclasses import dataclass, fields, replace
 from fractions import Fraction
+from types import CodeType, FunctionType
 from typing import Callable, Literal, Optional
 
 import numpy as np
 
 from .dynamics import (
+    MeasuredTransition,
     VerifiedTransition,
     _reverify_verified_transition,
     measured_transition_payload,
@@ -35,6 +40,7 @@ from .fp64 import (
     POWER_DRIFT_MACRO_STEP,
     POWER_DRIFT_METHOD_ID,
     POWER_DRIFT_SQUARING_COUNT,
+    PowerDriftBounds,
     build_complex_dot_roundoff_bound,
     compute_power_drift_bounds,
     directed_add_upper,
@@ -139,6 +145,260 @@ HARD_COLUMN_NAMES = (
 
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _ISSUANCE_TOKEN = object()
+
+
+class _SpectralDataclassMethodClosure(tuple):
+    """Immutable authority for exact spectral-owned method descriptors."""
+
+    __slots__ = ()
+
+    def __new__(
+        cls,
+        dependencies: tuple[tuple[type, str], ...],
+        *,
+        _getattr_static=inspect.getattr_static,
+        _runtime_error=RuntimeError,
+    ) -> _SpectralDataclassMethodClosure:
+        captured = tuple(
+            (owner, name, _getattr_static(owner, name)) for owner, name in dependencies
+        )
+        return tuple.__new__(
+            cls,
+            (captured, _getattr_static, _runtime_error),
+        )
+
+    def verify(self) -> None:
+        dependencies, getattr_static, runtime_error = self
+        for owner, name, expected in dependencies:
+            if getattr_static(owner, name) is not expected:
+                raise runtime_error(
+                    "frozen spectral dataclass dependency drifted: "
+                    f"{owner.__module__}.{owner.__qualname__}.{name}"
+                )
+
+
+class _SpectralExternalOwnerMethodClosure(tuple):
+    """Immutable authority for exact foreign methods and name resolution."""
+
+    __slots__ = ()
+
+    def __new__(
+        cls,
+        owner_label: str,
+        dependencies: tuple[tuple[type, str], ...],
+        *,
+        protect_global_resolution: bool = False,
+        _getattr_static=inspect.getattr_static,
+        _runtime_error=RuntimeError,
+        _missing=object(),
+    ) -> _SpectralExternalOwnerMethodClosure:
+        captured_dependencies = tuple(
+            (owner, name, _getattr_static(owner, name)) for owner, name in dependencies
+        )
+        resolutions: list[
+            tuple[dict[str, object], dict[str, object], str, bool, object]
+        ] = []
+        if protect_global_resolution:
+            seen: set[tuple[int, str]] = set()
+            for _, _, method in captured_dependencies:
+                if type(method) is not FunctionType:
+                    continue
+                owner_globals = method.__globals__
+                builtins_body = owner_globals.get("__builtins__", {})
+                owner_builtins = (
+                    builtins_body
+                    if type(builtins_body) is dict
+                    else vars(builtins_body)
+                )
+                for instruction in dis.get_instructions(method):
+                    if instruction.opname not in ("LOAD_GLOBAL", "LOAD_NAME"):
+                        continue
+                    name = instruction.argval
+                    if type(name) is not str:
+                        continue
+                    key = (id(owner_globals), name)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if name in owner_globals:
+                        resolutions.append(
+                            (
+                                owner_globals,
+                                owner_builtins,
+                                name,
+                                True,
+                                owner_globals[name],
+                            )
+                        )
+                    elif name in owner_builtins:
+                        resolutions.append(
+                            (
+                                owner_globals,
+                                owner_builtins,
+                                name,
+                                False,
+                                owner_builtins[name],
+                            )
+                        )
+        return tuple.__new__(
+            cls,
+            (
+                owner_label,
+                captured_dependencies,
+                tuple(resolutions),
+                _getattr_static,
+                _runtime_error,
+                _missing,
+            ),
+        )
+
+    def verify(self) -> None:
+        (
+            owner_label,
+            dependencies,
+            resolutions,
+            getattr_static,
+            runtime_error,
+            missing,
+        ) = self
+        for owner, name, expected in dependencies:
+            if getattr_static(owner, name) is not expected:
+                raise runtime_error(
+                    f"{owner_label} owner dependency drifted: "
+                    f"{owner.__module__}.{owner.__qualname__}.{name}"
+                )
+        for (
+            owner_globals,
+            owner_builtins,
+            name,
+            resolved_from_owner,
+            expected,
+        ) in resolutions:
+            current_owner = owner_globals.get(name, missing)
+            if resolved_from_owner:
+                drifted = current_owner is not expected
+            else:
+                drifted = (
+                    current_owner is not missing
+                    or owner_builtins.get(name, missing) is not expected
+                )
+            if drifted:
+                raise runtime_error(
+                    f"{owner_label} owner dependency drifted: global-or-builtin {name}"
+                )
+
+
+def _freeze_spectral_call_graph(root: FunctionType) -> FunctionType:
+    """Detach reachable canonical project functions without mutating classes."""
+
+    if type(root) is not FunctionType:
+        raise TypeError("spectral call-graph root must be a Python function")
+    cache: dict[int, FunctionType] = {}
+
+    def is_unfrozen_project_function(value: object) -> bool:
+        if type(value) is not FunctionType:
+            return False
+        function = value
+        if not function.__module__.startswith("rulespace_v3."):
+            return False
+        if function.__dict__.get("_spectral_frozen_call_graph") is True:
+            return False
+        if function.__module__ == "rulespace_v3.frozen_call_graph":
+            return False
+        owner = sys.modules.get(function.__module__)
+        return owner is None or function.__globals__ is vars(owner)
+
+    def referenced_names(code: CodeType) -> tuple[str, ...]:
+        names = list(code.co_names)
+        for constant in code.co_consts:
+            if type(constant) is CodeType:
+                names.extend(referenced_names(constant))
+        return tuple(dict.fromkeys(names))
+
+    def make_cell(value: object) -> object:
+        def read_cell() -> object:
+            return value
+
+        return read_cell.__closure__[0]
+
+    def freeze_value(value: object) -> object:
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_value(item) for item in value)
+        # Mutable containers may be authority registries shared across
+        # separately frozen roots.  Preserve their exact live identity.
+        return value
+
+    def freeze_closure_value(value: object) -> object:
+        if is_unfrozen_project_function(value):
+            return freeze_function(value)
+        if type(value) is tuple:
+            return tuple(freeze_closure_value(item) for item in value)
+        # Registry dictionaries and locks are live authority state shared by
+        # separately frozen issuer/reverifier roots, never dependency maps.
+        return value
+
+    def freeze_function(function: FunctionType) -> FunctionType:
+        cached = cache.get(id(function))
+        if cached is not None:
+            return cached
+        source_globals = function.__globals__
+        builtins_value = source_globals.get("__builtins__", {})
+        private_builtins = (
+            dict(builtins_value)
+            if type(builtins_value) is dict
+            else dict(vars(builtins_value))
+        )
+        private_globals: dict[str, object] = {
+            "__builtins__": private_builtins,
+            "__name__": source_globals.get("__name__", function.__module__),
+            "__package__": source_globals.get("__package__", __package__),
+        }
+        source_closure = function.__closure__
+        private_cells = (
+            None
+            if source_closure is None
+            else tuple(make_cell(None) for _ in source_closure)
+        )
+        frozen = FunctionType(
+            function.__code__,
+            private_globals,
+            function.__name__,
+            None,
+            private_cells,
+        )
+        cache[id(function)] = frozen
+        if source_closure is not None:
+            assert private_cells is not None
+            for private_cell, source_cell in zip(private_cells, source_closure):
+                private_cell.cell_contents = freeze_closure_value(
+                    source_cell.cell_contents
+                )
+        for name in referenced_names(function.__code__):
+            if name in source_globals:
+                private_globals[name] = freeze_value(source_globals[name])
+        frozen.__defaults__ = (
+            None
+            if function.__defaults__ is None
+            else tuple(freeze_value(item) for item in function.__defaults__)
+        )
+        frozen.__kwdefaults__ = (
+            None
+            if function.__kwdefaults__ is None
+            else {
+                key: freeze_value(item) for key, item in function.__kwdefaults__.items()
+            }
+        )
+        frozen.__annotations__ = dict(function.__annotations__)
+        frozen.__dict__.update(function.__dict__)
+        frozen.__doc__ = function.__doc__
+        frozen.__module__ = function.__module__
+        frozen.__qualname__ = function.__qualname__
+        frozen.__dict__["_spectral_frozen_call_graph"] = True
+        return frozen
+
+    return freeze_function(root)
 
 
 def _require_exact_record_fields(
@@ -810,9 +1070,7 @@ def _preflight_coverage_record(
             or len(grid.torus_denominators) != expected_ndim
         ):
             raise ValueError(f"{field} denominator cardinality mismatch")
-        if (
-            type(grid.reciprocal_indices) is not tuple
-        ):
+        if type(grid.reciprocal_indices) is not tuple:
             raise TypeError(f"{field}.reciprocal_indices must be a tuple")
         if grid.qualification_profile == "exact-offset-zero-v1":
             points = 1
@@ -916,20 +1174,37 @@ def _preflight_coverage_record(
     coverage.__post_init__()
 
 
-def _require_coverage_body_within_cap(
-    coverage: SpectralMarginCoverage,
-) -> None:
-    """Stream canonical JSON sizing without joining a giant byte string."""
+def _make_coverage_body_cap_checker(
+    *,
+    maximum_bytes: int,
+    exact_size: Callable,
+    payload_builder: Callable,
+) -> Callable:
+    def _require_coverage_body_within_cap(
+        coverage: SpectralMarginCoverage,
+    ) -> None:
+        """Stream canonical JSON sizing without joining a giant byte string."""
 
-    try:
-        _EXACT_JSON_UTF8_SIZE(
-            spectral_margin_coverage_payload(coverage),
-            maximum_bytes=SPECTRAL_MAX_CANONICAL_BODY_BYTES,
-        )
-    except ValueError as exc:
-        if "resource cap" not in str(exc):
-            raise
-        raise ValueError("spectral canonical body exceeds the 96 MiB cap") from exc
+        try:
+            exact_size(
+                payload_builder(coverage),
+                maximum_bytes=maximum_bytes,
+            )
+        except ValueError as exc:
+            if "resource cap" not in str(exc):
+                raise
+            raise ValueError("spectral canonical body exceeds the 96 MiB cap") from exc
+
+    return _require_coverage_body_within_cap
+
+
+_require_coverage_body_within_cap = _freeze_spectral_call_graph(
+    _make_coverage_body_cap_checker(
+        maximum_bytes=SPECTRAL_MAX_CANONICAL_BODY_BYTES,
+        exact_size=_EXACT_JSON_UTF8_SIZE,
+        payload_builder=spectral_margin_coverage_payload,
+    )
+)
 
 
 def _decode_f64_column(
@@ -1057,13 +1332,11 @@ def _scalar_gauss_jordan_inverse(values: np.ndarray) -> np.ndarray:
         for row in range(n_state)
     ]
     right = [
-        [
-            complex(1.0 if row == column else +0.0, +0.0)
-            for column in range(n_state)
-        ]
+        [complex(1.0 if row == column else +0.0, +0.0) for column in range(n_state)]
         for row in range(n_state)
     ]
     for column in range(n_state):
+
         def pivot_magnitude_squared(row: int) -> float:
             value = left[row][column]
             return _spectral_hard_add(
@@ -1460,8 +1733,7 @@ def _matrix_frobenius_upper(values: np.ndarray) -> float:
         real_fraction = Fraction(*real.as_integer_ratio())
         imaginary_fraction = Fraction(*imaginary.as_integer_ratio())
         sum_squares += (
-            real_fraction * real_fraction
-            + imaginary_fraction * imaginary_fraction
+            real_fraction * real_fraction + imaginary_fraction * imaginary_fraction
         )
     return frobenius_sqrt_upper(sum_squares)
 
@@ -1566,8 +1838,7 @@ def _laurent_symbol_center_and_error(
     if type(reciprocal_index) is not tuple or len(reciprocal_index) != ndim:
         raise ValueError("reciprocal index dimension mismatch")
     if any(
-        type(offset) is not tuple or len(offset) != ndim
-        for offset in support_offsets
+        type(offset) is not tuple or len(offset) != ndim for offset in support_offsets
     ):
         raise ValueError("Laurent support dimension mismatch")
     phases: list[complex] = []
@@ -1616,8 +1887,7 @@ def _laurent_symbol_center_and_error(
             real_fraction = Fraction(*real_error.as_integer_ratio())
             imaginary_fraction = Fraction(*imaginary_error.as_integer_ratio())
             operation_error_squares += (
-                real_fraction * real_fraction
-                + imaginary_fraction * imaginary_fraction
+                real_fraction * real_fraction + imaginary_fraction * imaginary_fraction
             )
     operation_error_upper = frobenius_sqrt_upper(operation_error_squares)
     symbol_error_upper = directed_add_upper(
@@ -1717,9 +1987,7 @@ def _hard_spectral_point(
             "m_sigma_min_lower_b64": m_sigma_min,
             "m_sigma_max_upper_b64": m_sigma_max,
             "metric_frobenius_upper_b64": metric_upper,
-            "cholesky_factorization_residual_frobenius_upper_b64": (
-                cholesky_residual
-            ),
+            "cholesky_factorization_residual_frobenius_upper_b64": (cholesky_residual),
             "cholesky_inverse_frobenius_upper_b64": cholesky_inverse_upper,
             "cholesky_inverse_residual_frobenius_upper_b64": (
                 cholesky_inverse_residual
@@ -1780,14 +2048,13 @@ def _build_columnar_sidecar(
     if set(hard_columns) != set(HARD_COLUMN_NAMES):
         raise ValueError("hard spectral column set is not exact")
     for name in HARD_COLUMN_NAMES:
-        if type(hard_columns[name]) is not tuple or len(
-            hard_columns[name]
-        ) != point_count:
+        if (
+            type(hard_columns[name]) is not tuple
+            or len(hard_columns[name]) != point_count
+        ):
             raise ValueError(f"{name} does not match the qualification grid")
     if raw_columns is None:
-        status: Literal["available-lapack-v1", "unavailable-v1"] = (
-            "unavailable-v1"
-        )
+        status: Literal["available-lapack-v1", "unavailable-v1"] = "unavailable-v1"
         reason = _text(unavailable_reason, "raw diagnostic unavailable reason")
         encoded_raw: dict[str, Optional[str]] = {
             name: None for name in RAW_COLUMN_NAMES
@@ -1813,8 +2080,7 @@ def _build_columnar_sidecar(
         encoded_column_count=encoded_count,
     )
     encoded_hard = {
-        name: _encode_f64_column(hard_columns[name])
-        for name in HARD_COLUMN_NAMES
+        name: _encode_f64_column(hard_columns[name]) for name in HARD_COLUMN_NAMES
     }
     provisional = SpectralPointEnclosureColumnarSidecar(
         sidecar_schema_version=SPECTRAL_SIDECAR_SCHEMA_VERSION,
@@ -1840,18 +2106,17 @@ def _build_columnar_sidecar(
     )
     result = replace(
         with_column_sha,
-        sidecar_sha=canonical_sha(
-            spectral_point_sidecar_payload(with_column_sha)
-        ),
+        sidecar_sha=canonical_sha(spectral_point_sidecar_payload(with_column_sha)),
     )
     return _verify_sidecar(result)
 
 
-def _constant_transition_matrix(
-    transition: VerifiedTransition,
+def _constant_transition_matrix_from_raw(
+    transition: MeasuredTransition,
 ) -> tuple[np.ndarray, int]:
-    transition_view = _reverify_verified_transition(transition)
-    raw = transition_view.transition
+    if type(transition) is not MeasuredTransition:
+        raise TypeError("transition must be an exact MeasuredTransition")
+    raw = transition
     zero = (0,) * len(raw.spatial_shape)
     if raw.support_offsets != (zero,):
         raise ValueError("this coverage slice requires exact zero transition support")
@@ -1893,12 +2158,9 @@ def _transition_laurent_coefficients_from_raw(
     )
     for index, offset in enumerate(support_offsets):
         periodic_index = tuple(
-            coordinate % length
-            for coordinate, length in zip(offset, spatial_shape)
+            coordinate % length for coordinate, length in zip(offset, spatial_shape)
         )
-        coefficients[index] = kernel[
-            (slice(None), slice(None)) + periodic_index
-        ]
+        coefficients[index] = kernel[(slice(None), slice(None)) + periodic_index]
     return coefficients, support_offsets
 
 
@@ -1996,33 +2258,56 @@ def _optional_raw_point_diagnostic(
     return values, radius
 
 
-def _expected_exact_zero_coverage(
-    transition: VerifiedTransition,
+SpectralPointEnclosureColumnarSidecar.__post_init__ = _freeze_spectral_call_graph(
+    SpectralPointEnclosureColumnarSidecar.__post_init__
+)
+SpectralMarginCoverage.__post_init__ = _freeze_spectral_call_graph(
+    SpectralMarginCoverage.__post_init__
+)
+_COVERAGE_METHOD_CLOSURE = _SpectralDataclassMethodClosure(
+    (
+        (SpectralPointEnclosureColumnarSidecar, "__init__"),
+        (SpectralPointEnclosureColumnarSidecar, "__post_init__"),
+        (SpectralMarginCoverage, "__init__"),
+        (SpectralMarginCoverage, "__post_init__"),
+    )
+)
+_COVERAGE_METHOD_CLOSURE_VERIFY = _COVERAGE_METHOD_CLOSURE.verify
+_FP64_PROTOCOL_METHOD_CLOSURE = _SpectralExternalOwnerMethodClosure(
+    "fp64_protocol",
+    (
+        (Fp64EnclosureProtocol, "__init__"),
+        (Fp64EnclosureProtocol, "__post_init__"),
+    ),
+    protect_global_resolution=True,
+)
+_FP64_PROTOCOL_METHOD_CLOSURE_VERIFY = _FP64_PROTOCOL_METHOD_CLOSURE.verify
+
+
+def _verify_coverage_method_closures(
+    _verify_spectral=_COVERAGE_METHOD_CLOSURE_VERIFY,
+    _verify_protocol=_FP64_PROTOCOL_METHOD_CLOSURE_VERIFY,
+) -> None:
+    _verify_spectral()
+    _verify_protocol()
+
+
+_VERIFY_COVERAGE_METHOD_CLOSURES = _freeze_spectral_call_graph(
+    _verify_coverage_method_closures
+)
+
+
+def _build_exact_zero_spectral_margin_coverage_from_raw_lane(
+    transition: MeasuredTransition,
     stability_metric: StabilityMetricWitness,
     fp64_protocol: Fp64EnclosureProtocol,
+    *,
+    dynamics_grid: DynamicsKGridManifest,
 ) -> SpectralMarginCoverage:
-    transition_view = _reverify_verified_transition(transition)
-    structure = build_structure_manifest(
-        transition_view.factory,
-        transition_view.prestructure,
-    )
-    metric = verify_stability_metric_witness(
-        stability_metric,
-        transition_view.factory,
-        transition_view.prestructure,
-        structure,
-    )
-    protocol = verify_fp64_enclosure_protocol(fp64_protocol)
-    raw_transition = transition_view.transition
-    grid = build_dynamics_grid_manifest(
-        raw_transition.support_offsets,
-        metric.metric_support_offsets,
-    )
-    verify_dynamics_grid_manifest(
-        grid,
-        raw_transition.support_offsets,
-        metric.metric_support_offsets,
-    )
+    raw_transition = transition
+    metric = stability_metric
+    protocol = fp64_protocol
+    grid = dynamics_grid
     if grid.qualification_profile != "exact-offset-zero-v1":
         raise ValueError("this builder only accepts exact-zero singleton grids")
     if grid.reciprocal_indices != ((0,) * grid.spatial_ndim,):
@@ -2034,7 +2319,9 @@ def _expected_exact_zero_coverage(
         encoded_column_count=SPECTRAL_HARD_COLUMN_COUNT,
     )
 
-    transition_matrix, measured_state = _constant_transition_matrix(transition)
+    transition_matrix, measured_state = _constant_transition_matrix_from_raw(
+        raw_transition
+    )
     if measured_state != n_state:
         raise ValueError("transition state dimension changed during replay")
     metric_matrix = _constant_metric_matrix(metric, grid.spatial_ndim)
@@ -2174,33 +2461,17 @@ def _expected_exact_zero_coverage(
     return result
 
 
-def _expected_nonzero_coverage(
-    transition: VerifiedTransition,
+def _build_full64_spectral_margin_coverage_from_raw_lane(
+    transition: MeasuredTransition,
     stability_metric: StabilityMetricWitness,
     fp64_protocol: Fp64EnclosureProtocol,
+    *,
+    dynamics_grid: DynamicsKGridManifest,
 ) -> SpectralMarginCoverage:
-    transition_view = _reverify_verified_transition(transition)
-    structure = build_structure_manifest(
-        transition_view.factory,
-        transition_view.prestructure,
-    )
-    metric = verify_stability_metric_witness(
-        stability_metric,
-        transition_view.factory,
-        transition_view.prestructure,
-        structure,
-    )
-    protocol = verify_fp64_enclosure_protocol(fp64_protocol)
-    raw_transition = transition_view.transition
-    grid = build_dynamics_grid_manifest(
-        raw_transition.support_offsets,
-        metric.metric_support_offsets,
-    )
-    verify_dynamics_grid_manifest(
-        grid,
-        raw_transition.support_offsets,
-        metric.metric_support_offsets,
-    )
+    raw_transition = transition
+    metric = stability_metric
+    protocol = fp64_protocol
+    grid = dynamics_grid
     if grid.qualification_profile != "cartesian-full-64-v1":
         raise ValueError("nonzero coverage requires the full-64 grid")
     point_count = len(grid.reciprocal_indices)
@@ -2219,12 +2490,8 @@ def _expected_nonzero_coverage(
     if metric_coefficients.shape[1:] != (n_state, n_state):
         raise ValueError("metric Laurent state shape differs from transition")
 
-    hard_lists: dict[str, list[float]] = {
-        name: [] for name in HARD_COLUMN_NAMES
-    }
-    raw_lists: dict[str, list[float]] = {
-        name: [] for name in RAW_COLUMN_NAMES
-    }
+    hard_lists: dict[str, list[float]] = {name: [] for name in HARD_COLUMN_NAMES}
+    raw_lists: dict[str, list[float]] = {name: [] for name in RAW_COLUMN_NAMES}
     diagnostics_available = True
     radius_diagnostic_value = +0.0
     for reciprocal_index in grid.reciprocal_indices:
@@ -2255,25 +2522,19 @@ def _expected_nonzero_coverage(
                     radius_diagnostic_value,
                     point_radius,
                 )
-    hard_columns = {
-        name: tuple(values) for name, values in hard_lists.items()
-    }
+    hard_columns = {name: tuple(values) for name, values in hard_lists.items()}
 
     if not diagnostics_available:
         raw_columns = None
         radius_diagnostic = None
         unavailable_reason = "lapack-diagnostics-unavailable-v1"
-        status: Literal["available-lapack-v1", "unavailable-v1"] = (
-            "unavailable-v1"
-        )
+        status: Literal["available-lapack-v1", "unavailable-v1"] = "unavailable-v1"
         raw_m_min = None
         raw_m_max = None
         raw_g_min = None
         raw_g_max = None
     else:
-        raw_columns = {
-            name: tuple(values) for name, values in raw_lists.items()
-        }
+        raw_columns = {name: tuple(values) for name, values in raw_lists.items()}
         radius_diagnostic = radius_diagnostic_value
         unavailable_reason = None
         status = "available-lapack-v1"
@@ -2362,9 +2623,7 @@ def _expected_nonzero_coverage(
     )
     result = replace(
         provisional,
-        coverage_sha=canonical_sha(
-            spectral_margin_coverage_payload(provisional)
-        ),
+        coverage_sha=canonical_sha(spectral_margin_coverage_payload(provisional)),
     )
     _require_coverage_body_within_cap(result)
     if result.covered_m_sigma_min_lower < SPECTRAL_M_SIGMA_MIN_GATE:
@@ -2376,6 +2635,170 @@ def _expected_nonzero_coverage(
     if result.covered_g_condition_number_upper > SPECTRAL_CONDITION_MAX:
         raise ValueError("covered metric condition upper is unresolved")
     return result
+
+
+def _validate_spectral_margin_coverage_raw_inputs(
+    transition: MeasuredTransition,
+    stability_metric: StabilityMetricWitness,
+    fp64_protocol: Fp64EnclosureProtocol,
+    dynamics_grid: DynamicsKGridManifest,
+) -> DynamicsKGridManifest:
+    if type(transition) is not MeasuredTransition:
+        raise TypeError("transition must be an exact MeasuredTransition")
+    if type(stability_metric) is not StabilityMetricWitness:
+        raise TypeError("stability_metric must be an exact StabilityMetricWitness")
+    if type(fp64_protocol) is not Fp64EnclosureProtocol:
+        raise TypeError("fp64_protocol must be an exact Fp64EnclosureProtocol")
+    if type(dynamics_grid) is not DynamicsKGridManifest:
+        raise TypeError("dynamics_grid must be an exact DynamicsKGridManifest")
+    verify_fp64_enclosure_protocol(fp64_protocol)
+    return verify_dynamics_grid_manifest(
+        dynamics_grid,
+        transition.support_offsets,
+        stability_metric.metric_support_offsets,
+    )
+
+
+def _make_spectral_margin_coverage_from_raw_dispatcher(
+    *,
+    validate_inputs: Callable,
+    exact_zero_lane: Callable,
+    full64_lane: Callable,
+    method_closure_verifier: Callable,
+) -> Callable:
+    def _build_spectral_margin_coverage_from_raw(
+        transition: MeasuredTransition,
+        stability_metric: StabilityMetricWitness,
+        fp64_protocol: Fp64EnclosureProtocol,
+        *,
+        dynamics_grid: DynamicsKGridManifest,
+    ) -> SpectralMarginCoverage:
+        method_closure_verifier()
+        grid = validate_inputs(
+            transition,
+            stability_metric,
+            fp64_protocol,
+            dynamics_grid,
+        )
+        if grid.qualification_profile == "exact-offset-zero-v1":
+            return exact_zero_lane(
+                transition,
+                stability_metric,
+                fp64_protocol,
+                dynamics_grid=grid,
+            )
+        if grid.qualification_profile == "cartesian-full-64-v1":
+            return full64_lane(
+                transition,
+                stability_metric,
+                fp64_protocol,
+                dynamics_grid=grid,
+            )
+        raise ValueError("dynamics grid qualification profile is not closed")
+
+    return _build_spectral_margin_coverage_from_raw
+
+
+_build_spectral_margin_coverage_from_raw = _freeze_spectral_call_graph(
+    _make_spectral_margin_coverage_from_raw_dispatcher(
+        validate_inputs=_validate_spectral_margin_coverage_raw_inputs,
+        exact_zero_lane=(_build_exact_zero_spectral_margin_coverage_from_raw_lane),
+        full64_lane=_build_full64_spectral_margin_coverage_from_raw_lane,
+        method_closure_verifier=_VERIFY_COVERAGE_METHOD_CLOSURES,
+    )
+)
+
+
+def _make_legacy_spectral_margin_coverage_builder(
+    raw_builder: Callable,
+    *,
+    required_profile: Optional[str],
+    transition_reverifier: Callable,
+    structure_builder: Callable,
+    metric_verifier: Callable,
+    protocol_verifier: Callable,
+    grid_builder: Callable,
+    grid_verifier: Callable,
+) -> Callable:
+    def _expected_coverage(
+        transition: VerifiedTransition,
+        stability_metric: StabilityMetricWitness,
+        fp64_protocol: Fp64EnclosureProtocol,
+    ) -> SpectralMarginCoverage:
+        transition_view = transition_reverifier(transition)
+        structure = structure_builder(
+            transition_view.factory,
+            transition_view.prestructure,
+        )
+        metric = metric_verifier(
+            stability_metric,
+            transition_view.factory,
+            transition_view.prestructure,
+            structure,
+        )
+        protocol = protocol_verifier(fp64_protocol)
+        raw_transition = transition_view.transition
+        grid = grid_builder(
+            raw_transition.support_offsets,
+            metric.metric_support_offsets,
+        )
+        verified_grid = grid_verifier(
+            grid,
+            raw_transition.support_offsets,
+            metric.metric_support_offsets,
+        )
+        if (
+            required_profile is not None
+            and verified_grid.qualification_profile != required_profile
+        ):
+            raise ValueError("dynamics grid does not match the requested spectral lane")
+        return raw_builder(
+            raw_transition,
+            metric,
+            protocol,
+            dynamics_grid=verified_grid,
+        )
+
+    return _expected_coverage
+
+
+_expected_exact_zero_coverage = _make_legacy_spectral_margin_coverage_builder(
+    _build_spectral_margin_coverage_from_raw,
+    required_profile="exact-offset-zero-v1",
+    transition_reverifier=_reverify_verified_transition,
+    structure_builder=build_structure_manifest,
+    metric_verifier=verify_stability_metric_witness,
+    protocol_verifier=verify_fp64_enclosure_protocol,
+    grid_builder=build_dynamics_grid_manifest,
+    grid_verifier=verify_dynamics_grid_manifest,
+)
+_expected_nonzero_coverage = _make_legacy_spectral_margin_coverage_builder(
+    _build_spectral_margin_coverage_from_raw,
+    required_profile="cartesian-full-64-v1",
+    transition_reverifier=_reverify_verified_transition,
+    structure_builder=build_structure_manifest,
+    metric_verifier=verify_stability_metric_witness,
+    protocol_verifier=verify_fp64_enclosure_protocol,
+    grid_builder=build_dynamics_grid_manifest,
+    grid_verifier=verify_dynamics_grid_manifest,
+)
+_expected_spectral_margin_coverage = _make_legacy_spectral_margin_coverage_builder(
+    _build_spectral_margin_coverage_from_raw,
+    required_profile=None,
+    transition_reverifier=_reverify_verified_transition,
+    structure_builder=build_structure_manifest,
+    metric_verifier=verify_stability_metric_witness,
+    protocol_verifier=verify_fp64_enclosure_protocol,
+    grid_builder=build_dynamics_grid_manifest,
+    grid_verifier=verify_dynamics_grid_manifest,
+)
+_expected_exact_zero_coverage = _freeze_spectral_call_graph(
+    _expected_exact_zero_coverage
+)
+_expected_nonzero_coverage = _freeze_spectral_call_graph(_expected_nonzero_coverage)
+_expected_spectral_margin_coverage = _freeze_spectral_call_graph(
+    _expected_spectral_margin_coverage
+)
 
 
 def build_exact_zero_spectral_margin_coverage(
@@ -2403,25 +2826,7 @@ def build_spectral_margin_coverage(
 ) -> SpectralMarginCoverage:
     """Build singleton or full-64 coverage from the unique support grid."""
 
-    if type(transition) is not VerifiedTransition:
-        raise TypeError("transition must be an exact VerifiedTransition")
-    if type(stability_metric) is not StabilityMetricWitness:
-        raise TypeError("stability_metric has the wrong exact type")
-    try:
-        raw_transition = transition.transition
-    except (AttributeError, TypeError) as exc:
-        raise TypeError("transition is not a live VerifiedTransition") from exc
-    grid = build_dynamics_grid_manifest(
-        raw_transition.support_offsets,
-        stability_metric.metric_support_offsets,
-    )
-    if grid.qualification_profile == "exact-offset-zero-v1":
-        return _expected_exact_zero_coverage(
-            transition,
-            stability_metric,
-            fp64_protocol,
-        )
-    return _expected_nonzero_coverage(
+    return _expected_spectral_margin_coverage(
         transition,
         stability_metric,
         fp64_protocol,
@@ -2467,6 +2872,17 @@ def verify_spectral_margin_coverage(
     if coverage.coverage_sha != expected.coverage_sha:
         raise ValueError("spectral coverage does not match reconstruction")
     return coverage
+
+
+build_exact_zero_spectral_margin_coverage = _freeze_spectral_call_graph(
+    build_exact_zero_spectral_margin_coverage
+)
+build_spectral_margin_coverage = _freeze_spectral_call_graph(
+    build_spectral_margin_coverage
+)
+verify_spectral_margin_coverage = _freeze_spectral_call_graph(
+    verify_spectral_margin_coverage
+)
 
 
 @dataclass(frozen=True)
@@ -2520,35 +2936,29 @@ def normalized_metric_residual_audit_payload(
     }
 
 
-def _expected_normalized_audit(
+NormalizedMetricResidualAudit.__post_init__ = _freeze_spectral_call_graph(
+    NormalizedMetricResidualAudit.__post_init__
+)
+_NORMALIZED_METHOD_CLOSURE = _SpectralDataclassMethodClosure(
+    (
+        (NormalizedMetricResidualAudit, "__init__"),
+        (NormalizedMetricResidualAudit, "__post_init__"),
+    )
+)
+_NORMALIZED_METHOD_CLOSURE_VERIFY = _NORMALIZED_METHOD_CLOSURE.verify
+
+
+def _build_normalized_metric_residual_audit_from_raw(
     metric_residual: LaurentResidualCertificate,
     spectral_margins: SpectralMarginCoverage,
-    transition: VerifiedTransition,
-    stability_metric: StabilityMetricWitness,
 ) -> NormalizedMetricResidualAudit:
-    transition_view = _reverify_verified_transition(transition)
-    structure = build_structure_manifest(
-        transition_view.factory,
-        transition_view.prestructure,
-    )
-    metric = verify_stability_metric_witness(
-        stability_metric,
-        transition_view.factory,
-        transition_view.prestructure,
-        structure,
-    )
-    coverage = verify_spectral_margin_coverage(
-        spectral_margins,
-        transition,
-        metric,
-    )
-    residual = verify_laurent_residual_certificate(
-        metric_residual,
-        transition,
-        structure,
-        metric,
-        coverage.fp64_enclosure_protocol,
-    )
+    _NORMALIZED_METHOD_CLOSURE_VERIFY()
+    if type(metric_residual) is not LaurentResidualCertificate:
+        raise TypeError("metric_residual must be an exact LaurentResidualCertificate")
+    if type(spectral_margins) is not SpectralMarginCoverage:
+        raise TypeError("spectral_margins must be an exact SpectralMarginCoverage")
+    residual = metric_residual
+    coverage = spectral_margins
     if residual.residual_kind != "stability-metric":
         raise ValueError("normalized audit requires the metric Laurent residual")
     if (
@@ -2575,6 +2985,65 @@ def _expected_normalized_audit(
         provisional,
         audit_sha=canonical_sha(normalized_metric_residual_audit_payload(provisional)),
     )
+
+
+_build_normalized_metric_residual_audit_from_raw = _freeze_spectral_call_graph(
+    _build_normalized_metric_residual_audit_from_raw
+)
+
+
+def _make_legacy_normalized_audit_builder(
+    raw_builder: Callable,
+    *,
+    transition_reverifier: Callable,
+    structure_builder: Callable,
+    metric_verifier: Callable,
+    coverage_verifier: Callable,
+    residual_verifier: Callable,
+) -> Callable:
+    def _expected_normalized_audit(
+        metric_residual: LaurentResidualCertificate,
+        spectral_margins: SpectralMarginCoverage,
+        transition: VerifiedTransition,
+        stability_metric: StabilityMetricWitness,
+    ) -> NormalizedMetricResidualAudit:
+        transition_view = transition_reverifier(transition)
+        structure = structure_builder(
+            transition_view.factory,
+            transition_view.prestructure,
+        )
+        metric = metric_verifier(
+            stability_metric,
+            transition_view.factory,
+            transition_view.prestructure,
+            structure,
+        )
+        coverage = coverage_verifier(
+            spectral_margins,
+            transition,
+            metric,
+        )
+        residual = residual_verifier(
+            metric_residual,
+            transition,
+            structure,
+            metric,
+            coverage.fp64_enclosure_protocol,
+        )
+        return raw_builder(residual, coverage)
+
+    return _expected_normalized_audit
+
+
+_expected_normalized_audit = _make_legacy_normalized_audit_builder(
+    _build_normalized_metric_residual_audit_from_raw,
+    transition_reverifier=_reverify_verified_transition,
+    structure_builder=build_structure_manifest,
+    metric_verifier=verify_stability_metric_witness,
+    coverage_verifier=verify_spectral_margin_coverage,
+    residual_verifier=verify_laurent_residual_certificate,
+)
+_expected_normalized_audit = _freeze_spectral_call_graph(_expected_normalized_audit)
 
 
 class VerifiedNormalizedMetricResidualAudit:
@@ -2807,6 +3276,12 @@ def _make_normalized_authority() -> tuple[
     _issue_verified_normalized_audit,
     _reverify_verified_normalized_audit,
 ) = _make_normalized_authority()
+_issue_verified_normalized_audit = _freeze_spectral_call_graph(
+    _issue_verified_normalized_audit
+)
+_reverify_verified_normalized_audit = _freeze_spectral_call_graph(
+    _reverify_verified_normalized_audit
+)
 
 
 def certify_normalized_metric_residual_audit(
@@ -2870,6 +3345,14 @@ def verify_normalized_metric_residual_audit(
         transition,
         stability_metric,
     )
+
+
+certify_normalized_metric_residual_audit = _freeze_spectral_call_graph(
+    certify_normalized_metric_residual_audit
+)
+verify_normalized_metric_residual_audit = _freeze_spectral_call_graph(
+    verify_normalized_metric_residual_audit
+)
 
 
 @dataclass(frozen=True)
@@ -2968,16 +3451,38 @@ def power_drift_audit_payload(
     }
 
 
-def _expected_power_drift_audit(
-    normalized: VerifiedNormalizedMetricResidualAudit,
-) -> PowerDriftAudit:
-    authority = _reverify_verified_normalized_audit(normalized)
-    bounds = compute_power_drift_bounds(
-        authority.audit.normalized_metric_residual_upper
+PowerDriftAudit.__post_init__ = _freeze_spectral_call_graph(
+    PowerDriftAudit.__post_init__
+)
+_POWER_METHOD_CLOSURE = _SpectralDataclassMethodClosure(
+    (
+        (PowerDriftAudit, "__init__"),
+        (PowerDriftAudit, "__post_init__"),
     )
+)
+_POWER_METHOD_CLOSURE_VERIFY = _POWER_METHOD_CLOSURE.verify
+_FP64_POWER_BOUNDS_METHOD_CLOSURE = _SpectralExternalOwnerMethodClosure(
+    "fp64",
+    (
+        (PowerDriftBounds, "__init__"),
+        (PowerDriftBounds, "__post_init__"),
+    ),
+    protect_global_resolution=True,
+)
+_FP64_POWER_BOUNDS_METHOD_CLOSURE_VERIFY = _FP64_POWER_BOUNDS_METHOD_CLOSURE.verify
+
+
+def _build_power_drift_audit_from_raw(
+    normalized: NormalizedMetricResidualAudit,
+) -> PowerDriftAudit:
+    _POWER_METHOD_CLOSURE_VERIFY()
+    _FP64_POWER_BOUNDS_METHOD_CLOSURE_VERIFY()
+    if type(normalized) is not NormalizedMetricResidualAudit:
+        raise TypeError("normalized must be an exact NormalizedMetricResidualAudit")
+    bounds = compute_power_drift_bounds(normalized.normalized_metric_residual_upper)
     provisional = PowerDriftAudit(
         audit_schema_version=POWER_DRIFT_AUDIT_SCHEMA_VERSION,
-        normalized_metric_residual_audit_sha=authority.audit.audit_sha,
+        normalized_metric_residual_audit_sha=normalized.audit_sha,
         macro_step=bounds.macro_step,
         nonzero_delta_squaring_count=(bounds.nonzero_delta_squaring_count),
         executed_squaring_count=bounds.executed_squaring_count,
@@ -2995,6 +3500,32 @@ def _expected_power_drift_audit(
         provisional,
         audit_sha=canonical_sha(power_drift_audit_payload(provisional)),
     )
+
+
+_build_power_drift_audit_from_raw = _freeze_spectral_call_graph(
+    _build_power_drift_audit_from_raw
+)
+
+
+def _make_legacy_power_drift_audit_builder(
+    raw_builder: Callable,
+    *,
+    normalized_reverifier: Callable,
+) -> Callable:
+    def _expected_power_drift_audit(
+        normalized: VerifiedNormalizedMetricResidualAudit,
+    ) -> PowerDriftAudit:
+        authority = normalized_reverifier(normalized)
+        return raw_builder(authority.audit)
+
+    return _expected_power_drift_audit
+
+
+_expected_power_drift_audit = _make_legacy_power_drift_audit_builder(
+    _build_power_drift_audit_from_raw,
+    normalized_reverifier=_reverify_verified_normalized_audit,
+)
+_expected_power_drift_audit = _freeze_spectral_call_graph(_expected_power_drift_audit)
 
 
 def build_power_drift_audit(
@@ -3027,6 +3558,10 @@ def verify_power_drift_audit(
     if audit.audit_sha != expected.audit_sha:
         raise ValueError("power drift audit does not match reconstruction")
     return audit
+
+
+build_power_drift_audit = _freeze_spectral_call_graph(build_power_drift_audit)
+verify_power_drift_audit = _freeze_spectral_call_graph(verify_power_drift_audit)
 
 
 __all__ = [

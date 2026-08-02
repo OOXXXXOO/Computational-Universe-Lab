@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import unittest
 from unittest import mock
@@ -20,19 +21,20 @@ from rulespace_v3.dynamics import (
     _transition_symbol_from_raw,
     measure_transition,
     measured_transition_payload,
-    transition_support_payload,
     transition_kernel_array,
+    transition_support_payload,
     transition_symbol,
     verify_measured_transition,
 )
+from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.factory import (
     PrimitiveInterface,
     PrimitiveOperatorWire,
     VerifiedFactory,
     build_basis_manifest,
     build_calibration_seed,
-    freeze_synthetic_target,
     freeze_complex_tensor,
+    freeze_synthetic_target,
     frozen_tensor_array,
     measure_calibration_holdout,
 )
@@ -42,7 +44,6 @@ from rulespace_v3.prestructure import (
     prestructure_authority_payload,
     verify_synthetic_prestructure_authority,
 )
-from rulespace_v3.evidence import canonical_sha
 from rulespace_v3.registry import (
     VerifiedControlRegistry,
     build_closed_control_registry,
@@ -50,7 +51,6 @@ from rulespace_v3.registry import (
     control_registry_entry_payload,
     verify_closed_control_registry,
 )
-
 
 _LEGACY_PARENT_SHA = "f57079846203b2cbcf86da7ebfb06c8d6bc55c5a2c16e2548e009d2a6ce607d9"
 _LEGACY_SUPPORT_SHA = "c8733c2d64f71e9a917ffe4216ad17155da13784e44b1e51414aa8b1b8ab381f"
@@ -498,6 +498,281 @@ class FullStateTransitionTests(unittest.TestCase):
             transition_reverify,
         ):
             redirected_mock.assert_not_called()
+
+    def test_saved_neutral_core_ignores_owner_builtin_helper_and_record_redirects(
+        self,
+    ):
+        import rulespace_v3.dynamics as dynamics
+
+        _, authority, factory, verified = self._role_transition(0, "actual")
+        raw = verified.transition
+        core = dynamics._measure_bound_realspace_transition
+
+        def call():
+            return core(
+                factory,
+                parent_freeze_sha=raw.parent_freeze_sha,
+                prestructure_authority_sha=raw.prestructure_authority_sha,
+            )
+
+        baseline = call()
+
+        def redirected(*_args, **_kwargs):
+            raise AssertionError("post-freeze owner global was consulted")
+
+        violations: list[str] = []
+        names = (
+            "len",
+            "range",
+            "tuple",
+            "bool",
+            "type",
+            "int",
+            "float",
+            "list",
+            "set",
+            "sorted",
+            "enumerate",
+            "zip",
+            "isinstance",
+            "getattr",
+            "str",
+            "math",
+            "_text",
+            "_sha",
+            "_channels",
+            "_shape",
+            "_support",
+            "_tensor_record",
+            "frozen_tensor_payload",
+            "MeasuredTransition",
+            "FrozenComplexTensor",
+            "TRANSITION_SUPPORT_SCHEMA_VERSION",
+            "ORIGIN_CONVENTION_ID",
+            "STATE_BASIS_CONVENTION_ID",
+            "_LOWER_SHA",
+        )
+        for name in names:
+            with (
+                self.subTest(name=name),
+                mock.patch.object(
+                    dynamics,
+                    name,
+                    redirected,
+                    create=True,
+                ),
+            ):
+                try:
+                    observed = call()
+                except Exception as exc:  # collect the complete attack matrix
+                    violations.append(f"{name}: {type(exc).__name__}: {exc}")
+                else:
+                    if observed != baseline:
+                        violations.append(f"{name}: output changed")
+
+        self.assertEqual(violations, [])
+        self.assertEqual(
+            baseline.transition_sha,
+            _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
+        )
+
+    def test_saved_neutral_core_ignores_transitive_factory_helper_redirect(self):
+        import rulespace_v3.dynamics as dynamics
+        import rulespace_v3.factory as factory_owner
+
+        _, _, factory, verified = self._role_transition(0, "actual")
+        raw = verified.transition
+        core = dynamics._measure_bound_realspace_transition
+
+        def call():
+            return core(
+                factory,
+                parent_freeze_sha=raw.parent_freeze_sha,
+                prestructure_authority_sha=raw.prestructure_authority_sha,
+            )
+
+        baseline = call()
+        redirect_calls: list[object] = []
+
+        def identity_redirect(primitive, interface, state):
+            redirect_calls.append((primitive, interface))
+            return state.copy()
+
+        with mock.patch.object(
+            factory_owner,
+            "_apply_primitive",
+            new=identity_redirect,
+        ):
+            observed = call()
+
+        self.assertEqual(len(redirect_calls), 0)
+        self.assertEqual(observed, baseline)
+        self.assertEqual(
+            observed.transition_sha,
+            _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
+        )
+
+    def test_saved_neutral_cores_freeze_reachable_exact_class_methods(self):
+        import rulespace_v3.dynamics as dynamics
+        import rulespace_v3.factory as factory_owner
+        import rulespace_v3.metric as metric_owner
+        import rulespace_v3.structure as structure_owner
+
+        _, authority, factory, verified = self._role_transition(0, "actual")
+        raw = verified.transition
+        structure = structure_owner.build_structure_manifest(factory, authority)
+        metric = metric_owner.build_stability_metric_witness(
+            factory,
+            authority,
+            structure,
+        )
+        state_metric = freeze_complex_tensor(
+            frozen_tensor_array(metric.metric_kernel)[0]
+        )
+        interface_type = factory_owner.PrimitiveInterface
+        tensor_type = factory_owner.FrozenComplexTensor
+
+        calls = {
+            "dynamics": lambda: dynamics._measure_bound_realspace_transition(
+                factory,
+                parent_freeze_sha=raw.parent_freeze_sha,
+                prestructure_authority_sha=raw.prestructure_authority_sha,
+            ),
+            "structure": lambda: (
+                structure_owner._build_bound_synthetic_structure_manifest(
+                    structure.structure_form,
+                    target_spec_sha=structure.target_spec_sha,
+                    state_schema_id=structure.state_schema_id,
+                    channel_order=structure.channel_order,
+                    canonical_channel_pairs=structure.canonical_channel_pairs,
+                    prestructure_authority_sha=(structure.prestructure_authority_sha),
+                )
+            ),
+            "reality": lambda: structure_owner._build_reality_certificate_from_raw(
+                factory,
+                raw,
+                structure,
+            ),
+            "metric": lambda: metric_owner._build_bound_synthetic_identity_metric(
+                factory,
+                structure,
+                state_metric,
+                parent_freeze_sha=metric.metric_origin.parent_freeze_sha,
+                prestructure_authority_sha=(
+                    metric.metric_origin.prestructure_authority_sha
+                ),
+                derivation_or_preregistration_sha=(
+                    metric.metric_origin.derivation_or_preregistration_sha
+                ),
+                metric_support_offsets=metric.metric_support_offsets,
+            ),
+        }
+        baselines = {name: call() for name, call in calls.items()}
+
+        def redirected(*_args, **_kwargs):
+            raise AssertionError(
+                "reachable exact-class method used a live owner global"
+            )
+
+        violations: list[str] = []
+        attack_matrix = {
+            "_verify_interface": ("dynamics", "reality", "metric"),
+            "_text": ("structure",),
+            "type": tuple(calls),
+        }
+        for symbol, routes in attack_matrix.items():
+            for route in routes:
+                with (
+                    self.subTest(symbol=symbol, route=route),
+                    mock.patch.object(
+                        factory_owner,
+                        symbol,
+                        redirected,
+                        create=True,
+                    ),
+                ):
+                    try:
+                        observed = calls[route]()
+                    except Exception as exc:  # noqa: BLE001 - collect full matrix
+                        violations.append(
+                            f"{symbol}/{route}: {type(exc).__name__}: {exc}"
+                        )
+                    else:
+                        if observed != baselines[route]:
+                            violations.append(f"{symbol}/{route}: output changed")
+
+        self.assertEqual(violations, [])
+        self.assertIs(factory_owner.PrimitiveInterface, interface_type)
+        self.assertIs(factory_owner.FrozenComplexTensor, tensor_type)
+        self.assertEqual(
+            baselines["dynamics"].transition_sha,
+            _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
+        )
+
+    def test_saved_legacy_routes_ignore_owner_global_redirects(self):
+        import rulespace_v3.dynamics as dynamics
+
+        _, authority, factory, baseline_verified = self._role_transition(0, "actual")
+        baseline = baseline_verified.transition
+        saved_measure = dynamics.measure_transition
+        saved_verify = dynamics.verify_measured_transition
+        saved_kernel = dynamics.transition_kernel_array
+        saved_symbol = dynamics.transition_symbol
+        zero_momentum = np.zeros(len(baseline.spatial_shape), dtype=np.float64)
+
+        def redirected(*_args, **_kwargs):
+            raise AssertionError("post-freeze legacy owner global was consulted")
+
+        names = (
+            "len",
+            "type",
+            "isinstance",
+            "id",
+            "object",
+            "weakref",
+            "deepcopy",
+            "AttributeError",
+            "IndexError",
+            "TypeError",
+            "ValueError",
+            "_transition_seal",
+            "measured_transition_payload",
+            "canonical_sha",
+            "MeasuredTransition",
+            "VerifiedTransition",
+            "_TransitionAuthority",
+            "_ISSUANCE_TOKEN",
+        )
+        with contextlib.ExitStack() as stack:
+            for name in names:
+                stack.enter_context(
+                    mock.patch.object(
+                        dynamics,
+                        name,
+                        redirected,
+                        create=True,
+                    )
+                )
+            issued = saved_measure(factory, authority)
+            replayed = saved_verify(issued.transition, factory, authority)
+            observed_kernel = saved_kernel(replayed)
+            observed_symbol = saved_symbol(replayed, zero_momentum)
+
+        self.assertEqual(issued.transition, baseline)
+        self.assertEqual(replayed.transition, baseline)
+        np.testing.assert_array_equal(
+            observed_kernel,
+            frozen_tensor_array(baseline.kernel),
+        )
+        expected_symbol = np.sum(
+            frozen_tensor_array(baseline.kernel),
+            axis=tuple(range(2, len(baseline.kernel.shape))),
+        )
+        np.testing.assert_array_equal(observed_symbol, expected_symbol)
+        self.assertEqual(
+            baseline.transition_sha,
+            _LEGACY_ROLE_GOLDENS["actual"]["transition_sha"],
+        )
 
     def test_matched_ablated_role_is_bound_before_measurement(self):
         construction, actual_authority, actual_factory, _ = self._role_transition(

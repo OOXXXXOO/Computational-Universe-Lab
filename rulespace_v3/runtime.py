@@ -103,9 +103,7 @@ _RUNTIME_CAPS = _RuntimeCaps(
 )
 
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
-_MODULE_NAME = re.compile(
-    r"rulespace_v3(?:\.[a-z_][a-z0-9_]*)+\Z"
-)
+_MODULE_NAME = re.compile(r"rulespace_v3(?:\.[a-z_][a-z0-9_]*)+\Z")
 
 
 def _make_runtime_json_primitives(
@@ -157,22 +155,21 @@ def _make_runtime_json_primitives(
         if _type(value) is _str_type:
             return encode_string(value)
         if _type(value) in (_list_type, _tuple_type):
-            return "[" + ",".join(
-                encode_value(item) for item in value
-            ) + "]"
+            return "[" + ",".join(encode_value(item) for item in value) + "]"
         if _type(value) is _dict_type:
             for key in value:
                 if _type(key) is not _str_type:
-                    raise _type_error(
-                        "runtime JSON mapping keys must be strings"
-                    )
-            return "{" + ",".join(
-                f"{encode_string(key)}:{encode_value(value[key])}"
-                for key in _sorted(value)
-            ) + "}"
+                    raise _type_error("runtime JSON mapping keys must be strings")
+            return (
+                "{"
+                + ",".join(
+                    f"{encode_string(key)}:{encode_value(value[key])}"
+                    for key in _sorted(value)
+                )
+                + "}"
+            )
         raise _type_error(
-            "runtime JSON contains unsupported value type "
-            f"{_type(value).__name__}"
+            f"runtime JSON contains unsupported value type {_type(value).__name__}"
         )
 
     def encode_text(value: object) -> str:
@@ -254,9 +251,7 @@ def _freeze_module_import_roots() -> tuple[str, ...]:
     if _FROZEN_IMPORT_ROOT_CANDIDATES != tuple(
         sorted(set(_FROZEN_IMPORT_ROOT_CANDIDATES))
     ):
-        raise RuntimeError(
-            "runtime import-root authority is not canonical"
-        )
+        raise RuntimeError("runtime import-root authority is not canonical")
     result: list[str] = []
     for module_name in _FROZEN_IMPORT_ROOT_CANDIDATES:
         relative = Path(*module_name.split(".")).with_suffix(".py")
@@ -264,14 +259,17 @@ def _freeze_module_import_roots() -> tuple[str, ...]:
         if not exists and module_name in _OPTIONAL_IMPORT_ROOTS:
             continue
         if not exists:
-            raise RuntimeError(
-                f"frozen runtime import root is missing: {module_name}"
-            )
+            raise RuntimeError(f"frozen runtime import root is missing: {module_name}")
         result.append(module_name)
     return tuple(result)
 
 
 _MODULE_IMPORT_ROOTS = _freeze_module_import_roots()
+
+# Parent-v3 uses a parallel private authority.  Its single fresh-process root
+# is deliberately not folded into the legacy public authority above: doing so
+# would silently change the meaning of every legacy runtime manifest.
+_V3_RUNTIME_IMPORT_ROOTS = ("rulespace_v3.certificate_v3",)
 
 
 def _text(
@@ -326,28 +324,19 @@ def _relative_source_path(
     result = _text_validator(value, field, _caps=_caps)
     if _len(result) > _caps.max_relative_path_bytes:
         raise _value_error(f"{field} exceeds its path resource cap")
-    if (
-        _len(result.encode("utf-8"))
-        > _caps.max_relative_path_bytes
-    ):
+    if _len(result.encode("utf-8")) > _caps.max_relative_path_bytes:
         raise _value_error(f"{field} exceeds its path resource cap")
     if "\\" in result:
         raise _value_error(f"{field} must use POSIX separators")
     pure = _path_type(result)
     if pure.is_absolute() or _str_type(pure) != result:
-        raise _value_error(
-            f"{field} must be a normalized relative path"
-        )
+        raise _value_error(f"{field} must be a normalized relative path")
     if _any(part in ("", ".", "..") for part in pure.parts):
         raise _value_error(f"{field} must remain inside the repository")
     if not pure.parts or pure.parts[0] != "rulespace_v3":
-        raise _value_error(
-            f"{field} is outside the certificate package"
-        )
+        raise _value_error(f"{field} is outside the certificate package")
     if pure.suffix != ".py":
-        raise _value_error(
-            f"{field} must identify a Python source file"
-        )
+        raise _value_error(f"{field} must identify a Python source file")
     return result
 
 
@@ -371,16 +360,12 @@ def _source_closure(
     if not value:
         raise _value_error(f"{field} must be non-empty")
     if _len(value) > _caps.max_source_files:
-        raise _value_error(
-            f"{field} exceeds its file-count resource cap"
-        )
+        raise _value_error(f"{field} exceeds its file-count resource cap")
 
     result: list[tuple[str, str]] = []
     for index, entry in _enumerate(value):
         if _type(entry) is not _tuple_type or _len(entry) != 2:
-            raise _type_error(
-                f"{field}[{index}] must be a path/SHA tuple"
-            )
+            raise _type_error(f"{field}[{index}] must be a path/SHA tuple")
         path = _relative_path_validator(
             entry[0],
             f"{field}[{index}].relative_path",
@@ -395,9 +380,7 @@ def _source_closure(
 
     answer = _tuple_type(result)
     if answer != _tuple_type(_sorted(answer)):
-        raise _value_error(
-            f"{field} must be canonical and lexicographic"
-        )
+        raise _value_error(f"{field} must be canonical and lexicographic")
     if _len({path for path, _ in answer}) != _len(answer):
         raise _value_error(f"{field} contains duplicate paths")
     return answer
@@ -413,9 +396,7 @@ def _preflight_canonical_payload(
 ) -> None:
     encoded = _canonical_bytes(payload)
     if _len(encoded) > _caps.max_canonical_body_bytes:
-        raise _value_error(
-            "runtime manifest canonical body exceeds resource cap"
-        )
+        raise _value_error("runtime manifest canonical body exceeds resource cap")
 
 
 def _validate_runtime_manifest_fields(
@@ -533,9 +514,7 @@ def _runtime_evidence_manifest_payload_raw(
     _type_error=TypeError,
 ) -> dict[str, object]:
     if _type(manifest) is not _record_type:
-        raise _type_error(
-            "manifest must be a RuntimeEvidenceManifest"
-        )
+        raise _type_error("manifest must be a RuntimeEvidenceManifest")
     _validator(manifest, _caps=_caps)
     payload: dict[str, object] = {
         "runtime_schema_version": manifest.runtime_schema_version,
@@ -575,8 +554,7 @@ def _exact_mapping_fields(
         raise _type_error(f"{field} must be a plain dict")
     if _len(value) > _len(expected):
         raise _value_error(
-            f"{field} schema mismatch; unknown field count exceeds "
-            "the exact schema"
+            f"{field} schema mismatch; unknown field count exceeds the exact schema"
         )
     actual = _set_type(value)
     unknown = _sorted(actual - expected)
@@ -621,15 +599,11 @@ def _preflight_import_roots(
             _caps=_caps,
         )
         if _module_name_fullmatch(name) is None:
-            raise _value_error(
-                f"import_roots[{index}] is outside rulespace_v3"
-            )
+            raise _value_error(f"import_roots[{index}] is outside rulespace_v3")
         result.append(name)
     answer = _tuple_type(result)
     if answer != _tuple_type(_sorted(_set_type(answer))):
-        raise _value_error(
-            "import roots must be unique and canonical"
-        )
+        raise _value_error("import roots must be unique and canonical")
     return answer
 
 
@@ -656,14 +630,10 @@ def _preflight_import_sources(
     try:
         root = repository_root.resolve(strict=True)
     except _file_not_found_error as exc:
-        raise _value_error(
-            "before import repository root is missing"
-        ) from exc
+        raise _value_error("before import repository root is missing") from exc
     package_root = root / "rulespace_v3"
     if not package_root.is_dir():
-        raise _value_error(
-            "before import certificate package is missing"
-        )
+        raise _value_error("before import certificate package is missing")
 
     expected_paths = {
         _path_type(*module_name.split(".")).with_suffix(".py").as_posix()
@@ -683,22 +653,15 @@ def _preflight_import_sources(
                 entry_count += 1
                 if entry_count > _caps.max_package_entries:
                     raise _value_error(
-                        "before import package entry count exceeds "
-                        "resource cap"
+                        "before import package entry count exceeds resource cap"
                     )
                 if entry.is_symlink():
-                    raise _value_error(
-                        "before import package symlinks are forbidden"
-                    )
+                    raise _value_error("before import package symlinks are forbidden")
                 if entry.is_dir(follow_symlinks=False):
                     directory_count += 1
-                    if (
-                        directory_count
-                        > _caps.max_package_directories
-                    ):
+                    if directory_count > _caps.max_package_directories:
                         raise _value_error(
-                            "before import package directory count "
-                            "exceeds resource cap"
+                            "before import package directory count exceeds resource cap"
                         )
                     pending.append(_path_type(entry.path))
                     continue
@@ -712,18 +675,11 @@ def _preflight_import_sources(
                     raise _value_error(
                         "before import source count exceeds resource cap"
                     )
-                source_size = entry.stat(
-                    follow_symlinks=False
-                ).st_size
+                source_size = entry.stat(follow_symlinks=False).st_size
                 if source_size > _caps.max_source_file_bytes:
-                    raise _value_error(
-                        "before import source file exceeds resource cap"
-                    )
+                    raise _value_error("before import source file exceeds resource cap")
                 total_source_bytes += source_size
-                if (
-                    total_source_bytes
-                    > _caps.max_total_source_bytes
-                ):
+                if total_source_bytes > _caps.max_total_source_bytes:
                     raise _value_error(
                         "before import source total exceeds resource cap"
                     )
@@ -733,9 +689,7 @@ def _preflight_import_sources(
 
     missing = _sorted(expected_paths - seen_roots)
     if missing:
-        raise _value_error(
-            f"before import frozen roots are missing: {missing}"
-        )
+        raise _value_error(f"before import frozen roots are missing: {missing}")
 
 
 _PROBE_SCRIPT_TEMPLATE = r"""
@@ -977,6 +931,13 @@ _PROBE_SCRIPT = _PROBE_SCRIPT_TEMPLATE.replace(
 if "__FROZEN_IMPORT_ROOTS__" in _PROBE_SCRIPT:
     raise RuntimeError("fresh probe root authority was not frozen")
 
+_V3_PROBE_SCRIPT = _PROBE_SCRIPT_TEMPLATE.replace(
+    "__FROZEN_IMPORT_ROOTS__",
+    repr(_V3_RUNTIME_IMPORT_ROOTS),
+)
+if "__FROZEN_IMPORT_ROOTS__" in _V3_PROBE_SCRIPT:
+    raise RuntimeError("V3 fresh probe root authority was not frozen")
+
 
 class _RuntimeAuthority(NamedTuple):
     runtime_schema_version: str
@@ -1004,6 +965,19 @@ _MODULE_RUNTIME_AUTHORITY = _RuntimeAuthority(
     manifest_slots=tuple(RuntimeEvidenceManifest.__slots__),
 )
 
+_V3_RUNTIME_AUTHORITY = _RuntimeAuthority(
+    runtime_schema_version="v3m0.runtime-evidence-manifest.v1",
+    evaluator_id="rulespace-v3m0-parent-v3-certificate-closure-v1",
+    repository_root=_MODULE_REPOSITORY_ROOT,
+    import_roots=_V3_RUNTIME_IMPORT_ROOTS,
+    probe_script=_V3_PROBE_SCRIPT,
+    caps=_RUNTIME_CAPS,
+    wire_fields=_WIRE_FIELDS,
+    probe_fields=_PROBE_FIELDS,
+    source_entry_fields=_SOURCE_ENTRY_FIELDS,
+    manifest_slots=tuple(RuntimeEvidenceManifest.__slots__),
+)
+
 
 def _bounded_probe_environment(
     *,
@@ -1016,29 +990,21 @@ def _bounded_probe_environment(
     _value_error=ValueError,
 ) -> dict[str, str]:
     if _len(_environ) > _caps.max_environment_entries:
-        raise _value_error(
-            "probe environment entry count exceeds resource cap"
-        )
+        raise _value_error("probe environment entry count exceeds resource cap")
     result: dict[str, str] = {}
     total_bytes = 0
     for key, value in _environ.items():
         if _type(key) is not _str_type or _type(value) is not _str_type:
-            raise _type_error(
-                "probe environment keys and values must be strings"
-            )
+            raise _type_error("probe environment keys and values must be strings")
         if (
             _len(key) > _caps.max_environment_bytes
             or _len(value) > _caps.max_environment_bytes
         ):
-            raise _value_error(
-                "probe environment item exceeds resource cap"
-            )
+            raise _value_error("probe environment item exceeds resource cap")
         total_bytes += _len(key.encode("utf-8"))
         total_bytes += _len(value.encode("utf-8"))
         if total_bytes > _caps.max_environment_bytes:
-            raise _value_error(
-                "probe environment exceeds resource cap"
-            )
+            raise _value_error("probe environment exceeds resource cap")
         if key != "PYTHONPATH":
             result[key] = value
     return result
@@ -1105,29 +1071,17 @@ def _launch_probe_subprocess(
         _caps=caps_authority,
     )
     if verified_roots != _authority.import_roots:
-        raise _value_error(
-            "import roots do not match the module-frozen authority"
-        )
+        raise _value_error("import roots do not match the module-frozen authority")
     caps = {
         "max_source_files": caps_authority.max_source_files,
-        "max_source_file_bytes": (
-            caps_authority.max_source_file_bytes
-        ),
-        "max_total_source_bytes": (
-            caps_authority.max_total_source_bytes
-        ),
+        "max_source_file_bytes": (caps_authority.max_source_file_bytes),
+        "max_total_source_bytes": (caps_authority.max_total_source_bytes),
         "max_probe_json_bytes": caps_authority.max_probe_json_bytes,
-        "max_subprocess_file_bytes": (
-            caps_authority.max_subprocess_file_bytes
-        ),
+        "max_subprocess_file_bytes": (caps_authority.max_subprocess_file_bytes),
         "max_config_nodes": caps_authority.max_config_nodes,
         "max_config_depth": caps_authority.max_config_depth,
-        "max_config_text_bytes": (
-            caps_authority.max_config_text_bytes
-        ),
-        "max_config_json_bytes": (
-            caps_authority.max_config_json_bytes
-        ),
+        "max_config_text_bytes": (caps_authority.max_config_text_bytes),
+        "max_config_json_bytes": (caps_authority.max_config_json_bytes),
         "max_loaded_modules": caps_authority.max_loaded_modules,
     }
     command = (
@@ -1160,9 +1114,7 @@ def _launch_probe_subprocess(
         raise _runtime_error("fresh runtime probe timed out") from exc
     stderr_size = stderr_path.stat().st_size
     if stderr_size > caps_authority.max_subprocess_stderr_bytes:
-        raise _runtime_error(
-            "fresh runtime probe stderr exceeds resource cap"
-        )
+        raise _runtime_error("fresh runtime probe stderr exceeds resource cap")
     if completed.returncode != 0:
         with stderr_path.open("rb") as handle:
             stderr = handle.read(_min(stderr_size, 4096))
@@ -1180,9 +1132,7 @@ def _reject_duplicate_json_keys(
     result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
-            raise _value_error(
-                f"probe output contains duplicate key {key!r}"
-            )
+            raise _value_error(f"probe output contains duplicate key {key!r}")
         result[key] = value
     return result
 
@@ -1209,9 +1159,7 @@ def _make_strict_probe_json_loader(
         except _stop_iteration as exc:
             raise _value_error("probe JSON is malformed") from exc
         if end != _len(value):
-            raise _value_error(
-                "probe JSON must contain exactly one compact value"
-            )
+            raise _value_error("probe JSON must contain exactly one compact value")
         return decoded
 
     return strict_loads
@@ -1246,9 +1194,7 @@ def _load_probe_output(
         raise _type_error("probe output path must be a Path")
     size = path.stat().st_size
     if size <= 0 or size > _caps.max_probe_json_bytes:
-        raise _value_error(
-            "probe output size is outside its resource cap"
-        )
+        raise _value_error("probe output size is outside its resource cap")
     raw = path.read_bytes()
     if _len(raw) != size:
         raise _value_error("probe output changed while being read")
@@ -1256,9 +1202,7 @@ def _load_probe_output(
         decoded = raw.decode("utf-8", errors="strict")
         value = _json_loads(decoded)
     except (_unicode_decode_error, _value_error) as exc:
-        raise _value_error(
-            "probe output is not strict UTF-8 JSON"
-        ) from exc
+        raise _value_error("probe output is not strict UTF-8 JSON") from exc
     snapshot = _exact_fields(
         value,
         _probe_fields,
@@ -1271,15 +1215,11 @@ def _load_probe_output(
     if not raw_closure:
         raise _value_error("probe source_closure must be non-empty")
     if _len(raw_closure) > _caps.max_source_files:
-        raise _value_error(
-            "probe source_closure exceeds its resource cap"
-        )
+        raise _value_error("probe source_closure exceeds its resource cap")
     closure: list[tuple[str, str]] = []
     for index, entry in _enumerate(raw_closure):
         if _type(entry) is not _list_type or _len(entry) != 2:
-            raise _type_error(
-                f"probe source_closure[{index}] must be a two-item list"
-            )
+            raise _type_error(f"probe source_closure[{index}] must be a two-item list")
         closure.append(
             (
                 _relative_path_validator(
@@ -1344,9 +1284,7 @@ def _run_fresh_probe(
         roots,
         _caps=_authority.caps,
     )
-    with _temporary_directory(
-        prefix="v3m0-runtime-probe-"
-    ) as directory:
+    with _temporary_directory(prefix="v3m0-runtime-probe-") as directory:
         output_path = _path_type(directory) / "runtime-evidence.json"
         _launch(
             roots,
@@ -1386,34 +1324,24 @@ def _preflight_source_closure(
             resolved.relative_to(root)
         except (_file_not_found_error, _value_error) as exc:
             raise _value_error(
-                f"source preflight missing/outside repository: "
-                f"{relative_path}"
+                f"source preflight missing/outside repository: {relative_path}"
             ) from exc
         if not resolved.is_file():
-            raise _value_error(
-                f"source preflight is not a file: {relative_path}"
-            )
+            raise _value_error(f"source preflight is not a file: {relative_path}")
         source_size = resolved.stat().st_size
         if source_size > caps_authority.max_source_file_bytes:
             raise _value_error(
-                f"source preflight file exceeds resource cap: "
-                f"{relative_path}"
+                f"source preflight file exceeds resource cap: {relative_path}"
             )
         total_source_bytes += source_size
         if total_source_bytes > caps_authority.max_total_source_bytes:
-            raise _value_error(
-                "source preflight total exceeds resource cap"
-            )
+            raise _value_error("source preflight total exceeds resource cap")
         source = resolved.read_bytes()
         if _len(source) != source_size:
-            raise _value_error(
-                f"source preflight changed while read: {relative_path}"
-            )
+            raise _value_error(f"source preflight changed while read: {relative_path}")
         actual_sha = _sha256(source).hexdigest()
         if actual_sha != expected_sha:
-            raise _value_error(
-                f"source preflight SHA mismatch: {relative_path}"
-            )
+            raise _value_error(f"source preflight SHA mismatch: {relative_path}")
 
 
 def _manifest_from_probe(
@@ -1441,9 +1369,7 @@ def _manifest_from_probe(
         platform_id=probe.platform_id,
         runtime_manifest_sha="0" * 64,
     )
-    runtime_manifest_sha = _canonical_sha(
-        _payload(provisional, _caps=_authority.caps)
-    )
+    runtime_manifest_sha = _canonical_sha(_payload(provisional, _caps=_authority.caps))
     return _record_type(
         runtime_schema_version=provisional.runtime_schema_version,
         evaluator_id=provisional.evaluator_id,
@@ -1484,24 +1410,15 @@ def _make_runtime_wire_api(
         manifest: RuntimeEvidenceManifest,
     ) -> None:
         if _type(manifest) is not _record_type:
-            raise _type_error(
-                "manifest must be a RuntimeEvidenceManifest"
-            )
+            raise _type_error("manifest must be a RuntimeEvidenceManifest")
         if (
             _hasattr(manifest, "__dict__")
             or _tuple_type(_type(manifest).__slots__) != exact_slots
         ):
-            raise _value_error(
-                "RuntimeEvidenceManifest contains unknown record slots"
-            )
+            raise _value_error("RuntimeEvidenceManifest contains unknown record slots")
         _record_validator(manifest, _caps=authority.caps)
-        if (
-            manifest.runtime_schema_version
-            != authority.runtime_schema_version
-        ):
-            raise _value_error(
-                "runtime_schema_version is not frozen"
-            )
+        if manifest.runtime_schema_version != authority.runtime_schema_version:
+            raise _value_error("runtime_schema_version is not frozen")
         if manifest.evaluator_id != authority.evaluator_id:
             raise _value_error("evaluator_id is not frozen")
 
@@ -1534,9 +1451,7 @@ def _make_runtime_wire_api(
             _caps=authority.caps,
         )
         if schema_version != authority.runtime_schema_version:
-            raise _value_error(
-                "runtime_schema_version is not frozen"
-            )
+            raise _value_error("runtime_schema_version is not frozen")
         evaluator_id = _text_validator(
             snapshot["evaluator_id"],
             "evaluator_id",
@@ -1549,13 +1464,9 @@ def _make_runtime_wire_api(
         if _type(raw_closure) is not _list_type:
             raise _type_error("source_closure wire must be a list")
         if not raw_closure:
-            raise _value_error(
-                "source_closure wire must be non-empty"
-            )
+            raise _value_error("source_closure wire must be non-empty")
         if _len(raw_closure) > authority.caps.max_source_files:
-            raise _value_error(
-                "source_closure exceeds its resource cap"
-            )
+            raise _value_error("source_closure exceeds its resource cap")
 
         closure: list[tuple[str, str]] = []
         for index, raw_entry in _enumerate(raw_closure):
@@ -1589,13 +1500,10 @@ def _make_runtime_wire_api(
             runtime_manifest_sha=snapshot["runtime_manifest_sha"],
         )
         validate_record(manifest)
-        expected_sha = _canonical_sha(
-            runtime_evidence_manifest_payload(manifest)
-        )
+        expected_sha = _canonical_sha(runtime_evidence_manifest_payload(manifest))
         if manifest.runtime_manifest_sha != expected_sha:
             raise _value_error(
-                "runtime_manifest_sha does not match the complete "
-                "wire body"
+                "runtime_manifest_sha does not match the complete wire body"
             )
         return manifest
 
@@ -1611,6 +1519,8 @@ def _make_runtime_wire_api(
     runtime_evidence_manifest_to_wire,
     runtime_evidence_manifest_from_wire,
 ) = _make_runtime_wire_api(_MODULE_RUNTIME_AUTHORITY)
+
+_runtime_evidence_manifest_v3_payload = _make_runtime_wire_api(_V3_RUNTIME_AUTHORITY)[0]
 
 
 def _make_runtime_public_api(
@@ -1644,33 +1554,20 @@ def _make_runtime_public_api(
         """Recompute the complete body under the frozen authority."""
 
         if _type(manifest) is not _record_type:
-            raise _type_error(
-                "manifest must be a RuntimeEvidenceManifest"
-            )
+            raise _type_error("manifest must be a RuntimeEvidenceManifest")
         if (
             _hasattr(manifest, "__dict__")
             or _tuple_type(_type(manifest).__slots__) != exact_slots
         ):
-            raise _value_error(
-                "RuntimeEvidenceManifest contains unknown record slots"
-            )
+            raise _value_error("RuntimeEvidenceManifest contains unknown record slots")
         _validator(manifest, _caps=authority.caps)
-        if (
-            manifest.runtime_schema_version
-            != authority.runtime_schema_version
-        ):
-            raise _value_error(
-                "runtime_schema_version is not frozen"
-            )
+        if manifest.runtime_schema_version != authority.runtime_schema_version:
+            raise _value_error("runtime_schema_version is not frozen")
         if manifest.evaluator_id != authority.evaluator_id:
             raise _value_error("evaluator_id is not frozen")
-        expected_hash = _canonical_sha(
-            _payload(manifest)
-        )
+        expected_hash = _canonical_sha(_payload(manifest))
         if manifest.runtime_manifest_sha != expected_hash:
-            raise _value_error(
-                "runtime_manifest_sha does not match the complete body"
-            )
+            raise _value_error("runtime_manifest_sha does not match the complete body")
 
         _preflight_source(
             manifest.source_closure,
@@ -1691,13 +1588,8 @@ def _make_runtime_public_api(
         ):
             if _getattr(manifest, field) != _getattr(expected, field):
                 raise _value_error(f"fresh probe mismatch: {field}")
-        if (
-            manifest.runtime_manifest_sha
-            != expected.runtime_manifest_sha
-        ):
-            raise _value_error(
-                "fresh probe mismatch: runtime_manifest_sha"
-            )
+        if manifest.runtime_manifest_sha != expected.runtime_manifest_sha:
+            raise _value_error("fresh probe mismatch: runtime_manifest_sha")
         return manifest
 
     return (
@@ -1710,6 +1602,14 @@ def _make_runtime_public_api(
     issue_runtime_evidence_manifest,
     verify_runtime_evidence_manifest,
 ) = _make_runtime_public_api(_MODULE_RUNTIME_AUTHORITY)
+
+(
+    _issue_runtime_evidence_manifest_v3,
+    _verify_runtime_evidence_manifest_v3,
+) = _make_runtime_public_api(
+    _V3_RUNTIME_AUTHORITY,
+    _payload=_runtime_evidence_manifest_v3_payload,
+)
 
 
 __all__ = [
