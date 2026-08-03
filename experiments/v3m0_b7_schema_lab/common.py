@@ -2970,24 +2970,36 @@ def _rehash_record_field_v1(raw_body, hash_field):
     )
 
 
-def _apply_presence_attempt_v1(candidate, success, field, parent_bit, *child_bits):
+def _copy_presence_pointer_v1(success, pointer, presence_bit):
+    if presence_bit == "0":
+        return None
+    if presence_bit != "1":
+        raise ValueError("presence bit must be zero or one")
+    return _detach_json_v1(resolve_json_pointer_v1(success, pointer))
+
+
+def _build_presence_attempt_v1(
+    success,
+    field,
+    parent_bit,
+    response_values,
+    bridge_audit,
+):
     if parent_bit == "0":
-        candidate[field] = None
-        return
+        return None
+    if parent_bit != "1":
+        raise ValueError("presence bit must be zero or one")
     attempt = _detach_json_v1(success[field])
-    attempt["response_values"] = (
-        _detach_json_v1(success[field]["response_values"])
-        if child_bits[0] == "1"
-        else None
+    attempt["response_values"] = response_values
+    attempt["bridge_audit"] = bridge_audit
+    return attempt
+
+
+def _attempt_governed_members_changed_v1(candidate_attempt, success_attempt):
+    return any(
+        candidate_attempt[field] != success_attempt[field]
+        for field in ("response_values", "bridge_audit", "failure")
     )
-    attempt["bridge_audit"] = (
-        _detach_json_v1(success[field]["bridge_audit"])
-        if child_bits[1] == "1"
-        else None
-    )
-    attempt["failure"] = None
-    _rehash_record_field_v1(attempt, "attempt_sha")
-    candidate[field] = attempt
 
 
 def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw):
@@ -3011,36 +3023,68 @@ def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw
             if (terminal_tag, bits) in legal_pairs:
                 continue
             transcript = _detach_json_v1(success)
-            transcript["shell_outcome"] = (
-                _detach_json_v1(success["shell_outcome"]) if bits[0] == "1" else None
+            actual_response_values = _copy_presence_pointer_v1(
+                success,
+                "/actual_branch_attempt/response_values",
+                bits[2],
             )
-            _apply_presence_attempt_v1(
-                transcript,
+            actual_bridge_audit = _copy_presence_pointer_v1(
+                success,
+                "/actual_branch_attempt/bridge_audit",
+                bits[5],
+            )
+            matched_response_values = _copy_presence_pointer_v1(
+                success,
+                "/matched_ablated_branch_attempt/response_values",
+                bits[4],
+            )
+            matched_bridge_audit = _copy_presence_pointer_v1(
+                success,
+                "/matched_ablated_branch_attempt/bridge_audit",
+                bits[6],
+            )
+            transcript["shell_outcome"] = _copy_presence_pointer_v1(
+                success,
+                "/shell_outcome",
+                bits[0],
+            )
+            transcript["actual_branch_attempt"] = _build_presence_attempt_v1(
                 success,
                 "actual_branch_attempt",
                 bits[1],
-                bits[2],
-                bits[5],
+                actual_response_values,
+                actual_bridge_audit,
             )
-            _apply_presence_attempt_v1(
-                transcript,
+            transcript["matched_ablated_branch_attempt"] = _build_presence_attempt_v1(
                 success,
                 "matched_ablated_branch_attempt",
                 bits[3],
-                bits[4],
-                bits[6],
+                matched_response_values,
+                matched_bridge_audit,
             )
-            transcript["actual_completed_response"] = (
-                _detach_json_v1(success["actual_completed_response"])
-                if bits[7] == "1"
-                else None
+            transcript["actual_completed_response"] = _copy_presence_pointer_v1(
+                success,
+                "/actual_completed_response",
+                bits[7],
             )
             transcript["matched_ablated_completed_response"] = (
-                _detach_json_v1(success["matched_ablated_completed_response"])
-                if bits[8] == "1"
-                else None
+                _copy_presence_pointer_v1(
+                    success,
+                    "/matched_ablated_completed_response",
+                    bits[8],
+                )
             )
             transcript["terminal_tag"] = terminal_tag
+            for attempt_field in (
+                "actual_branch_attempt",
+                "matched_ablated_branch_attempt",
+            ):
+                attempt = transcript[attempt_field]
+                if attempt is not None and _attempt_governed_members_changed_v1(
+                    attempt,
+                    success[attempt_field],
+                ):
+                    _rehash_record_field_v1(attempt, "attempt_sha")
             _rehash_record_field_v1(transcript, "experimental_sha")
             candidates.append(
                 {

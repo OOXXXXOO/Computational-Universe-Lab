@@ -1709,6 +1709,11 @@ def test_invalid_presence_generator_freezes_all_1393_constructible_states() -> N
         == candidate["transcript"]
         for candidate in candidates
     )
+    canonical_candidates = common.canonical_json_bytes_v1(candidates)
+    assert len(canonical_candidates) == 4_139_979
+    assert hashlib.sha256(canonical_candidates).hexdigest() == (
+        "e307a1e8d324d0f1e8435658a6ada130a9d7d05796ddf4768c7231351b8a473b"
+    )
 
 
 def test_invalid_presence_generator_applies_parent_child_bits_and_rehashes() -> None:
@@ -1730,6 +1735,110 @@ def test_invalid_presence_generator_applies_parent_child_bits_and_rehashes() -> 
     _assert_self_hash(transcript["actual_branch_attempt"], "attempt_sha")
     _assert_self_hash(transcript, "experimental_sha")
     assert not any(item["presence_bits"] == "001000000" for item in candidates)
+
+
+def test_invalid_presence_generator_builds_in_registry_order_then_rehashes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common_module()
+    success = common.validate_case_contract_v1(_transcript("success"))
+    trace: list[str] = []
+    copy_pointer_by_identity = {
+        id(success["actual_branch_attempt"]["response_values"]): (
+            "/actual_branch_attempt/response_values"
+        ),
+        id(success["actual_branch_attempt"]["bridge_audit"]): (
+            "/actual_branch_attempt/bridge_audit"
+        ),
+        id(success["matched_ablated_branch_attempt"]["response_values"]): (
+            "/matched_ablated_branch_attempt/response_values"
+        ),
+        id(success["matched_ablated_branch_attempt"]["bridge_audit"]): (
+            "/matched_ablated_branch_attempt/bridge_audit"
+        ),
+        id(success["shell_outcome"]): "/shell_outcome",
+        id(success["actual_branch_attempt"]): "/actual_branch_attempt",
+        id(success["matched_ablated_branch_attempt"]): (
+            "/matched_ablated_branch_attempt"
+        ),
+        id(success["actual_completed_response"]): "/actual_completed_response",
+        id(success["matched_ablated_completed_response"]): (
+            "/matched_ablated_completed_response"
+        ),
+    }
+    real_detach = common._detach_json_v1
+    real_rehash = common._rehash_record_field_v1
+
+    class TracedTranscript(dict):
+        def __setitem__(self, field: str, value: object) -> None:
+            if field == "terminal_tag":
+                trace.append("build:/terminal_tag")
+            super().__setitem__(field, value)
+
+    def traced_detach(value: object) -> object:
+        detached = real_detach(value)
+        if value is success:
+            trace.append("candidate:start")
+            return TracedTranscript(detached)
+        pointer = copy_pointer_by_identity.get(id(value))
+        if pointer is not None:
+            trace.append(f"build:{pointer}")
+        return detached
+
+    def traced_rehash(raw_body: dict[str, object], hash_field: str) -> None:
+        if hash_field == "attempt_sha":
+            trace.append(f"rehash:/{raw_body['branch']}_branch_attempt/attempt_sha")
+        else:
+            trace.append("rehash:/experimental_sha")
+        real_rehash(raw_body, hash_field)
+
+    monkeypatch.setattr(common, "validate_case_contract_v1", lambda _raw: success)
+    monkeypatch.setattr(common, "_detach_json_v1", traced_detach)
+    monkeypatch.setattr(common, "_rehash_record_field_v1", traced_rehash)
+
+    candidates = common.generate_constructible_invalid_presence_candidates_v1(success)
+
+    assert candidates[-1]["presence_bits"] == "111111111"
+    candidate_starts = [
+        index for index, event in enumerate(trace) if event == "candidate:start"
+    ]
+    last_candidate_start = candidate_starts[-1]
+    assert trace[last_candidate_start:] == [
+        "candidate:start",
+        "build:/actual_branch_attempt/response_values",
+        "build:/actual_branch_attempt/bridge_audit",
+        "build:/matched_ablated_branch_attempt/response_values",
+        "build:/matched_ablated_branch_attempt/bridge_audit",
+        "build:/shell_outcome",
+        "build:/actual_branch_attempt",
+        "build:/matched_ablated_branch_attempt",
+        "build:/actual_completed_response",
+        "build:/matched_ablated_completed_response",
+        "build:/terminal_tag",
+        "rehash:/experimental_sha",
+    ]
+
+    changed_pair_index = next(
+        index
+        for index, candidate in enumerate(candidates)
+        if candidate["presence_bits"] == "110110011"
+        and candidate["terminal_tag"] == "success"
+    )
+    changed_pair_start = candidate_starts[changed_pair_index]
+    changed_pair_end = candidate_starts[changed_pair_index + 1]
+    assert trace[changed_pair_start:changed_pair_end] == [
+        "candidate:start",
+        "build:/matched_ablated_branch_attempt/response_values",
+        "build:/shell_outcome",
+        "build:/actual_branch_attempt",
+        "build:/matched_ablated_branch_attempt",
+        "build:/actual_completed_response",
+        "build:/matched_ablated_completed_response",
+        "build:/terminal_tag",
+        "rehash:/actual_branch_attempt/attempt_sha",
+        "rehash:/matched_ablated_branch_attempt/attempt_sha",
+        "rehash:/experimental_sha",
+    ]
 
 
 def test_invalid_presence_generator_requires_the_legal_success_base() -> None:
