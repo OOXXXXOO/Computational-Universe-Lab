@@ -1858,6 +1858,93 @@ def test_normalized_transcript_validator_rejects_aggregate_join_attacks(
         )
 
 
+def _canonical_seven_transcript_bytes() -> list[bytes]:
+    return [canonical_json_bytes_v1(raw) for raw in _seven_transcripts()]
+
+
+def test_cross_replay_cell_recomputes_all_five_roots_and_exact_match() -> None:
+    common = _common_module()
+    source = _canonical_seven_transcript_bytes()
+    wires = [canonical_json_bytes_v1({"wire": index}) for index in range(7)]
+
+    cell = common.build_cross_replay_cell_v1(
+        capture_ordinal=1,
+        synthetic_graph_manifest_sha="6" * 64,
+        route_id="B_PROGRESS",
+        route_manifest_sha="7" * 64,
+        ordered_source_transcript_bytes=source,
+        ordered_route_wire_bytes=wires,
+        ordered_decoded_transcript_bytes=list(source),
+    )
+
+    assert common.validate_exact_lab_record_v1("B7LabCrossReplayCellV1", cell) == cell
+    assert cell["case_count"] == 7
+    assert cell["ordered_case_ids"] == [
+        "reference_failure",
+        "shell_failure",
+        "actual_response_values_failure",
+        "matched_response_values_failure",
+        "actual_bridge_failure",
+        "matched_bridge_failure",
+        "success",
+    ]
+    assert cell["exact_transcript_match"] is True
+    assert cell["decoded_transcript_set_sha"] == cell["transcript_set_sha"]
+    _assert_self_hash(cell, "cell_sha")
+
+
+def test_cross_replay_cell_records_one_byte_decode_mismatch_without_hiding_it() -> None:
+    common = _common_module()
+    source = _canonical_seven_transcript_bytes()
+    decoded = list(source)
+    decoded[3] += b" "
+    wires = [canonical_json_bytes_v1({"wire": index}) for index in range(7)]
+
+    cell = common.build_cross_replay_cell_v1(
+        capture_ordinal=0,
+        synthetic_graph_manifest_sha="6" * 64,
+        route_id="A_FLAT",
+        route_manifest_sha="7" * 64,
+        ordered_source_transcript_bytes=source,
+        ordered_route_wire_bytes=wires,
+        ordered_decoded_transcript_bytes=decoded,
+    )
+
+    assert cell["exact_transcript_match"] is False
+    assert cell["decoded_transcript_set_sha"] != cell["transcript_set_sha"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("capture_ordinal", 3),
+        ("route_id", "NOT_A_ROUTE"),
+        ("ordered_source_transcript_bytes", []),
+        ("ordered_route_wire_bytes", ["not-bytes"] * 7),
+        ("ordered_decoded_transcript_bytes", ["not-bytes"] * 7),
+    ),
+)
+def test_cross_replay_cell_rejects_identity_cardinality_and_type_attacks(
+    field: str,
+    value: object,
+) -> None:
+    arguments = {
+        "capture_ordinal": 2,
+        "synthetic_graph_manifest_sha": "6" * 64,
+        "route_id": "C_UNION",
+        "route_manifest_sha": "7" * 64,
+        "ordered_source_transcript_bytes": _canonical_seven_transcript_bytes(),
+        "ordered_route_wire_bytes": [
+            canonical_json_bytes_v1({"wire": index}) for index in range(7)
+        ],
+        "ordered_decoded_transcript_bytes": _canonical_seven_transcript_bytes(),
+    }
+    arguments[field] = value
+
+    with pytest.raises((TypeError, ValueError)):
+        _common_module().build_cross_replay_cell_v1(**arguments)
+
+
 def _decision_record(
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],

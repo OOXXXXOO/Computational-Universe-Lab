@@ -3393,3 +3393,115 @@ def validate_normalized_transcript_v1(
         if response["shell_manifest_sha"] != shell["shell"]["shell_manifest_sha"]:
             raise ValueError("normalized transcript response/shell root drifted")
     return transcript
+
+
+def _require_exact_seven_bytes_v1(raw_values, field):
+    if (
+        type(raw_values) is not list
+        or len(raw_values) != 7
+        or any(type(value) is not bytes for value in raw_values)
+    ):
+        raise TypeError(f"{field} must be an exact seven-byte-string list")
+    return raw_values
+
+
+def _ordered_bytes_root_v1(case_ids, ordered_bytes):
+    return canonical_sha_v1(
+        [
+            {
+                "case_id": case_id,
+                "raw_sha256": _pure_core.hashlib.sha256(raw_bytes).hexdigest(),
+            }
+            for case_id, raw_bytes in zip(case_ids, ordered_bytes)
+        ]
+    )
+
+
+def build_cross_replay_cell_v1(
+    *,
+    capture_ordinal,
+    synthetic_graph_manifest_sha,
+    route_id,
+    route_manifest_sha,
+    ordered_source_transcript_bytes,
+    ordered_route_wire_bytes,
+    ordered_decoded_transcript_bytes,
+):
+    """Build one D1 cross-replay cell from exact captured byte strings."""
+
+    if type(capture_ordinal) is not int or capture_ordinal not in (0, 1, 2):
+        raise ValueError("cross-replay capture ordinal is not frozen")
+    _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    graph_sha = _require_sha256_root_v1(
+        synthetic_graph_manifest_sha,
+        "synthetic graph manifest",
+    )
+    manifest_sha = _require_sha256_root_v1(route_manifest_sha, "route manifest")
+    sources = _require_exact_seven_bytes_v1(
+        ordered_source_transcript_bytes,
+        "source transcripts",
+    )
+    wires = _require_exact_seven_bytes_v1(
+        ordered_route_wire_bytes,
+        "route wires",
+    )
+    decoded = _require_exact_seven_bytes_v1(
+        ordered_decoded_transcript_bytes,
+        "decoded transcripts",
+    )
+    transcripts = []
+    for raw_bytes in sources:
+        parsed = strict_json_loads_v1(raw_bytes)
+        if canonical_json_bytes_v1(parsed) != raw_bytes:
+            raise ValueError("source transcript bytes are not canonical")
+        transcripts.append(validate_case_contract_v1(parsed))
+    case_ids = [transcript["case_id"] for transcript in transcripts]
+    expected_case_ids = [row[1] for row in _CASE_CONTRACTS_V1]
+    if case_ids != expected_case_ids:
+        raise ValueError("cross-replay source case order drifted")
+
+    transcript_root = _ordered_bytes_root_v1(case_ids, sources)
+    decoded_root = _ordered_bytes_root_v1(case_ids, decoded)
+    wire_entries = [
+        {
+            "case_id": case_id,
+            "wire_raw_sha256": _pure_core.hashlib.sha256(raw_bytes).hexdigest(),
+        }
+        for case_id, raw_bytes in zip(case_ids, wires)
+    ]
+    route_wire_root = canonical_sha_v1(
+        {
+            "route_id": route_id,
+            "capture_ordinal": capture_ordinal,
+            "ordered_entries": wire_entries,
+        }
+    )
+    leaf_entries = [
+        {
+            "case_id": case_id,
+            "ordered_leaf_digests_sha": canonical_sha_v1(
+                transcript["ordered_leaf_digests"]
+            ),
+        }
+        for case_id, transcript in zip(case_ids, transcripts)
+    ]
+    leaf_root = canonical_sha_v1(leaf_entries)
+    cell = {
+        "cell_schema_version": "experimental.v3m0.b7.cross-replay-cell.v1",
+        "capture_ordinal": capture_ordinal,
+        "case_count": 7,
+        "ordered_case_ids": case_ids,
+        "transcript_set_sha": transcript_root,
+        "synthetic_graph_manifest_sha": graph_sha,
+        "route_id": route_id,
+        "route_manifest_sha": manifest_sha,
+        "route_wire_set_sha": route_wire_root,
+        "decoded_transcript_set_sha": decoded_root,
+        "ordered_leaf_digest_set_sha": leaf_root,
+        "exact_transcript_match": (
+            decoded == sources and decoded_root == transcript_root
+        ),
+        "cell_sha": "",
+    }
+    _rehash_record_field_v1(cell, "cell_sha")
+    return validate_exact_lab_record_v1("B7LabCrossReplayCellV1", cell)
