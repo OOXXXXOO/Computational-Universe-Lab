@@ -7339,6 +7339,165 @@ _REVIEWER_FORBIDDEN_MODULE_ROOTS_V1 = (
     "socket",
     "subprocess",
 )
+_REVIEWER_ALLOWED_BUILTIN_CALLS_V1 = (
+    "Exception",
+    "KeyError",
+    "RuntimeError",
+    "TypeError",
+    "ValueError",
+    "abs",
+    "all",
+    "any",
+    "bool",
+    "bytes",
+    "classmethod",
+    "dict",
+    "enumerate",
+    "filter",
+    "float",
+    "frozenset",
+    "int",
+    "isinstance",
+    "issubclass",
+    "iter",
+    "len",
+    "list",
+    "map",
+    "max",
+    "min",
+    "next",
+    "object",
+    "property",
+    "range",
+    "repr",
+    "reversed",
+    "round",
+    "set",
+    "slice",
+    "sorted",
+    "staticmethod",
+    "str",
+    "sum",
+    "super",
+    "tuple",
+    "type",
+    "zip",
+)
+_REVIEWER_ALLOWED_EXTERNAL_CALLS_V1 = (
+    "argparse.ArgumentParser",
+    "argparse.ArgumentParser.add_argument",
+    "argparse.ArgumentParser.parse_args",
+    "ast.parse",
+    "ast.unparse",
+    "ast.walk",
+    "base64.b64decode",
+    "base64.b64encode",
+    "binascii.Error",
+    "copy.deepcopy",
+    "dataclasses.asdict",
+    "dataclasses.dataclass",
+    "dataclasses.fields",
+    "dataclasses.is_dataclass",
+    "dataclasses.replace",
+    "difflib.unified_diff",
+    "enum.Enum",
+    "fractions.Fraction",
+    "hashlib.sha256",
+    "json.dumps",
+    "json.loads",
+    "math.cos",
+    "math.fsum",
+    "math.isfinite",
+    "math.sin",
+    "math.sqrt",
+    "numpy.abs",
+    "numpy.all",
+    "numpy.any",
+    "numpy.arange",
+    "numpy.array",
+    "numpy.asarray",
+    "numpy.block",
+    "numpy.concatenate",
+    "numpy.conj",
+    "numpy.diag",
+    "numpy.dot",
+    "numpy.dtype",
+    "numpy.einsum",
+    "numpy.eye",
+    "numpy.float64",
+    "numpy.int64",
+    "numpy.isclose",
+    "numpy.isfinite",
+    "numpy.linalg.cond",
+    "numpy.linalg.det",
+    "numpy.linalg.eig",
+    "numpy.linalg.eigh",
+    "numpy.linalg.eigvals",
+    "numpy.linalg.eigvalsh",
+    "numpy.linalg.inv",
+    "numpy.linalg.matrix_rank",
+    "numpy.linalg.norm",
+    "numpy.linalg.pinv",
+    "numpy.linalg.solve",
+    "numpy.linalg.svd",
+    "numpy.max",
+    "numpy.mean",
+    "numpy.min",
+    "numpy.ones",
+    "numpy.real",
+    "numpy.reshape",
+    "numpy.stack",
+    "numpy.sum",
+    "numpy.vdot",
+    "numpy.where",
+    "numpy.zeros",
+    "pathlib.Path",
+    "pathlib.Path.read_bytes",
+    "pathlib.PurePosixPath",
+    "re.compile",
+    "re.fullmatch",
+    "scipy.linalg.schur",
+    "struct.pack",
+    "struct.unpack",
+    "sys.stdout.buffer.write",
+)
+_REVIEWER_ALLOWED_VALUE_METHODS_V1 = (
+    "bytes.decode",
+    "bytes.hex",
+    "bytes.startswith",
+    "dict.copy",
+    "dict.get",
+    "dict.items",
+    "dict.keys",
+    "dict.pop",
+    "dict.values",
+    "hashlib.sha256.digest",
+    "hashlib.sha256.hexdigest",
+    "complex.conjugate",
+    "list.append",
+    "list.extend",
+    "list.pop",
+    "numpy.ndarray.astype",
+    "numpy.ndarray.conj",
+    "numpy.ndarray.copy",
+    "numpy.ndarray.reshape",
+    "numpy.ndarray.tobytes",
+    "numpy.ndarray.tolist",
+    "numpy.ndarray.transpose",
+    "set.add",
+    "set.difference",
+    "set.issubset",
+    "str.encode",
+    "str.endswith",
+    "str.join",
+    "str.lower",
+    "str.replace",
+    "str.split",
+    "str.splitlines",
+    "str.startswith",
+    "str.strip",
+    "tuple.index",
+)
 _REVIEWER_LEGACY_EXPORTS_V1 = (
     "FINAL_RESULT_EVIDENCE_FIELDS",
     "BlockStatus",
@@ -7605,42 +7764,324 @@ def _attribute_path_v1(node):
     return ".".join((cursor.id, *reversed(parts)))
 
 
-def _validate_reviewer_child_calls_v1(compare_tree, definitions, child_union):
+def _reviewer_module_name_by_path_v1(path):
+    if not path.endswith(".py"):
+        raise ValueError("reviewer executed module path is not Python")
+    if path.endswith("/__init__.py"):
+        return path[: -len("/__init__.py")].replace("/", ".")
+    return path[:-3].replace("/", ".")
+
+
+def _reviewer_absolute_import_module_v1(raw_module, owner_module):
+    if not raw_module.startswith("."):
+        return raw_module
+    level = len(raw_module) - len(raw_module.lstrip("."))
+    suffix = raw_module[level:]
+    package = owner_module.split(".")[:-1]
+    if level > len(package):
+        raise ValueError("reviewer relative import escapes its package")
+    base = package[: len(package) - level + 1]
+    return ".".join((*base, *((suffix,) if suffix else ())))
+
+
+def _reviewer_import_aliases_v1(nodes, owner_module):
+    aliases = {}
+    for node in nodes:
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                resolved = alias.name if alias.asname else alias.name.split(".")[0]
+                if bound in aliases:
+                    raise ValueError("reviewer import alias is duplicated")
+                aliases[bound] = ("MODULE", resolved)
+        elif isinstance(node, _ast.ImportFrom):
+            module = _reviewer_absolute_import_module_v1(
+                _normalized_import_module_v1(node), owner_module
+            )
+            for alias in node.names:
+                if alias.name == "*":
+                    raise ValueError("reviewer star import is forbidden")
+                bound = alias.asname or alias.name
+                if bound in aliases:
+                    raise ValueError("reviewer import alias is duplicated")
+                aliases[bound] = ("SYMBOL", f"{module}.{alias.name}")
+    return aliases
+
+
+def _reviewer_binding_nodes_v1(node):
+    pending = list(reversed(node.body))
+    while pending:
+        child = pending.pop()
+        if isinstance(child, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            if child is not node:
+                continue
+        yield child
+        children = list(_ast.iter_child_nodes(child))
+        pending.extend(reversed(children))
+
+
+def _reviewer_local_import_nodes_v1(node):
+    return [
+        child
+        for child in _reviewer_binding_nodes_v1(node)
+        if isinstance(child, (_ast.Import, _ast.ImportFrom))
+    ]
+
+
+def _reviewer_resolve_qualified_v1(node, aliases):
+    parts = []
+    cursor = node
+    while isinstance(cursor, _ast.Attribute):
+        parts.append(cursor.attr)
+        cursor = cursor.value
+    if not isinstance(cursor, _ast.Name) or cursor.id not in aliases:
+        return None
+    _kind, root = aliases[cursor.id]
+    return ".".join((root, *reversed(parts)))
+
+
+def _reviewer_local_target_v1(
+    resolved,
+    module_definitions,
+    *,
+    require_callable=True,
+):
+    matches = []
+    for module in module_definitions:
+        prefix = module + "."
+        if resolved.startswith(prefix):
+            symbol = resolved[len(prefix) :]
+            if "." not in symbol:
+                matches.append((module, symbol))
+    if len(matches) > 1:
+        raise ValueError("reviewer repository-local resolution is ambiguous")
+    if not matches:
+        return None
+    module, symbol = matches[0]
+    if symbol not in module_definitions[module] and require_callable:
+        raise ValueError("reviewer calls a non-callable repository-local binding")
+    if symbol not in module_definitions[module]:
+        return None
+    return module, symbol
+
+
+def _validate_reviewer_external_call_v1(resolved, call):
+    components = resolved.split(".")
+    if any(component.startswith("_") for component in components[1:]):
+        raise ValueError("reviewer calls an external private attribute")
+    if any(resolved.startswith(prefix) for prefix in _REVIEWER_FORBIDDEN_CALL_PREFIXES_V1):
+        raise ValueError("reviewer child calls a forbidden capability")
+    if components[0] in _REVIEWER_FORBIDDEN_MODULE_ROOTS_V1:
+        raise ValueError("reviewer child uses a forbidden module root")
+    if resolved not in _REVIEWER_ALLOWED_EXTERNAL_CALLS_V1:
+        raise ValueError("reviewer child has an unlisted external call")
+    return resolved
+
+
+def _validate_reviewer_method_call_v1(call):
+    if not isinstance(call.func, _ast.Attribute):
+        raise ValueError("reviewer child has dynamic call resolution")
+    terminal = call.func.attr
+    allowed = [
+        method
+        for method in _REVIEWER_ALLOWED_VALUE_METHODS_V1
+        if method.rsplit(".", 1)[-1] == terminal
+    ]
+    if not allowed:
+        raise ValueError("reviewer child calls an unlisted value method")
+    return f"<frozen-value>.{terminal}"
+
+
+def _reviewer_highest_attribute_v1(node, parents):
+    cursor = node
+    while isinstance(parents.get(cursor), _ast.Attribute) and parents[cursor].value is cursor:
+        cursor = parents[cursor]
+    return cursor
+
+
+def _validate_reviewer_module_and_callable_flows_v1(
+    node,
+    aliases,
+    parents,
+    module_definitions,
+):
+    external_calls = set(_REVIEWER_ALLOWED_EXTERNAL_CALLS_V1)
+    for child in _reviewer_binding_nodes_v1(node):
+        if not isinstance(child, _ast.Name) or not isinstance(child.ctx, _ast.Load):
+            continue
+        binding = aliases.get(child.id)
+        if binding is None:
+            continue
+        kind, resolved = binding
+        parent = parents.get(child)
+        if kind == "MODULE":
+            if not isinstance(parent, _ast.Attribute) or parent.value is not child:
+                raise ValueError("reviewer module object flows through a value/container")
+            highest = _reviewer_highest_attribute_v1(child, parents)
+            use = parents.get(highest)
+            qualified = _reviewer_resolve_qualified_v1(highest, aliases)
+            if (
+                qualified in external_calls
+                or _reviewer_local_target_v1(
+                    qualified,
+                    module_definitions,
+                    require_callable=False,
+                )
+                is not None
+            ) and not (isinstance(use, _ast.Call) and use.func is highest):
+                raise ValueError("reviewer callable alias flows without a direct call")
+        elif kind == "SYMBOL":
+            local = _reviewer_local_target_v1(
+                resolved,
+                module_definitions,
+                require_callable=False,
+            )
+            if (resolved in external_calls or local is not None) and not (
+                isinstance(parent, _ast.Call) and parent.func is child
+            ):
+                raise ValueError("reviewer imported callable flows without a direct call")
+
+
+def _validate_reviewer_terminal_stdout_v1(call, parents, owner):
+    statement = parents.get(call)
+    if not isinstance(statement, _ast.Return) or statement.value is not call:
+        raise ValueError("reviewer stdout write is not the terminal return")
+    if statement not in owner.body or owner.body[-1] is not statement:
+        raise ValueError("reviewer stdout write is not terminal in its binding")
+    if len(call.args) != 1 or call.keywords:
+        raise ValueError("reviewer stdout write signature drifted")
+    payload = call.args[0]
+    if (
+        not isinstance(payload, _ast.BinOp)
+        or not isinstance(payload.op, _ast.Add)
+        or not isinstance(payload.right, _ast.Constant)
+        or payload.right.value != b"\n"
+    ):
+        raise ValueError("reviewer stdout frame is not canonical bytes plus one LF")
+
+
+def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
     forbidden = set(_REVIEWER_FORBIDDEN_EXACT_NAMES_V1)
-    for path, tree in compare_tree.items():
+    for path, tree in trees.items():
         for node in _ast.walk(tree):
             if isinstance(node, _ast.Name) and node.id in forbidden:
                 raise ValueError(f"reviewer source {path} uses forbidden exact name")
-    stdout_calls = []
+
+    modules_by_path = {
+        path: _reviewer_module_name_by_path_v1(path) for path in trees
+    }
+    module_definitions = {}
+    module_aliases = {}
+    parents_by_module = {}
+    for path, tree in trees.items():
+        module = modules_by_path[path]
+        _functions, by_name = _reviewer_top_level_functions_v1(tree, path)
+        classes = {
+            node.name: node for node in tree.body if isinstance(node, _ast.ClassDef)
+        }
+        overlap = set(by_name).intersection(classes)
+        if overlap:
+            raise ValueError("reviewer top-level callable binding is duplicated")
+        module_definitions[module] = {**by_name, **classes}
+        module_aliases[module] = _reviewer_import_aliases_v1(
+            [
+                node
+                for node in tree.body
+                if isinstance(node, (_ast.Import, _ast.ImportFrom))
+            ],
+            module,
+        )
+        parents_by_module[module] = {
+            child: parent for parent in _ast.walk(tree) for child in _ast.iter_child_nodes(parent)
+        }
+
+    compare_module = "experiments.v3m0_b7_schema_lab.compare"
+    roots = [(compare_module, name) for name in child_union]
+    for entry in _ROUTE_STATIC_REGISTRY_V1:
+        roots.extend(
+            (
+                (entry[2], "encode_normalized_transcript"),
+                (entry[2], "verify_and_decode_route_wire"),
+            )
+        )
+    queue = list(roots)
+    reached = set(queue)
     edge_records = []
-    for owner in sorted(child_union, key=lambda name: definitions[name].lineno):
-        node = definitions[owner]
+    stdout_calls = {}
+    while queue:
+        module, owner = queue.pop(0)
+        if module not in module_definitions or owner not in module_definitions[module]:
+            raise ValueError("reviewer fixed-point root is unresolved")
+        node = module_definitions[module][owner]
+        if isinstance(node, _ast.ClassDef):
+            edge_records.append(
+                {"owner": f"{module}.{owner}", "calls": [], "edges": []}
+            )
+            continue
+        local_aliases = _reviewer_import_aliases_v1(
+            _reviewer_local_import_nodes_v1(node), module
+        )
+        aliases = {**module_aliases[module], **local_aliases}
+        parents = parents_by_module[module]
+        _validate_reviewer_module_and_callable_flows_v1(
+            node,
+            aliases,
+            parents,
+            module_definitions,
+        )
         owner_calls = []
-        for call in (item for item in _ast.walk(node) if isinstance(item, _ast.Call)):
+        local_edges = []
+        for call in (
+            item for item in _reviewer_binding_nodes_v1(node) if isinstance(item, _ast.Call)
+        ):
+            target = None
             if isinstance(call.func, _ast.Name):
-                resolved = call.func.id
-                if resolved in definitions:
-                    owner_calls.append(resolved)
-                    continue
-                if resolved in forbidden:
+                name = call.func.id
+                if name in module_definitions[module]:
+                    target = (module, name)
+                    resolved = f"{module}.{name}"
+                elif name in aliases:
+                    _kind, resolved = aliases[name]
+                    target = _reviewer_local_target_v1(resolved, module_definitions)
+                    if target is None:
+                        _validate_reviewer_external_call_v1(resolved, call)
+                elif name in _REVIEWER_ALLOWED_BUILTIN_CALLS_V1:
+                    resolved = name
+                elif name in forbidden:
                     raise ValueError("reviewer child calls a forbidden resolver")
-                raise ValueError("reviewer child has an unresolved direct call")
-            resolved = _attribute_path_v1(call.func)
-            if resolved is None:
-                raise ValueError("reviewer child has dynamic call resolution")
+                else:
+                    raise ValueError("reviewer child has an unresolved direct call")
+            else:
+                resolved = _reviewer_resolve_qualified_v1(call.func, aliases)
+                if resolved is None:
+                    resolved = _validate_reviewer_method_call_v1(call)
+                else:
+                    target = _reviewer_local_target_v1(
+                        resolved, module_definitions
+                    )
+                    if target is None:
+                        _validate_reviewer_external_call_v1(resolved, call)
+            owner_calls.append(resolved)
             if resolved == "sys.stdout.buffer.write":
-                stdout_calls.append(_source_location_v1(call))
-                owner_calls.append(resolved)
-                continue
-            if any(resolved.startswith(prefix) for prefix in _REVIEWER_FORBIDDEN_CALL_PREFIXES_V1):
-                raise ValueError("reviewer child calls a forbidden capability")
-            if resolved.split(".", 1)[0] in _REVIEWER_FORBIDDEN_MODULE_ROOTS_V1:
-                raise ValueError("reviewer child uses a forbidden module root")
-            raise ValueError("reviewer child has an unlisted external call")
-        edge_records.append({"owner": owner, "calls": owner_calls})
+                _validate_reviewer_terminal_stdout_v1(call, parents, node)
+                stdout_calls[(module, call.lineno, call.col_offset)] = (
+                    _source_location_v1(call)
+                )
+            if target is not None:
+                local_edges.append(f"{target[0]}.{target[1]}")
+                if target not in reached:
+                    reached.add(target)
+                    queue.append(target)
+        edge_records.append(
+            {
+                "owner": f"{module}.{owner}",
+                "calls": owner_calls,
+                "edges": local_edges,
+            }
+        )
     if len(stdout_calls) != 1:
         raise ValueError("reviewer child must have exactly one terminal stdout call")
-    return edge_records, stdout_calls[0]
+    return edge_records, next(iter(stdout_calls.values()))
 
 
 def _validate_reviewer_outer_closure_v1(functions, definitions):

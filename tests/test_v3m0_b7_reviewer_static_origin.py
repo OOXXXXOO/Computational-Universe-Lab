@@ -163,7 +163,8 @@ def _compare_source() -> bytes:
             "def _load_all_routes():",
             (
                 "    from experiments.v3m0_b7_schema_lab.a_flat "
-                "import ROUTE_ID as a_route_id"
+                "import ROUTE_ID as a_route_id, "
+                "encode_normalized_transcript as encode_a"
             ),
             (
                 "    from experiments.v3m0_b7_schema_lab.b_progress "
@@ -173,16 +174,18 @@ def _compare_source() -> bytes:
                 "    from experiments.v3m0_b7_schema_lab.c_union "
                 "import ROUTE_ID as c_route_id"
             ),
-            "    return (a_route_id, b_route_id, c_route_id)",
+            "    return (a_route_id, b_route_id, c_route_id, encode_a(b'{}'))",
             "",
             "def _emit_report(payload):",
             "    return sys.stdout.buffer.write(payload + b'\\n')",
             "",
             "def _review_corpus_replay_cli():",
+            "    _common._child_common_identity(b'{}')",
             "    _load_all_routes()",
             "    return _emit_report(b'{}')",
             "",
             "def _review_metric_replay_cli():",
+            "    _common._child_common_identity(b'{}')",
             "    _load_all_routes()",
             "    return _emit_report(b'{}')",
             "",
@@ -199,6 +202,15 @@ def _static_inputs(compare_source: bytes | None = None):
         _route_manifest(row, commit, source)
         for row, commit, source in zip(ROUTE_ROWS, ROUTE_COMMITS, route_sources)
     )
+    common_source = (
+        REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py"
+    ).read_bytes() + (
+        b"\n\ndef _child_common_identity(value):\n"
+        b"    return _pure_core._child_core_identity(value)\n"
+    )
+    core_source = (REPO_ROOT / "rulespace_v3/b7_replay_core_v1.py").read_bytes() + (
+        b"\n\ndef _child_core_identity(value):\n    return value\n"
+    )
     source_rows = [
         (
             EVIDENCE_COMMIT,
@@ -210,7 +222,7 @@ def _static_inputs(compare_source: bytes | None = None):
             EVIDENCE_COMMIT,
             "experiments/v3m0_b7_schema_lab/common.py",
             "100644",
-            (REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py").read_bytes(),
+            common_source,
         ),
         (
             EVIDENCE_COMMIT,
@@ -232,7 +244,7 @@ def _static_inputs(compare_source: bytes | None = None):
             EVIDENCE_COMMIT,
             "rulespace_v3/b7_replay_core_v1.py",
             "100644",
-            (REPO_ROOT / "rulespace_v3/b7_replay_core_v1.py").read_bytes(),
+            core_source,
         ),
     ]
     return {
@@ -357,4 +369,83 @@ def test_reviewer_static_surface_revalidates_each_route_manifest() -> None:
     inputs["route_manifests"] = tuple(manifests)
 
     with pytest.raises(ValueError, match="static scan"):
+        common.validate_reviewer_child_static_surface_v1(**inputs)
+
+
+@pytest.mark.parametrize(
+    "attack_id",
+    (
+        "reachable-common-write",
+        "numpy-ctypeslib",
+        "external-private-attribute",
+        "module-object-container-flow",
+        "route-alias-unresolved",
+        "stdout-not-terminal",
+    ),
+)
+def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
+    attack_id: str,
+) -> None:
+    inputs = _static_inputs()
+    blobs = list(inputs["source_blobs"])
+    common_index = next(
+        index for index, blob in enumerate(blobs) if blob[1].endswith("common.py")
+    )
+    compare_index = next(
+        index for index, blob in enumerate(blobs) if blob[1].endswith("compare.py")
+    )
+    common_source = blobs[common_index][3]
+    compare_source = blobs[compare_index][3]
+    if attack_id == "reachable-common-write":
+        common_source += (
+            b"\nimport pathlib as _review_pathlib\n"
+            b"def _hostile_child(value):\n"
+            b"    return _review_pathlib.Path(value).write_text('x')\n"
+        )
+        compare_source = compare_source.replace(
+            b"    _common._child_common_identity(b'{}')\n",
+            b"    _common._hostile_child('escape')\n",
+            1,
+        )
+    elif attack_id == "numpy-ctypeslib":
+        common_source += (
+            b"\nimport numpy as _review_numpy\n"
+            b"def _hostile_child(value):\n"
+            b"    return _review_numpy.ctypeslib.load_library(value, '.')\n"
+        )
+        compare_source = compare_source.replace(
+            b"    _common._child_common_identity(b'{}')\n",
+            b"    _common._hostile_child('x')\n",
+            1,
+        )
+    elif attack_id == "external-private-attribute":
+        compare_source = compare_source.replace(
+            b"    _load_all_routes()\n",
+            b"    hashlib._private_constructor()\n",
+            1,
+        )
+    elif attack_id == "module-object-container-flow":
+        compare_source = compare_source.replace(
+            b"    _load_all_routes()\n",
+            b"    hidden_modules = [hashlib]\n    _load_all_routes()\n",
+            1,
+        )
+    elif attack_id == "route-alias-unresolved":
+        compare_source = compare_source.replace(
+            b"    return (a_route_id, b_route_id, c_route_id, encode_a(b'{}'))\n",
+            b"    return a_route_id()\n",
+        )
+    else:
+        compare_source = compare_source.replace(
+            b"    return sys.stdout.buffer.write(payload + b'\\n')\n",
+            (
+                b"    sys.stdout.buffer.write(payload + b'\\n')\n"
+                b"    return hashlib.sha256(payload).digest()\n"
+            ),
+        )
+    blobs[common_index] = (*blobs[common_index][:3], common_source)
+    blobs[compare_index] = (*blobs[compare_index][:3], compare_source)
+    inputs["source_blobs"] = tuple(blobs)
+
+    with pytest.raises((TypeError, ValueError, SyntaxError, UnicodeError)):
         common.validate_reviewer_child_static_surface_v1(**inputs)
