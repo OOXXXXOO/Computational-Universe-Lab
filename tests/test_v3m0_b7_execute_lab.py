@@ -6,11 +6,15 @@ import hashlib
 from pathlib import Path
 import subprocess
 import sys
+from types import ModuleType
 
 import pytest
 
 from experiments.v3m0_b7_schema_lab import common
 from tools import v3m0_b7_execute_lab as execute
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _git(repository: Path, *arguments: str) -> str:
@@ -54,6 +58,7 @@ def _lab_repository(tmp_path: Path) -> tuple[Path, str, tuple[str, str, str]]:
         b"COMPARE = 1\n",
     )
     _write(repository, "experiments/v3m0_b7_schema_lab/__init__.py", b"")
+    _write(repository, "tests/fixtures/v3m0_b7_schema_lab_corpus.json", b"{}\n")
     _write(repository, "rulespace_v3/core.py", b"CORE = 1\n")
     _write(repository, "rulespace_gpu/kernel.py", b"KERNEL = 1\n")
     common_commit = _commit(repository, "common")
@@ -92,6 +97,12 @@ def test_git_bundle_reads_exact_commit_blobs_and_recursive_production_roots(
         "experiments/v3m0_b7_schema_lab/compare.py",
         "100644",
         b"COMPARE = 1\n",
+    )
+    assert bundle["fixture_blob"] == (
+        common_commit,
+        "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+        "100644",
+        b"{}\n",
     )
     assert [blob[1] for blob in bundle["production_blobs"]] == [
         "rulespace_v3/core.py",
@@ -174,6 +185,52 @@ def test_git_bundle_rejects_dirty_worktree_source_bytes(tmp_path: Path) -> None:
             common_commit_sha=common_commit,
             ordered_route_commit_shas=route_commits,
         )
+
+
+def test_git_bundle_rejects_dirty_fixture_bytes(tmp_path: Path) -> None:
+    repository, common_commit, route_commits = _lab_repository(tmp_path)
+    _write(
+        repository,
+        "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+        b'{"dirty":true}\n',
+    )
+
+    with pytest.raises(ValueError, match="worktree.*fixture"):
+        execute._read_git_inputs_v1(
+            repository_root=repository,
+            common_commit_sha=common_commit,
+            ordered_route_commit_shas=route_commits,
+        )
+
+
+def test_git_bundle_rejects_head_fixture_drift(tmp_path: Path) -> None:
+    repository, common_commit, route_commits = _lab_repository(tmp_path)
+    _write(
+        repository,
+        "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+        b'{"head_drift":true}\n',
+    )
+    _commit(repository, "drift fixture at head")
+
+    with pytest.raises(ValueError, match="HEAD fixture"):
+        execute._read_git_inputs_v1(
+            repository_root=repository,
+            common_commit_sha=common_commit,
+            ordered_route_commit_shas=route_commits,
+        )
+
+
+@pytest.mark.parametrize("module_name", execute._LAB_EXECUTION_MODULE_NAMES_V1)
+def test_namespace_bootstrap_rejects_each_preloaded_lab_module(
+    monkeypatch: pytest.MonkeyPatch,
+    module_name: str,
+) -> None:
+    for name in execute._LAB_EXECUTION_MODULE_NAMES_V1:
+        monkeypatch.delitem(sys.modules, name, raising=False)
+    monkeypatch.setitem(sys.modules, module_name, ModuleType(module_name))
+
+    with pytest.raises(RuntimeError, match=module_name):
+        execute._prepare_single_experiments_namespace_v1(REPOSITORY_ROOT)
 
 
 def test_git_bundle_rejects_symbolic_or_malformed_commit_identity(
@@ -398,6 +455,75 @@ def test_d0_builder_uses_fresh_one_shot_inputs_for_final_recomputation(
     ]
 
 
+def test_executor_parses_fixture_from_git_blob_without_second_path_read(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    fixture_raw_bytes = b'{"fixture":"from-git"}\n'
+    fixture = {"fixture": "from-git"}
+    git_inputs = {
+        "fixture_blob": (
+            "a" * 40,
+            "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+            "100644",
+            fixture_raw_bytes,
+        ),
+        "common_blob": ("a" * 40, "common.py", "100644", b"common"),
+        "compare_blob": ("a" * 40, "compare.py", "100644", b"compare"),
+    }
+    monkeypatch.setattr(execute, "_read_git_inputs_v1", lambda **_kwargs: git_inputs)
+    monkeypatch.setattr(
+        execute,
+        "_prepare_single_experiments_namespace_v1",
+        lambda _root: None,
+    )
+    monkeypatch.setattr(
+        execute,
+        "_read_stable_regular_file_v1",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("fixture path was read after Git audit")
+        ),
+    )
+    monkeypatch.setattr(
+        execute,
+        "_observe_fixture_environment_v1",
+        lambda observed, _python: (
+            {"identity": observed["fixture"]},
+            {"probe": True},
+        ),
+    )
+    monkeypatch.setattr(
+        common,
+        "validate_corpus_fixture_v2",
+        lambda observed, *_args, **_kwargs: observed,
+    )
+    build_calls: list[dict[str, object]] = []
+
+    def build(**kwargs):
+        build_calls.append(kwargs)
+        return {"d0_result_sha": "b" * 64, "surviving_route_ids": []}
+
+    monkeypatch.setattr(execute, "_build_d0_result_v1", build)
+    summary = {
+        "d0_result_raw_sha256": "c" * 64,
+        "d0_result_sha": "b" * 64,
+        "surviving_route_ids": [],
+    }
+    monkeypatch.setattr(execute, "_materialize_d0_result_v1", lambda **_kwargs: summary)
+
+    observed = execute.execute_d0_v1(
+        repository_root=tmp_path,
+        python_invocation_path=sys.executable,
+        common_commit_sha="a" * 40,
+        ordered_route_commit_shas=("1" * 40, "2" * 40, "3" * 40),
+    )
+
+    assert observed is summary
+    assert len(build_calls) == 1
+    assert build_calls[0]["corpus_fixture_raw_bytes"] == fixture_raw_bytes
+    assert build_calls[0]["validated_corpus_fixture"] == fixture
+
+
 def test_materializer_is_fixed_create_only_and_idempotent(tmp_path: Path) -> None:
     result = {"d0_result_sha": "a" * 64, "surviving_route_ids": ["A_FLAT"]}
 
@@ -433,6 +559,38 @@ def test_materializer_is_fixed_create_only_and_idempotent(tmp_path: Path) -> Non
             d0_result=result,
         )
     assert target.read_bytes() == b"different\n"
+
+
+def test_materializer_rejects_parent_swap_to_external_symlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    result = {"d0_result_sha": "a" * 64, "surviving_route_ids": []}
+    external = tmp_path / "external"
+    external.mkdir()
+    parent = tmp_path / "data/results/experimental/v3m0_b7_schema_lab"
+    backup = tmp_path / "data/results/experimental/v3m0_b7_schema_lab.backup"
+    original_create = execute._create_temporary_at_v1
+    swapped = False
+
+    def swap_then_create(parent_fd: int):
+        nonlocal swapped
+        assert not swapped
+        swapped = True
+        parent.rename(backup)
+        parent.symlink_to(external, target_is_directory=True)
+        return original_create(parent_fd)
+
+    monkeypatch.setattr(execute, "_create_temporary_at_v1", swap_then_create)
+
+    with pytest.raises(ValueError, match="parent|directory|changed"):
+        execute._materialize_d0_result_v1(
+            repository_root=tmp_path,
+            d0_result=result,
+        )
+
+    assert swapped is True
+    assert list(external.iterdir()) == []
 
 
 def test_cli_requires_explicit_four_commits_and_emits_canonical_summary(

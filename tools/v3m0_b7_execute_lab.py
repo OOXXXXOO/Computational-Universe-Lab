@@ -13,10 +13,10 @@ import hashlib
 import math
 import os
 from pathlib import Path
+import secrets
 import stat
 import subprocess
 import sys
-import tempfile
 import time
 import tracemalloc
 from types import ModuleType
@@ -49,6 +49,7 @@ _GIT_STDERR_LIMIT_V1 = 1 << 20
 _COMMON_SOURCE_PATH_V1 = "experiments/v3m0_b7_schema_lab/common.py"
 _COMPARE_SOURCE_PATH_V1 = "experiments/v3m0_b7_schema_lab/compare.py"
 _LAB_INITIALIZER_PATH_V1 = "experiments/v3m0_b7_schema_lab/__init__.py"
+_FIXTURE_SOURCE_PATH_V1 = "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
 _PRODUCTION_ROOTS_V1 = ("rulespace_v3", "rulespace_gpu")
 _ROUTE_SPECS_V1 = (
     (
@@ -73,7 +74,14 @@ _ROUTE_SPECS_V1 = (
         "experimental.v3m0.b7.c-union.wire.v1",
     ),
 )
-_FIXTURE_RELATIVE_PATH_V1 = Path("tests/fixtures/v3m0_b7_schema_lab_corpus.json")
+_LAB_EXECUTION_MODULE_NAMES_V1 = (
+    "experiments.v3m0_b7_schema_lab",
+    "experiments.v3m0_b7_schema_lab.common",
+    "experiments.v3m0_b7_schema_lab.compare",
+    "experiments.v3m0_b7_schema_lab.a_flat",
+    "experiments.v3m0_b7_schema_lab.b_progress",
+    "experiments.v3m0_b7_schema_lab.c_union",
+)
 _D0_RESULT_RELATIVE_PATH_V1 = Path(
     "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json"
 )
@@ -97,12 +105,23 @@ def _prepare_single_experiments_namespace_v1(repository_root: Path) -> None:
     experiments_root = root / "experiments"
     if not experiments_root.is_dir():
         raise ValueError("repository experiments namespace is absent")
+    preloaded = tuple(
+        name for name in _LAB_EXECUTION_MODULE_NAMES_V1 if name in sys.modules
+    )
+    if preloaded:
+        raise RuntimeError(
+            "B7 lab execution module was preloaded before source checks: "
+            + ",".join(preloaded)
+        )
     existing = sys.modules.get("experiments")
     if existing is not None:
         existing_paths = getattr(existing, "__path__", None)
-        if existing_paths is None or tuple(
-            Path(path).resolve() for path in existing_paths
-        ) != (experiments_root.resolve(),):
+        if (
+            getattr(existing, "__file__", None) is not None
+            or existing_paths is None
+            or tuple(Path(path).resolve() for path in existing_paths)
+            != (experiments_root.resolve(),)
+        ):
             raise RuntimeError(
                 "experiments namespace was imported before D0 source checks"
             )
@@ -382,6 +401,7 @@ def _read_git_inputs_v1(
     common_blob = _read_blob_v1(root, common_sha, _COMMON_SOURCE_PATH_V1)
     compare_blob = _read_blob_v1(root, common_sha, _COMPARE_SOURCE_PATH_V1)
     lab_initializer_blob = _read_blob_v1(root, common_sha, _LAB_INITIALIZER_PATH_V1)
+    fixture_blob = _read_blob_v1(root, common_sha, _FIXTURE_SOURCE_PATH_V1)
     production_blobs = _read_recursive_blobs_v1(root, common_sha)
     ordered_route_blobs = tuple(
         _read_blob_v1(root, route_sha, spec[3])
@@ -391,12 +411,15 @@ def _read_git_inputs_v1(
     head_common = _read_blob_v1(root, head_sha, _COMMON_SOURCE_PATH_V1)
     head_compare = _read_blob_v1(root, head_sha, _COMPARE_SOURCE_PATH_V1)
     head_lab_initializer = _read_blob_v1(root, head_sha, _LAB_INITIALIZER_PATH_V1)
+    head_fixture = _read_blob_v1(root, head_sha, _FIXTURE_SOURCE_PATH_V1)
     if not _same_blob_body_v1(common_blob, head_common):
         raise ValueError("HEAD common source differs from frozen common C")
     if not _same_blob_body_v1(compare_blob, head_compare):
         raise ValueError("HEAD compare source differs from frozen common C")
     if not _same_blob_body_v1(lab_initializer_blob, head_lab_initializer):
         raise ValueError("HEAD lab initializer differs from frozen common C")
+    if not _same_blob_body_v1(fixture_blob, head_fixture):
+        raise ValueError("HEAD fixture differs from frozen common C")
     for route_blob, spec in zip(ordered_route_blobs, _ROUTE_SPECS_V1):
         head_route = _read_blob_v1(root, head_sha, spec[3])
         if not _same_blob_body_v1(route_blob, head_route):
@@ -411,6 +434,7 @@ def _read_git_inputs_v1(
         (common_blob, "common source"),
         (compare_blob, "compare source"),
         (lab_initializer_blob, "lab initializer"),
+        (fixture_blob, "fixture"),
         *(
             (blob, f"route source {spec[0]}")
             for blob, spec in zip(ordered_route_blobs, _ROUTE_SPECS_V1)
@@ -424,6 +448,7 @@ def _read_git_inputs_v1(
         "common_blob": common_blob,
         "compare_blob": compare_blob,
         "lab_initializer_blob": lab_initializer_blob,
+        "fixture_blob": fixture_blob,
         "production_blobs": production_blobs,
         "ordered_route_blobs": ordered_route_blobs,
     }
@@ -481,12 +506,10 @@ def _read_stable_regular_file_v1(path: Path, field: str) -> bytes:
             os.close(descriptor)
 
 
-def _read_fixture_v1(repository_root: Path):
+def _parse_fixture_blob_v1(raw_bytes: bytes):
     common, _compare = _modules_v1()
-    raw_bytes = _read_stable_regular_file_v1(
-        Path(repository_root).resolve(strict=True) / _FIXTURE_RELATIVE_PATH_V1,
-        "fixed B7 corpus fixture",
-    )
+    if type(raw_bytes) is not bytes:
+        raise TypeError("fixed B7 corpus fixture blob must be exact bytes")
     if not raw_bytes.endswith(b"\n") or not raw_bytes[:-1]:
         raise ValueError("fixed B7 corpus fixture framing drifted")
     parsed = common.strict_json_loads_v1(raw_bytes)
@@ -767,34 +790,152 @@ def _build_d0_result_v1(
     return result
 
 
-def _fsync_directory_v1(directory: Path) -> None:
-    descriptor = os.open(directory, os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY)
+def _directory_identity_v1(metadata: os.stat_result):
+    return metadata.st_dev, metadata.st_ino, stat.S_IFMT(metadata.st_mode)
+
+
+def _require_parent_path_identity_v1(
+    parent: Path,
+    expected_identity,
+) -> None:
     try:
-        os.fsync(descriptor)
+        observed = os.lstat(parent)
+    except OSError as exc:
+        raise ValueError("fixed D0 result parent path changed") from exc
+    if (
+        not stat.S_ISDIR(observed.st_mode)
+        or _directory_identity_v1(observed) != expected_identity
+    ):
+        raise ValueError("fixed D0 result parent directory identity changed")
+
+
+def _open_result_parent_fd_v1(root: Path):
+    """Open/create the fixed parent by no-follow dirfd traversal."""
+
+    resolved_root = Path(root).resolve(strict=True)
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(resolved_root, flags)
+    except OSError as exc:
+        raise ValueError("repository root cannot be opened without links") from exc
+    current_path = resolved_root
+    try:
+        for component in _D0_RESULT_RELATIVE_PATH_V1.parts[:-1]:
+            try:
+                child = os.open(component, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, 0o755, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                else:
+                    os.fsync(descriptor)
+                try:
+                    child = os.open(component, flags, dir_fd=descriptor)
+                except OSError as exc:
+                    raise ValueError(
+                        "fixed D0 result parent changed during creation"
+                    ) from exc
+            except OSError as exc:
+                raise ValueError(
+                    "fixed D0 result parent contains a link or non-directory"
+                ) from exc
+            child_metadata = os.fstat(child)
+            if not stat.S_ISDIR(child_metadata.st_mode):
+                os.close(child)
+                raise ValueError("fixed D0 result parent component is not a directory")
+            os.close(descriptor)
+            descriptor = child
+            current_path /= component
+        identity = _directory_identity_v1(os.fstat(descriptor))
+        _require_parent_path_identity_v1(current_path, identity)
+        return descriptor, current_path, identity
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _read_regular_file_at_v1(parent_fd: int, name: str, field: str) -> bytes | None:
+    descriptor = None
+    try:
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+            dir_fd=parent_fd,
+        )
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ValueError(f"{field} cannot be opened without following links") from exc
+    try:
+        before = os.fstat(descriptor)
+        identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        if not stat.S_ISREG(before.st_mode) or before.st_size > _GIT_STDOUT_LIMIT_V1:
+            raise ValueError(f"{field} size or type drifted")
+        chunks = []
+        remaining = before.st_size
+        while remaining:
+            chunk = os.read(descriptor, min(1 << 20, remaining))
+            if not chunk:
+                raise ValueError(f"{field} ended early")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError(f"{field} grew while being read")
+        after = os.fstat(descriptor)
+        if identity != (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ):
+            raise ValueError(f"{field} changed while being read")
+        return b"".join(chunks)
     finally:
         os.close(descriptor)
 
 
-def _ensure_result_parent_v1(root: Path) -> Path:
-    current = root
-    for component in _D0_RESULT_RELATIVE_PATH_V1.parts[:-1]:
-        candidate = current / component
+def _create_temporary_at_v1(parent_fd: int):
+    for _attempt in range(128):
+        name = f".v3m0-b7-d0-{secrets.token_hex(16)}.tmp"
         try:
-            observed = os.lstat(candidate)
-        except FileNotFoundError:
-            try:
-                os.mkdir(candidate, 0o755)
-            except FileExistsError:
-                pass
-            else:
-                _fsync_directory_v1(current)
-            observed = os.lstat(candidate)
-        if stat.S_ISLNK(observed.st_mode) or not stat.S_ISDIR(observed.st_mode):
-            raise ValueError(
-                "fixed D0 result parent must contain only real directories"
+            descriptor = os.open(
+                name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+                0o400,
+                dir_fd=parent_fd,
             )
-        current = candidate
-    return current
+        except FileExistsError:
+            continue
+        except OSError as exc:
+            raise ValueError("D0 temporary cannot be created in fixed parent") from exc
+        return descriptor, name
+    raise ValueError("D0 temporary name collision budget exhausted")
+
+
+def _unlink_if_identity_matches_v1(parent_fd: int, name: str, identity) -> bool:
+    try:
+        observed = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    if (observed.st_dev, observed.st_ino) != identity:
+        return False
+    try:
+        os.unlink(name, dir_fd=parent_fd)
+    except FileNotFoundError:
+        return False
+    return True
 
 
 def _materialize_d0_result_v1(*, repository_root: Path, d0_result):
@@ -820,64 +961,101 @@ def _materialize_d0_result_v1(*, repository_root: Path, d0_result):
         "surviving_route_ids": list(survivors),
     }
     root = Path(repository_root).resolve(strict=True)
-    parent = _ensure_result_parent_v1(root)
-    target = parent / _D0_RESULT_RELATIVE_PATH_V1.name
+    parent_fd, parent_path, parent_identity = _open_result_parent_fd_v1(root)
     try:
-        existing = _read_stable_regular_file_v1(target, "fixed D0 result")
-    except ValueError:
-        try:
-            os.lstat(target)
-        except FileNotFoundError:
-            existing = None
-        else:
-            raise
-    if existing is not None:
-        if existing != raw_bytes:
-            raise FileExistsError("fixed D0 result already exists with different bytes")
-        return summary
-
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=".v3m0-b7-d0-",
-        suffix=".tmp",
-        dir=parent,
-    )
-    temporary = Path(temporary_name)
-    linked = False
-    try:
-        os.fchmod(descriptor, 0o444)
-        view = memoryview(raw_bytes)
-        written = 0
-        while written < len(view):
-            count = os.write(descriptor, view[written:])
-            if count <= 0:
-                raise OSError("D0 temporary write made no progress")
-            written += count
-        os.fsync(descriptor)
-        os.close(descriptor)
-        descriptor = -1
-        try:
-            os.link(temporary, target, follow_symlinks=False)
-            linked = True
-        except FileExistsError:
-            raced = _read_stable_regular_file_v1(target, "fixed D0 result")
-            if raced != raw_bytes:
+        existing = _read_regular_file_at_v1(
+            parent_fd,
+            _D0_RESULT_RELATIVE_PATH_V1.name,
+            "fixed D0 result",
+        )
+        if existing is not None:
+            _require_parent_path_identity_v1(parent_path, parent_identity)
+            if existing != raw_bytes:
                 raise FileExistsError(
-                    "fixed D0 result raced with different bytes"
-                ) from None
-        if linked:
-            _fsync_directory_v1(parent)
-        os.unlink(temporary)
-        _fsync_directory_v1(parent)
-        if _read_stable_regular_file_v1(target, "fixed D0 result") != raw_bytes:
-            raise ValueError("published D0 result bytes changed")
-        return summary
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
+                    "fixed D0 result already exists with different bytes"
+                )
+            return summary
+
+        descriptor = -1
+        temporary_name = None
+        temporary_identity = None
+        linked_by_us = False
+        completed = False
         try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
+            descriptor, temporary_name = _create_temporary_at_v1(parent_fd)
+            temporary_metadata = os.fstat(descriptor)
+            temporary_identity = (
+                temporary_metadata.st_dev,
+                temporary_metadata.st_ino,
+            )
+            os.fchmod(descriptor, 0o444)
+            view = memoryview(raw_bytes)
+            written = 0
+            while written < len(view):
+                count = os.write(descriptor, view[written:])
+                if count <= 0:
+                    raise OSError("D0 temporary write made no progress")
+                written += count
+            os.fsync(descriptor)
+            _require_parent_path_identity_v1(parent_path, parent_identity)
+            try:
+                os.link(
+                    temporary_name,
+                    _D0_RESULT_RELATIVE_PATH_V1.name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+                linked_by_us = True
+            except FileExistsError:
+                raced = _read_regular_file_at_v1(
+                    parent_fd,
+                    _D0_RESULT_RELATIVE_PATH_V1.name,
+                    "fixed D0 result",
+                )
+                if raced != raw_bytes:
+                    raise FileExistsError(
+                        "fixed D0 result raced with different bytes"
+                    ) from None
+            if linked_by_us:
+                os.fsync(parent_fd)
+            published = _read_regular_file_at_v1(
+                parent_fd,
+                _D0_RESULT_RELATIVE_PATH_V1.name,
+                "fixed D0 result",
+            )
+            if published != raw_bytes:
+                raise ValueError("published D0 result bytes changed")
+            _require_parent_path_identity_v1(parent_path, parent_identity)
+            os.unlink(temporary_name, dir_fd=parent_fd)
+            temporary_name = None
+            os.fsync(parent_fd)
+            _require_parent_path_identity_v1(parent_path, parent_identity)
+            completed = True
+            return summary
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            changed = False
+            if not completed and linked_by_us and temporary_identity is not None:
+                changed = _unlink_if_identity_matches_v1(
+                    parent_fd,
+                    _D0_RESULT_RELATIVE_PATH_V1.name,
+                    temporary_identity,
+                )
+            if temporary_name is not None and temporary_identity is not None:
+                changed = (
+                    _unlink_if_identity_matches_v1(
+                        parent_fd,
+                        temporary_name,
+                        temporary_identity,
+                    )
+                    or changed
+                )
+            if changed:
+                os.fsync(parent_fd)
+    finally:
+        os.close(parent_fd)
 
 
 def execute_d0_v1(
@@ -897,7 +1075,7 @@ def execute_d0_v1(
     )
     _prepare_single_experiments_namespace_v1(root)
     common, _compare = _modules_v1()
-    fixture_raw_bytes, fixture = _read_fixture_v1(root)
+    fixture_raw_bytes, fixture = _parse_fixture_blob_v1(git_inputs["fixture_blob"][3])
     identity, probe = _observe_fixture_environment_v1(
         fixture,
         python_invocation_path,
