@@ -120,3 +120,6 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
   保留 v9 原文与 SHA，只补齐 P0 catalog overlay、schema-lab exact records、D0 淘汰/D1 决胜、
   双复核 receipt、typed review halt 与 selection-to-production Git-object handoff；不改变物理、阈值
   或状态上限。
+- [`v3-实施计划-B7-v9.1-P0至production-2026-08-03.md`](v3-实施计划-B7-v9.1-P0至production-2026-08-03.md)：
+  以 RED→GREEN 切片实现 pure replay core、legacy golden、P0 provenance、三路 D0/D1、
+  immutable 双复放与唯一 production 收敛；得到 B7 production 后回接 GPU checkpoint 总计划。
