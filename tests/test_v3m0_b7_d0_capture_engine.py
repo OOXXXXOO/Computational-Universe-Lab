@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 import copy
 from pathlib import Path
+import sys
+from types import ModuleType
 
 import pytest
 
@@ -111,20 +113,32 @@ def _install_small_domain(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     return fixture
 
 
-def _install_roundtrip_routes(monkeypatch: pytest.MonkeyPatch) -> None:
-    from experiments.v3m0_b7_schema_lab import a_flat, b_progress, c_union
-
-    for module in (a_flat, b_progress, c_union):
-        monkeypatch.setattr(
-            module,
-            "encode_normalized_transcript",
-            lambda raw_bytes, prefix=module.ROUTE_ID.encode(): prefix + b":" + raw_bytes,
+def _install_route_stubs(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    encode=None,
+    decode=None,
+) -> dict[str, ModuleType]:
+    modules = {}
+    package = sys.modules["experiments.v3m0_b7_schema_lab"]
+    for leaf_name, route_id in (
+        ("a_flat", "A_FLAT"),
+        ("b_progress", "B_PROGRESS"),
+        ("c_union", "C_UNION"),
+    ):
+        module_name = f"experiments.v3m0_b7_schema_lab.{leaf_name}"
+        module = ModuleType(module_name)
+        module.ROUTE_ID = route_id
+        module.encode_normalized_transcript = encode or (
+            lambda raw_bytes, prefix=route_id.encode(): prefix + b":" + raw_bytes
         )
-        monkeypatch.setattr(
-            module,
-            "verify_and_decode_route_wire",
-            lambda wire_bytes: wire_bytes.split(b":", 1)[1],
+        module.verify_and_decode_route_wire = decode or (
+            lambda wire_bytes: wire_bytes.split(b":", 1)[1]
         )
+        monkeypatch.setitem(sys.modules, module_name, module)
+        monkeypatch.setattr(package, leaf_name, module, raising=False)
+        modules[route_id] = module
+    return modules
 
 
 def test_d0_capture_iterates_fixed_routes_and_exact_gate_input_fields(
@@ -133,7 +147,7 @@ def test_d0_capture_iterates_fixed_routes_and_exact_gate_input_fields(
     from experiments.v3m0_b7_schema_lab.compare import iter_d0_gate_inputs_v1
 
     fixture = _install_small_domain(monkeypatch)
-    _install_roundtrip_routes(monkeypatch)
+    _install_route_stubs(monkeypatch)
 
     captured = list(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
 
@@ -173,7 +187,6 @@ def test_route_call_totalizer_has_exact_closed_outcomes(
     termination_kind: str,
     raw_bytes: bytes | None,
 ) -> None:
-    from experiments.v3m0_b7_schema_lab import a_flat
     from experiments.v3m0_b7_schema_lab.compare import _call_a_flat_encode_v1
 
     def attacked(_source: bytes) -> object:
@@ -185,7 +198,8 @@ def test_route_call_totalizer_has_exact_closed_outcomes(
             return bytearray(b"wire")
         return b"wire"
 
-    monkeypatch.setattr(a_flat, "encode_normalized_transcript", attacked)
+    modules = _install_route_stubs(monkeypatch)
+    modules["A_FLAT"].encode_normalized_transcript = attacked
 
     assert _call_a_flat_encode_v1(b"source") == {
         "termination_kind": termination_kind,
@@ -196,7 +210,6 @@ def test_route_call_totalizer_has_exact_closed_outcomes(
 def test_rejected_encoder_prevents_decoder_and_upstream_probe_never_enters_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from experiments.v3m0_b7_schema_lab import a_flat, b_progress, c_union
     from experiments.v3m0_b7_schema_lab.compare import iter_d0_gate_inputs_v1
 
     fixture = _install_small_domain(monkeypatch)
@@ -210,9 +223,7 @@ def test_rejected_encoder_prevents_decoder_and_upstream_probe_never_enters_route
         decode_calls += 1
         return b"unexpected"
 
-    for module in (a_flat, b_progress, c_union):
-        monkeypatch.setattr(module, "encode_normalized_transcript", reject)
-        monkeypatch.setattr(module, "verify_and_decode_route_wire", forbidden_decode)
+    _install_route_stubs(monkeypatch, encode=reject, decode=forbidden_decode)
 
     _route_id, inputs = next(
         iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
@@ -241,7 +252,6 @@ def test_rejected_encoder_prevents_decoder_and_upstream_probe_never_enters_route
 def test_capture_rejects_mutation_universe_order_substitution_before_route_entry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from experiments.v3m0_b7_schema_lab import a_flat
     from experiments.v3m0_b7_schema_lab.compare import iter_d0_gate_inputs_v1
 
     fixture = _install_small_domain(monkeypatch)
@@ -253,7 +263,8 @@ def test_capture_rejects_mutation_universe_order_substitution_before_route_entry
         route_calls += 1
         return b"wire"
 
-    monkeypatch.setattr(a_flat, "encode_normalized_transcript", count_call)
+    modules = _install_route_stubs(monkeypatch)
+    modules["A_FLAT"].encode_normalized_transcript = count_call
 
     with pytest.raises(ValueError, match="mutation universe"):
         next(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
@@ -301,4 +312,3 @@ def test_capture_route_imports_are_static_function_local_and_callback_free() -> 
         or all(alias.name != "importlib" for alias in node.names)
         for node in ast.walk(tree)
     )
-
