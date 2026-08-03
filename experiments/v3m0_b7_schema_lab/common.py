@@ -5745,7 +5745,7 @@ def _validate_invalid_presence_domain_v1(
         raise TypeError("invalid-presence observation cardinality drifted")
 
     normalized = []
-    invalid_indicator_count = 0
+    canonical_accept_count = 0
     half_pair_state_count = 0
     exact_rejections = True
     cursor = 0
@@ -5788,8 +5788,8 @@ def _validate_invalid_presence_domain_v1(
             ] == "RETURNED_BYTES" and _canonical_json_bytes_observation_v1(
                 encode["raw_bytes"]
             )
-            if not exact_rejection:
-                invalid_indicator_count += 1
+            if canonical_accept:
+                canonical_accept_count += 1
             if canonical_accept and candidate["half_pair"]:
                 half_pair_state_count += 1
             normalized.append(
@@ -5808,7 +5808,7 @@ def _validate_invalid_presence_domain_v1(
             )
     return {
         "normalized": normalized,
-        "invalid_indicator_count": invalid_indicator_count,
+        "canonical_accept_count": canonical_accept_count,
         "half_pair_state_count": half_pair_state_count,
         "all_exact_rejections": exact_rejections,
     }
@@ -5900,7 +5900,7 @@ def _validate_e04_domain_v1(
             }
         ),
         "predicate_results": predicates,
-        "invalid_indicator_count": invalid["invalid_indicator_count"],
+        "canonical_accept_count": invalid["canonical_accept_count"],
         "half_pair_state_count": invalid["half_pair_state_count"],
     }
 
@@ -6671,3 +6671,169 @@ def validate_route_static_surface_v1(raw_body, route_blob, production_blobs):
         if manifest[field] != expected or type(manifest[field]) is not type(expected):
             raise ValueError(f"route manifest {field} differs from static scan")
     return manifest
+
+
+_D0_GATE_INPUT_FIELDS_V1 = (
+    "ordered_legal_replays",
+    "ordered_mutation_probes",
+    "ordered_invalid_presence_probes",
+)
+_D0_GATE_ORDER_V1 = ("E01", "E02", "E03", "E04", "E06", "E07", "E08")
+
+
+def _validate_d0_gate_inputs_v1(raw_body):
+    inputs = _require_exact_ordered_dict_v1(
+        raw_body,
+        _D0_GATE_INPUT_FIELDS_V1,
+        "D0 gate inputs",
+    )
+    for field in _D0_GATE_INPUT_FIELDS_V1:
+        if type(inputs[field]) is not list:
+            raise TypeError(f"D0 gate input {field} must be an exact list")
+    return inputs
+
+
+def build_d0_route_result_v1(
+    *,
+    route_manifest,
+    route_blob,
+    production_blobs,
+    validated_corpus_fixture,
+    gate_inputs,
+):
+    """Build one D0 route result only from frozen bytes/blob observations."""
+
+    manifest = validate_route_static_surface_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    inputs = _validate_d0_gate_inputs_v1(gate_inputs)
+    route_id = manifest["route_id"]
+    common_gate_arguments = {
+        "phase": "D0",
+        "route_id": route_id,
+        "validated_corpus_fixture": fixture,
+    }
+    gate_outcomes = [
+        build_gate_e01_v1(
+            **common_gate_arguments,
+            ordered_legal_replays=inputs["ordered_legal_replays"],
+        ),
+        build_gate_e02_v1(
+            **common_gate_arguments,
+            ordered_mutation_probes=inputs["ordered_mutation_probes"],
+        ),
+        build_gate_e03_v1(
+            **common_gate_arguments,
+            ordered_legal_replays=inputs["ordered_legal_replays"],
+        ),
+        build_gate_e04_v1(
+            **common_gate_arguments,
+            ordered_legal_replays=inputs["ordered_legal_replays"],
+            ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
+        ),
+        build_gate_e06_v1(
+            **common_gate_arguments,
+            ordered_mutation_probes=inputs["ordered_mutation_probes"],
+        ),
+        build_gate_e07_v1(
+            phase="D0",
+            route_manifest=manifest,
+            route_blob=route_blob,
+            production_blobs=production_blobs,
+        ),
+        build_gate_e08_v1(
+            phase="D0",
+            route_manifest=manifest,
+            route_blob=route_blob,
+            production_blobs=production_blobs,
+        ),
+    ]
+    if tuple(gate["gate_id"] for gate in gate_outcomes) != _D0_GATE_ORDER_V1:
+        raise ValueError("D0 gate builder order drifted")
+
+    legal = _validate_legal_replay_domain_v1(
+        phase="D0",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+    )
+    mutation = _validate_mutation_probe_domain_v1(
+        phase="D0",
+        route_id=route_id,
+        validated_corpus_fixture=fixture,
+        ordered_mutation_probes=inputs["ordered_mutation_probes"],
+    )
+    evidence = _validate_e03_domain_v1(
+        phase="D0",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+    )
+    presence = _validate_e04_domain_v1(
+        phase="D0",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+        ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
+    )
+    if mutation["all_upstream_route_entry_counts_zero"] is not True:
+        raise ValueError("upstream-invalid probe entered the route")
+    survives = (
+        all(gate["passed"] for gate in gate_outcomes)
+        and legal["accepted_count"] == 7
+        and mutation["mutation_accept_count"] == 0
+        and mutation["upstream_invalid_transcript_count"] == 0
+        and evidence["evidence_loss_count"] == 0
+        and presence["half_pair_state_count"] == 0
+    )
+    result = {
+        "route_result_schema_version": "experimental.v3m0.b7.d0-route-result.v1",
+        "route_id": route_id,
+        "route_manifest": manifest,
+        "route_manifest_sha": manifest["route_manifest_sha"],
+        "route_commit_sha": manifest["route_commit_sha"],
+        "legal_case_count": 7,
+        "legal_case_accept_count": legal["accepted_count"],
+        "mutation_probe_count": mutation["mutation_probe_count"],
+        "mutation_accept_count": mutation["mutation_accept_count"],
+        "upstream_invalid_probe_count": mutation["upstream_invalid_probe_count"],
+        "upstream_invalid_transcript_count": mutation[
+            "upstream_invalid_transcript_count"
+        ],
+        "evidence_loss_count": evidence["evidence_loss_count"],
+        "constructible_invalid_presence_count": presence["canonical_accept_count"],
+        "half_pair_state_count": presence["half_pair_state_count"],
+        "gate_outcomes": gate_outcomes,
+        "survives_d0": survives,
+        "route_result_sha": "",
+    }
+    _rehash_record_field_v1(result, "route_result_sha")
+    return validate_exact_lab_record_v1("B7LabD0RouteResultV1", result)
+
+
+def validate_d0_route_result_v1(
+    raw_body,
+    *,
+    route_blob,
+    production_blobs,
+    validated_corpus_fixture,
+    gate_inputs,
+):
+    """Recompute every D0 route join, metric, gate, survival bit and root."""
+
+    observed = validate_exact_lab_record_v1("B7LabD0RouteResultV1", raw_body)
+    expected = build_d0_route_result_v1(
+        route_manifest=observed["route_manifest"],
+        route_blob=route_blob,
+        production_blobs=production_blobs,
+        validated_corpus_fixture=validated_corpus_fixture,
+        gate_inputs=gate_inputs,
+    )
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("D0 route result differs from fresh recomputation")
+    return observed
