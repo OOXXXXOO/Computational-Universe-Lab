@@ -3558,6 +3558,567 @@ def _require_canonical_equal_v1(observed, expected, field):
         raise ValueError(f"normalized transcript {field} drifted")
 
 
+def _require_lineage_dict_v1(raw_body, field):
+    if type(raw_body) is not dict:
+        raise TypeError(f"normalized transcript {field} must be an exact dict")
+    return raw_body
+
+
+def _require_lineage_list_v1(raw_body, field):
+    if type(raw_body) is not list:
+        raise TypeError(f"normalized transcript {field} must be an exact list")
+    return raw_body
+
+
+def _synthetic_component_complete_body_v1(graph, component_id):
+    components = _require_lineage_list_v1(
+        graph.get("ordered_component_bodies"),
+        "synthetic graph components",
+    )
+    matches = [
+        component
+        for component in components
+        if type(component) is dict and component.get("component_id") == component_id
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"normalized transcript synthetic component {component_id} drifted"
+        )
+    return _require_lineage_dict_v1(
+        matches[0].get("complete_body"),
+        f"synthetic component {component_id} body",
+    )
+
+
+def _branch_lineage_v1(graph, branch):
+    prefix = "actual" if branch == "actual" else "matched_ablated"
+    transition = _synthetic_component_complete_body_v1(
+        graph,
+        f"{prefix}_transition_outcome",
+    )
+    factory_binding = _require_lineage_dict_v1(
+        transition.get("factory_binding"),
+        f"{branch} transition factory binding",
+    )
+    factory = _require_lineage_dict_v1(
+        factory_binding.get("factory"),
+        f"{branch} transition factory",
+    )
+    measured_transition = _require_lineage_dict_v1(
+        transition.get("measured_transition"),
+        f"{branch} measured transition",
+    )
+    certificate_outcome = _synthetic_component_complete_body_v1(
+        graph,
+        f"{prefix}_certificate_outcome",
+    )
+    status = _require_lineage_dict_v1(
+        certificate_outcome.get("status"),
+        f"{branch} certificate status",
+    )
+    certificate = certificate_outcome.get("certificate")
+    if (
+        status.get("defined") is not True
+        or certificate_outcome.get("failure") is not None
+        or type(certificate) is not dict
+    ):
+        raise ValueError(
+            f"normalized transcript {branch} certificate lineage is not successful"
+        )
+    return {
+        "factory_sha": factory.get("factory_sha"),
+        "transition_sha": measured_transition.get("transition_sha"),
+        "dynamics_certificate_sha": certificate.get("certificate_sha"),
+        "dt": measured_transition.get("dt"),
+    }
+
+
+def _reference_lineage_context_v1(reference, run_spec, provenance, graph):
+    permit = _require_lineage_dict_v1(
+        provenance.get("permit_body"),
+        "provenance permit",
+    )
+    calibration = _require_lineage_dict_v1(
+        permit.get("calibration"),
+        "provenance calibration",
+    )
+    calibration_outcome = _require_lineage_dict_v1(
+        calibration.get("calibration_outcome"),
+        "provenance calibration outcome",
+    )
+    calibration_manifest = _require_lineage_dict_v1(
+        calibration_outcome.get("manifest"),
+        "provenance calibration manifest",
+    )
+    control_registry = _require_lineage_dict_v1(
+        calibration_manifest.get("control_registry"),
+        "provenance control registry",
+    )
+    window_protocol = _require_lineage_dict_v1(
+        calibration_manifest.get("window_protocol"),
+        "provenance window protocol",
+    )
+    current_contract = _require_lineage_dict_v1(
+        provenance.get("current_scenario_response_contract_v3_body"),
+        "provenance current response contract",
+    )
+    control_entries = _require_lineage_list_v1(
+        control_registry.get("entries"),
+        "provenance control entries",
+    )
+    protocol_entries = _require_lineage_list_v1(
+        window_protocol.get("control_entries"),
+        "provenance window protocol entries",
+    )
+    reference_spec = _require_lineage_dict_v1(
+        reference.get("reference_spec"),
+        "endpoint reference spec",
+    )
+    control_entry = _require_lineage_dict_v1(
+        reference_spec.get("control_registry_entry"),
+        "endpoint reference control entry",
+    )
+    if control_entry.get("control_id") != "full":
+        raise ValueError("normalized transcript reference control role drifted")
+    matching_control_entries = [
+        entry
+        for entry in control_entries
+        if type(entry) is dict
+        and canonical_json_bytes_v1(entry) == canonical_json_bytes_v1(control_entry)
+    ]
+    if len(matching_control_entries) != 1:
+        raise ValueError("normalized transcript reference control entry drifted")
+    matching_protocol_entries = [
+        entry
+        for entry in protocol_entries
+        if type(entry) is dict
+        and entry.get("control_id") == "full"
+        and entry.get("control_registry_entry_sha") == control_entry.get("entry_sha")
+    ]
+    if len(matching_protocol_entries) != 1:
+        raise ValueError("normalized transcript reference protocol entry drifted")
+    protocol_entry = matching_protocol_entries[0]
+    actual_lineage = _branch_lineage_v1(graph, "actual")
+    matched_lineage = _branch_lineage_v1(graph, "matched_ablated")
+
+    for observed, expected, field in (
+        (
+            reference_spec.get("window_protocol_sha"),
+            window_protocol.get("protocol_sha"),
+            "reference/window protocol",
+        ),
+        (
+            reference_spec.get("window_protocol_sha"),
+            run_spec.get("window_protocol_sha"),
+            "reference/run-spec protocol",
+        ),
+        (
+            reference_spec.get("actual_factory_sha"),
+            control_entry.get("factory_sha"),
+            "reference/control factory",
+        ),
+        (
+            reference_spec.get("actual_factory_sha"),
+            actual_lineage["factory_sha"],
+            "reference/actual factory",
+        ),
+        (
+            actual_lineage["factory_sha"],
+            current_contract.get("actual_factory_sha"),
+            "actual graph/provenance factory",
+        ),
+        (
+            matched_lineage["factory_sha"],
+            current_contract.get("matched_factory_sha"),
+            "matched graph/provenance factory",
+        ),
+        (
+            reference_spec.get("actual_transition_sha"),
+            actual_lineage["transition_sha"],
+            "reference/actual transition",
+        ),
+        (
+            reference_spec.get("actual_dynamics_certificate_sha"),
+            actual_lineage["dynamics_certificate_sha"],
+            "reference/actual certificate",
+        ),
+        (
+            reference_spec.get("candidate_fejer_order"),
+            run_spec.get("selected_fejer_order"),
+            "reference/run-spec T",
+        ),
+        (
+            reference_spec.get("candidate_fejer_order"),
+            graph.get("selected_fejer_order"),
+            "reference/synthetic-graph T",
+        ),
+        (
+            reference_spec.get("reference_reciprocal_index"),
+            run_spec.get("reference_reciprocal_index"),
+            "reference/run-spec reciprocal index",
+        ),
+        (
+            reference_spec.get("reference_reciprocal_index"),
+            protocol_entry.get("reference_reciprocal_index"),
+            "reference/protocol reciprocal index",
+        ),
+        (
+            reference_spec.get("preregistered_phase_bands"),
+            run_spec.get("preregistered_phase_bands"),
+            "reference/run-spec phase bands",
+        ),
+        (
+            reference_spec.get("preregistered_phase_bands"),
+            protocol_entry.get("preregistered_phase_bands"),
+            "reference/protocol phase bands",
+        ),
+        (
+            reference_spec.get("expected_shell_rank"),
+            run_spec.get("expected_shell_rank"),
+            "reference/run-spec rank",
+        ),
+        (
+            reference_spec.get("expected_shell_rank"),
+            protocol_entry.get("expected_shell_rank"),
+            "reference/protocol rank",
+        ),
+        (
+            reference_spec.get("expected_shell_rank_source_id"),
+            protocol_entry.get("expected_shell_rank_source_id"),
+            "reference/protocol rank source",
+        ),
+        (
+            control_entry.get("source_basis"),
+            run_spec.get("source_basis"),
+            "reference/run-spec source basis",
+        ),
+        (
+            control_entry.get("readout_basis"),
+            run_spec.get("readout_basis"),
+            "reference/run-spec readout basis",
+        ),
+        (
+            protocol_entry.get("response_grid"),
+            run_spec.get("response_grid"),
+            "protocol/run-spec response grid",
+        ),
+        (
+            protocol_entry.get("source_readout_bridge_grid"),
+            run_spec.get("source_readout_bridge_grid"),
+            "protocol/run-spec bridge grid",
+        ),
+        (
+            protocol_entry.get("source_readout_bridge_steps"),
+            run_spec.get("source_readout_bridge_steps"),
+            "protocol/run-spec bridge steps",
+        ),
+    ):
+        _require_canonical_equal_v1(observed, expected, field)
+
+    reference_projector = reference.get("reference")
+    if reference_projector is not None:
+        reference_projector = _require_lineage_dict_v1(
+            reference_projector,
+            "endpoint reference projector",
+        )
+        for observed, expected, field in (
+            (
+                reference_projector.get("control_registry_entry_sha"),
+                control_entry.get("entry_sha"),
+                "projector/control entry",
+            ),
+            (
+                reference_projector.get("actual_transition_sha"),
+                actual_lineage["transition_sha"],
+                "projector/actual transition",
+            ),
+            (
+                reference_projector.get("actual_dynamics_certificate_sha"),
+                actual_lineage["dynamics_certificate_sha"],
+                "projector/actual certificate",
+            ),
+            (
+                reference_projector.get("reference_reciprocal_index"),
+                run_spec.get("reference_reciprocal_index"),
+                "projector/run-spec reciprocal index",
+            ),
+            (
+                reference_projector.get("rank"),
+                run_spec.get("expected_shell_rank"),
+                "projector/run-spec rank",
+            ),
+        ):
+            _require_canonical_equal_v1(observed, expected, field)
+        projector = _require_lineage_dict_v1(
+            reference_projector.get("projector"),
+            "endpoint reference projector tensor",
+        )
+        state_dimension = len(
+            _require_lineage_list_v1(
+                run_spec.get("channel_order"),
+                "run-spec channel order",
+            )
+        )
+        _require_canonical_equal_v1(
+            projector.get("shape"),
+            [state_dimension, state_dimension],
+            "reference projector shape",
+        )
+    return {
+        "actual": actual_lineage,
+        "matched_ablated": matched_lineage,
+        "control_entry": control_entry,
+        "protocol_entry": protocol_entry,
+        "reference_projector": reference_projector,
+    }
+
+
+def _validate_shell_lineage_v1(shell_outcome, run_spec, lineage_context):
+    shell_attempt = _require_lineage_dict_v1(
+        shell_outcome.get("attempt_audit"),
+        "endpoint shell attempt",
+    )
+    shell_spec = _require_lineage_dict_v1(
+        shell_attempt.get("shell_spec"),
+        "endpoint shell spec",
+    )
+    control_entry = lineage_context["control_entry"]
+    protocol_entry = lineage_context["protocol_entry"]
+    reference_projector = lineage_context["reference_projector"]
+    for observed, expected, field in (
+        (
+            shell_spec.get("window_protocol_sha"),
+            run_spec.get("window_protocol_sha"),
+            "shell/run-spec protocol",
+        ),
+        (
+            shell_spec.get("control_registry_entry"),
+            control_entry,
+            "shell/reference control entry",
+        ),
+        (
+            shell_spec.get("response_grid"),
+            run_spec.get("response_grid"),
+            "shell/run-spec response grid",
+        ),
+        (
+            shell_spec.get("response_grid"),
+            protocol_entry.get("response_grid"),
+            "shell/protocol response grid",
+        ),
+        (
+            shell_spec.get("preregistered_phase_bands"),
+            run_spec.get("preregistered_phase_bands"),
+            "shell/run-spec phase bands",
+        ),
+        (
+            shell_spec.get("candidate_fejer_order"),
+            run_spec.get("selected_fejer_order"),
+            "shell/run-spec T",
+        ),
+        (
+            shell_spec.get("endpoint_reference_projector"),
+            reference_projector,
+            "shell/reference projector",
+        ),
+    ):
+        _require_canonical_equal_v1(observed, expected, field)
+
+    shell = shell_outcome.get("shell")
+    if shell is None:
+        return
+    shell = _require_lineage_dict_v1(shell, "endpoint shell manifest")
+    actual_lineage = lineage_context["actual"]
+    for observed, expected, field in (
+        (
+            shell.get("actual_factory_sha"),
+            actual_lineage["factory_sha"],
+            "shell/actual factory",
+        ),
+        (
+            shell.get("actual_transition_sha"),
+            actual_lineage["transition_sha"],
+            "shell/actual transition",
+        ),
+        (
+            shell.get("actual_dynamics_certificate_sha"),
+            actual_lineage["dynamics_certificate_sha"],
+            "shell/actual certificate",
+        ),
+        (shell.get("dt"), actual_lineage["dt"], "shell/actual dt"),
+        (shell.get("shell_spec"), shell_spec, "shell manifest/spec"),
+    ):
+        _require_canonical_equal_v1(observed, expected, field)
+    response_grid = _require_lineage_dict_v1(
+        run_spec.get("response_grid"),
+        "run-spec response grid",
+    )
+    reciprocal_indices = _require_lineage_list_v1(
+        response_grid.get("reciprocal_indices"),
+        "run-spec response reciprocal indices",
+    )
+    channel_order = _require_lineage_list_v1(
+        run_spec.get("channel_order"),
+        "run-spec channel order",
+    )
+    shell_projectors = _require_lineage_dict_v1(
+        shell.get("shell_projectors"),
+        "shell projector tensor",
+    )
+    _require_canonical_equal_v1(
+        shell_projectors.get("shape"),
+        [len(reciprocal_indices), len(channel_order), len(channel_order)],
+        "shell projector stack shape",
+    )
+    point_audits = _require_lineage_list_v1(
+        shell.get("point_audits"),
+        "shell point audits",
+    )
+    observed_indices = [
+        _require_lineage_dict_v1(point, "shell point audit").get("reciprocal_index")
+        for point in point_audits
+    ]
+    _require_canonical_equal_v1(
+        observed_indices,
+        reciprocal_indices,
+        "shell point/grid order",
+    )
+
+
+def _validate_branch_attempt_lineage_v1(attempt, branch, run_spec, lineage):
+    values = attempt.get("response_values")
+    source_basis = _require_lineage_dict_v1(
+        run_spec.get("source_basis"),
+        "run-spec source basis",
+    )
+    readout_basis = _require_lineage_dict_v1(
+        run_spec.get("readout_basis"),
+        "run-spec readout basis",
+    )
+    response_grid = _require_lineage_dict_v1(
+        run_spec.get("response_grid"),
+        "run-spec response grid",
+    )
+    source_vectors = _require_lineage_list_v1(
+        source_basis.get("vectors_wire"),
+        "run-spec source vectors",
+    )
+    readout_vectors = _require_lineage_list_v1(
+        readout_basis.get("vectors_wire"),
+        "run-spec readout vectors",
+    )
+    response_indices = _require_lineage_list_v1(
+        response_grid.get("reciprocal_indices"),
+        "run-spec response reciprocal indices",
+    )
+    if values is not None:
+        values = _require_lineage_dict_v1(values, f"{branch} attempt values")
+        _require_canonical_equal_v1(
+            values.get("shape"),
+            [len(response_indices), len(readout_vectors), len(source_vectors)],
+            f"{branch} attempt values shape",
+        )
+
+    bridge = attempt.get("bridge_audit")
+    if bridge is None:
+        return
+    bridge = _require_lineage_dict_v1(bridge, f"{branch} attempt bridge")
+    calibration = _require_lineage_dict_v1(
+        run_spec.get("current_readout_calibration_spec"),
+        "run-spec readout calibration",
+    )
+    source_whitener = _require_lineage_dict_v1(
+        calibration.get("source_metric_whitener"),
+        "run-spec source metric whitener",
+    )
+    for observed, expected, field in (
+        (bridge.get("branch"), branch, f"{branch} bridge branch"),
+        (
+            bridge.get("factory_sha"),
+            lineage["factory_sha"],
+            f"{branch} bridge factory",
+        ),
+        (
+            bridge.get("transition_sha"),
+            lineage["transition_sha"],
+            f"{branch} bridge transition",
+        ),
+        (
+            bridge.get("dynamics_certificate_sha"),
+            lineage["dynamics_certificate_sha"],
+            f"{branch} bridge certificate",
+        ),
+        (
+            bridge.get("run_spec_sha"),
+            run_spec.get("run_spec_sha"),
+            f"{branch} bridge run spec",
+        ),
+        (
+            bridge.get("source_metric_whitener_sha"),
+            source_whitener.get("tensor_sha"),
+            f"{branch} bridge source calibration",
+        ),
+        (
+            bridge.get("readout_calibration_spec_sha"),
+            calibration.get("spec_sha"),
+            f"{branch} bridge readout calibration",
+        ),
+    ):
+        _require_canonical_equal_v1(observed, expected, field)
+    bridge_grid = _require_lineage_dict_v1(
+        run_spec.get("source_readout_bridge_grid"),
+        "run-spec bridge grid",
+    )
+    bridge_indices = _require_lineage_list_v1(
+        bridge_grid.get("reciprocal_indices"),
+        "run-spec bridge reciprocal indices",
+    )
+    bridge_steps = _require_lineage_list_v1(
+        run_spec.get("source_readout_bridge_steps"),
+        "run-spec bridge steps",
+    )
+    expected_matrix_keys = [
+        (reciprocal_index, macro_steps)
+        for reciprocal_index in bridge_indices
+        for macro_steps in bridge_steps
+    ]
+    matrix_audits = _require_lineage_list_v1(
+        bridge.get("matrix_audits"),
+        f"{branch} bridge matrix audits",
+    )
+    if len(matrix_audits) != len(expected_matrix_keys):
+        raise ValueError(
+            f"normalized transcript {branch} bridge matrix coverage drifted"
+        )
+    for audit_raw, (reciprocal_index, macro_steps) in zip(
+        matrix_audits,
+        expected_matrix_keys,
+    ):
+        audit = _require_lineage_dict_v1(
+            audit_raw,
+            f"{branch} bridge matrix audit",
+        )
+        _require_canonical_equal_v1(
+            audit.get("reciprocal_index"),
+            reciprocal_index,
+            f"{branch} bridge matrix reciprocal index",
+        )
+        _require_canonical_equal_v1(
+            audit.get("macro_steps"),
+            macro_steps,
+            f"{branch} bridge matrix macro steps",
+        )
+        matrix = _require_lineage_dict_v1(
+            audit.get("raw_difference_matrix"),
+            f"{branch} bridge difference matrix",
+        )
+        _require_canonical_equal_v1(
+            matrix.get("shape"),
+            [len(readout_vectors), len(source_vectors)],
+            f"{branch} bridge matrix shape",
+        )
+
+
 def validate_normalized_transcript_v1(
     raw_body,
     *,
@@ -3588,6 +4149,12 @@ def validate_normalized_transcript_v1(
     reference = validate_endpoint_reference_outcome_raw_v1(
         transcript["reference_outcome"]
     )
+    lineage_context = _reference_lineage_context_v1(
+        reference,
+        run_spec,
+        provenance,
+        graph,
+    )
     shell_raw = transcript["shell_outcome"]
     shell = None
     if shell_raw is not None:
@@ -3597,6 +4164,7 @@ def validate_normalized_transcript_v1(
             reference,
             "shell/reference body",
         )
+        _validate_shell_lineage_v1(shell, run_spec, lineage_context)
 
     attempts = {}
     for field, branch in (
@@ -3609,6 +4177,12 @@ def validate_normalized_transcript_v1(
             attempt = validate_branch_attempt_v1(attempt_raw)
             if attempt["branch"] != branch:
                 raise ValueError("normalized transcript attempt branch drifted")
+            _validate_branch_attempt_lineage_v1(
+                attempt,
+                branch,
+                run_spec,
+                lineage_context[branch],
+            )
         attempts[branch] = attempt
 
     for field, branch in (

@@ -1878,12 +1878,606 @@ def _joinable_success_transcript() -> dict[str, object]:
     return _seal(transcript, "experimental_sha")
 
 
+_LINEAGE_CASE_IDS = (
+    "reference_failure",
+    "shell_failure",
+    "actual_response_values_failure",
+    "matched_response_values_failure",
+    "actual_bridge_failure",
+    "matched_bridge_failure",
+    "success",
+)
+
+
+def _patch_normalized_nested_validators(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common_module()
+    for symbol in (
+        "validate_synthetic_graph_manifest_v1",
+        "validate_provenance_fixture_v1",
+        "validate_response_run_spec_fixture_v1",
+        "validate_endpoint_reference_outcome_raw_v1",
+        "validate_endpoint_shell_outcome_raw_v1",
+        "validate_branch_attempt_v1",
+        "validate_source_readout_response_raw_v1",
+    ):
+        monkeypatch.setattr(common, symbol, lambda raw, *joins: raw)
+
+
+def _lineage_join_fixture(
+    case_id: str,
+) -> tuple[dict[str, object], dict[str, object]]:
+    actual_factory_sha = "a" * 64
+    actual_transition_sha = "b" * 64
+    actual_certificate_sha = "c" * 64
+    matched_factory_sha = "d" * 64
+    matched_transition_sha = "e" * 64
+    matched_certificate_sha = "f" * 64
+    protocol_sha = "1" * 64
+    control_entry_sha = "2" * 64
+    run_spec_sha = "3" * 64
+    calibration_spec_sha = "6" * 64
+    source_whitener_sha = "7" * 64
+    shell_manifest_sha = "8" * 64
+    response_grid = {
+        "reciprocal_indices": [[1], [2]],
+        "grid": "response",
+    }
+    bridge_grid = {
+        "reciprocal_indices": [[0], [1]],
+        "grid": "bridge",
+    }
+    source_basis = {"vectors_wire": [["source"]] * 10, "basis": "source"}
+    readout_basis = {"vectors_wire": [["readout"]] * 10, "basis": "readout"}
+    control_entry = {
+        "control_id": "full",
+        "entry_sha": control_entry_sha,
+        "factory_sha": actual_factory_sha,
+        "source_basis": copy.deepcopy(source_basis),
+        "readout_basis": copy.deepcopy(readout_basis),
+    }
+    protocol_entry = {
+        "control_id": "full",
+        "control_registry_entry_sha": control_entry_sha,
+        "response_grid": copy.deepcopy(response_grid),
+        "source_readout_bridge_grid": copy.deepcopy(bridge_grid),
+        "source_readout_bridge_steps": [1, 2],
+        "reference_reciprocal_index": [1],
+        "preregistered_phase_bands": [[1.4, 1.7]],
+        "expected_shell_rank": 10,
+        "expected_shell_rank_source_id": ("parent-freeze-control-application-spec-v1"),
+    }
+    provenance = _provenance_fixture()
+    provenance["permit_body"] = {
+        "calibration": {
+            "calibration_outcome": {
+                "manifest": {
+                    "control_registry": {
+                        "entries": [copy.deepcopy(control_entry)],
+                    },
+                    "window_protocol": {
+                        "protocol_sha": protocol_sha,
+                        "control_entries": [copy.deepcopy(protocol_entry)],
+                    },
+                },
+            },
+        },
+    }
+    provenance["current_scenario_response_contract_v3_body"] = {
+        "actual_factory_sha": actual_factory_sha,
+        "matched_factory_sha": matched_factory_sha,
+    }
+    _seal(provenance, "provenance_fixture_sha")
+    run_spec = {
+        "window_protocol_sha": protocol_sha,
+        "selected_fejer_order": 256,
+        "channel_order": [f"channel-{index}" for index in range(20)],
+        "source_basis": copy.deepcopy(source_basis),
+        "readout_basis": copy.deepcopy(readout_basis),
+        "response_grid": copy.deepcopy(response_grid),
+        "source_readout_bridge_grid": copy.deepcopy(bridge_grid),
+        "source_readout_bridge_steps": [1, 2],
+        "reference_reciprocal_index": [1],
+        "preregistered_phase_bands": [[1.4, 1.7]],
+        "expected_shell_rank": 10,
+        "current_readout_calibration_spec": {
+            "source_metric_whitener": {"tensor_sha": source_whitener_sha},
+            "spec_sha": calibration_spec_sha,
+        },
+        "run_spec_sha": run_spec_sha,
+    }
+    graph = {
+        "selected_fejer_order": 256,
+        "ordered_component_bodies": [
+            {
+                "component_id": "actual_transition_outcome",
+                "complete_body": {
+                    "factory_binding": {
+                        "factory": {"factory_sha": actual_factory_sha},
+                    },
+                    "measured_transition": {
+                        "transition_sha": actual_transition_sha,
+                        "dt": 0.25,
+                    },
+                },
+            },
+            {
+                "component_id": "matched_ablated_transition_outcome",
+                "complete_body": {
+                    "factory_binding": {
+                        "factory": {"factory_sha": matched_factory_sha},
+                    },
+                    "measured_transition": {
+                        "transition_sha": matched_transition_sha,
+                        "dt": 0.25,
+                    },
+                },
+            },
+            {
+                "component_id": "actual_certificate_outcome",
+                "complete_body": {
+                    "status": {"defined": True},
+                    "failure": None,
+                    "certificate": {"certificate_sha": actual_certificate_sha},
+                },
+            },
+            {
+                "component_id": "matched_ablated_certificate_outcome",
+                "complete_body": {
+                    "status": {"defined": True},
+                    "failure": None,
+                    "certificate": {"certificate_sha": matched_certificate_sha},
+                },
+            },
+        ],
+    }
+    reference_spec = {
+        "window_protocol_sha": protocol_sha,
+        "control_registry_entry": copy.deepcopy(control_entry),
+        "actual_factory_sha": actual_factory_sha,
+        "actual_transition_sha": actual_transition_sha,
+        "actual_dynamics_certificate_sha": actual_certificate_sha,
+        "candidate_fejer_order": 256,
+        "reference_reciprocal_index": [1],
+        "preregistered_phase_bands": [[1.4, 1.7]],
+        "expected_shell_rank": 10,
+        "expected_shell_rank_source_id": ("parent-freeze-control-application-spec-v1"),
+    }
+    reference_projector = {
+        "control_registry_entry_sha": control_entry_sha,
+        "actual_transition_sha": actual_transition_sha,
+        "actual_dynamics_certificate_sha": actual_certificate_sha,
+        "reference_reciprocal_index": [1],
+        "rank": 10,
+        "projector": {"shape": [20, 20]},
+    }
+    reference_outcome = {
+        "reference_spec": copy.deepcopy(reference_spec),
+        "attempt_audit": {"reference_spec": copy.deepcopy(reference_spec)},
+        "reference": (None if case_id == "reference_failure" else reference_projector),
+    }
+    shell_spec = {
+        "window_protocol_sha": protocol_sha,
+        "control_registry_entry": copy.deepcopy(control_entry),
+        "response_grid": copy.deepcopy(response_grid),
+        "preregistered_phase_bands": [[1.4, 1.7]],
+        "candidate_fejer_order": 256,
+        "endpoint_reference_projector": copy.deepcopy(reference_projector),
+    }
+    shell_outcome = None
+    if case_id != "reference_failure":
+        shell = None
+        if case_id != "shell_failure":
+            shell = {
+                "actual_factory_sha": actual_factory_sha,
+                "actual_transition_sha": actual_transition_sha,
+                "actual_dynamics_certificate_sha": actual_certificate_sha,
+                "shell_spec": copy.deepcopy(shell_spec),
+                "dt": 0.25,
+                "shell_projectors": {"shape": [2, 20, 20]},
+                "point_audits": [
+                    {"reciprocal_index": [1]},
+                    {"reciprocal_index": [2]},
+                ],
+                "shell_manifest_sha": shell_manifest_sha,
+            }
+        shell_outcome = {
+            "reference_outcome": copy.deepcopy(reference_outcome),
+            "attempt_audit": {"shell_spec": copy.deepcopy(shell_spec)},
+            "shell": shell,
+        }
+
+    def values() -> dict[str, object]:
+        return {"shape": [2, 10, 10], "values": "body"}
+
+    def bridge_audit(branch: str) -> dict[str, object]:
+        factory_sha, transition_sha, certificate_sha = (
+            (
+                actual_factory_sha,
+                actual_transition_sha,
+                actual_certificate_sha,
+            )
+            if branch == "actual"
+            else (
+                matched_factory_sha,
+                matched_transition_sha,
+                matched_certificate_sha,
+            )
+        )
+        return {
+            "branch": branch,
+            "factory_sha": factory_sha,
+            "transition_sha": transition_sha,
+            "dynamics_certificate_sha": certificate_sha,
+            "run_spec_sha": run_spec_sha,
+            "source_metric_whitener_sha": source_whitener_sha,
+            "readout_calibration_spec_sha": calibration_spec_sha,
+            "matrix_audits": [
+                {
+                    "reciprocal_index": copy.deepcopy(reciprocal_index),
+                    "macro_steps": macro_steps,
+                    "raw_difference_matrix": {"shape": [10, 10]},
+                }
+                for reciprocal_index in bridge_grid["reciprocal_indices"]
+                for macro_steps in (1, 2)
+            ],
+        }
+
+    transcript = _transcript(case_id)
+    transcript["provenance_fixture"] = provenance
+    transcript["response_run_spec_fixture"] = run_spec
+    transcript["reference_outcome"] = reference_outcome
+    transcript["shell_outcome"] = shell_outcome
+    for field, branch in (
+        ("actual_branch_attempt", "actual"),
+        ("matched_ablated_branch_attempt", "matched_ablated"),
+    ):
+        attempt = transcript[field]
+        if attempt is None:
+            continue
+        attempt["response_values"] = (
+            values() if attempt["response_values"] is not None else None
+        )
+        attempt["bridge_audit"] = (
+            bridge_audit(branch) if attempt["bridge_audit"] is not None else None
+        )
+        _seal(attempt, "attempt_sha")
+    if case_id == "success":
+        for attempt_field, response_field, branch in (
+            ("actual_branch_attempt", "actual_completed_response", "actual"),
+            (
+                "matched_ablated_branch_attempt",
+                "matched_ablated_completed_response",
+                "matched_ablated",
+            ),
+        ):
+            attempt = transcript[attempt_field]
+            transcript[response_field] = {
+                "branch": branch,
+                "values": copy.deepcopy(attempt["response_values"]),
+                "bridge_audit": copy.deepcopy(attempt["bridge_audit"]),
+                "shell_manifest_sha": shell_manifest_sha,
+            }
+    return _seal(transcript, "experimental_sha"), graph
+
+
+def _propagate_reference_lineage_mutation(
+    transcript: dict[str, object],
+    field: str,
+    value: object,
+) -> None:
+    reference = transcript["reference_outcome"]
+    reference["reference_spec"][field] = copy.deepcopy(value)
+    reference["attempt_audit"]["reference_spec"] = copy.deepcopy(
+        reference["reference_spec"]
+    )
+    projector = reference["reference"]
+    if projector is not None:
+        projector_field = {
+            "control_registry_entry": "control_registry_entry_sha",
+            "actual_transition_sha": "actual_transition_sha",
+            "actual_dynamics_certificate_sha": ("actual_dynamics_certificate_sha"),
+            "reference_reciprocal_index": "reference_reciprocal_index",
+            "expected_shell_rank": "rank",
+        }.get(field)
+        if projector_field is not None:
+            projector[projector_field] = copy.deepcopy(
+                value["entry_sha"] if field == "control_registry_entry" else value
+            )
+    shell_outcome = transcript["shell_outcome"]
+    if shell_outcome is not None:
+        shell_outcome["reference_outcome"] = copy.deepcopy(reference)
+        shell_spec = shell_outcome["attempt_audit"]["shell_spec"]
+        shell_field = {
+            "window_protocol_sha": "window_protocol_sha",
+            "control_registry_entry": "control_registry_entry",
+            "candidate_fejer_order": "candidate_fejer_order",
+            "preregistered_phase_bands": "preregistered_phase_bands",
+        }.get(field)
+        if shell_field is not None:
+            shell_spec[shell_field] = copy.deepcopy(value)
+        shell_spec["endpoint_reference_projector"] = copy.deepcopy(projector)
+        shell = shell_outcome["shell"]
+        if shell is not None:
+            if field in (
+                "actual_factory_sha",
+                "actual_transition_sha",
+                "actual_dynamics_certificate_sha",
+            ):
+                shell[field] = copy.deepcopy(value)
+            shell["shell_spec"] = copy.deepcopy(shell_spec)
+    _seal(transcript, "experimental_sha")
+
+
+@pytest.mark.parametrize("case_id", _LINEAGE_CASE_IDS)
+def test_normalized_transcript_validator_accepts_all_seven_joined_lineages(
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: str,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture(case_id)
+    _patch_normalized_nested_validators(monkeypatch)
+
+    assert (
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+        == transcript
+    )
+
+
+@pytest.mark.parametrize("case_id", _LINEAGE_CASE_IDS)
+@pytest.mark.parametrize(
+    ("field", "hostile"),
+    (
+        ("window_protocol_sha", "0" * 64),
+        (
+            "control_registry_entry",
+            {
+                "entry_sha": "0" * 64,
+                "control_id": "full",
+                "factory_sha": "a" * 64,
+                "source_basis": {
+                    "vectors_wire": [["source"]] * 10,
+                    "basis": "source",
+                },
+                "readout_basis": {
+                    "vectors_wire": [["readout"]] * 10,
+                    "basis": "readout",
+                },
+            },
+        ),
+        ("actual_factory_sha", "0" * 64),
+        ("actual_transition_sha", "0" * 64),
+        ("actual_dynamics_certificate_sha", "0" * 64),
+        ("candidate_fejer_order", 512),
+        ("reference_reciprocal_index", [2]),
+        ("preregistered_phase_bands", [[1.1, 1.2]]),
+        ("expected_shell_rank", 9),
+    ),
+)
+def test_normalized_transcript_validator_rejects_reference_lineage_splices_in_every_case(
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: str,
+    field: str,
+    hostile: object,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture(case_id)
+    _propagate_reference_lineage_mutation(transcript, field, hostile)
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("actual_factory_sha", "matched_factory_sha"),
+)
+def test_normalized_transcript_validator_rejects_provenance_graph_factory_splices(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture("reference_failure")
+    transcript["provenance_fixture"]["current_scenario_response_contract_v3_body"][
+        field
+    ] = "0" * 64
+    _seal(transcript["provenance_fixture"], "provenance_fixture_sha")
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize("case_id", _LINEAGE_CASE_IDS[1:])
+@pytest.mark.parametrize("attack", ("grid", "projector"))
+def test_normalized_transcript_validator_rejects_shell_grid_and_projector_splices(
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: str,
+    attack: str,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture(case_id)
+    shell_outcome = transcript["shell_outcome"]
+    if attack == "grid":
+        shell_outcome["attempt_audit"]["shell_spec"]["response_grid"] = {
+            "reciprocal_indices": [[3]],
+            "grid": "hostile",
+        }
+    else:
+        projector = transcript["reference_outcome"]["reference"]
+        projector["projector"]["shape"] = [21, 21]
+        shell_outcome["reference_outcome"] = copy.deepcopy(
+            transcript["reference_outcome"]
+        )
+        shell_outcome["attempt_audit"]["shell_spec"]["endpoint_reference_projector"] = (
+            copy.deepcopy(projector)
+        )
+    shell = shell_outcome["shell"]
+    if shell is not None:
+        shell["shell_spec"] = copy.deepcopy(
+            shell_outcome["attempt_audit"]["shell_spec"]
+        )
+        if attack == "projector":
+            shell["shell_projectors"]["shape"] = [2, 21, 21]
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize("case_id", _LINEAGE_CASE_IDS[2:])
+@pytest.mark.parametrize(
+    ("field", "hostile"),
+    (
+        ("actual_factory_sha", "0" * 64),
+        ("actual_transition_sha", "0" * 64),
+        ("actual_dynamics_certificate_sha", "0" * 64),
+        ("dt", 0.5),
+    ),
+)
+def test_normalized_transcript_validator_rejects_shell_actual_lineage_splices(
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: str,
+    field: str,
+    hostile: object,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture(case_id)
+    transcript["shell_outcome"]["shell"][field] = hostile
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize(
+    ("case_id", "branch"),
+    (
+        ("matched_response_values_failure", "actual"),
+        ("actual_bridge_failure", "actual"),
+        ("actual_bridge_failure", "matched_ablated"),
+        ("matched_bridge_failure", "actual"),
+        ("matched_bridge_failure", "matched_ablated"),
+    ),
+)
+def test_normalized_transcript_validator_rejects_uncompleted_attempt_value_lineage(
+    monkeypatch: pytest.MonkeyPatch,
+    case_id: str,
+    branch: str,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture(case_id)
+    field = (
+        "actual_branch_attempt"
+        if branch == "actual"
+        else "matched_ablated_branch_attempt"
+    )
+    transcript[field]["response_values"]["shape"] = [1, 10, 10]
+    _seal(transcript[field], "attempt_sha")
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "hostile"),
+    (
+        ("factory_sha", "0" * 64),
+        ("transition_sha", "0" * 64),
+        ("dynamics_certificate_sha", "0" * 64),
+        ("run_spec_sha", "0" * 64),
+        ("source_metric_whitener_sha", "0" * 64),
+        ("readout_calibration_spec_sha", "0" * 64),
+    ),
+)
+def test_normalized_transcript_validator_rejects_uncompleted_attempt_bridge_lineage(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    hostile: object,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture("matched_bridge_failure")
+    transcript["actual_branch_attempt"]["bridge_audit"][field] = hostile
+    _seal(transcript["actual_branch_attempt"], "attempt_sha")
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
+@pytest.mark.parametrize("attack", ("grid_key", "matrix_shape"))
+def test_normalized_transcript_validator_rejects_uncompleted_attempt_bridge_grid_splices(
+    monkeypatch: pytest.MonkeyPatch,
+    attack: str,
+) -> None:
+    common = _common_module()
+    transcript, graph = _lineage_join_fixture("matched_bridge_failure")
+    audit = transcript["actual_branch_attempt"]["bridge_audit"]["matrix_audits"][0]
+    if attack == "grid_key":
+        audit["reciprocal_index"] = [7]
+    else:
+        audit["raw_difference_matrix"]["shape"] = [9, 10]
+    _seal(transcript["actual_branch_attempt"], "attempt_sha")
+    _seal(transcript, "experimental_sha")
+    _patch_normalized_nested_validators(monkeypatch)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw=graph,
+        )
+
+
 def test_normalized_transcript_validator_runs_every_nested_validator_and_join(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     common = _common_module()
-    transcript = _joinable_success_transcript()
-    graph = {"graph": "body"}
+    transcript, graph = _lineage_join_fixture("success")
     calls: list[tuple[str, object]] = []
 
     def identity(name: str):
@@ -1944,7 +2538,7 @@ def test_normalized_transcript_validator_rejects_aggregate_join_attacks(
     mutator,
 ) -> None:
     common = _common_module()
-    transcript = _joinable_success_transcript()
+    transcript, graph = _lineage_join_fixture("success")
     mutator(transcript)
     _seal(transcript, "experimental_sha")
     for symbol in (
@@ -1963,7 +2557,7 @@ def test_normalized_transcript_validator_rejects_aggregate_join_attacks(
             transcript,
             corpus_spec_sha="4" * 64,
             environment_manifest_sha="5" * 64,
-            graph_raw={"graph": "body"},
+            graph_raw=graph,
         )
 
 
