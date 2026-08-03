@@ -14,16 +14,39 @@ B7_V91_PURE_REPLAY_PROJECTION_SHA256 = (
 def canonical_json_bytes_v1(value: object) -> bytes:
     """Encode one JSON value using the frozen B7 canonical byte algorithm."""
 
-    def validate_object_keys(candidate: object, path: str) -> None:
-        if isinstance(candidate, dict):
-            for key, item in candidate.items():
-                if type(key) is not str:
-                    raise TypeError(f"{path} JSON object key must be a str")
-                validate_object_keys(item, f"{path}.{key}")
-        elif isinstance(candidate, (list, tuple)):
-            for index, item in enumerate(candidate):
-                validate_object_keys(item, f"{path}[{index}]")
+    active_containers: set[int] = set()
 
+    def validate_object_keys(candidate: object, path: str) -> None:
+        candidate_type = type(candidate)
+        if candidate is None or candidate_type in (str, bool, int, float):
+            return
+        if candidate_type is dict:
+            container_id = id(candidate)
+            if container_id in active_containers:
+                raise ValueError(f"{path} contains a cyclic JSON container")
+            set.add(active_containers, container_id)
+            try:
+                for key, item in dict.items(candidate):
+                    if type(key) is not str:
+                        raise TypeError(f"{path} JSON object key must be a str")
+                    validate_object_keys(item, f"{path}.{key}")
+            finally:
+                set.remove(active_containers, container_id)
+            return
+        if candidate_type in (list, tuple):
+            container_id = id(candidate)
+            if container_id in active_containers:
+                raise ValueError(f"{path} contains a cyclic JSON container")
+            set.add(active_containers, container_id)
+            try:
+                for index, item in enumerate(candidate):
+                    validate_object_keys(item, f"{path}[{index}]")
+            finally:
+                set.remove(active_containers, container_id)
+            return
+        raise TypeError(f"{path} must contain only exact built-in JSON values")
+
+    validate_object_keys(value, "$")
     text = json.dumps(
         value,
         ensure_ascii=False,
@@ -31,9 +54,8 @@ def canonical_json_bytes_v1(value: object) -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     )
-    validate_object_keys(value, "$")
     try:
-        return text.encode("utf-8")
+        return str.encode(text, "utf-8")
     except UnicodeEncodeError as exc:
         raise ValueError("canonical JSON text must be valid UTF-8") from exc
 
@@ -62,10 +84,10 @@ def strict_json_loads_v1(canonical_json_utf8: bytes) -> object:
 
     if type(canonical_json_utf8) is not bytes:
         raise TypeError("canonical_json_utf8 must be exact bytes")
-    if canonical_json_utf8.startswith(b"\xef\xbb\xbf"):
+    if bytes.startswith(canonical_json_utf8, b"\xef\xbb\xbf"):
         raise ValueError("JSON UTF-8 BOM is forbidden")
     try:
-        text = canonical_json_utf8.decode("utf-8")
+        text = bytes.decode(canonical_json_utf8, "utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError("JSON input must be strict UTF-8") from exc
     value = json.loads(

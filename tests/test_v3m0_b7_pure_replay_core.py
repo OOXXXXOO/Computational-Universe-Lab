@@ -93,14 +93,18 @@ TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION = {
     "canonical_json_bytes_v1": {
         "ValueError",
         "json.dumps",
-        "text.encode",
+        "set",
+        "str.encode",
         "validate_object_keys",
     },
     "validate_object_keys": {
         "TypeError",
-        "candidate.items",
+        "ValueError",
+        "dict.items",
         "enumerate",
-        "isinstance",
+        "id",
+        "set.add",
+        "set.remove",
         "type",
         "validate_object_keys",
     },
@@ -112,9 +116,9 @@ TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION = {
     "strict_json_loads_v1": {
         "TypeError",
         "ValueError",
+        "bytes.decode",
+        "bytes.startswith",
         "canonical_json_bytes_v1",
-        "canonical_json_utf8.decode",
-        "canonical_json_utf8.startswith",
         "json.loads",
         "type",
     },
@@ -125,20 +129,23 @@ TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION = {
 TASK3_CALL_SHAPES = {
     "ValueError": (1, ()),
     "TypeError": (1, ()),
+    "bytes.decode": (2, ()),
+    "bytes.startswith": (2, ()),
     "canonical_json_bytes_v1": (1, ()),
-    "canonical_json_utf8.decode": (1, ()),
-    "canonical_json_utf8.startswith": (1, ()),
-    "candidate.items": (0, ()),
+    "dict.items": (1, ()),
     "enumerate": (1, ()),
     "hashlib.sha256": (1, ()),
     "hashlib.sha256().hexdigest": (0, ()),
-    "isinstance": (2, ()),
+    "id": (1, ()),
     "json.dumps": (
         1,
         ("ensure_ascii", "allow_nan", "sort_keys", "separators"),
     ),
     "json.loads": (1, ("object_pairs_hook", "parse_constant")),
-    "text.encode": (1, ()),
+    "set": (0, ()),
+    "set.add": (2, ()),
+    "set.remove": (2, ()),
+    "str.encode": (2, ()),
     "type": (1, ()),
     "validate_object_keys": (2, ()),
 }
@@ -164,13 +171,25 @@ TASK3_CAPABILITY_CALL_TOKENS = {
 TASK3_RESERVED_CALL_ROOTS = {
     "TypeError",
     "ValueError",
+    "bytes",
     "canonical_json_bytes_v1",
+    "dict",
     "enumerate",
     "hashlib",
-    "isinstance",
+    "id",
     "json",
+    "reject_duplicate_object_pairs",
+    "reject_nonfinite_constant",
+    "set",
+    "str",
     "type",
     "validate_object_keys",
+}
+
+TASK3_EXACT_LOCAL_CALL_BINDINGS = {
+    ("canonical_json_bytes_v1", "text"): "json.dumps",
+    ("strict_json_loads_v1", "text"): "bytes.decode",
+    ("strict_json_loads_v1", "value"): "json.loads",
 }
 
 
@@ -255,7 +274,9 @@ def _assert_core_source_contract(source: str) -> None:
             imported_modules.append(node.module)
     assert imported_modules == TASK3_DIRECT_IMPORTS
     assert set(imported_modules).issubset(allowed_imports)
-    assert not ({name.split(".", 1)[0] for name in imported_modules} & FORBIDDEN_MODULE_ROOTS)
+    assert not (
+        {name.split(".", 1)[0] for name in imported_modules} & FORBIDDEN_MODULE_ROOTS
+    )
 
     top_level_assignments: set[str] = set()
     top_level_functions: list[str] = []
@@ -265,7 +286,9 @@ def _assert_core_source_contract(source: str) -> None:
             (ast.Expr, ast.Import, ast.ImportFrom, ast.Assign, ast.FunctionDef),
         )
         if isinstance(node, ast.Expr):
-            assert isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+            assert isinstance(node.value, ast.Constant) and isinstance(
+                node.value.value, str
+            )
         elif isinstance(node, ast.Assign):
             assert all(isinstance(target, ast.Name) for target in node.targets)
             top_level_assignments.update(target.id for target in node.targets)
@@ -283,6 +306,7 @@ def _assert_core_source_contract(source: str) -> None:
     assert set(top_level_functions).isdisjoint(FUTURE_TASK_SYMBOLS)
 
     observed_nested_functions: set[tuple[str, str]] = set()
+    observed_exact_local_bindings: set[tuple[str, str]] = set()
     for node in ast.walk(tree):
         assert not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda))
         assert not isinstance(node, (ast.Global, ast.Nonlocal))
@@ -299,8 +323,27 @@ def _assert_core_source_contract(source: str) -> None:
             )
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             assert node.id not in TASK3_RESERVED_CALL_ROOTS
-        if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            scope = _enclosing_function_name(node, parents)
+            binding_key = (scope, node.id)
+            if binding_key in TASK3_EXACT_LOCAL_CALL_BINDINGS:
+                assert binding_key not in observed_exact_local_bindings
+                assignment = parents[node]
+                assert isinstance(assignment, ast.Assign)
+                assert assignment.targets == [node]
+                assert isinstance(assignment.value, ast.Call)
+                assert (
+                    _task3_call_target(assignment.value)
+                    == TASK3_EXACT_LOCAL_CALL_BINDINGS[binding_key]
+                )
+                observed_exact_local_bindings.add(binding_key)
+        if isinstance(node, ast.Attribute) and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
             raise AssertionError("attribute mutation is forbidden in the Task-3 core")
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Load):
+            attribute_parent = parents[node]
+            assert isinstance(attribute_parent, ast.Call)
+            assert attribute_parent.func is node
         if isinstance(node, ast.Call):
             target = _task3_call_target(node)
             assert target is not None, "dynamic call target is forbidden"
@@ -346,6 +389,7 @@ def _assert_core_source_contract(source: str) -> None:
             assert "callable" not in lowered
 
     assert observed_nested_functions == set(TASK3_NESTED_FUNCTION_SIGNATURES)
+    assert observed_exact_local_bindings == set(TASK3_EXACT_LOCAL_CALL_BINDINGS)
 
 
 def test_core_source_has_exact_task3_symbols_imports_and_signatures() -> None:
@@ -367,9 +411,7 @@ def test_core_runtime_namespace_has_exact_task3_public_symbols() -> None:
 
 def test_static_contract_rejects_extra_helper_callback_and_capability_imports() -> None:
     source = CORE_PATH.read_text(encoding="utf-8")
-    canonical_body_anchor = (
-        '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
-    )
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
     attacks = (
         source + "\ndef _extra_callback_helper(value):\n    return value\n",
         source.replace(
@@ -382,7 +424,8 @@ def test_static_contract_rejects_extra_helper_callback_and_capability_imports() 
         source.replace("import json", "import json\nimport os", 1),
         source.replace(
             canonical_body_anchor,
-            canonical_body_anchor + "\n    if callable(value):\n        return value()\n",
+            canonical_body_anchor
+            + "\n    if callable(value):\n        return value()\n",
             1,
         ),
         source.replace(
@@ -395,6 +438,63 @@ def test_static_contract_rejects_extra_helper_callback_and_capability_imports() 
     )
 
     for attacked_source in attacks:
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
+
+
+def test_static_contract_rejects_definition_use_capability_escapes() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    strict_load_anchor = "    value = json.loads(\n"
+    canonical_try_anchor = '    try:\n        return str.encode(text, "utf-8")\n'
+
+    receiver_rebinding = source.replace(
+        canonical_try_anchor,
+        '    if value == "__escape__":\n        text = value\n' + canonical_try_anchor,
+        1,
+    )
+    attacks = {
+        "callee_alias": source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor
+            + "\n    hidden_hook = value\n"
+            + "    if False:\n"
+            + "        return hidden_hook()\n",
+            1,
+        ),
+        "parameter_attribute_call": source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor
+            + "\n    if False:\n"
+            + "        return value.issue_authority()\n",
+            1,
+        ),
+        "parameter_attribute_load": source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor
+            + "\n    if False:\n"
+            + "        value.issue_authority\n",
+            1,
+        ),
+        "kwargs_hook_replacement": source.replace(
+            "object_pairs_hook=reject_duplicate_object_pairs,",
+            "object_pairs_hook=json.loads,",
+            1,
+        ),
+        "nested_hook_rebinding": source.replace(
+            strict_load_anchor,
+            '    if canonical_json_utf8 == b"__escape__":\n'
+            "        reject_duplicate_object_pairs = canonical_json_utf8.__class__\n"
+            + strict_load_anchor,
+            1,
+        ),
+        "allowlisted_receiver_rebinding": receiver_rebinding,
+    }
+
+    for attack_id, attacked_source in attacks.items():
+        assert attacked_source != source, (
+            f"attack fixture did not mutate source: {attack_id}"
+        )
         with pytest.raises((AssertionError, KeyError)):
             _assert_core_source_contract(attacked_source)
 
@@ -443,6 +543,48 @@ def test_canonical_json_bytes_and_sha_match_the_registry_algorithm() -> None:
         core.canonical_json_bytes_v1({1: "not-a-JSON-object-key"})
     with pytest.raises(ValueError, match="UTF-8"):
         core.canonical_json_bytes_v1({"bad": "\ud800"})
+
+
+def test_canonical_json_rejects_subclasses_before_caller_dispatch() -> None:
+    core = _core_module()
+    callback_trace: list[str] = []
+
+    class CallerDict(dict):
+        def items(self):
+            callback_trace.append("dict.items")
+            return super().items()
+
+    class CallerList(list):
+        def __iter__(self):
+            callback_trace.append("list.__iter__")
+            return super().__iter__()
+
+    class CallerTuple(tuple):
+        def __iter__(self):
+            callback_trace.append("tuple.__iter__")
+            return super().__iter__()
+
+    class CallerString(str):
+        def encode(self, encoding="utf-8", errors="strict"):
+            callback_trace.append("str.encode")
+            return super().encode(encoding, errors)
+
+    subclass_values = (
+        CallerDict(a=1),
+        CallerList((1, 2)),
+        CallerTuple((1, 2)),
+        CallerString("caller-owned"),
+        {"nested": CallerDict(a=1)},
+        {"nested": CallerList((1, 2))},
+        {"nested": CallerTuple((1, 2))},
+        {"nested": CallerString("caller-owned")},
+    )
+
+    for value in subclass_values:
+        callback_trace.clear()
+        with pytest.raises(TypeError, match="exact built-in JSON"):
+            core.canonical_json_bytes_v1(value)
+        assert callback_trace == []
 
 
 def test_strict_json_loader_rejects_ambiguous_or_nonfinite_input() -> None:
