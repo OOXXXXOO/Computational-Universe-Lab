@@ -10059,18 +10059,21 @@ def build_d1_route_result_v1(
         ordered_source_transcript_sets=source_sets,
         ordered_mutation_probes=inputs["ordered_mutation_probes"],
     )
-    evidence = _validate_e03_domain_v1(
-        phase="D1",
-        route_id=route_id,
-        ordered_source_transcript_sets=source_sets,
+    evidence = _derive_e03_domain_from_legal_v1(
+        legal_domain=legal,
         ordered_legal_replays=inputs["ordered_legal_replays"],
     )
-    presence = _validate_e04_domain_v1(
+    invalid_presence = _validate_invalid_presence_domain_v1(
         phase="D1",
         route_id=route_id,
         ordered_source_transcript_sets=source_sets,
-        ordered_legal_replays=inputs["ordered_legal_replays"],
         ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
+    )
+    presence = _derive_e04_domain_from_legal_and_invalid_v1(
+        phase="D1",
+        legal_domain=legal,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+        invalid_domain=invalid_presence,
     )
     e06 = _validate_e06_domain_v1(mutation)
     gates = [

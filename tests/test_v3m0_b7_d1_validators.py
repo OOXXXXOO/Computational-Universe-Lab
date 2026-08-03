@@ -512,7 +512,36 @@ def _patch_d1_route_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         common,
+        "_derive_e03_domain_from_legal_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "3" * 64,
+            "predicate_results": (True, True),
+            "evidence_loss_count": 0,
+        },
+    )
+    monkeypatch.setattr(
+        common,
         "_validate_e04_domain_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "4" * 64,
+            "predicate_results": (True, True, True),
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+        },
+    )
+    monkeypatch.setattr(
+        common,
+        "_validate_invalid_presence_domain_v1",
+        lambda **_kwargs: {
+            "normalized": [],
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+            "all_exact_rejections": True,
+        },
+    )
+    monkeypatch.setattr(
+        common,
+        "_derive_e04_domain_from_legal_and_invalid_v1",
         lambda **_kwargs: {
             "domain_root_sha": "4" * 64,
             "predicate_results": (True, True, True),
@@ -632,7 +661,9 @@ def test_d0_route_reports_only_must_reject_mutation_probe_count(
             "predicate_results": (True, True, True),
             "total_observation_count": 5,
             "mutation_probe_count": 2,
+            "mutation_must_reject_count": 2,
             "mutation_accept_count": 0,
+            "invalid_rejection_surface_count": 0,
             "upstream_invalid_probe_count": 1,
             "upstream_invalid_transcript_count": 0,
             "all_upstream_route_entry_counts_zero": True,
@@ -726,19 +757,20 @@ def test_d1_route_consumes_each_dynamic_domain_once_and_reuses_summaries(
     monkeypatch.setattr(
         common,
         "_validate_mutation_probe_domain_v1",
-        domain(
-            "mutation",
-            {
+        lambda **kwargs: (
+            calls.__setitem__("mutation", calls["mutation"] + 1)
+            or tuple(kwargs["ordered_mutation_probes"])
+            or {
                 "domain_root_sha": "2" * 64,
                 "predicate_results": (True, True, True),
                 "mutation_accept_count": 0,
                 "normalized": [],
-            },
+            }
         ),
     )
     monkeypatch.setattr(
         common,
-        "_validate_e03_domain_v1",
+        "_derive_e03_domain_from_legal_v1",
         domain(
             "evidence",
             {
@@ -750,16 +782,27 @@ def test_d1_route_consumes_each_dynamic_domain_once_and_reuses_summaries(
     )
     monkeypatch.setattr(
         common,
-        "_validate_e04_domain_v1",
-        domain(
-            "presence",
-            {
-                "domain_root_sha": "4" * 64,
-                "predicate_results": (True, True, True),
+        "_validate_invalid_presence_domain_v1",
+        lambda **kwargs: (
+            calls.__setitem__("presence", calls["presence"] + 1)
+            or tuple(kwargs["ordered_invalid_presence_probes"])
+            or {
+                "normalized": [],
                 "canonical_accept_count": 0,
                 "half_pair_state_count": 0,
-            },
+                "all_exact_rejections": True,
+            }
         ),
+    )
+    monkeypatch.setattr(
+        common,
+        "_derive_e04_domain_from_legal_and_invalid_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "4" * 64,
+            "predicate_results": (True, True, True),
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+        },
     )
     monkeypatch.setattr(
         common,
@@ -775,6 +818,8 @@ def test_d1_route_consumes_each_dynamic_domain_once_and_reuses_summaries(
 
     for gate_id in ("e01", "e02", "e03", "e04", "e06"):
         monkeypatch.setattr(common, f"build_gate_{gate_id}_v1", must_not_reconsume)
+    monkeypatch.setattr(common, "_validate_e03_domain_v1", must_not_reconsume)
+    monkeypatch.setattr(common, "_validate_e04_domain_v1", must_not_reconsume)
 
     d0 = _d0_route_result()
     manifest = d0["route_manifest"]
@@ -787,8 +832,8 @@ def test_d1_route_consumes_each_dynamic_domain_once_and_reuses_summaries(
         ordered_capture_source_bytes=_ordered_capture_source_bytes(),
         gate_inputs={
             "ordered_legal_replays": replays,
-            "ordered_mutation_probes": [],
-            "ordered_invalid_presence_probes": [],
+            "ordered_mutation_probes": iter(()),
+            "ordered_invalid_presence_probes": iter(()),
         },
         ordered_survivor_route_ids=["A_FLAT"],
         ordered_route_capture_inputs=[
@@ -889,13 +934,16 @@ def test_d1_mutation_domain_materializes_from_each_capture_not_d0(
             }
         )
 
+    one_shot_probes = iter(probes)
     domain = common._validate_mutation_probe_domain_v1(
         phase="D1",
         route_id="A_FLAT",
         validated_corpus_fixture=fixture,
         ordered_source_transcript_sets=source_sets,
-        ordered_mutation_probes=probes,
+        ordered_mutation_probes=one_shot_probes,
     )
+    with pytest.raises(StopIteration):
+        next(one_shot_probes)
     assert (
         len({row["materialized_transcript_raw_sha256"] for row in domain["normalized"]})
         == 3
