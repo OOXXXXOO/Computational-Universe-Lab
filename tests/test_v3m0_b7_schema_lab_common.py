@@ -1490,6 +1490,43 @@ def test_mutation_materializer_resigns_deepest_first_and_preserves_donor_body() 
     _assert_self_hash(changed, "experimental_sha")
 
 
+def test_prevalidated_mutation_materializer_matches_public_wrapper() -> None:
+    common = _common_module()
+    transcripts = _seven_transcripts()
+    by_case = {transcript["case_id"]: transcript for transcript in transcripts}
+    mutation = next(
+        item
+        for item in common.generate_ordered_mutations_v1(transcripts)
+        if item["base_case_id"] == "actual_response_values_failure"
+        and item["operation"] == "REPLACE_BODY_AND_RESIGN"
+        and item["target_json_pointer"] == "/actual_branch_attempt"
+    )
+    base = by_case[mutation["base_case_id"]]
+    success = by_case["success"]
+    base_snapshot = common.discover_record_self_hashes_v1(base)
+    success_snapshot = common.discover_record_self_hashes_v1(success)
+    effective_snapshot = base_snapshot + tuple(
+        item for item in success_snapshot if item not in base_snapshot
+    )
+
+    public = common.apply_transcript_mutation_v1(
+        base,
+        mutation,
+        success,
+        base_snapshot,
+    )
+    prevalidated = common._apply_validated_transcript_mutation_v1(
+        base,
+        mutation,
+        success,
+        effective_snapshot,
+    )
+
+    assert common.canonical_json_bytes_v1(prevalidated) == (
+        common.canonical_json_bytes_v1(public)
+    )
+
+
 def test_m06_leaf_reference_sha_mutates_without_becoming_a_self_hash() -> None:
     common = _common_module()
     transcripts = _seven_transcripts()

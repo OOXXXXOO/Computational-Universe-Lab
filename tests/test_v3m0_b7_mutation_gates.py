@@ -122,6 +122,12 @@ def _install_domain_spies(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(common, "apply_transcript_mutation_v1", materialize)
     monkeypatch.setattr(
         common,
+        "_apply_validated_transcript_mutation_v1",
+        materialize,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        common,
         "discover_record_self_hashes_v1",
         lambda transcript: (("", transcript["case_id"]),),
     )
@@ -275,6 +281,39 @@ def test_mutation_domain_consumes_one_shot_exactly_once_and_drops_raw_bodies(
             validated_corpus_fixture=fixture,
             ordered_mutation_probes=one_shot,
         )
+
+
+def test_mutation_domain_reuses_each_capture_source_hash_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _install_domain_spies(monkeypatch)
+    fixture = _fixture()
+    discovered_case_ids = []
+
+    def discover(transcript):
+        discovered_case_ids.append(transcript["case_id"])
+        return (("", f"{transcript['case_id']}_sha"),)
+
+    monkeypatch.setattr(common, "discover_record_self_hashes_v1", discover)
+    monkeypatch.setattr(
+        common,
+        "apply_transcript_mutation_v1",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("validator must use its prevalidated mutation context")
+        ),
+    )
+
+    common._validate_mutation_probe_domain_v1(
+        phase="D0",
+        route_id="A_FLAT",
+        validated_corpus_fixture=fixture,
+        ordered_mutation_probes=iter(_probes(fixture)),
+    )
+
+    assert discovered_case_ids == [
+        transcript["case_id"] for transcript in fixture["ordered_d0_transcripts"]
+    ]
 
 
 @pytest.mark.parametrize("delta", (-1, 1))

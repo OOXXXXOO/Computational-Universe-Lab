@@ -244,11 +244,17 @@ def _prepare_d0_capture_domain_v1(validated_corpus_fixture):
         case_id: _common.discover_record_self_hashes_v1(source)
         for case_id, source in sources_by_case.items()
     }
+    success_snapshot = snapshots["success"]
+    effective_snapshots = {
+        case_id: snapshot
+        + tuple(item for item in success_snapshot if item not in snapshot)
+        for case_id, snapshot in snapshots.items()
+    }
     return {
         "source_set": source_set,
         "sources_by_case": sources_by_case,
         "success": success,
-        "snapshots": snapshots,
+        "effective_snapshots": effective_snapshots,
         "mutations": mutations,
     }
 
@@ -290,11 +296,11 @@ def _capture_d0_mutation_probes_v1(route_id, domain):
             if probe_kind in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL"):
                 materialized = base
             else:
-                materialized = _common.apply_transcript_mutation_v1(
+                materialized = _common._apply_validated_transcript_mutation_v1(
                     base,
                     mutation,
                     domain["success"],
-                    domain["snapshots"][base_case_id],
+                    domain["effective_snapshots"][base_case_id],
                 )
             materialized_bytes = _common.canonical_json_bytes_v1(materialized)
             upstream_transcript_count = 1

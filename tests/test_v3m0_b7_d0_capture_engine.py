@@ -95,7 +95,7 @@ def _install_small_domain(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(
         common,
         "discover_record_self_hashes_v1",
-        lambda source: {"case_id": source["case_id"]},
+        lambda source: (("", f"{source['case_id']}_sha"),),
     )
     monkeypatch.setattr(
         common,
@@ -104,6 +104,15 @@ def _install_small_domain(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
             "case_id": base["case_id"],
             "mutation_id": mutation["mutation_id"],
         },
+    )
+    monkeypatch.setattr(
+        common,
+        "_apply_validated_transcript_mutation_v1",
+        lambda base, mutation, _success, _snapshot: {
+            "case_id": base["case_id"],
+            "mutation_id": mutation["mutation_id"],
+        },
+        raising=False,
     )
     monkeypatch.setattr(
         common,
@@ -217,6 +226,12 @@ def test_d0_capture_keeps_mutation_and_presence_rows_lazy_one_shot(
     monkeypatch.setattr(common, "apply_transcript_mutation_v1", materialize)
     monkeypatch.setattr(
         common,
+        "_apply_validated_transcript_mutation_v1",
+        materialize,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        common,
         "iter_constructible_invalid_presence_candidates_v1",
         candidates,
         raising=False,
@@ -234,6 +249,44 @@ def test_d0_capture_keeps_mutation_and_presence_rows_lazy_one_shot(
     assert mutation_materializations == 1
     next(presence)
     assert presence_candidates == 1
+
+
+def test_d0_capture_reuses_prevalidated_source_hash_snapshots(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import iter_d0_gate_inputs_v1
+
+    fixture = _install_small_domain(monkeypatch)
+    _install_route_stubs(monkeypatch)
+    discovered_case_ids = []
+
+    def discover(source):
+        discovered_case_ids.append(source["case_id"])
+        return (("", f"{source['case_id']}_sha"),)
+
+    def materialize(base, mutation, _success, _effective_snapshot):
+        return {"case_id": base["case_id"], "mutation_id": mutation["mutation_id"]}
+
+    monkeypatch.setattr(common, "discover_record_self_hashes_v1", discover)
+    monkeypatch.setattr(
+        common,
+        "apply_transcript_mutation_v1",
+        lambda *_args: (_ for _ in ()).throw(
+            AssertionError("capture must use its prevalidated mutation context")
+        ),
+    )
+    monkeypatch.setattr(
+        common,
+        "_apply_validated_transcript_mutation_v1",
+        materialize,
+        raising=False,
+    )
+
+    _route_id, inputs = next(
+        iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
+    )
+    assert len(list(inputs["ordered_mutation_probes"])) == 5
+    assert discovered_case_ids == list(CASE_IDS)
 
 
 @pytest.mark.parametrize(

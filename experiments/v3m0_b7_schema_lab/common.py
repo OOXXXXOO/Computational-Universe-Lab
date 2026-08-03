@@ -2802,33 +2802,32 @@ def _resign_from_snapshots_v1(mutated, target_pointer, snapshots):
         )
 
 
-def apply_transcript_mutation_v1(
-    base_transcript_raw,
-    mutation_raw,
-    success_transcript_raw,
-    self_hash_snapshot,
+def _apply_validated_transcript_mutation_v1(
+    base,
+    mutation,
+    success,
+    effective_self_hash_snapshot,
 ):
-    """Materialize one transcript mutation using pre-mutation hash snapshots."""
-    base = validate_case_contract_v1(base_transcript_raw)
-    success = validate_case_contract_v1(success_transcript_raw)
-    mutation = validate_mutation_v1(mutation_raw)
+    """Materialize from a strictly validated corpus-local mutation context."""
+    if (
+        type(base) is not dict
+        or type(mutation) is not dict
+        or type(success) is not dict
+    ):
+        raise TypeError("validated mutation context bodies must be exact dicts")
     if success["case_id"] != "success":
         raise ValueError("mutation materializer success donor drifted")
     if mutation["base_case_id"] != base["case_id"]:
         raise ValueError("mutation materializer base case drifted")
-    if type(self_hash_snapshot) is not tuple:
-        raise TypeError("self-hash snapshot must be an exact tuple")
-    base_snapshot = discover_record_self_hashes_v1(base)
-    if self_hash_snapshot != base_snapshot:
-        raise ValueError("self-hash snapshot differs from the immutable base")
-    success_snapshot = discover_record_self_hashes_v1(success)
+    if type(effective_self_hash_snapshot) is not tuple:
+        raise TypeError("effective self-hash snapshot must be an exact tuple")
     operation = mutation["operation"]
     if operation in ("REENCODE", "REPEAT", "RAISE_UPSTREAM"):
         raise ValueError("global probe operation has no materialized transcript")
 
-    mutated = _detach_json_v1(base)
+    mutated = _clone_json_preserving_order_v1(base)
     target_pointer = mutation["target_json_pointer"]
-    replacement = _detach_json_v1(mutation["replacement_json"])
+    replacement = _clone_json_preserving_order_v1(mutation["replacement_json"])
     if operation == "INSERT_BODY":
         try:
             parent, member = _pointer_parent_member_v1(mutated, target_pointer)
@@ -2849,10 +2848,43 @@ def apply_transcript_mutation_v1(
         else:
             raise ValueError("mutation materializer operation is not frozen")
 
-    effective_snapshot = tuple(base_snapshot) + tuple(
+    _resign_from_snapshots_v1(
+        mutated,
+        target_pointer,
+        effective_self_hash_snapshot,
+    )
+    return mutated
+
+
+def apply_transcript_mutation_v1(
+    base_transcript_raw,
+    mutation_raw,
+    success_transcript_raw,
+    self_hash_snapshot,
+):
+    """Materialize one transcript mutation using pre-mutation hash snapshots."""
+    base = validate_case_contract_v1(base_transcript_raw)
+    success = validate_case_contract_v1(success_transcript_raw)
+    mutation = validate_mutation_v1(mutation_raw)
+    if success["case_id"] != "success":
+        raise ValueError("mutation materializer success donor drifted")
+    if mutation["base_case_id"] != base["case_id"]:
+        raise ValueError("mutation materializer base case drifted")
+    if type(self_hash_snapshot) is not tuple:
+        raise TypeError("self-hash snapshot must be an exact tuple")
+    base_snapshot = discover_record_self_hashes_v1(base)
+    if self_hash_snapshot != base_snapshot:
+        raise ValueError("self-hash snapshot differs from the immutable base")
+    success_snapshot = discover_record_self_hashes_v1(success)
+    effective_snapshot = base_snapshot + tuple(
         item for item in success_snapshot if item not in base_snapshot
     )
-    _resign_from_snapshots_v1(mutated, target_pointer, effective_snapshot)
+    mutated = _apply_validated_transcript_mutation_v1(
+        base,
+        mutation,
+        success,
+        effective_snapshot,
+    )
     _pure_core.canonical_json_bytes_v1(mutated)
     return mutated
 
@@ -6171,6 +6203,12 @@ def _validate_mutation_probe_domain_v1(
             case_id: discover_record_self_hashes_v1(source)
             for case_id, source in sources_by_case.items()
         }
+        success_snapshot = snapshots["success"]
+        effective_snapshots = {
+            case_id: snapshot
+            + tuple(item for item in success_snapshot if item not in snapshot)
+            for case_id, snapshot in snapshots.items()
+        }
         for mutation in mutations:
             row = _require_exact_ordered_dict_v1(
                 _next_ordered_observation_v1(
@@ -6212,11 +6250,11 @@ def _validate_mutation_probe_domain_v1(
                 if probe_kind in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL"):
                     materialized = base
                 else:
-                    materialized = apply_transcript_mutation_v1(
+                    materialized = _apply_validated_transcript_mutation_v1(
                         base,
                         mutation,
                         success,
-                        snapshots[base_case_id],
+                        effective_snapshots[base_case_id],
                     )
                 expected_body = canonical_json_bytes_v1(materialized)
                 expected_upstream_count = 1
