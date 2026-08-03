@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
 import importlib
 import inspect
 import json
@@ -22,6 +23,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 LAB_ROOT = REPOSITORY_ROOT / "experiments" / "v3m0_b7_schema_lab"
 INITIALIZER_PATH = LAB_ROOT / "__init__.py"
 COMMON_PATH = LAB_ROOT / "common.py"
+COMPARE_PATH = LAB_ROOT / "compare.py"
 REGISTRY_PATH = REPOSITORY_ROOT / "docsv3" / "v3-机器合同-B7-v9.1-registry.json"
 
 PURE_VALIDATOR_SIGNATURES = {
@@ -820,6 +822,448 @@ def _seven_transcripts() -> list[dict[str, object]]:
             "success",
         )
     ]
+
+
+def _lab_registry() -> dict[str, object]:
+    registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    return registry["lab_contract"]
+
+
+def _raw_sha256(raw_bytes: bytes) -> str:
+    return hashlib.sha256(raw_bytes).hexdigest()
+
+
+def _metric_spec(
+    common_source_bytes: bytes | None = None,
+    compare_source_bytes: bytes | None = None,
+) -> dict[str, object]:
+    lab = _lab_registry()
+    metric_algorithm = lab["metric_algorithm"]
+    common_bytes = (
+        COMMON_PATH.read_bytes() if common_source_bytes is None else common_source_bytes
+    )
+    compare_bytes = (
+        COMPARE_PATH.read_bytes()
+        if compare_source_bytes is None
+        else compare_source_bytes
+    )
+    return _seal(
+        {
+            "metric_spec_schema_version": "experimental.v3m0.b7.metric-spec.v1",
+            "metric_algorithm_id": metric_algorithm["algorithm_id"],
+            "metric_contract_sha": canonical_sha_v1(metric_algorithm),
+            "metric_order": copy.deepcopy(lab["metric_order"]),
+            "evidence_pointer_order": copy.deepcopy(
+                metric_algorithm["evidence_pointer_order"]
+            ),
+            "invalid_presence_bit_width": metric_algorithm["invalid_presence_domain"][
+                "bit_width"
+            ],
+            "reachable_closure_algorithm_id": (
+                "python-ast-route-local-reachable-closure-v1"
+            ),
+            "branch_count_algorithm_id": "python-ast-branch-contribution-v1",
+            "b8_diff_algorithm_id": "python-difflib-unified-n0-v1",
+            "common_source_sha256": _raw_sha256(common_bytes),
+            "compare_source_sha256": _raw_sha256(compare_bytes),
+            "metric_spec_sha": "",
+        },
+        "metric_spec_sha",
+    )
+
+
+_NESTED_HASH_FIELDS = {
+    "/provenance_fixture": "provenance_fixture_sha",
+    "/response_run_spec_fixture": "run_spec_sha",
+    "/reference_outcome": "outcome_sha",
+    "/shell_outcome": "outcome_sha",
+    "/actual_branch_attempt": "attempt_sha",
+    "/matched_ablated_branch_attempt": "attempt_sha",
+    "/actual_completed_response": "response_sha",
+    "/matched_ablated_completed_response": "response_sha",
+}
+
+
+def _frozen_nested_rules() -> list[dict[str, object]]:
+    rules = []
+    for registry_rule in _lab_registry()["normalized_nested_body_registry"]:
+        rules.append(
+            _seal(
+                {
+                    "rule_schema_version": ("experimental.v3m0.b7.nested-body-rule.v1"),
+                    "json_pointer": registry_rule["json_pointer"],
+                    "body_kind": registry_rule["body_kind"],
+                    "hash_field": _NESTED_HASH_FIELDS[registry_rule["json_pointer"]],
+                    "nullable": registry_rule["nullable"],
+                    "full_body_required": True,
+                    "rule_sha": "",
+                },
+                "rule_sha",
+            )
+        )
+    return rules
+
+
+def _frozen_case_specs() -> list[dict[str, object]]:
+    cases = []
+    for registry_case in _lab_registry()["case_contracts"]:
+        cases.append(
+            _seal(
+                {
+                    "case_schema_version": "experimental.v3m0.b7.corpus-case.v1",
+                    **copy.deepcopy(registry_case),
+                    "case_sha": "",
+                },
+                "case_sha",
+            )
+        )
+    return cases
+
+
+def _corpus_spec(metric_spec_sha: str) -> dict[str, object]:
+    lab = _lab_registry()
+    mutation_contract = lab["mutation_generation_contract"]
+    return _seal(
+        {
+            "corpus_spec_schema_version": "experimental.v3m0.b7.corpus-spec.v1",
+            "transcript_schema_version": (
+                "experimental.v3m0.b7.normalized-transcript.v1"
+            ),
+            "canonical_json_profile_id": lab["canonical_json_profile_id"],
+            "scheduler_stage_order": copy.deepcopy(lab["scheduler_stage_order"]),
+            "presence_pointer_order": copy.deepcopy(lab["presence_pointer_order"]),
+            "terminal_tag_order": copy.deepcopy(lab["terminal_tag_order"]),
+            "case_contract_sha": canonical_sha_v1(lab["case_contracts"]),
+            "ordered_case_specs": _frozen_case_specs(),
+            "nested_body_rules": _frozen_nested_rules(),
+            "mutation_algorithm_id": mutation_contract["algorithm_id"],
+            "mutation_class_order": copy.deepcopy(lab["mutation_class_order"]),
+            "mutation_operation_order": copy.deepcopy(lab["mutation_operation_order"]),
+            "mutation_generation_contract_sha": canonical_sha_v1(mutation_contract),
+            "mutation_generation_rules": [
+                rule["rule_id"] for rule in mutation_contract["generation_rules"]
+            ],
+            "upstream_invalid_probe_rule": ("M10_UPSTREAM_INVALID_ZERO_TRANSCRIPT"),
+            "metric_spec_sha": metric_spec_sha,
+            "corpus_spec_sha": "",
+        },
+        "corpus_spec_sha",
+    )
+
+
+def _mutation_universe(
+    transcripts: list[dict[str, object]],
+    corpus_spec_sha: str,
+    mutation_generation_contract_sha: str,
+    generator_source_bytes: bytes | None = None,
+) -> dict[str, object]:
+    common = _common_module()
+    source_bytes = (
+        COMMON_PATH.read_bytes()
+        if generator_source_bytes is None
+        else generator_source_bytes
+    )
+    mutations = common.generate_ordered_mutations_v1(transcripts)
+    assert len(mutations) == 326
+    return _seal(
+        {
+            "mutation_universe_schema_version": (
+                "experimental.v3m0.b7.mutation-universe.v1"
+            ),
+            "corpus_spec_sha": corpus_spec_sha,
+            "mutation_generation_contract_sha": (mutation_generation_contract_sha),
+            "generator_source_sha256": _raw_sha256(source_bytes),
+            "ordered_mutations": mutations,
+            "mutation_count": len(mutations),
+            "mutation_universe_sha": "",
+        },
+        "mutation_universe_sha",
+    )
+
+
+def test_spec_join_validators_accept_registry_materialization_and_canonical_roundtrip() -> (
+    None
+):
+    common = _common_module()
+    common_source = COMMON_PATH.read_bytes()
+    compare_source = COMPARE_PATH.read_bytes()
+    metric = _metric_spec(common_source, compare_source)
+    corpus = _corpus_spec(metric["metric_spec_sha"])
+    transcripts = _seven_transcripts()
+    universe = _mutation_universe(
+        transcripts,
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        common_source,
+    )
+
+    metric_decoded = strict_json_loads_v1(canonical_json_bytes_v1(metric))
+    corpus_decoded = strict_json_loads_v1(canonical_json_bytes_v1(corpus))
+    universe_decoded = strict_json_loads_v1(canonical_json_bytes_v1(universe))
+    validated_metric = common.validate_metric_spec_v1(
+        metric_decoded,
+        common_source,
+        compare_source,
+    )
+    validated_corpus = common.validate_corpus_spec_v1(
+        corpus_decoded,
+        metric["metric_spec_sha"],
+    )
+    validated_universe = common.validate_mutation_universe_v1(
+        universe_decoded,
+        transcripts,
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        common_source,
+    )
+
+    assert validated_metric == metric
+    assert validated_corpus == corpus
+    assert validated_universe == universe
+    assert (
+        common.validate_metric_spec_v1(
+            validated_metric,
+            common_source,
+            compare_source,
+        )
+        == validated_metric
+    )
+    assert (
+        common.validate_corpus_spec_v1(
+            validated_corpus,
+            metric["metric_spec_sha"],
+        )
+        == validated_corpus
+    )
+    assert (
+        common.validate_mutation_universe_v1(
+            validated_universe,
+            transcripts,
+            corpus["corpus_spec_sha"],
+            corpus["mutation_generation_contract_sha"],
+            common_source,
+        )
+        == validated_universe
+    )
+
+
+def test_spec_join_validators_reject_unknown_fields() -> None:
+    common = _common_module()
+    common_source = COMMON_PATH.read_bytes()
+    compare_source = COMPARE_PATH.read_bytes()
+    metric = _metric_spec(common_source, compare_source)
+    corpus = _corpus_spec(metric["metric_spec_sha"])
+    transcripts = _seven_transcripts()
+    universe = _mutation_universe(
+        transcripts,
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        common_source,
+    )
+
+    for raw, invocation in (
+        (
+            metric,
+            lambda attacked: common.validate_metric_spec_v1(
+                attacked,
+                common_source,
+                compare_source,
+            ),
+        ),
+        (
+            corpus,
+            lambda attacked: common.validate_corpus_spec_v1(
+                attacked,
+                metric["metric_spec_sha"],
+            ),
+        ),
+        (
+            universe,
+            lambda attacked: common.validate_mutation_universe_v1(
+                attacked,
+                transcripts,
+                corpus["corpus_spec_sha"],
+                corpus["mutation_generation_contract_sha"],
+                common_source,
+            ),
+        ),
+    ):
+        attacked = copy.deepcopy(raw)
+        attacked["unexpected"] = None
+        with pytest.raises((TypeError, ValueError)):
+            invocation(attacked)
+
+
+def test_metric_spec_validator_rejects_every_registry_join_root_and_source_attack() -> (
+    None
+):
+    common = _common_module()
+    common_source = COMMON_PATH.read_bytes()
+    compare_source = COMPARE_PATH.read_bytes()
+    legal = _metric_spec(common_source, compare_source)
+    attacks = []
+    for field, hostile in (
+        ("metric_algorithm_id", "not-the-frozen-algorithm"),
+        ("metric_contract_sha", "0" * 64),
+        ("metric_order", list(reversed(legal["metric_order"]))),
+        (
+            "evidence_pointer_order",
+            list(reversed(legal["evidence_pointer_order"])),
+        ),
+        ("invalid_presence_bit_width", 8),
+        ("reachable_closure_algorithm_id", "not-the-frozen-closure"),
+        ("branch_count_algorithm_id", "not-the-frozen-branch-count"),
+        ("b8_diff_algorithm_id", "not-the-frozen-diff"),
+        ("common_source_sha256", "0" * 64),
+        ("compare_source_sha256", "0" * 64),
+    ):
+        attacked = copy.deepcopy(legal)
+        attacked[field] = hostile
+        attacks.append(_seal(attacked, "metric_spec_sha"))
+    wrong_self_hash = copy.deepcopy(legal)
+    wrong_self_hash["metric_spec_sha"] = "0" * 64
+    attacks.append(wrong_self_hash)
+
+    for attacked in attacks:
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_metric_spec_v1(
+                attacked,
+                common_source,
+                compare_source,
+            )
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_metric_spec_v1(legal, b"wrong common", compare_source)
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_metric_spec_v1(legal, common_source, b"wrong compare")
+
+
+def test_corpus_spec_validator_rejects_every_registry_join_and_root_attack() -> None:
+    common = _common_module()
+    metric = _metric_spec()
+    legal = _corpus_spec(metric["metric_spec_sha"])
+    attacks = []
+    for field, hostile in (
+        ("transcript_schema_version", "not-the-frozen-transcript"),
+        ("canonical_json_profile_id", "not-the-frozen-profile"),
+        (
+            "scheduler_stage_order",
+            list(reversed(legal["scheduler_stage_order"])),
+        ),
+        (
+            "presence_pointer_order",
+            list(reversed(legal["presence_pointer_order"])),
+        ),
+        ("terminal_tag_order", list(reversed(legal["terminal_tag_order"]))),
+        ("case_contract_sha", "0" * 64),
+        ("mutation_algorithm_id", "not-the-frozen-mutation-algorithm"),
+        (
+            "mutation_class_order",
+            list(reversed(legal["mutation_class_order"])),
+        ),
+        (
+            "mutation_operation_order",
+            list(reversed(legal["mutation_operation_order"])),
+        ),
+        ("mutation_generation_contract_sha", "0" * 64),
+        (
+            "mutation_generation_rules",
+            list(reversed(legal["mutation_generation_rules"])),
+        ),
+        ("upstream_invalid_probe_rule", "M09_CANONICAL_REPEAT"),
+        ("metric_spec_sha", "0" * 64),
+    ):
+        attacked = copy.deepcopy(legal)
+        attacked[field] = hostile
+        attacks.append(_seal(attacked, "corpus_spec_sha"))
+    for case_ordinal in range(7):
+        attacked = copy.deepcopy(legal)
+        attacked["ordered_case_specs"][case_ordinal] = copy.deepcopy(
+            legal["ordered_case_specs"][(case_ordinal + 1) % 7]
+        )
+        attacks.append(_seal(attacked, "corpus_spec_sha"))
+    for rule_ordinal in range(len(legal["nested_body_rules"])):
+        attacked = copy.deepcopy(legal)
+        rule = attacked["nested_body_rules"][rule_ordinal]
+        rule["body_kind"] = f"attacked.body.Kind{rule_ordinal}"
+        _seal(rule, "rule_sha")
+        attacks.append(_seal(attacked, "corpus_spec_sha"))
+    wrong_self_hash = copy.deepcopy(legal)
+    wrong_self_hash["corpus_spec_sha"] = "0" * 64
+    attacks.append(wrong_self_hash)
+
+    for attacked in attacks:
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_corpus_spec_v1(
+                attacked,
+                metric["metric_spec_sha"],
+            )
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_corpus_spec_v1(legal, "f" * 64)
+
+
+def test_mutation_universe_validator_rejects_generation_root_source_and_identity_attacks() -> (
+    None
+):
+    common = _common_module()
+    common_source = COMMON_PATH.read_bytes()
+    metric = _metric_spec()
+    corpus = _corpus_spec(metric["metric_spec_sha"])
+    transcripts = _seven_transcripts()
+    legal = _mutation_universe(
+        transcripts,
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        common_source,
+    )
+    attacks = []
+    for field, hostile in (
+        ("corpus_spec_sha", "0" * 64),
+        ("mutation_generation_contract_sha", "0" * 64),
+        ("generator_source_sha256", "0" * 64),
+        ("mutation_count", 325),
+    ):
+        attacked = copy.deepcopy(legal)
+        attacked[field] = hostile
+        attacks.append(_seal(attacked, "mutation_universe_sha"))
+    reordered = copy.deepcopy(legal)
+    reordered["ordered_mutations"][0], reordered["ordered_mutations"][1] = (
+        reordered["ordered_mutations"][1],
+        reordered["ordered_mutations"][0],
+    )
+    attacks.append(_seal(reordered, "mutation_universe_sha"))
+    duplicate = copy.deepcopy(legal)
+    duplicate["ordered_mutations"][1] = copy.deepcopy(duplicate["ordered_mutations"][0])
+    attacks.append(_seal(duplicate, "mutation_universe_sha"))
+    wrong_self_hash = copy.deepcopy(legal)
+    wrong_self_hash["mutation_universe_sha"] = "0" * 64
+    attacks.append(wrong_self_hash)
+
+    for attacked in attacks:
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_mutation_universe_v1(
+                attacked,
+                transcripts,
+                corpus["corpus_spec_sha"],
+                corpus["mutation_generation_contract_sha"],
+                common_source,
+            )
+    for wrong_corpus_root, wrong_generation_root, wrong_source in (
+        ("f" * 64, corpus["mutation_generation_contract_sha"], common_source),
+        (corpus["corpus_spec_sha"], "f" * 64, common_source),
+        (
+            corpus["corpus_spec_sha"],
+            corpus["mutation_generation_contract_sha"],
+            b"wrong generator source",
+        ),
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_mutation_universe_v1(
+                legal,
+                transcripts,
+                wrong_corpus_root,
+                wrong_generation_root,
+                wrong_source,
+            )
 
 
 def _mutation_projection(raw: dict[str, object]) -> dict[str, object]:

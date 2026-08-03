@@ -1382,6 +1382,114 @@ _MUTATION_BOUNDARIES_V1 = (
     "EQUALITY_CHECK",
     "UPSTREAM_JOIN",
 )
+_SCHEDULER_STAGE_ORDER_V1 = (
+    "reference",
+    "shell",
+    "actual_response_values",
+    "matched_ablated_response_values",
+    "actual_bridge",
+    "matched_ablated_bridge",
+)
+_METRIC_CONTRACT_SHA_V1 = (
+    "8d87a8284f23ccc47a9a04170fb9ef6c2d986907ad334f1fe972b22af67967f9"
+)
+_CASE_CONTRACT_SHA_V1 = (
+    "94eb8e435d4a1c69885b70b205cd6f5d4930e6249b3fd099988c7ebee15ebfbe"
+)
+_MUTATION_GENERATION_CONTRACT_SHA_V1 = (
+    "93e230851b81547c68d8ccc384a3fc2d3313567e5048c8cd61c77d715b5f1894"
+)
+_METRIC_ORDER_V1 = (
+    "mutation_accept_count",
+    "evidence_loss_count",
+    "constructible_invalid_presence_count",
+    "half_pair_state_count",
+    "b8_consumer_assertion_count",
+    "b8_consumer_changed_loc",
+    "verifier_branch_count",
+    "route_record_count",
+    "route_hash_layer_count",
+    "canonical_wire_bytes",
+)
+_EVIDENCE_POINTER_ORDER_V1 = (
+    "/provenance_fixture",
+    "/response_run_spec_fixture",
+    "/reference_outcome",
+    "/shell_outcome",
+    "/actual_branch_attempt",
+    "/actual_branch_attempt/response_values",
+    "/matched_ablated_branch_attempt",
+    "/matched_ablated_branch_attempt/response_values",
+    "/actual_branch_attempt/bridge_audit",
+    "/matched_ablated_branch_attempt/bridge_audit",
+    "/actual_completed_response",
+    "/matched_ablated_completed_response",
+    "/terminal_tag",
+    "/callback_trace",
+    "/ordered_leaf_digests",
+)
+_NESTED_BODY_RULE_PROJECTIONS_V1 = (
+    (
+        "/provenance_fixture",
+        "B7LabProvenanceFixtureV1",
+        "provenance_fixture_sha",
+        False,
+    ),
+    (
+        "/response_run_spec_fixture",
+        "ResponseRunSpecV3-plain-fixture",
+        "run_spec_sha",
+        False,
+    ),
+    (
+        "/reference_outcome",
+        "rulespace_v3.response.EndpointReferenceOutcome",
+        "outcome_sha",
+        False,
+    ),
+    (
+        "/shell_outcome",
+        "rulespace_v3.response.EndpointShellOutcome",
+        "outcome_sha",
+        True,
+    ),
+    (
+        "/actual_branch_attempt",
+        "B7LabBranchAttemptV1",
+        "attempt_sha",
+        True,
+    ),
+    (
+        "/matched_ablated_branch_attempt",
+        "B7LabBranchAttemptV1",
+        "attempt_sha",
+        True,
+    ),
+    (
+        "/actual_completed_response",
+        "rulespace_v3.response.SourceReadoutResponse",
+        "response_sha",
+        True,
+    ),
+    (
+        "/matched_ablated_completed_response",
+        "rulespace_v3.response.SourceReadoutResponse",
+        "response_sha",
+        True,
+    ),
+)
+_MUTATION_GENERATION_RULES_V1 = (
+    "M01_PRESENCE_TOGGLE",
+    "M02_TERMINAL_TAG_OTHER_SIX",
+    "M03_BRANCH_FAILURE_SPLICE",
+    "M04_DELETE_SUCCESSFUL_PREFIX_BODY",
+    "M05_INJECT_POST_FAILURE_BODY",
+    "M06_NESTED_SHA_SINGLE_POINT",
+    "M07_CROSS_CASE_BODY_SPLICE",
+    "M08_CANONICAL_ROUNDTRIP",
+    "M09_CANONICAL_REPEAT",
+    "M10_UPSTREAM_INVALID_ZERO_TRANSCRIPT",
+)
 _LAB_SEMANTIC_STRING_DOMAINS_V1 = (
     (
         "branch-failure",
@@ -2596,6 +2704,191 @@ def validate_mutation_v1(raw_body):
 def validate_metric_vector_v1(raw_body):
     """Validate one ten-coordinate metric vector and its self hash."""
     return _validate_exact_lab_record_v1("B7LabMetricVectorV1", raw_body)
+
+
+def _require_sha256_root_v1(value, field):
+    if (
+        type(value) is not str
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise TypeError(f"{field} must be an exact lowercase SHA-256")
+    return value
+
+
+def _raw_source_sha256_v1(source_bytes, field):
+    if type(source_bytes) is not bytes:
+        raise TypeError(f"{field} source must be exact bytes")
+    return _pure_core.hashlib.sha256(source_bytes).hexdigest()
+
+
+def validate_metric_spec_v1(
+    raw_body,
+    common_source_bytes,
+    compare_source_bytes,
+):
+    """Validate the metric spec against frozen registry and source bytes."""
+    metric = _validate_exact_lab_record_v1("B7LabMetricSpecV1", raw_body)
+    expected_fields = (
+        ("metric_algorithm_id", "v3m0-b7-schema-metrics-v1"),
+        ("metric_contract_sha", _METRIC_CONTRACT_SHA_V1),
+        ("metric_order", _METRIC_ORDER_V1),
+        ("evidence_pointer_order", _EVIDENCE_POINTER_ORDER_V1),
+        ("invalid_presence_bit_width", 9),
+        (
+            "reachable_closure_algorithm_id",
+            "python-ast-route-local-reachable-closure-v1",
+        ),
+        ("branch_count_algorithm_id", "python-ast-branch-contribution-v1"),
+        ("b8_diff_algorithm_id", "python-difflib-unified-n0-v1"),
+    )
+    for field, expected in expected_fields:
+        observed = metric[field]
+        if type(expected) is tuple:
+            observed = tuple(observed)
+        if observed != expected:
+            raise ValueError(f"metric spec {field} drifted")
+    if metric["common_source_sha256"] != _raw_source_sha256_v1(
+        common_source_bytes,
+        "common",
+    ):
+        raise ValueError("metric spec common source SHA drifted")
+    if metric["compare_source_sha256"] != _raw_source_sha256_v1(
+        compare_source_bytes,
+        "compare",
+    ):
+        raise ValueError("metric spec compare source SHA drifted")
+    return metric
+
+
+def _case_contract_projection_v1(case):
+    return (
+        case["case_ordinal"],
+        case["case_id"],
+        case["terminal_tag"],
+        case["injected_failure_stage"],
+        case["presence_bits"],
+        case["actual_attempt_failure"],
+        case["matched_ablated_attempt_failure"],
+        tuple(case["expected_callback_trace"]),
+        tuple(case["expected_leaf_ids"]),
+    )
+
+
+def validate_corpus_spec_v1(raw_body, metric_spec_sha):
+    """Validate the corpus spec against every frozen registry join."""
+    expected_metric_root = _require_sha256_root_v1(
+        metric_spec_sha,
+        "metric spec root",
+    )
+    corpus = _validate_exact_lab_record_v1("B7LabCorpusSpecV1", raw_body)
+    expected_fields = (
+        (
+            "transcript_schema_version",
+            "experimental.v3m0.b7.normalized-transcript.v1",
+        ),
+        ("canonical_json_profile_id", "canonical-json-sha256-v1"),
+        ("scheduler_stage_order", _SCHEDULER_STAGE_ORDER_V1),
+        ("presence_pointer_order", _PRESENCE_POINTER_ORDER_V1),
+        ("terminal_tag_order", _TERMINAL_TAG_ORDER_V1),
+        ("case_contract_sha", _CASE_CONTRACT_SHA_V1),
+        ("mutation_algorithm_id", "v3m0-b7-exhaustive-mutation-v1"),
+        ("mutation_class_order", _MUTATION_CLASSES_V1),
+        ("mutation_operation_order", _MUTATION_OPERATIONS_V1),
+        (
+            "mutation_generation_contract_sha",
+            _MUTATION_GENERATION_CONTRACT_SHA_V1,
+        ),
+        ("mutation_generation_rules", _MUTATION_GENERATION_RULES_V1),
+        (
+            "upstream_invalid_probe_rule",
+            "M10_UPSTREAM_INVALID_ZERO_TRANSCRIPT",
+        ),
+        ("metric_spec_sha", expected_metric_root),
+    )
+    for field, expected in expected_fields:
+        observed = corpus[field]
+        if type(expected) is tuple:
+            observed = tuple(observed)
+        if observed != expected:
+            raise ValueError(f"corpus spec {field} drifted")
+
+    observed_cases = []
+    for raw_case in corpus["ordered_case_specs"]:
+        case = validate_corpus_case_v1(raw_case)
+        observed_cases.append(_case_contract_projection_v1(case))
+    if tuple(observed_cases) != _CASE_CONTRACTS_V1:
+        raise ValueError("corpus spec ordered case contracts drifted")
+
+    observed_rules = []
+    for raw_rule in corpus["nested_body_rules"]:
+        rule = validate_nested_body_rule_v1(raw_rule)
+        if rule["full_body_required"] is not True:
+            raise ValueError("corpus nested body rule is not full-body")
+        observed_rules.append(
+            (
+                rule["json_pointer"],
+                rule["body_kind"],
+                rule["hash_field"],
+                rule["nullable"],
+            )
+        )
+    if tuple(observed_rules) != _NESTED_BODY_RULE_PROJECTIONS_V1:
+        raise ValueError("corpus spec nested body registry drifted")
+    return corpus
+
+
+def validate_mutation_universe_v1(
+    raw_body,
+    ordered_transcripts_raw,
+    corpus_spec_sha,
+    mutation_generation_contract_sha,
+    generator_source_bytes,
+):
+    """Validate the exact 326-row universe against the frozen generator."""
+    expected_corpus_root = _require_sha256_root_v1(
+        corpus_spec_sha,
+        "corpus spec root",
+    )
+    expected_generation_root = _require_sha256_root_v1(
+        mutation_generation_contract_sha,
+        "mutation generation contract root",
+    )
+    if expected_generation_root != _MUTATION_GENERATION_CONTRACT_SHA_V1:
+        raise ValueError("mutation generation contract root drifted")
+    universe = _validate_exact_lab_record_v1(
+        "B7LabMutationUniverseV1",
+        raw_body,
+    )
+    if universe["corpus_spec_sha"] != expected_corpus_root:
+        raise ValueError("mutation universe corpus root drifted")
+    if universe["mutation_generation_contract_sha"] != expected_generation_root:
+        raise ValueError("mutation universe generation root drifted")
+    if universe["generator_source_sha256"] != _raw_source_sha256_v1(
+        generator_source_bytes,
+        "mutation generator",
+    ):
+        raise ValueError("mutation universe generator source SHA drifted")
+
+    observed_mutations = [
+        validate_mutation_v1(mutation) for mutation in universe["ordered_mutations"]
+    ]
+    expected_mutations = generate_ordered_mutations_v1(ordered_transcripts_raw)
+    if (
+        universe["mutation_count"] != 326
+        or len(observed_mutations) != 326
+        or observed_mutations != expected_mutations
+    ):
+        raise ValueError("mutation universe differs from frozen generation")
+    if tuple(mutation["mutation_ordinal"] for mutation in observed_mutations) != tuple(
+        range(326)
+    ):
+        raise ValueError("mutation universe ordinals are not contiguous")
+    mutation_ids = tuple(mutation["mutation_id"] for mutation in observed_mutations)
+    mutation_shas = tuple(mutation["mutation_sha"] for mutation in observed_mutations)
+    if len(set(mutation_ids)) != 326 or len(set(mutation_shas)) != 326:
+        raise ValueError("mutation universe IDs or SHAs are not unique")
+    return universe
 
 
 def _presence_bit_v1(value):
