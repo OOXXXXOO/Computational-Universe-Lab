@@ -84,6 +84,26 @@ def test_v92_import_probe_runs_through_invocation_not_resolved_target() -> None:
     assert probe["report"]["scipy_version"]
 
 
+def test_v92_environment_capture_builds_a_self_validating_manifest() -> None:
+    from experiments.v3m0_b7_schema_lab.common import (
+        validate_exact_lab_record_v1,
+    )
+    from experiments.v3m0_b7_schema_lab.compare import (
+        capture_environment_manifest_v2,
+    )
+
+    manifest = capture_environment_manifest_v2(
+        python_invocation_path=sys.executable,
+    )
+
+    assert manifest["python_invocation_path"] == sys.executable
+    assert manifest["python_executable_realpath"] == os.path.realpath(sys.executable)
+    assert manifest["python_venv_prefix"] == sys.prefix
+    assert validate_exact_lab_record_v1("B7LabEnvironmentManifestV2", manifest) == (
+        manifest
+    )
+
+
 def test_v92_identity_recheck_rejects_changed_invocation_symlink(
     tmp_path: Path,
 ) -> None:

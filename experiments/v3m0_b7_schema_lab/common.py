@@ -7,7 +7,7 @@ import ast as _ast
 import rulespace_v3.b7_replay_core_v1 as _pure_core
 
 
-LAB_EXACT_RECORD_CATALOGS_V1 = (
+LAB_EXACT_RECORD_CATALOGS_V2 = (
     (
         "B7LabEnvironmentManifestV1",
         "experimental.v3m0.b7.environment-manifest.v1",
@@ -28,6 +28,66 @@ LAB_EXACT_RECORD_CATALOGS_V1 = (
                 None,
             ),
             ("python_executable_raw_sha256", "sha256", "required", None),
+            ("numpy_version", "str", "required", None),
+            ("scipy_version", "str", "required", None),
+            ("platform_system", "str", "required", None),
+            ("platform_release", "str", "required", None),
+            ("platform_machine", "str", "required", None),
+            ("numpy_float64_dtype_str", "str", "required", None),
+            ("numpy_float64_itemsize", "Literal[8]", "required", None),
+            ("byteorder", "Literal[little,big]", "required", None),
+            ("python_hash_seed", "str", "required", None),
+            (
+                "blas_thread_settings",
+                "tuple[tuple[str,str],...;exact=5]",
+                "required",
+                None,
+            ),
+            ("threadpool_info", "canonical-json-array", "required", None),
+            ("fresh_process_per_capture", "Literal[true]", "required", None),
+            ("environment_sha", "sha256", "required", None),
+        ),
+    ),
+    (
+        "B7LabEnvironmentManifestV2",
+        "experimental.v3m0.b7.environment-manifest.v2",
+        "environment_sha",
+        (
+            (
+                "environment_schema_version",
+                "Literal[experimental.v3m0.b7.environment-manifest.v2]",
+                "required",
+                None,
+            ),
+            ("python_implementation", "str", "required", None),
+            ("python_version", "str", "required", None),
+            (
+                "python_invocation_path",
+                "absolute-normalized-path",
+                "required",
+                None,
+            ),
+            (
+                "python_executable_realpath",
+                "absolute-normalized-path",
+                "required",
+                None,
+            ),
+            ("python_executable_raw_sha256", "sha256", "required", None),
+            ("python_invocation_identity_sha", "sha256", "required", None),
+            (
+                "python_venv_prefix",
+                "absolute-normalized-path",
+                "required",
+                None,
+            ),
+            (
+                "python_pyvenv_cfg_path",
+                "absolute-normalized-path",
+                "required",
+                None,
+            ),
+            ("python_pyvenv_cfg_raw_sha256", "sha256", "required", None),
             ("numpy_version", "str", "required", None),
             ("scipy_version", "str", "required", None),
             ("platform_system", "str", "required", None),
@@ -356,6 +416,46 @@ LAB_EXACT_RECORD_CATALOGS_V1 = (
         ),
     ),
     (
+        "B7LabCorpusFixtureV2",
+        "experimental.v3m0.b7.corpus-fixture.v2",
+        "fixture_sha",
+        (
+            (
+                "fixture_schema_version",
+                "Literal[experimental.v3m0.b7.corpus-fixture.v2]",
+                "required",
+                None,
+            ),
+            ("corpus_spec", "B7LabCorpusSpecV1", "required", "B7LabCorpusSpecV1"),
+            (
+                "mutation_universe",
+                "B7LabMutationUniverseV1",
+                "required",
+                "B7LabMutationUniverseV1",
+            ),
+            ("metric_spec", "B7LabMetricSpecV1", "required", "B7LabMetricSpecV1"),
+            (
+                "environment_manifest",
+                "B7LabEnvironmentManifestV2",
+                "required",
+                "B7LabEnvironmentManifestV2",
+            ),
+            (
+                "synthetic_graph_manifest",
+                "B7LabSyntheticGraphManifestV1",
+                "required",
+                "B7LabSyntheticGraphManifestV1",
+            ),
+            (
+                "ordered_d0_transcripts",
+                "tuple[NormalizedB7ExecutionTranscriptV1;exact=7]",
+                "required",
+                "NormalizedB7ExecutionTranscriptV1",
+            ),
+            ("fixture_sha", "sha256", "required", None),
+        ),
+    ),
+    (
         "B7LabMutationV1",
         "experimental.v3m0.b7.mutation.v1",
         "mutation_sha",
@@ -577,9 +677,9 @@ LAB_EXACT_RECORD_CATALOGS_V1 = (
             ("metric_spec_sha", "sha256", "required", None),
             (
                 "environment_manifest",
-                "B7LabEnvironmentManifestV1",
+                "B7LabEnvironmentManifestV2",
                 "required",
-                "B7LabEnvironmentManifestV1",
+                "B7LabEnvironmentManifestV2",
             ),
             (
                 "ordered_route_results",
@@ -851,9 +951,9 @@ LAB_EXACT_RECORD_CATALOGS_V1 = (
             ),
             (
                 "environment_manifest",
-                "B7LabEnvironmentManifestV1",
+                "B7LabEnvironmentManifestV2",
                 "required",
-                "B7LabEnvironmentManifestV1",
+                "B7LabEnvironmentManifestV2",
             ),
             (
                 "ordered_capture_transcript_set_shas",
@@ -1208,6 +1308,38 @@ LAB_EXACT_RECORD_CATALOGS_V1 = (
             ("handoff_sha", "sha256", "required", None),
         ),
     ),
+)
+
+
+def _project_v91_catalog_from_v92_v1(catalog):
+    record_name, schema_id, self_hash_field, field_specs = catalog
+    if record_name in ("B7LabEnvironmentManifestV2", "B7LabCorpusFixtureV2"):
+        return None
+    if record_name == "B7LabD0ComparisonV1":
+        fields = list(field_specs)
+        fields[8] = (
+            "environment_manifest",
+            "B7LabEnvironmentManifestV1",
+            "required",
+            "B7LabEnvironmentManifestV1",
+        )
+        field_specs = tuple(fields)
+    elif record_name == "B7LabD1ComparisonV1":
+        fields = list(field_specs)
+        fields[13] = (
+            "environment_manifest",
+            "B7LabEnvironmentManifestV1",
+            "required",
+            "B7LabEnvironmentManifestV1",
+        )
+        field_specs = tuple(fields)
+    return record_name, schema_id, self_hash_field, field_specs
+
+
+LAB_EXACT_RECORD_CATALOGS_V1 = tuple(
+    projected
+    for catalog in LAB_EXACT_RECORD_CATALOGS_V2
+    if (projected := _project_v91_catalog_from_v92_v1(catalog)) is not None
 )
 
 
@@ -1803,7 +1935,7 @@ def _core_record_schemas_v1():
         _schema_id,
         hash_field,
         field_specs,
-    ) in LAB_EXACT_RECORD_CATALOGS_V1:
+    ) in LAB_EXACT_RECORD_CATALOGS_V2:
         schemas[record_name] = [
             hash_field,
             [
@@ -1958,7 +2090,7 @@ def _validate_exact_lab_record_v1(record_name, raw_body):
     if type(record_name) is not str:
         raise TypeError("lab record name must be an exact str")
     selected = None
-    for catalog in LAB_EXACT_RECORD_CATALOGS_V1:
+    for catalog in LAB_EXACT_RECORD_CATALOGS_V2:
         if catalog[0] == record_name:
             selected = catalog
             break
@@ -2019,6 +2151,79 @@ def validate_environment_manifest_v1(raw_body):
         raise ValueError("environment Python executable path is not absolute")
     if manifest["python_hash_seed"] != "0":
         raise ValueError("environment Python hash seed drifted")
+    return manifest
+
+
+def validate_environment_manifest_v2(
+    raw_body,
+    *,
+    python_identity_observation,
+    python_probe_result,
+):
+    """Join one V2 manifest to independently observed path and probe evidence."""
+
+    manifest = _validate_exact_lab_record_v1(
+        "B7LabEnvironmentManifestV2",
+        raw_body,
+    )
+    if manifest["python_invocation_path"] == manifest["python_executable_realpath"]:
+        raise ValueError("environment invocation and target roles collapsed")
+    if tuple(tuple(item) for item in manifest["blas_thread_settings"]) != (
+        _BLAS_THREAD_SETTINGS_V1
+    ):
+        raise ValueError("environment BLAS thread settings drifted")
+    if manifest["python_hash_seed"] != "0":
+        raise ValueError("environment Python hash seed drifted")
+    if manifest["fresh_process_per_capture"] is not True:
+        raise ValueError("environment fresh-process policy drifted")
+
+    if (
+        type(python_identity_observation) is not dict
+        or python_identity_observation.get("precheck_passed") is not True
+        or python_identity_observation.get("python_invocation_path")
+        != manifest["python_invocation_path"]
+        or python_identity_observation.get("recorded_realpath")
+        != manifest["python_executable_realpath"]
+        or python_identity_observation.get("recorded_raw_sha256")
+        != manifest["python_executable_raw_sha256"]
+        or python_identity_observation.get("recorded_venv_prefix")
+        != manifest["python_venv_prefix"]
+        or python_identity_observation.get("recorded_pyvenv_cfg_path")
+        != manifest["python_pyvenv_cfg_path"]
+        or python_identity_observation.get("recorded_pyvenv_cfg_raw_sha256")
+        != manifest["python_pyvenv_cfg_raw_sha256"]
+        or python_identity_observation.get("python_invocation_identity_sha")
+        != manifest["python_invocation_identity_sha"]
+    ):
+        raise ValueError("environment Python invocation identity drifted")
+    if (
+        type(python_probe_result) is not dict
+        or python_probe_result.get("probe_passed") is not True
+        or type(python_probe_result.get("report")) is not dict
+    ):
+        raise ValueError("environment import probe failed")
+    report = python_probe_result["report"]
+    probe_manifest_fields = (
+        "python_implementation",
+        "python_version",
+        "python_invocation_path",
+        "python_executable_realpath",
+        "python_venv_prefix",
+        "numpy_version",
+        "scipy_version",
+        "platform_system",
+        "platform_release",
+        "platform_machine",
+        "numpy_float64_dtype_str",
+        "numpy_float64_itemsize",
+        "byteorder",
+        "threadpool_info",
+    )
+    for field in probe_manifest_fields:
+        if canonical_json_bytes_v1(report[field]) != canonical_json_bytes_v1(
+            manifest[field]
+        ):
+            raise ValueError(f"environment probe {field} drifted")
     return manifest
 
 

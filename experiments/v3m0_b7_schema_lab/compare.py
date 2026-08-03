@@ -1080,6 +1080,95 @@ def run_python_environment_import_probe_v2(
     }
 
 
+def capture_environment_manifest_v2(*, python_invocation_path):
+    """Capture one complete live EnvironmentManifestV2 from a venv invocation."""
+
+    invocation = _require_normalized_absolute_path_v2(
+        python_invocation_path,
+        "Python invocation",
+    )
+    _ordered_hops, observed_target, chain_complete = (
+        _resolve_python_invocation_chain_v2(invocation)
+    )
+    if not chain_complete or observed_target is None or observed_target == invocation:
+        raise ValueError("environment capture requires a resolved venv invocation")
+    target_observation = _stable_regular_file_observation_v2(
+        observed_target,
+        executable_required=True,
+    )
+    observed_cfg, observed_prefix, cfg_observation = _nearest_pyvenv_cfg_v2(invocation)
+    if (
+        target_observation["stable"] is not True
+        or target_observation["raw_sha256"] is None
+        or observed_cfg is None
+        or observed_prefix is None
+        or cfg_observation is None
+        or cfg_observation["stable"] is not True
+        or cfg_observation["raw_sha256"] is None
+    ):
+        raise ValueError("environment capture identity observation is incomplete")
+    identity = precheck_python_invocation_identity_v2(
+        python_invocation_path=invocation,
+        recorded_realpath=observed_target,
+        recorded_raw_sha256=target_observation["raw_sha256"],
+        recorded_venv_prefix=observed_prefix,
+        recorded_pyvenv_cfg_path=observed_cfg,
+        recorded_pyvenv_cfg_raw_sha256=cfg_observation["raw_sha256"],
+    )
+    if identity["precheck_passed"] is not True:
+        raise ValueError("environment capture identity changed during observation")
+    probe = run_python_environment_import_probe_v2(
+        python_invocation_path=invocation,
+        python_identity_observation=identity,
+    )
+    if probe["probe_passed"] is not True:
+        raise ValueError("environment capture import probe failed")
+    report = probe["report"]
+    manifest = {
+        "environment_schema_version": "experimental.v3m0.b7.environment-manifest.v2",
+        "python_implementation": report["python_implementation"],
+        "python_version": report["python_version"],
+        "python_invocation_path": invocation,
+        "python_executable_realpath": observed_target,
+        "python_executable_raw_sha256": target_observation["raw_sha256"],
+        "python_invocation_identity_sha": identity["python_invocation_identity_sha"],
+        "python_venv_prefix": observed_prefix,
+        "python_pyvenv_cfg_path": observed_cfg,
+        "python_pyvenv_cfg_raw_sha256": cfg_observation["raw_sha256"],
+        "numpy_version": report["numpy_version"],
+        "scipy_version": report["scipy_version"],
+        "platform_system": report["platform_system"],
+        "platform_release": report["platform_release"],
+        "platform_machine": report["platform_machine"],
+        "numpy_float64_dtype_str": report["numpy_float64_dtype_str"],
+        "numpy_float64_itemsize": report["numpy_float64_itemsize"],
+        "byteorder": report["byteorder"],
+        "python_hash_seed": "0",
+        "blas_thread_settings": [
+            ["OPENBLAS_NUM_THREADS", "1"],
+            ["OMP_NUM_THREADS", "1"],
+            ["MKL_NUM_THREADS", "1"],
+            ["VECLIB_MAXIMUM_THREADS", "1"],
+            ["NUMEXPR_NUM_THREADS", "1"],
+        ],
+        "threadpool_info": report["threadpool_info"],
+        "fresh_process_per_capture": True,
+        "environment_sha": "",
+    }
+    manifest["environment_sha"] = _common.canonical_sha_v1(
+        {
+            field: value
+            for field, value in manifest.items()
+            if field != "environment_sha"
+        }
+    )
+    return _common.validate_environment_manifest_v2(
+        manifest,
+        python_identity_observation=identity,
+        python_probe_result=probe,
+    )
+
+
 def run_frozen_reviewer_process_v1(
     *,
     argv,
