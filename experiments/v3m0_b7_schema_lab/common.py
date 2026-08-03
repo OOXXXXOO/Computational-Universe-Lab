@@ -9755,6 +9755,339 @@ def validate_review_halt_v1(
     return halt
 
 
+_PRODUCTION_HANDOFF_REPOSITORY_OBSERVATION_FIELDS_V1 = (
+    "trusted_git_protocol_passed",
+    "objects_info_alternates_absent",
+    "info_grafts_absent",
+    "evidence_commit_object",
+    "common_commit_object",
+    "ordered_route_commit_objects",
+    "common_is_ancestor_of_ordered_routes",
+    "ordered_routes_are_ancestors_of_evidence",
+    "selection_commit_object",
+    "selection_tree_delta",
+    "selection_tag_ref_object_oid",
+    "selection_tag_object",
+    "selection_tag_peeled_target",
+    "selection_review_absent_at_evidence",
+    "review_halt_absent_at_evidence",
+    "review_halt_absent_at_selection",
+)
+_PRODUCTION_HANDOFF_D0_PATH_V1 = (
+    "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json"
+)
+_PRODUCTION_HANDOFF_D1_PATH_V1 = (
+    "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json"
+)
+_PRODUCTION_HANDOFF_SELECTION_PATH_V1 = (
+    "data/results/experimental/v3m0_b7_schema_lab/selection_review.json"
+)
+
+
+def _git_object_oid_from_body_v1(object_type, raw_bytes):
+    if object_type not in ("commit", "tag") or type(object_type) is not str:
+        raise ValueError("handoff Git object type is not frozen")
+    if type(raw_bytes) is not bytes:
+        raise TypeError("handoff Git object body must be exact bytes")
+    header = f"{object_type} {len(raw_bytes)}\0".encode("ascii")
+    return _pure_core.hashlib.sha1(header + raw_bytes).hexdigest()
+
+
+def _validate_git_object_observation_v1(
+    observation,
+    *,
+    expected_oid,
+    expected_type,
+    field,
+):
+    if type(observation) is not tuple or len(observation) != 3:
+        raise TypeError(f"{field} must be an exact three-item tuple")
+    object_oid, object_type, raw_bytes = observation
+    _require_reviewer_git_sha1_v1(object_oid, f"{field} OID")
+    if object_oid != expected_oid or object_type != expected_type:
+        raise ValueError(f"{field} identity/type drifted")
+    if object_oid != _git_object_oid_from_body_v1(object_type, raw_bytes):
+        raise ValueError(f"{field} OID/body drifted")
+    return raw_bytes
+
+
+def _git_object_headers_v1(raw_bytes, field):
+    if type(raw_bytes) is not bytes or b"\x00" in raw_bytes:
+        raise TypeError(f"{field} body must be exact non-NUL bytes")
+    header_block, separator, _message = raw_bytes.partition(b"\n\n")
+    if separator != b"\n\n" or not header_block:
+        raise ValueError(f"{field} headers are not terminated")
+    headers = []
+    for line in header_block.split(b"\n"):
+        if line.startswith(b" "):
+            if not headers:
+                raise ValueError(f"{field} starts with a continuation header")
+            headers[-1][1].extend(b"\n" + line[1:])
+            continue
+        if b" " not in line:
+            raise ValueError(f"{field} has an unsupported header line")
+        name, value = line.split(b" ", 1)
+        try:
+            decoded_name = name.decode("ascii")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"{field} header name is not ASCII") from exc
+        headers.append([decoded_name, bytearray(value)])
+    return [(name, bytes(value)) for name, value in headers]
+
+
+def _validate_production_handoff_repository_observation_v1(
+    observation,
+    *,
+    evidence_commit_sha,
+    selection_commit_sha,
+    tag_object_sha,
+    common_commit_sha,
+    ordered_route_commit_shas,
+):
+    if type(observation) is not dict or tuple(observation) != (
+        _PRODUCTION_HANDOFF_REPOSITORY_OBSERVATION_FIELDS_V1
+    ):
+        raise TypeError("production handoff repository observation shape drifted")
+    if any(
+        observation[field] is not True
+        for field in (
+            "trusted_git_protocol_passed",
+            "objects_info_alternates_absent",
+            "info_grafts_absent",
+            "selection_review_absent_at_evidence",
+            "review_halt_absent_at_evidence",
+            "review_halt_absent_at_selection",
+        )
+    ):
+        raise ValueError("production handoff repository guard failed")
+    if (
+        type(common_commit_sha) is not str
+        or type(ordered_route_commit_shas) is not list
+        or len(ordered_route_commit_shas) != 3
+        or len(set(ordered_route_commit_shas)) != 3
+    ):
+        raise ValueError("production handoff origin commit set drifted")
+    _require_reviewer_git_sha1_v1(common_commit_sha, "handoff common commit")
+    for ordinal, route_commit in enumerate(ordered_route_commit_shas):
+        _require_reviewer_git_sha1_v1(route_commit, f"handoff route commit {ordinal}")
+    _validate_git_object_observation_v1(
+        observation["evidence_commit_object"],
+        expected_oid=evidence_commit_sha,
+        expected_type="commit",
+        field="handoff evidence commit object",
+    )
+    _validate_git_object_observation_v1(
+        observation["common_commit_object"],
+        expected_oid=common_commit_sha,
+        expected_type="commit",
+        field="handoff common commit object",
+    )
+    route_objects = observation["ordered_route_commit_objects"]
+    if type(route_objects) is not tuple or len(route_objects) != 3:
+        raise TypeError("handoff route commit objects must be an exact tuple")
+    for ordinal, (route_commit, route_object) in enumerate(
+        zip(ordered_route_commit_shas, route_objects)
+    ):
+        _validate_git_object_observation_v1(
+            route_object,
+            expected_oid=route_commit,
+            expected_type="commit",
+            field=f"handoff route commit object {ordinal}",
+        )
+    if (
+        observation["common_is_ancestor_of_ordered_routes"]
+        != [True, True, True]
+        or observation["ordered_routes_are_ancestors_of_evidence"]
+        != [True, True, True]
+    ):
+        raise ValueError("production handoff ancestry observation failed")
+    selection_commit_body = _validate_git_object_observation_v1(
+        observation["selection_commit_object"],
+        expected_oid=selection_commit_sha,
+        expected_type="commit",
+        field="handoff selection commit object",
+    )
+    selection_headers = _git_object_headers_v1(
+        selection_commit_body,
+        "handoff selection commit",
+    )
+    selection_parents = [
+        value for name, value in selection_headers if name == "parent"
+    ]
+    if selection_parents != [evidence_commit_sha.encode("ascii")]:
+        raise ValueError("production handoff selection parent drifted")
+    expected_delta = [
+        {
+            "status": "A",
+            "mode": "100644",
+            "path": _PRODUCTION_HANDOFF_SELECTION_PATH_V1,
+        }
+    ]
+    if observation["selection_tree_delta"] != expected_delta:
+        raise ValueError("production handoff selection tree delta drifted")
+    if observation["selection_tag_ref_object_oid"] != tag_object_sha:
+        raise ValueError("production handoff tag ref OID drifted")
+    tag_body = _validate_git_object_observation_v1(
+        observation["selection_tag_object"],
+        expected_oid=tag_object_sha,
+        expected_type="tag",
+        field="handoff selection tag object",
+    )
+    tag_headers = _git_object_headers_v1(tag_body, "handoff selection tag")
+    required_tag_headers = {
+        "object": selection_commit_sha.encode("ascii"),
+        "type": b"commit",
+        "tag": b"v3m0-b7-schema-selection-v1",
+    }
+    for name, expected in required_tag_headers.items():
+        values = [value for header, value in tag_headers if header == name]
+        if values != [expected]:
+            raise ValueError(f"production handoff tag {name} header drifted")
+    if observation["selection_tag_peeled_target"] != selection_commit_sha:
+        raise ValueError("production handoff peeled tag target drifted")
+    return observation
+
+
+def _validate_production_handoff_blob_v1(
+    observation,
+    *,
+    expected_commit,
+    expected_path,
+    field,
+):
+    checked = _validate_git_tree_blob_observation_v1(
+        observation,
+        field,
+        expected_commit=expected_commit,
+    )
+    if checked[1] != expected_path or checked[2] != "100644":
+        raise ValueError(f"{field} path/mode drifted")
+    return checked[5]
+
+
+def validate_production_handoff_v1(
+    raw_body,
+    *,
+    evidence_commit_sha,
+    selection_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_blob_observation,
+    d1_blob_observation,
+    selection_blob_observation,
+    repository_observation,
+    reviewer_receipt_contexts,
+):
+    """Validate the Git-bound, authority-free production handoff record."""
+
+    handoff = _validate_exact_lab_record_v1(
+        "B7ProductionHandoffReviewV1",
+        raw_body,
+    )
+    _require_reviewer_git_sha1_v1(evidence_commit_sha, "handoff evidence commit")
+    _require_reviewer_git_sha1_v1(selection_commit_sha, "handoff selection commit")
+    if (
+        handoff["lab_evidence_commit_sha"] != evidence_commit_sha
+        or handoff["lab_selection_commit_sha"] != selection_commit_sha
+    ):
+        raise ValueError("production handoff terminal commit join drifted")
+    d0_bytes = _validate_production_handoff_blob_v1(
+        d0_blob_observation,
+        expected_commit=evidence_commit_sha,
+        expected_path=_PRODUCTION_HANDOFF_D0_PATH_V1,
+        field="production handoff D0 blob",
+    )
+    d1_bytes = _validate_production_handoff_blob_v1(
+        d1_blob_observation,
+        expected_commit=evidence_commit_sha,
+        expected_path=_PRODUCTION_HANDOFF_D1_PATH_V1,
+        field="production handoff D1 blob",
+    )
+    selection_bytes = _validate_production_handoff_blob_v1(
+        selection_blob_observation,
+        expected_commit=selection_commit_sha,
+        expected_path=_PRODUCTION_HANDOFF_SELECTION_PATH_V1,
+        field="production handoff selection blob",
+    )
+    selection_body = strict_json_loads_v1(selection_bytes)
+    selection = validate_selection_review_v1(
+        selection_body,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_bytes,
+        d1_raw_bytes=d1_bytes,
+        reviewer_receipt_contexts=reviewer_receipt_contexts,
+    )
+    d0 = validated_d0_result
+    d1 = validated_d1_result
+    manifests = [
+        row["route_manifest"] for row in d0["ordered_route_results"]
+    ]
+    _validate_production_handoff_repository_observation_v1(
+        repository_observation,
+        evidence_commit_sha=evidence_commit_sha,
+        selection_commit_sha=selection_commit_sha,
+        tag_object_sha=handoff["lab_evidence_tag_object_sha"],
+        common_commit_sha=d0["common_commit_sha"],
+        ordered_route_commit_shas=[
+            manifest["route_commit_sha"] for manifest in manifests
+        ],
+    )
+    if (
+        handoff["git_object_verifier_protocol_id"]
+        != "v3m0-b7-schema-selection-git-object-handoff-v1"
+        or handoff["git_object_format"] != "sha1"
+        or handoff["lab_evidence_tag"] != "v3m0-b7-schema-selection-v1"
+    ):
+        raise ValueError("production handoff Git protocol drifted")
+    expected_joins = (
+        ("d0_result_path", _PRODUCTION_HANDOFF_D0_PATH_V1),
+        ("d0_result_raw_sha256", _raw_source_sha256_v1(d0_bytes, "handoff D0")),
+        ("d0_result_sha", d0["d0_result_sha"]),
+        ("d0_decision_payload_sha", d0["decision_payload_sha"]),
+        ("d1_result_path", _PRODUCTION_HANDOFF_D1_PATH_V1),
+        ("d1_result_raw_sha256", _raw_source_sha256_v1(d1_bytes, "handoff D1")),
+        ("d1_result_sha", d1["d1_result_sha"]),
+        ("d1_decision_payload_sha", d1["decision_payload_sha"]),
+        ("selection_review_path", _PRODUCTION_HANDOFF_SELECTION_PATH_V1),
+        (
+            "selection_review_raw_sha256",
+            _raw_source_sha256_v1(selection_bytes, "handoff selection"),
+        ),
+        ("selection_review_sha", selection["selection_review_sha"]),
+        ("selected_route_id", selection["selected_route_id"]),
+        (
+            "selected_route_schema_domain",
+            selection["selected_route_schema_domain"],
+        ),
+        ("selected_route_commit_sha", selection["selected_route_commit_sha"]),
+        (
+            "selected_route_source_sha256",
+            selection["selected_route_source_sha256"],
+        ),
+        (
+            "ordered_reviewer_receipt_shas",
+            [receipt["receipt_sha"] for receipt in selection["reviewer_receipts"]],
+        ),
+    )
+    for field, expected in expected_joins:
+        if canonical_json_bytes_v1(handoff[field]) != canonical_json_bytes_v1(
+            expected
+        ):
+            raise ValueError(f"production handoff {field} drifted")
+    expected_sha = canonical_sha_v1(
+        {
+            key: value
+            for key, value in handoff.items()
+            if key != "handoff_sha"
+        }
+    )
+    if handoff["handoff_sha"] != expected_sha:
+        raise ValueError("production handoff self hash drifted")
+    return handoff
+
+
 def _validate_e07_static_domain_v1(route_manifest, route_blob, production_blobs):
     manifest = validate_route_static_surface_v1(
         route_manifest,

@@ -9,9 +9,32 @@ import pytest
 from experiments.v3m0_b7_schema_lab import common
 
 
-E = "e" * 40
-COMMON = "c" * 40
-ROUTES = ("a" * 40, "b" * 40, "d" * 40)
+def _git_object_oid(object_type, raw_bytes):
+    header = f"{object_type} {len(raw_bytes)}\0".encode("ascii")
+    return common._pure_core.hashlib.sha1(header + raw_bytes).hexdigest()
+
+
+_COMMON_COMMIT_BYTES = b"tree " + b"0" * 40 + b"\n\ncommon\n"
+COMMON = _git_object_oid("commit", _COMMON_COMMIT_BYTES)
+_ROUTE_COMMIT_BYTES = tuple(
+    (
+        b"tree "
+        + str(index + 1).encode("ascii") * 40
+        + b"\nparent "
+        + COMMON.encode("ascii")
+        + b"\n\nroute\n"
+    )
+    for index in range(3)
+)
+ROUTES = tuple(_git_object_oid("commit", body) for body in _ROUTE_COMMIT_BYTES)
+_EVIDENCE_COMMIT_BYTES = (
+    b"tree "
+    + b"4" * 40
+    + b"\n"
+    + b"".join(b"parent " + oid.encode("ascii") + b"\n" for oid in ROUTES)
+    + b"\nevidence\n"
+)
+E = _git_object_oid("commit", _EVIDENCE_COMMIT_BYTES)
 SHA = tuple(character * 64 for character in "123456789abcdef0")
 
 
@@ -359,6 +382,129 @@ def _terminal_review_fixture(*, halt=False):
     return body, context
 
 
+def _git_blob(commit, path, raw_bytes):
+    return (
+        commit,
+        path,
+        "100644",
+        "blob",
+        common._git_blob_oid_v1(raw_bytes),
+        raw_bytes,
+    )
+
+
+def _handoff_fixture():
+    selection, selection_context = _terminal_review_fixture()
+    d0 = selection_context["validated_d0_result"]
+    d1 = selection_context["validated_d1_result"]
+    d0_bytes = selection_context["d0_raw_bytes"]
+    d1_bytes = selection_context["d1_raw_bytes"]
+    selection_bytes = common.canonical_json_bytes_v1(selection) + b"\n"
+    selection_commit_bytes = (
+        b"tree "
+        + b"5" * 40
+        + b"\nparent "
+        + E.encode("ascii")
+        + b"\n\nselection\n"
+    )
+    selection_commit = _git_object_oid("commit", selection_commit_bytes)
+    tag_object_bytes = (
+        b"object "
+        + selection_commit.encode("ascii")
+        + b"\ntype commit\ntag v3m0-b7-schema-selection-v1\n\nselection\n"
+    )
+    tag_object = _git_object_oid("tag", tag_object_bytes)
+    d0_path = "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json"
+    d1_path = "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json"
+    selection_path = (
+        "data/results/experimental/v3m0_b7_schema_lab/selection_review.json"
+    )
+    route_commits = selection["ordered_route_commit_shas"]
+    repository_observation = {
+        "trusted_git_protocol_passed": True,
+        "objects_info_alternates_absent": True,
+        "info_grafts_absent": True,
+        "evidence_commit_object": (E, "commit", _EVIDENCE_COMMIT_BYTES),
+        "common_commit_object": (COMMON, "commit", _COMMON_COMMIT_BYTES),
+        "ordered_route_commit_objects": tuple(
+            (oid, "commit", raw_bytes)
+            for oid, raw_bytes in zip(ROUTES, _ROUTE_COMMIT_BYTES)
+        ),
+        "common_is_ancestor_of_ordered_routes": [True, True, True],
+        "ordered_routes_are_ancestors_of_evidence": [True, True, True],
+        "selection_commit_object": (
+            selection_commit,
+            "commit",
+            selection_commit_bytes,
+        ),
+        "selection_tree_delta": [
+            {"status": "A", "mode": "100644", "path": selection_path}
+        ],
+        "selection_tag_ref_object_oid": tag_object,
+        "selection_tag_object": (tag_object, "tag", tag_object_bytes),
+        "selection_tag_peeled_target": selection_commit,
+        "selection_review_absent_at_evidence": True,
+        "review_halt_absent_at_evidence": True,
+        "review_halt_absent_at_selection": True,
+    }
+    assert len(set(route_commits)) == 3
+    selected_fields = (
+        "selected_route_id",
+        "selected_route_schema_domain",
+        "selected_route_commit_sha",
+        "selected_route_source_sha256",
+    )
+    handoff = {
+        "handoff_schema_version": (
+            "experimental.v3m0.b7.production-handoff-review.v1"
+        ),
+        "git_object_verifier_protocol_id": (
+            "v3m0-b7-schema-selection-git-object-handoff-v1"
+        ),
+        "git_object_format": "sha1",
+        "lab_evidence_tag": "v3m0-b7-schema-selection-v1",
+        "lab_evidence_tag_object_sha": tag_object,
+        "lab_evidence_commit_sha": E,
+        "lab_selection_commit_sha": selection_commit,
+        "d0_result_path": d0_path,
+        "d0_result_raw_sha256": _sha_bytes(d0_bytes),
+        "d0_result_sha": d0["d0_result_sha"],
+        "d0_decision_payload_sha": d0["decision_payload_sha"],
+        "d1_result_path": d1_path,
+        "d1_result_raw_sha256": _sha_bytes(d1_bytes),
+        "d1_result_sha": d1["d1_result_sha"],
+        "d1_decision_payload_sha": d1["decision_payload_sha"],
+        "selection_review_path": selection_path,
+        "selection_review_raw_sha256": _sha_bytes(selection_bytes),
+        "selection_review_sha": selection["selection_review_sha"],
+        **{field: selection[field] for field in selected_fields},
+        "ordered_reviewer_receipt_shas": [
+            receipt["receipt_sha"] for receipt in selection["reviewer_receipts"]
+        ],
+        "handoff_sha": "",
+    }
+    handoff["handoff_sha"] = common.canonical_sha_v1(
+        {key: value for key, value in handoff.items() if key != "handoff_sha"}
+    )
+    return handoff, {
+        "evidence_commit_sha": E,
+        "selection_commit_sha": selection_commit,
+        "validated_d0_result": d0,
+        "validated_d1_result": d1,
+        "d0_blob_observation": _git_blob(E, d0_path, d0_bytes),
+        "d1_blob_observation": _git_blob(E, d1_path, d1_bytes),
+        "selection_blob_observation": _git_blob(
+            selection_commit,
+            selection_path,
+            selection_bytes,
+        ),
+        "repository_observation": repository_observation,
+        "reviewer_receipt_contexts": selection_context[
+            "reviewer_receipt_contexts"
+        ],
+    }
+
+
 def test_reviewer_receipt_accepts_fully_joined_accept() -> None:
     body, context = _receipt_fixture()
     assert common.validate_reviewer_receipt_v1(body, **context) == body
@@ -522,6 +668,84 @@ def test_review_halt_rejects_two_accept_receipts() -> None:
     )
     with pytest.raises((TypeError, ValueError)):
         common.validate_review_halt_v1(attacked, **accept_context)
+
+
+def test_production_handoff_accepts_git_bound_selection() -> None:
+    body, context = _handoff_fixture()
+    assert common.validate_production_handoff_v1(body, **context) == body
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "lab_evidence_tag_object_sha",
+        "selection_review_raw_sha256",
+        "selection_review_sha",
+        "selected_route_source_sha256",
+        "ordered_reviewer_receipt_shas",
+        "handoff_sha",
+    ),
+)
+def test_production_handoff_rejects_record_join_attacks(field: str) -> None:
+    body, context = _handoff_fixture()
+    attacked = copy.deepcopy(body)
+    if type(attacked[field]) is list:
+        attacked[field][0] = "0" * 64
+    else:
+        attacked[field] = "0" * len(attacked[field])
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_production_handoff_v1(attacked, **context)
+
+
+@pytest.mark.parametrize(
+    "attack",
+    (
+        "parent",
+        "tree_delta",
+        "tag_target",
+        "tag_bytes",
+        "ancestry",
+        "selection_blob_oid",
+    ),
+)
+def test_production_handoff_rejects_git_observation_attacks(attack: str) -> None:
+    body, context = _handoff_fixture()
+    attacked = copy.deepcopy(context)
+    repository = attacked["repository_observation"]
+    if attack == "parent":
+        object_oid, object_type, raw_bytes = repository["selection_commit_object"]
+        repository["selection_commit_object"] = (
+            object_oid,
+            object_type,
+            raw_bytes.replace(E.encode("ascii"), b"0" * 40),
+        )
+    elif attack == "tree_delta":
+        repository["selection_tree_delta"][0]["mode"] = "100755"
+    elif attack == "tag_target":
+        repository["selection_tag_peeled_target"] = E
+    elif attack == "tag_bytes":
+        object_oid, object_type, raw_bytes = repository["selection_tag_object"]
+        repository["selection_tag_object"] = (
+            object_oid,
+            object_type,
+            raw_bytes.replace(b"type commit", b"type tree  "),
+        )
+    elif attack == "ancestry":
+        repository["ordered_routes_are_ancestors_of_evidence"][1] = False
+    else:
+        blob = list(attacked["selection_blob_observation"])
+        blob[4] = "0" * 40
+        attacked["selection_blob_observation"] = tuple(blob)
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_production_handoff_v1(body, **attacked)
+
+
+def test_production_handoff_rejects_gpu_or_runtime_authority_field() -> None:
+    body, context = _handoff_fixture()
+    attacked = copy.deepcopy(body)
+    attacked["gpu_permit"] = True
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_production_handoff_v1(attacked, **context)
 
 
 @pytest.mark.parametrize("field", (
