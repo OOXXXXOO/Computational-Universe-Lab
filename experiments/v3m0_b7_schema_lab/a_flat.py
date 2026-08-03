@@ -89,30 +89,90 @@ def _require_self_hash(value, hash_field):
         _reject("HASH_MISMATCH")
 
 
-def _schema_self_hash(value):
+def _schema_self_hash(
+    value,
+    _declared_fields=(
+        ("application_authority_schema_version", ("application_authority_sha",)),
+        ("attempt_schema_version", ("attempt_sha",)),
+        ("audit_schema_version", ("audit_sha",)),
+        ("basis_contract_schema_version", ("basis_contract_sha",)),
+        ("binding_schema_version", ("binding_sha",)),
+        ("branch_attempt_schema_version", ("attempt_sha",)),
+        ("bridge_schema_version", ("bridge_sha",)),
+        ("calibration_schema_version", ("calibration_manifest_sha",)),
+        ("calibration_v3_schema_version", ("calibration_v3_sha",)),
+        ("candidate_schema_version", ("candidate_sha",)),
+        ("construction_schema_version", ("construction_sha",)),
+        ("direction_schema_version", ("direction_manifest_sha",)),
+        ("entry_schema_version", ("entry_sha",)),
+        ("factory_schema_version", ("factory_sha",)),
+        ("geometry_bundle_schema_version", ("geometry_bundle_sha",)),
+        ("grid_authority_schema_version", ("grid_authority_sha",)),
+        ("grid_schema_version", ("bridge_grid_sha", "response_grid_sha")),
+        ("manifest_schema_version", ("manifest_sha",)),
+        ("materialization_schema_version", ("materialization_sha",)),
+        ("observation_schema_version", ("observation_sha",)),
+        ("parent_freeze_schema_version", ("parent_freeze_v3_sha",)),
+        ("permit_schema_version", ("permit_sha",)),
+        ("protocol_schema_version", ("protocol_sha",)),
+        ("provenance_fixture_schema_version", ("provenance_fixture_sha",)),
+        ("receipt_schema_version", ("receipt_sha",)),
+        ("reference_schema_version", ("reference_sha",)),
+        ("reference_spec_schema_version", ("reference_spec_sha",)),
+        ("registry_schema_version", ("registry_sha",)),
+        ("response_contract_schema_version", ("response_contract_sha",)),
+        ("response_schema_version", ("response_sha",)),
+        ("run_spec_schema_version", ("run_spec_sha",)),
+        ("scenario_authority_schema_version", ("scenario_authority_sha",)),
+        ("shell_schema_version", ("shell_manifest_sha",)),
+        ("shell_spec_schema_version", ("shell_spec_sha",)),
+        ("snapshot_schema_version", ("snapshot_sha",)),
+        ("source_ref_schema_version", ("source_ref_sha",)),
+        ("spec_schema_version", ("spec_sha",)),
+        ("tensor_schema_version", ("tensor_sha",)),
+        ("transcript_schema_version", ("experimental_sha",)),
+    ),
+    _lineage_only_fields=("primitive_schema_version", "target_schema_version"),
+    _validated_body_shas={},
+):
     if type(value) is not dict:
         return
+    body_sha = _sha(value)
+    cached = _validated_body_shas.get(body_sha)
+    if cached is True:
+        return
+    if type(cached) is str:
+        _reject(cached)
     schema_names = [name for name in value if name.endswith("_schema_version")]
-    hash_names = [
-        name
-        for name, member in value.items()
-        if (name.endswith("_sha") or name.endswith("_sha256")) and _is_sha(member)
-    ]
-    if schema_names and hash_names:
-        matches = []
-        for name in hash_names:
-            payload = {key: member for key, member in value.items() if key != name}
-            if value[name] == _sha(payload):
-                matches.append(name)
-        if len(matches) != 1:
-            _reject("HASH_MISMATCH")
-    for member in value.values():
-        if type(member) is dict:
-            _schema_self_hash(member)
-        elif type(member) is list:
-            for item in member:
-                if type(item) is dict:
-                    _schema_self_hash(item)
+    try:
+        if len(schema_names) > 1:
+            _reject("SCHEMA_MISMATCH")
+        if schema_names:
+            schema_name = schema_names[0]
+            if schema_name not in _lineage_only_fields:
+                declared = None
+                for candidate_name, candidate_fields in _declared_fields:
+                    if schema_name == candidate_name:
+                        declared = candidate_fields
+                        break
+                if declared is None:
+                    _reject("SCHEMA_MISMATCH")
+                present = [name for name in declared if name in value]
+                if len(present) != 1:
+                    _reject("HASH_MISMATCH")
+                _require_self_hash(value, present[0])
+        for member in value.values():
+            if type(member) is dict:
+                _schema_self_hash(member)
+            elif type(member) is list:
+                for item in member:
+                    if type(item) is dict:
+                        _schema_self_hash(item)
+    except B7LabMutationRejected as error:
+        reason = error.args[0] if len(error.args) == 1 else "HASH_MISMATCH"
+        _validated_body_shas[body_sha] = reason
+        raise
+    _validated_body_shas[body_sha] = True
 
 
 def _validate_provenance(value):
