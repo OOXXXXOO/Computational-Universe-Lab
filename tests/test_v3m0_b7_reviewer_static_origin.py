@@ -382,6 +382,7 @@ def test_reviewer_static_surface_revalidates_each_route_manifest() -> None:
         "module-object-container-flow",
         "route-alias-unresolved",
         "stdout-not-terminal",
+        "nested-default-capability",
     ),
 )
 def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
@@ -436,13 +437,26 @@ def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
             b"    return (a_route_id, b_route_id, c_route_id, encode_a(b'{}'))\n",
             b"    return a_route_id()\n",
         )
-    else:
+    elif attack_id == "stdout-not-terminal":
         compare_source = compare_source.replace(
             b"    return sys.stdout.buffer.write(payload + b'\\n')\n",
             (
                 b"    sys.stdout.buffer.write(payload + b'\\n')\n"
                 b"    return hashlib.sha256(payload).digest()\n"
             ),
+        )
+    else:
+        common_source += (
+            b"\nimport pathlib as _review_pathlib\n"
+            b"def _hostile_child(value):\n"
+            b"    def _hidden(payload=_review_pathlib.Path(value).write_text('x')):\n"
+            b"        return payload\n"
+            b"    return value\n"
+        )
+        compare_source = compare_source.replace(
+            b"    _common._child_common_identity(b'{}')\n",
+            b"    _common._hostile_child('escape')\n",
+            1,
         )
     blobs[common_index] = (*blobs[common_index][:3], common_source)
     blobs[compare_index] = (*blobs[compare_index][:3], compare_source)

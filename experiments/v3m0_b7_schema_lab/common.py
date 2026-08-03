@@ -7842,9 +7842,35 @@ def _reviewer_binding_nodes_v1(node):
     pending = list(reversed(node.body))
     while pending:
         child = pending.pop()
-        if isinstance(child, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
-            if child is not node:
-                continue
+        if isinstance(child, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            definition_time = [
+                *child.decorator_list,
+                *child.args.defaults,
+                *(
+                    default
+                    for default in child.args.kw_defaults
+                    if default is not None
+                ),
+                *(argument.annotation for argument in child.args.posonlyargs),
+                *(argument.annotation for argument in child.args.args),
+                *(argument.annotation for argument in child.args.kwonlyargs),
+                child.args.vararg.annotation if child.args.vararg is not None else None,
+                child.args.kwarg.annotation if child.args.kwarg is not None else None,
+                child.returns,
+            ]
+            pending.extend(
+                reversed([item for item in definition_time if item is not None])
+            )
+            continue
+        if isinstance(child, _ast.ClassDef):
+            definition_time = [
+                *child.decorator_list,
+                *child.bases,
+                *(keyword.value for keyword in child.keywords),
+                *child.body,
+            ]
+            pending.extend(reversed(definition_time))
+            continue
         yield child
         children = list(_ast.iter_child_nodes(child))
         pending.extend(reversed(children))
