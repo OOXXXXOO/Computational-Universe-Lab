@@ -4676,6 +4676,427 @@ def validate_normalized_transcript_v1(
     )
 
 
+_NEUTRAL_CAPTURE_INPUT_FIELDS_V1 = (
+    "reference_spec",
+    "shell_spec_template",
+    "reference_transition_matrix",
+    "reference_metric_matrix",
+    "ordered_shell_transition_matrices",
+    "ordered_shell_metric_matrices",
+    "source_injection_matrix",
+    "readout_matrix",
+    "ordered_actual_transition_matrices",
+    "ordered_actual_metric_matrices",
+    "ordered_matched_ablated_transition_matrices",
+    "ordered_matched_ablated_metric_matrices",
+    "ordered_actual_raw_differences",
+    "ordered_matched_ablated_raw_differences",
+)
+_NEUTRAL_CAPTURE_FAILURES_V1 = {
+    "actual_response_values": "actual_response_failed",
+    "matched_ablated_response_values": "matched_ablated_response_failed",
+    "actual_bridge": "actual_bridge_failed",
+    "matched_ablated_bridge": "matched_ablated_bridge_failed",
+}
+_NEUTRAL_CAPTURE_INJECTED_BRANCH_V1 = "__injected_failure__"
+
+
+def _case_contract_v1(case_id):
+    if type(case_id) is not str:
+        raise TypeError("capture case ID must be an exact str")
+    matches = [row for row in _CASE_CONTRACTS_V1 if row[1] == case_id]
+    if len(matches) != 1:
+        raise ValueError("capture case ID is not frozen")
+    return matches[0]
+
+
+def _capture_leaf_value_projection_v1(value):
+    if isinstance(value, _pure_core.np.ndarray):
+        array = _pure_core.np.asarray(value)
+        if array.dtype.kind not in ("c", "f", "i", "u"):
+            raise TypeError("capture ndarray dtype is not numeric")
+        values = []
+        for item in array.reshape(-1):
+            scalar = complex(item)
+            values.append([float(scalar.real), float(scalar.imag)])
+        return {
+            "python_value_kind": "numpy.ndarray",
+            "dtype": str(array.dtype),
+            "shape": list(array.shape),
+            "values_wire": values,
+        }
+    if isinstance(value, _pure_core.np.generic):
+        return _capture_leaf_value_projection_v1(value.item())
+    if type(value) is tuple:
+        return {
+            "python_value_kind": "tuple",
+            "items": [_capture_leaf_value_projection_v1(item) for item in value],
+        }
+    if type(value) is list:
+        return [_capture_leaf_value_projection_v1(item) for item in value]
+    if type(value) is dict:
+        return {
+            name: _capture_leaf_value_projection_v1(item)
+            for name, item in value.items()
+        }
+    if value is None or type(value) in (bool, int, float, str):
+        return value
+    if type(value) is complex:
+        return {
+            "python_value_kind": "complex",
+            "real": float(value.real),
+            "imag": float(value.imag),
+        }
+    raise TypeError("capture leaf input is not canonically projectable")
+
+
+def _capture_leaf_digest_v1(leaves, leaf_id, call_args, output):
+    leaf = {
+        "leaf_id": leaf_id,
+        "call_ordinal": len(leaves),
+        "input_body_sha": canonical_sha_v1(
+            {
+                "argument_order": list(range(len(call_args))),
+                "arguments": [
+                    _capture_leaf_value_projection_v1(item) for item in call_args
+                ],
+            }
+        ),
+        "output_body_sha": canonical_sha_v1(
+            _capture_leaf_value_projection_v1(output)
+        ),
+    }
+    leaves.append(leaf)
+    return output
+
+
+def _capture_injected_leaf_failure_v1(leaves, leaf_id, function, call_args):
+    try:
+        function(*call_args)
+    except (TypeError, ValueError) as error:
+        observation = {
+            "termination_kind": "INJECTED_FAILURE",
+            "exception_type": type(error).__name__,
+            "message": str(error),
+        }
+        _capture_leaf_digest_v1(leaves, leaf_id, call_args, observation)
+        return
+    raise ValueError(f"injected {leaf_id} leaf unexpectedly returned")
+
+
+def _capture_rebind_shell_spec_v1(template, reference):
+    if type(template) is not dict:
+        raise TypeError("capture shell spec template must be an exact dict")
+    shell_spec = _detach_json_v1(template)
+    if "endpoint_reference_projector" not in shell_spec:
+        raise ValueError("capture shell spec template lacks endpoint projector")
+    shell_spec["endpoint_reference_projector"] = _detach_json_v1(reference)
+    if "shell_spec_sha" not in shell_spec:
+        raise ValueError("capture shell spec template lacks self root")
+    shell_spec["shell_spec_sha"] = canonical_sha_v1(
+        {name: value for name, value in shell_spec.items() if name != "shell_spec_sha"}
+    )
+    return shell_spec
+
+
+def _capture_completed_response_v1(
+    *,
+    branch,
+    values,
+    bridge_audit,
+    shell_manifest_sha,
+    run_spec,
+    provenance,
+    graph,
+):
+    lineage = _branch_lineage_v1(graph, branch)
+    payload = {
+        "response_schema_version": "v3m0.source-readout-response.v1",
+        "branch": branch,
+        "factory_sha": lineage["factory_sha"],
+        "transition_sha": lineage["transition_sha"],
+        "dynamics_certificate_sha": lineage["dynamics_certificate_sha"],
+        "source_basis": _detach_json_v1(run_spec["source_basis"]),
+        "readout_basis": _detach_json_v1(run_spec["readout_basis"]),
+        "run_spec_sha": run_spec["run_spec_sha"],
+        "shell_manifest_sha": shell_manifest_sha,
+        "bridge_audit": _detach_json_v1(bridge_audit),
+        "values": _detach_json_v1(values),
+    }
+    response = {**payload, "response_sha": canonical_sha_v1(payload)}
+    return validate_source_readout_response_raw_v1(
+        response,
+        run_spec,
+        provenance,
+        graph,
+    )
+
+
+def capture_normalized_transcript_from_raw_v1(
+    *,
+    case_id,
+    corpus_spec_sha,
+    environment_manifest_sha,
+    provenance_fixture,
+    response_run_spec_fixture,
+    synthetic_graph_manifest,
+    leaf_inputs,
+):
+    """Run one fixed scheduler prefix through the five owner-neutral raw leaves."""
+
+    case_contract = _case_contract_v1(case_id)
+    corpus_root = _require_sha256_root_v1(corpus_spec_sha, "capture corpus spec")
+    environment_root = _require_sha256_root_v1(
+        environment_manifest_sha,
+        "capture environment manifest",
+    )
+    inputs = _require_exact_ordered_dict_v1(
+        leaf_inputs,
+        _NEUTRAL_CAPTURE_INPUT_FIELDS_V1,
+        "neutral capture leaf inputs",
+    )
+    graph = validate_synthetic_graph_manifest_v1(synthetic_graph_manifest)
+    provenance = validate_provenance_fixture_v1(provenance_fixture)
+    run_spec = validate_response_run_spec_fixture_v1(
+        response_run_spec_fixture,
+        provenance,
+        graph,
+    )
+    injected_stage = case_contract[3]
+    leaves = []
+
+    reference_args = (
+        inputs["reference_spec"],
+        inputs["reference_transition_matrix"],
+        inputs["reference_metric_matrix"],
+        inputs["source_injection_matrix"],
+        inputs["readout_matrix"],
+    )
+    reference = _capture_leaf_digest_v1(
+        leaves,
+        "reference",
+        reference_args,
+        _pure_core._select_endpoint_reference_from_raw(*reference_args),
+    )
+    reference_defined = (
+        type(reference) is dict
+        and type(reference.get("status")) is dict
+        and reference["status"].get("defined") is True
+        and type(reference.get("reference")) is dict
+    )
+    if injected_stage == "reference":
+        if reference_defined or reference.get("failure") is None:
+            raise ValueError("reference-failure capture did not fail at reference")
+        shell = None
+        actual_attempt = None
+        matched_attempt = None
+        actual_completed = None
+        matched_completed = None
+    else:
+        if not reference_defined or reference.get("failure") is not None:
+            raise ValueError("capture reference leaf did not succeed")
+        shell_spec = _capture_rebind_shell_spec_v1(
+            inputs["shell_spec_template"],
+            reference["reference"],
+        )
+        actual_lineage = _branch_lineage_v1(graph, "actual")
+        shell_args = (
+            reference,
+            shell_spec,
+            inputs["ordered_shell_transition_matrices"],
+            inputs["ordered_shell_metric_matrices"],
+            inputs["source_injection_matrix"],
+            inputs["readout_matrix"],
+            actual_lineage["factory_sha"],
+            actual_lineage["transition_sha"],
+            actual_lineage["dynamics_certificate_sha"],
+            actual_lineage["dt"],
+        )
+        shell = _capture_leaf_digest_v1(
+            leaves,
+            "shell",
+            shell_args,
+            _pure_core._track_endpoint_shell_from_raw(*shell_args),
+        )
+        shell_defined = (
+            type(shell) is dict
+            and type(shell.get("status")) is dict
+            and shell["status"].get("defined") is True
+            and type(shell.get("shell")) is dict
+        )
+        if injected_stage == "shell":
+            if shell_defined or shell.get("failure") is None:
+                raise ValueError("shell-failure capture did not fail at shell")
+            actual_attempt = None
+            matched_attempt = None
+            actual_completed = None
+            matched_completed = None
+        else:
+            if not shell_defined or shell.get("failure") is not None:
+                raise ValueError("capture shell leaf did not succeed")
+            shell_manifest = shell["shell"]
+            shell_phases = shell_manifest["shell_phases"]
+
+            value_specs = (
+                (
+                    "actual_response_values",
+                    "actual",
+                    "ordered_actual_transition_matrices",
+                    "ordered_actual_metric_matrices",
+                ),
+                (
+                    "matched_ablated_response_values",
+                    "matched_ablated",
+                    "ordered_matched_ablated_transition_matrices",
+                    "ordered_matched_ablated_metric_matrices",
+                ),
+            )
+            values_by_branch = {"actual": None, "matched_ablated": None}
+            for leaf_id, branch, transition_field, metric_field in value_specs:
+                call_branch = (
+                    _NEUTRAL_CAPTURE_INJECTED_BRANCH_V1
+                    if injected_stage == leaf_id
+                    else branch
+                )
+                call_args = (
+                    call_branch,
+                    run_spec["response_grid"],
+                    run_spec["selected_fejer_order"],
+                    run_spec["source_basis"],
+                    run_spec["readout_basis"],
+                    shell_phases,
+                    inputs[transition_field],
+                    inputs[metric_field],
+                )
+                if injected_stage == leaf_id:
+                    _capture_injected_leaf_failure_v1(
+                        leaves,
+                        leaf_id,
+                        _pure_core._build_fejer_branch_response_values_from_raw,
+                        call_args,
+                    )
+                    break
+                values_by_branch[branch] = _capture_leaf_digest_v1(
+                    leaves,
+                    leaf_id,
+                    call_args,
+                    _pure_core._build_fejer_branch_response_values_from_raw(
+                        *call_args
+                    ),
+                )
+
+            audits_by_branch = {"actual": None, "matched_ablated": None}
+            if injected_stage not in (
+                "actual_response_values",
+                "matched_ablated_response_values",
+            ):
+                bridge_specs = (
+                    ("actual_bridge", "actual", "ordered_actual_raw_differences"),
+                    (
+                        "matched_ablated_bridge",
+                        "matched_ablated",
+                        "ordered_matched_ablated_raw_differences",
+                    ),
+                )
+                for leaf_id, branch, differences_field in bridge_specs:
+                    lineage = _branch_lineage_v1(graph, branch)
+                    call_branch = (
+                        _NEUTRAL_CAPTURE_INJECTED_BRANCH_V1
+                        if injected_stage == leaf_id
+                        else branch
+                    )
+                    call_args = (
+                        call_branch,
+                        lineage["factory_sha"],
+                        lineage["transition_sha"],
+                        lineage["dynamics_certificate_sha"],
+                        run_spec["run_spec_sha"],
+                        run_spec["source_readout_bridge_grid"],
+                        run_spec["source_readout_bridge_steps"],
+                        run_spec["source_trial_vectors"],
+                        run_spec["current_readout_calibration_spec"],
+                        inputs[differences_field],
+                    )
+                    if injected_stage == leaf_id:
+                        _capture_injected_leaf_failure_v1(
+                            leaves,
+                            leaf_id,
+                            _pure_core._audit_source_readout_bridge_from_raw,
+                            call_args,
+                        )
+                        break
+                    audits_by_branch[branch] = _capture_leaf_digest_v1(
+                        leaves,
+                        leaf_id,
+                        call_args,
+                        _pure_core._audit_source_readout_bridge_from_raw(*call_args),
+                    )
+
+            first_failure = _NEUTRAL_CAPTURE_FAILURES_V1.get(injected_stage)
+            actual_attempt, matched_attempt, observed_failure = (
+                _pure_core._assemble_atomic_paired_response_attempt_from_raw(
+                    values_by_branch["actual"],
+                    values_by_branch["matched_ablated"],
+                    audits_by_branch["actual"],
+                    audits_by_branch["matched_ablated"],
+                    first_failure,
+                )
+            )
+            if observed_failure != first_failure:
+                raise ValueError("capture paired assembly failure drifted")
+            actual_completed = None
+            matched_completed = None
+            if first_failure is None:
+                actual_completed = _capture_completed_response_v1(
+                    branch="actual",
+                    values=values_by_branch["actual"],
+                    bridge_audit=audits_by_branch["actual"],
+                    shell_manifest_sha=shell_manifest["shell_manifest_sha"],
+                    run_spec=run_spec,
+                    provenance=provenance,
+                    graph=graph,
+                )
+                matched_completed = _capture_completed_response_v1(
+                    branch="matched_ablated",
+                    values=values_by_branch["matched_ablated"],
+                    bridge_audit=audits_by_branch["matched_ablated"],
+                    shell_manifest_sha=shell_manifest["shell_manifest_sha"],
+                    run_spec=run_spec,
+                    provenance=provenance,
+                    graph=graph,
+                )
+
+    callback_trace = [leaf["leaf_id"] for leaf in leaves]
+    if tuple(callback_trace) != case_contract[7] or tuple(callback_trace) != case_contract[8]:
+        raise ValueError("capture leaf trace differs from frozen scheduler prefix")
+    payload = {
+        "transcript_schema_version": (
+            "experimental.v3m0.b7.normalized-transcript.v1"
+        ),
+        "corpus_spec_sha": corpus_root,
+        "case_id": case_id,
+        "environment_manifest_sha": environment_root,
+        "provenance_fixture": _detach_json_v1(provenance),
+        "response_run_spec_fixture": _detach_json_v1(run_spec),
+        "reference_outcome": _detach_json_v1(reference),
+        "shell_outcome": _detach_json_v1(shell),
+        "actual_branch_attempt": _detach_json_v1(actual_attempt),
+        "matched_ablated_branch_attempt": _detach_json_v1(matched_attempt),
+        "actual_completed_response": _detach_json_v1(actual_completed),
+        "matched_ablated_completed_response": _detach_json_v1(matched_completed),
+        "terminal_tag": case_contract[2],
+        "callback_trace": callback_trace,
+        "ordered_leaf_digests": leaves,
+    }
+    transcript = {**payload, "experimental_sha": canonical_sha_v1(payload)}
+    return validate_normalized_transcript_v1(
+        transcript,
+        corpus_spec_sha=corpus_root,
+        environment_manifest_sha=environment_root,
+        graph_raw=graph,
+    )
+
+
 _CORPUS_FIXTURE_V2_FIELDS = (
     "fixture_schema_version",
     "corpus_spec",
