@@ -8,11 +8,16 @@ written as a fixture.  The graph is synthetic and never an authority object.
 
 from __future__ import annotations
 
+import argparse
 import base64
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
+import stat
+import sys
+import tempfile
 
 import numpy as np
 
@@ -20,6 +25,12 @@ from rulespace_v3 import b7_replay_core_v1 as _core
 
 
 _SCHEMAS = _core._record_schemas_v1()
+_FIXTURE_RELATIVE_PATH_V1 = Path("tests/fixtures/v3m0_b7_schema_lab_corpus.json")
+_MATERIALIZATION_SUMMARY_FIELDS_V1 = (
+    "fixture_raw_sha256",
+    "fixture_sha",
+    "mutation_count",
+)
 
 
 def _canonical_sha(value: object) -> str:
@@ -1325,3 +1336,295 @@ def render_fixture_bytes_v1(fixture: dict[str, object]) -> bytes:
     """Render exact fixture bytes: project canonical JSON followed by one LF."""
 
     return _core.canonical_json_bytes_v1(fixture) + b"\n"
+
+
+def validate_corpus_fixture_for_materialization_v1(
+    *,
+    repository_root: Path,
+    fixture: dict[str, object],
+    python_identity_observation: dict[str, object],
+    python_probe_result: dict[str, object],
+) -> dict[str, object]:
+    """Run the full source/environment-bound fixture validator before writing."""
+
+    from experiments.v3m0_b7_schema_lab import common
+
+    root = Path(repository_root).resolve(strict=True)
+    common_source_bytes = (
+        root / "experiments/v3m0_b7_schema_lab/common.py"
+    ).read_bytes()
+    compare_source_bytes = (
+        root / "experiments/v3m0_b7_schema_lab/compare.py"
+    ).read_bytes()
+    validated = common.validate_corpus_fixture_v2(
+        fixture,
+        common_source_bytes,
+        compare_source_bytes,
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+    )
+    if _core.canonical_json_bytes_v1(validated) != _core.canonical_json_bytes_v1(
+        fixture
+    ):
+        raise ValueError("完整 fixture validator 替换了待物化对象")
+    return validated
+
+
+def _materialization_summary_v1(
+    fixture: dict[str, object],
+    fixture_raw_bytes: bytes,
+) -> dict[str, object]:
+    if type(fixture) is not dict:
+        raise TypeError("fixture 必须是精确 JSON 对象")
+    fixture_sha = fixture.get("fixture_sha")
+    mutation_universe = fixture.get("mutation_universe")
+    mutation_count = (
+        mutation_universe.get("mutation_count")
+        if type(mutation_universe) is dict
+        else None
+    )
+    if (
+        type(fixture_sha) is not str
+        or len(fixture_sha) != 64
+        or any(character not in "0123456789abcdef" for character in fixture_sha)
+    ):
+        raise ValueError("fixture_sha 不是小写 sha256")
+    if type(mutation_count) is not int or mutation_count < 0:
+        raise ValueError("mutation_count 必须是非负精确整数")
+    expected_fixture_sha = _core.canonical_sha_v1(
+        {name: value for name, value in fixture.items() if name != "fixture_sha"}
+    )
+    if fixture_sha != expected_fixture_sha:
+        raise ValueError("fixture 自哈希与完整对象不一致")
+    return {
+        "fixture_raw_sha256": hashlib.sha256(fixture_raw_bytes).hexdigest(),
+        "fixture_sha": fixture_sha,
+        "mutation_count": mutation_count,
+    }
+
+
+def render_materialization_summary_v1(summary: dict[str, object]) -> bytes:
+    """Render the only successful CLI stdout body as canonical JSON plus LF."""
+
+    if (
+        type(summary) is not dict
+        or tuple(summary) != _MATERIALIZATION_SUMMARY_FIELDS_V1
+    ):
+        raise ValueError("物化摘要字段或顺序漂移")
+    raw_sha = summary["fixture_raw_sha256"]
+    fixture_sha = summary["fixture_sha"]
+    mutation_count = summary["mutation_count"]
+    for label, value in (
+        ("fixture_raw_sha256", raw_sha),
+        ("fixture_sha", fixture_sha),
+    ):
+        if (
+            type(value) is not str
+            or len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        ):
+            raise ValueError(f"{label} 不是小写 sha256")
+    if type(mutation_count) is not int or mutation_count < 0:
+        raise ValueError("mutation_count 必须是非负精确整数")
+    return _core.canonical_json_bytes_v1(summary) + b"\n"
+
+
+def _read_existing_target_v1(target: Path) -> bytes | None:
+    try:
+        initial = os.lstat(target)
+    except FileNotFoundError:
+        return None
+    if stat.S_ISLNK(initial.st_mode):
+        raise ValueError("固定 fixture 目标不得是符号链接")
+    if not stat.S_ISREG(initial.st_mode):
+        raise ValueError("固定 fixture 目标必须是普通文件")
+
+    descriptor = None
+    try:
+        descriptor = os.open(
+            target,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+        before = os.fstat(descriptor)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("固定 fixture 目标必须是普通文件")
+        chunks: list[bytes] = []
+        remaining = before.st_size
+        while remaining:
+            chunk = os.read(descriptor, min(1048576, remaining))
+            if not chunk:
+                raise ValueError("读取固定 fixture 时提前结束")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError("固定 fixture 在读取时增长")
+        after = os.fstat(descriptor)
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if after_identity != before_identity:
+            raise ValueError("固定 fixture 在读取时发生变化")
+        return b"".join(chunks)
+    except OSError as error:
+        raise ValueError("固定 fixture 无法在禁止跟随链接时读取") from error
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _fsync_directory_v1(directory: Path) -> None:
+    descriptor = os.open(
+        directory,
+        os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY,
+    )
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _ensure_fixed_fixture_parent_v1(root: Path) -> Path:
+    current = root
+    for component in _FIXTURE_RELATIVE_PATH_V1.parts[:-1]:
+        candidate = current / component
+        try:
+            observed = os.lstat(candidate)
+        except FileNotFoundError:
+            try:
+                os.mkdir(candidate, 0o755)
+            except FileExistsError:
+                pass
+            else:
+                _fsync_directory_v1(current)
+            observed = os.lstat(candidate)
+        if stat.S_ISLNK(observed.st_mode):
+            raise ValueError("固定 fixture 父目录不得经过符号链接")
+        if not stat.S_ISDIR(observed.st_mode):
+            raise ValueError("固定 fixture 父路径组件必须是目录")
+        current = candidate
+    return current
+
+
+def materialize_corpus_fixture_v1(
+    *,
+    repository_root: Path,
+    fixture: dict[str, object],
+) -> dict[str, object]:
+    """Create only the fixed corpus path; identical bytes are idempotent."""
+
+    root = Path(repository_root).resolve(strict=True)
+    fixture_raw_bytes = render_fixture_bytes_v1(fixture)
+    summary = _materialization_summary_v1(fixture, fixture_raw_bytes)
+    target_parent = _ensure_fixed_fixture_parent_v1(root)
+    target = target_parent / _FIXTURE_RELATIVE_PATH_V1.name
+
+    existing = _read_existing_target_v1(target)
+    if existing is not None:
+        if existing != fixture_raw_bytes:
+            raise FileExistsError("固定 fixture 已存在且字节不同，拒绝覆盖")
+        return summary
+
+    file_descriptor, temporary_name = tempfile.mkstemp(
+        prefix=".v3m0-b7-corpus-",
+        suffix=".tmp",
+        dir=target.parent,
+    )
+    temporary = Path(temporary_name)
+    linked = False
+    try:
+        os.fchmod(file_descriptor, 0o444)
+        view = memoryview(fixture_raw_bytes)
+        written = 0
+        while written < len(view):
+            count = os.write(file_descriptor, view[written:])
+            if count <= 0:
+                raise OSError("临时 fixture 写入未取得进展")
+            written += count
+        os.fsync(file_descriptor)
+        os.close(file_descriptor)
+        file_descriptor = -1
+        try:
+            os.link(temporary, target, follow_symlinks=False)
+            linked = True
+        except FileExistsError:
+            raced = _read_existing_target_v1(target)
+            if raced != fixture_raw_bytes:
+                raise FileExistsError(
+                    "固定 fixture 在发布竞争中出现且字节不同，拒绝覆盖"
+                ) from None
+        if linked:
+            _fsync_directory_v1(target.parent)
+        os.unlink(temporary)
+        _fsync_directory_v1(target.parent)
+        if not linked:
+            return summary
+        published = _read_existing_target_v1(target)
+        if published != fixture_raw_bytes:
+            raise ValueError("固定 fixture 发布后字节校验失败")
+        return summary
+    finally:
+        if file_descriptor >= 0:
+            os.close(file_descriptor)
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def _argument_parser_v1() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "构造并仅新建 tests/fixtures/v3m0_b7_schema_lab_corpus.json；"
+            "同字节幂等，不同字节拒绝。"
+        )
+    )
+    parser.add_argument(
+        "--repository-root",
+        default=str(Path(__file__).resolve().parents[1]),
+        help="仓库根目录；目标相对路径固定且不可覆盖指定。",
+    )
+    parser.add_argument(
+        "--python-invocation-path",
+        default=sys.executable,
+        help="用于冻结环境身份的 Python venv 调用路径。",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = _argument_parser_v1().parse_args(argv)
+    repository_root = Path(arguments.repository_root)
+    fixture, identity, probe = build_corpus_fixture_v2(
+        repository_root=repository_root,
+        python_invocation_path=arguments.python_invocation_path,
+    )
+    fixture = validate_corpus_fixture_for_materialization_v1(
+        repository_root=repository_root,
+        fixture=fixture,
+        python_identity_observation=identity,
+        python_probe_result=probe,
+    )
+    summary = materialize_corpus_fixture_v1(
+        repository_root=repository_root,
+        fixture=fixture,
+    )
+    sys.stdout.buffer.write(render_materialization_summary_v1(summary))
+    sys.stdout.buffer.flush()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

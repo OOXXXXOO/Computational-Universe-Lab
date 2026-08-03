@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import inspect
+import os
 from pathlib import Path
 import sys
+
+import pytest
 
 from experiments.v3m0_b7_schema_lab import common
 from tools import v3m0_b7_capture_corpus as capture
@@ -102,3 +106,213 @@ def test_capture_builder_closes_corpus_specs_mutations_environment_and_self_root
     assert fixture["mutation_universe"]["mutation_count"] == 11618
     assert len(fixture["ordered_d0_transcripts"]) == 7
     assert capture.render_fixture_bytes_v1(fixture).endswith(b"\n")
+
+
+def _small_fixture(marker: str = "a") -> dict[str, object]:
+    payload = {
+        "mutation_universe": {"mutation_count": 11618},
+        "payload": marker,
+    }
+    return {**payload, "fixture_sha": capture._core.canonical_sha_v1(payload)}
+
+
+def test_materializer_has_no_arbitrary_target_argument_and_uses_fixed_path(
+    tmp_path: Path,
+) -> None:
+    assert tuple(
+        inspect.signature(capture.materialize_corpus_fixture_v1).parameters
+    ) == (
+        "repository_root",
+        "fixture",
+    )
+
+    summary = capture.materialize_corpus_fixture_v1(
+        repository_root=tmp_path,
+        fixture=_small_fixture(),
+    )
+
+    target = tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+    assert target.read_bytes() == capture.render_fixture_bytes_v1(_small_fixture())
+    assert summary == {
+        "fixture_raw_sha256": summary["fixture_raw_sha256"],
+        "fixture_sha": _small_fixture()["fixture_sha"],
+        "mutation_count": 11618,
+    }
+    assert len(summary["fixture_raw_sha256"]) == 64
+    assert target.stat().st_mode & 0o777 == 0o444
+    assert list(target.parent.glob(".v3m0-b7-corpus-*.tmp")) == []
+
+
+def test_materializer_is_inode_preserving_idempotent_for_identical_bytes(
+    tmp_path: Path,
+) -> None:
+    fixture = _small_fixture()
+    first = capture.materialize_corpus_fixture_v1(
+        repository_root=tmp_path,
+        fixture=fixture,
+    )
+    target = tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+    before = target.stat()
+
+    second = capture.materialize_corpus_fixture_v1(
+        repository_root=tmp_path,
+        fixture=fixture,
+    )
+    after = target.stat()
+
+    assert second == first
+    assert (after.st_dev, after.st_ino, after.st_mtime_ns) == (
+        before.st_dev,
+        before.st_ino,
+        before.st_mtime_ns,
+    )
+
+
+def test_materializer_rejects_existing_different_bytes_without_overwrite(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"frozen-other-bytes\n")
+    target.chmod(0o444)
+    before = target.stat()
+
+    with pytest.raises(FileExistsError, match="不同"):
+        capture.materialize_corpus_fixture_v1(
+            repository_root=tmp_path,
+            fixture=_small_fixture(),
+        )
+
+    after = target.stat()
+    assert target.read_bytes() == b"frozen-other-bytes\n"
+    assert (after.st_dev, after.st_ino, after.st_mtime_ns) == (
+        before.st_dev,
+        before.st_ino,
+        before.st_mtime_ns,
+    )
+    assert list(target.parent.glob(".v3m0-b7-corpus-*.tmp")) == []
+
+
+def test_materializer_rejects_target_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+    target.parent.mkdir(parents=True)
+    elsewhere = tmp_path / "elsewhere.json"
+    elsewhere.write_bytes(b"do-not-touch")
+    target.symlink_to(elsewhere)
+
+    with pytest.raises(ValueError, match="符号链接"):
+        capture.materialize_corpus_fixture_v1(
+            repository_root=tmp_path,
+            fixture=_small_fixture(),
+        )
+
+    assert elsewhere.read_bytes() == b"do-not-touch"
+
+
+def test_materializer_rejects_fixture_self_root_before_creating_target(
+    tmp_path: Path,
+) -> None:
+    fixture = _small_fixture()
+    fixture["payload"] = "drifted-after-seal"
+
+    with pytest.raises(ValueError, match="自哈希"):
+        capture.materialize_corpus_fixture_v1(
+            repository_root=tmp_path,
+            fixture=fixture,
+        )
+
+    assert not (tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json").exists()
+
+
+def test_materializer_fsyncs_before_create_only_atomic_publish(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    events: list[tuple[str, object]] = []
+    original_fsync = os.fsync
+    original_link = os.link
+
+    def fsync(file_descriptor: int) -> None:
+        events.append(("fsync", file_descriptor))
+        original_fsync(file_descriptor)
+
+    def link(source, target, **kwargs) -> None:
+        events.append(("link", (Path(source), Path(target))))
+        original_link(source, target, **kwargs)
+
+    monkeypatch.setattr(capture.os, "fsync", fsync)
+    monkeypatch.setattr(capture.os, "link", link)
+
+    capture.materialize_corpus_fixture_v1(
+        repository_root=tmp_path,
+        fixture=_small_fixture(),
+    )
+
+    link_index = next(index for index, event in enumerate(events) if event[0] == "link")
+    assert any(event[0] == "fsync" for event in events[:link_index])
+    source, target = events[link_index][1]
+    assert source.parent == target.parent
+    assert target == tmp_path / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+    assert sum(event[0] == "fsync" for event in events[link_index + 1 :]) >= 1
+
+
+def test_cli_emits_only_one_canonical_summary_line(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsysbinary: pytest.CaptureFixture[bytes],
+) -> None:
+    fixture = _small_fixture()
+    monkeypatch.setattr(
+        capture,
+        "build_corpus_fixture_v2",
+        lambda **_kwargs: (fixture, {"identity": True}, {"probe": True}),
+    )
+    validation_calls: list[dict[str, object]] = []
+
+    def validate(**kwargs):
+        validation_calls.append(kwargs)
+        return kwargs["fixture"]
+
+    monkeypatch.setattr(
+        capture,
+        "validate_corpus_fixture_for_materialization_v1",
+        validate,
+    )
+
+    assert (
+        capture.main(
+            [
+                "--repository-root",
+                str(tmp_path),
+                "--python-invocation-path",
+                sys.executable,
+            ]
+        )
+        == 0
+    )
+
+    stdout = capsysbinary.readouterr().out
+    assert len(validation_calls) == 1
+    assert validation_calls[0]["fixture"] is fixture
+    assert validation_calls[0]["python_identity_observation"] == {"identity": True}
+    assert validation_calls[0]["python_probe_result"] == {"probe": True}
+    expected = capture.render_materialization_summary_v1(
+        capture.materialize_corpus_fixture_v1(
+            repository_root=tmp_path,
+            fixture=fixture,
+        )
+    )
+    assert stdout == expected
+    assert stdout.endswith(b"\n") and b"\n" not in stdout[:-1]
+    parsed = _core_summary_load(stdout[:-1])
+    assert tuple(parsed) == (
+        "fixture_raw_sha256",
+        "fixture_sha",
+        "mutation_count",
+    )
+
+
+def _core_summary_load(raw_bytes: bytes) -> dict[str, object]:
+    parsed = capture._core.strict_json_loads_v1(raw_bytes)
+    assert capture._core.canonical_json_bytes_v1(parsed) == raw_bytes
+    return parsed
