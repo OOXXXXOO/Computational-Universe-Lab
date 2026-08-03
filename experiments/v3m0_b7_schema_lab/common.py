@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast as _ast
 import difflib as _difflib
+import hashlib as _hashlib
 
 import rulespace_v3.b7_replay_core_v1 as _pure_core
 
@@ -8281,6 +8282,357 @@ def validate_reviewer_child_static_surface_v1(
     return {
         **projection,
         "reviewer_child_static_scan_sha": canonical_sha_v1(projection),
+    }
+
+
+_REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1 = (
+    "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+    "docsv3/v3-机器合同-B7-v9.2.1-overlay.json",
+    "experiments/v3m0_b7_schema_lab/__init__.py",
+    "experiments/v3m0_b7_schema_lab/common.py",
+    "experiments/v3m0_b7_schema_lab/compare.py",
+    "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+)
+_REVIEWER_NAMESPACE_OBSERVATION_FIELDS_V1 = (
+    "fresh_export_root_count",
+    "experiments_init_present",
+    "experiments_namespace_portion_count",
+    "shadowing_paths",
+)
+_REVIEWER_SOURCE_MEMBERSHIP_FIELDS_V1 = (
+    "role_or_route_id",
+    "execution_ordinal",
+    "path",
+    "candidate_mode",
+    "candidate_blob_oid",
+    "origin_kind",
+    "origin_commit",
+    "origin_path",
+    "origin_mode",
+    "origin_blob_oid",
+    "static_scan_sha",
+)
+
+
+def _git_blob_oid_v1(raw_bytes):
+    if type(raw_bytes) is not bytes:
+        raise TypeError("Git blob body must be exact bytes")
+    header = f"blob {len(raw_bytes)}\0".encode("ascii")
+    return _hashlib.sha1(header + raw_bytes).hexdigest()
+
+
+def _validate_git_tree_blob_observation_v1(
+    raw_blob,
+    field,
+    *,
+    expected_commit=None,
+):
+    if type(raw_blob) is not tuple or len(raw_blob) != 6:
+        raise TypeError(f"{field} must be an exact six-item tuple")
+    commit_sha, path, mode, object_type, object_oid, raw_bytes = raw_blob
+    _require_reviewer_git_sha1_v1(commit_sha, f"{field} commit")
+    if expected_commit is not None and commit_sha != expected_commit:
+        raise ValueError(f"{field} origin commit drifted")
+    _require_repo_relative_posix_path_v1(path, f"{field} path")
+    if mode not in ("100644", "100755") or type(mode) is not str:
+        raise ValueError(f"{field} mode is not a regular executable/blob mode")
+    if object_type != "blob" or type(object_type) is not str:
+        raise ValueError(f"{field} object type is not blob")
+    _require_reviewer_git_sha1_v1(object_oid, f"{field} object OID")
+    if type(raw_bytes) is not bytes:
+        raise TypeError(f"{field} body must be exact bytes")
+    if object_oid != _git_blob_oid_v1(raw_bytes):
+        raise ValueError(f"{field} object OID/bytes mismatch")
+    return raw_blob
+
+
+def _validate_ordered_git_tree_blobs_v1(
+    raw_blobs,
+    field,
+    *,
+    expected_commit=None,
+):
+    if type(raw_blobs) is not tuple:
+        raise TypeError(f"{field} must be an exact tuple")
+    validated = []
+    paths = set()
+    for ordinal, blob in enumerate(raw_blobs):
+        checked = _validate_git_tree_blob_observation_v1(
+            blob,
+            f"{field} {ordinal}",
+            expected_commit=expected_commit,
+        )
+        if checked[1] in paths:
+            raise ValueError(f"{field} has a duplicate path")
+        paths.add(checked[1])
+        validated.append(checked)
+    if tuple(validated) != tuple(
+        sorted(validated, key=lambda blob: blob[1].encode("utf-8"))
+    ):
+        raise ValueError(f"{field} is not in raw path-byte order")
+    return tuple(validated)
+
+
+def _reviewer_origin_blob_maps_v1(
+    *,
+    common_commit_sha,
+    route_manifests,
+    common_origin_blobs,
+    route_origin_blobs,
+):
+    common = _validate_ordered_git_tree_blobs_v1(
+        common_origin_blobs,
+        "reviewer common origin",
+        expected_commit=common_commit_sha,
+    )
+    common_by_path = {blob[1]: blob for blob in common}
+    if any(path not in common_by_path for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1):
+        raise ValueError("reviewer common origin omits an exact blob path")
+    if any(common_by_path[path][2] != "100644" for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1):
+        raise ValueError("reviewer common exact origin mode drifted")
+    rulespace_paths = tuple(
+        path for path in common_by_path if path.startswith("rulespace_v3/")
+    )
+    if set(rulespace_paths) != {
+        path for path in common_by_path if path.startswith("rulespace_v3/")
+    } or not {
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/b7_replay_core_v1.py",
+    }.issubset(rulespace_paths):
+        raise ValueError("reviewer common rulespace subtree is incomplete")
+    allowed_common_paths = set(_REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1).union(
+        rulespace_paths
+    )
+    if set(common_by_path) != allowed_common_paths:
+        raise ValueError("reviewer common origin has an extra scoped path")
+
+    if type(route_origin_blobs) is not tuple or len(route_origin_blobs) != 3:
+        raise TypeError("reviewer route origins must be an exact three-item tuple")
+    route_by_path = {}
+    for ordinal, (entry, manifest, blob) in enumerate(
+        zip(_ROUTE_STATIC_REGISTRY_V1, route_manifests, route_origin_blobs)
+    ):
+        if type(manifest) is not dict or manifest.get("route_id") != entry[0]:
+            raise ValueError("reviewer route manifest order drifted")
+        checked = _validate_git_tree_blob_observation_v1(
+            blob,
+            f"reviewer route origin {ordinal}",
+            expected_commit=manifest.get("route_commit_sha"),
+        )
+        if checked[1] != entry[3] or checked[2] != "100644":
+            raise ValueError("reviewer route origin path/mode drifted")
+        route_by_path[checked[1]] = checked
+    if tuple(route_by_path) != tuple(entry[3] for entry in _ROUTE_STATIC_REGISTRY_V1):
+        raise ValueError("reviewer route origin order drifted")
+    return common_by_path, route_by_path
+
+
+def _reviewer_namespace_observation_passes_v1(raw_body):
+    if type(raw_body) is not dict or tuple(raw_body) != (
+        _REVIEWER_NAMESPACE_OBSERVATION_FIELDS_V1
+    ):
+        return False
+    return (
+        type(raw_body["fresh_export_root_count"]) is int
+        and raw_body["fresh_export_root_count"] == 1
+        and raw_body["experiments_init_present"] is False
+        and type(raw_body["experiments_namespace_portion_count"]) is int
+        and raw_body["experiments_namespace_portion_count"] == 1
+        and type(raw_body["shadowing_paths"]) is list
+        and not raw_body["shadowing_paths"]
+    )
+
+
+def _reviewer_static_surface_from_tree_map_v1(
+    *,
+    evidence_commit_sha,
+    common_commit_sha,
+    route_manifests,
+    tree_by_path,
+    production_blobs,
+):
+    executed_paths = (
+        "experiments/v3m0_b7_schema_lab/__init__.py",
+        "experiments/v3m0_b7_schema_lab/common.py",
+        "experiments/v3m0_b7_schema_lab/compare.py",
+        *(entry[3] for entry in _ROUTE_STATIC_REGISTRY_V1),
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/b7_replay_core_v1.py",
+    )
+    source_blobs = tuple(
+        (
+            evidence_commit_sha,
+            path,
+            tree_by_path[path][2],
+            tree_by_path[path][5],
+        )
+        for path in executed_paths
+    )
+    return validate_reviewer_child_static_surface_v1(
+        source_commit_sha=evidence_commit_sha,
+        common_commit_sha=common_commit_sha,
+        route_manifests=route_manifests,
+        source_blobs=source_blobs,
+        production_blobs=production_blobs,
+    )
+
+
+def _reviewer_source_memberships_v1(
+    static_surface,
+    candidate_by_path,
+    common_origin_by_path,
+    route_origin_by_path,
+):
+    scan_by_path = {
+        row["path"]: row["static_scan_sha"]
+        for row in static_surface["module_static_scan_records"]
+    }
+    groups = [
+        (role, tuple(static_surface["ordered_executed_module_paths"]))
+        for role in static_surface["ordered_role_ids"]
+    ]
+    groups.extend(
+        (entry[0], (entry[3],)) for entry in _ROUTE_STATIC_REGISTRY_V1
+    )
+    records = []
+    for group, paths in groups:
+        for ordinal, path in enumerate(paths):
+            candidate = candidate_by_path[path]
+            if path in route_origin_by_path:
+                origin_kind = "ROUTE"
+                origin = route_origin_by_path[path]
+            else:
+                origin_kind = "COMMON"
+                origin = common_origin_by_path[path]
+            record = {
+                "role_or_route_id": group,
+                "execution_ordinal": ordinal,
+                "path": path,
+                "candidate_mode": candidate[2],
+                "candidate_blob_oid": candidate[4],
+                "origin_kind": origin_kind,
+                "origin_commit": origin[0],
+                "origin_path": origin[1],
+                "origin_mode": origin[2],
+                "origin_blob_oid": origin[4],
+                "static_scan_sha": scan_by_path[path],
+            }
+            if tuple(record) != _REVIEWER_SOURCE_MEMBERSHIP_FIELDS_V1:
+                raise RuntimeError("reviewer source membership field order drifted")
+            records.append(record)
+    return records
+
+
+def validate_reviewer_executable_source_origin_v1(
+    *,
+    evidence_commit_sha,
+    common_commit_sha,
+    route_manifests,
+    evidence_blobs,
+    common_origin_blobs,
+    route_origin_blobs,
+    production_blobs,
+    namespace_observation,
+):
+    """Totalize E-versus-origin source closure without reading or spawning."""
+
+    _require_reviewer_git_sha1_v1(evidence_commit_sha, "reviewer evidence commit")
+    _require_reviewer_git_sha1_v1(common_commit_sha, "reviewer common commit")
+    if type(route_manifests) is not tuple or len(route_manifests) != 3:
+        raise TypeError("reviewer route manifests must be an exact three-item tuple")
+    common_origins, route_origins = _reviewer_origin_blob_maps_v1(
+        common_commit_sha=common_commit_sha,
+        route_manifests=route_manifests,
+        common_origin_blobs=common_origin_blobs,
+        route_origin_blobs=route_origin_blobs,
+    )
+    declared_origins = {**common_origins, **route_origins}
+    reviewed_surface = _reviewer_static_surface_from_tree_map_v1(
+        evidence_commit_sha=evidence_commit_sha,
+        common_commit_sha=common_commit_sha,
+        route_manifests=route_manifests,
+        tree_by_path=declared_origins,
+        production_blobs=production_blobs,
+    )
+    expected_memberships = _reviewer_source_memberships_v1(
+        reviewed_surface,
+        declared_origins,
+        common_origins,
+        route_origins,
+    )
+    reviewed_root = canonical_sha_v1(expected_memberships)
+
+    observed_memberships = None
+    observed_root = None
+    all_origin_predicates = False
+    try:
+        evidence = _validate_ordered_git_tree_blobs_v1(
+            evidence_blobs,
+            "reviewer evidence tree",
+            expected_commit=evidence_commit_sha,
+        )
+        evidence_by_path = {blob[1]: blob for blob in evidence}
+        if set(evidence_by_path) != set(declared_origins):
+            raise ValueError("reviewer evidence scoped tree differs from origins")
+        lab_paths = tuple(
+            path
+            for path in evidence_by_path
+            if path.startswith("experiments/v3m0_b7_schema_lab/")
+        )
+        expected_lab_paths = (
+            "experiments/v3m0_b7_schema_lab/__init__.py",
+            "experiments/v3m0_b7_schema_lab/a_flat.py",
+            "experiments/v3m0_b7_schema_lab/b_progress.py",
+            "experiments/v3m0_b7_schema_lab/c_union.py",
+            "experiments/v3m0_b7_schema_lab/common.py",
+            "experiments/v3m0_b7_schema_lab/compare.py",
+        )
+        if tuple(sorted(lab_paths, key=lambda value: value.encode("utf-8"))) != (
+            expected_lab_paths
+        ):
+            raise ValueError("reviewer lab package does not have exactly six leaves")
+        if any(evidence_by_path[path][2] != "100644" for path in expected_lab_paths):
+            raise ValueError("reviewer lab package leaf mode drifted")
+        if not _reviewer_namespace_observation_passes_v1(namespace_observation):
+            raise ValueError("reviewer namespace observation failed")
+        observed_surface = _reviewer_static_surface_from_tree_map_v1(
+            evidence_commit_sha=evidence_commit_sha,
+            common_commit_sha=common_commit_sha,
+            route_manifests=route_manifests,
+            tree_by_path=evidence_by_path,
+            production_blobs=production_blobs,
+        )
+        observed_memberships = _reviewer_source_memberships_v1(
+            observed_surface,
+            evidence_by_path,
+            common_origins,
+            route_origins,
+        )
+        observed_root = canonical_sha_v1(observed_memberships)
+        all_origin_predicates = all(
+            evidence_by_path[path][2:] == origin[2:]
+            for path, origin in declared_origins.items()
+        )
+    except (TypeError, ValueError, SyntaxError, UnicodeError):
+        observed_memberships = None
+        observed_root = None
+        all_origin_predicates = False
+
+    passed = (
+        observed_root is not None
+        and observed_root == reviewed_root
+        and all_origin_predicates
+    )
+    return {
+        "reviewed_executable_source_closure_sha": reviewed_root,
+        "observed_executable_source_closure_sha": observed_root,
+        "executable_source_origin_precheck_passed": passed,
+        "ordered_expected_memberships": expected_memberships,
+        "ordered_observed_memberships": observed_memberships,
+        "all_path_mode_type_oid_byte_namespace_predicates_passed": (
+            all_origin_predicates
+        ),
     }
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import inspect
 from pathlib import Path
 
@@ -449,3 +450,186 @@ def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
 
     with pytest.raises((TypeError, ValueError, SyntaxError, UnicodeError)):
         common.validate_reviewer_child_static_surface_v1(**inputs)
+
+
+def _git_blob_oid(raw_bytes: bytes) -> str:
+    header = f"blob {len(raw_bytes)}\0".encode()
+    return hashlib.sha1(header + raw_bytes).hexdigest()
+
+
+def _tree_blob(commit: str, path: str, raw_bytes: bytes, mode: str = "100644"):
+    return (commit, path, mode, "blob", _git_blob_oid(raw_bytes), raw_bytes)
+
+
+def _origin_inputs():
+    static = _static_inputs()
+    executed = {blob[1]: blob[3] for blob in static["source_blobs"]}
+    exact_common = {
+        "docsv3/v3-机器合同-B7-v9.1-registry.json": (
+            REPO_ROOT / "docsv3/v3-机器合同-B7-v9.1-registry.json"
+        ).read_bytes(),
+        "docsv3/v3-机器合同-B7-v9.2-overlay.json": (
+            REPO_ROOT / "docsv3/v3-机器合同-B7-v9.2-overlay.json"
+        ).read_bytes(),
+        "docsv3/v3-机器合同-B7-v9.2.1-overlay.json": (
+            REPO_ROOT / "docsv3/v3-机器合同-B7-v9.2.1-overlay.json"
+        ).read_bytes(),
+        "experiments/v3m0_b7_schema_lab/__init__.py": executed[
+            "experiments/v3m0_b7_schema_lab/__init__.py"
+        ],
+        "experiments/v3m0_b7_schema_lab/common.py": executed[
+            "experiments/v3m0_b7_schema_lab/common.py"
+        ],
+        "experiments/v3m0_b7_schema_lab/compare.py": executed[
+            "experiments/v3m0_b7_schema_lab/compare.py"
+        ],
+        "tests/fixtures/v3m0_b7_schema_lab_corpus.json": b"{}\n",
+    }
+    rulespace = {}
+    for path in sorted((REPO_ROOT / "rulespace_v3").glob("**/*")):
+        if path.is_file():
+            relative = str(path.relative_to(REPO_ROOT))
+            rulespace[relative] = executed.get(relative, path.read_bytes())
+    common_bodies = {**exact_common, **rulespace}
+    common_origins = tuple(
+        _tree_blob(COMMON_COMMIT, path, common_bodies[path])
+        for path in sorted(common_bodies, key=lambda value: value.encode())
+    )
+    route_origins = tuple(
+        _tree_blob(commit, row[3], executed[row[3]])
+        for row, commit in zip(ROUTE_ROWS, ROUTE_COMMITS)
+    )
+    evidence_bodies = {
+        **common_bodies,
+        **{entry[1]: entry[5] for entry in route_origins},
+    }
+    evidence_blobs = tuple(
+        _tree_blob(EVIDENCE_COMMIT, path, evidence_bodies[path])
+        for path in sorted(evidence_bodies, key=lambda value: value.encode())
+    )
+    return {
+        "evidence_commit_sha": EVIDENCE_COMMIT,
+        "common_commit_sha": COMMON_COMMIT,
+        "route_manifests": static["route_manifests"],
+        "evidence_blobs": evidence_blobs,
+        "common_origin_blobs": common_origins,
+        "route_origin_blobs": route_origins,
+        "production_blobs": static["production_blobs"],
+        "namespace_observation": {
+            "fresh_export_root_count": 1,
+            "experiments_init_present": False,
+            "experiments_namespace_portion_count": 1,
+            "shadowing_paths": [],
+        },
+    }
+
+
+def test_source_origin_validator_has_total_pure_observation_signature() -> None:
+    assert tuple(
+        inspect.signature(
+            common.validate_reviewer_executable_source_origin_v1
+        ).parameters
+    ) == (
+        "evidence_commit_sha",
+        "common_commit_sha",
+        "route_manifests",
+        "evidence_blobs",
+        "common_origin_blobs",
+        "route_origin_blobs",
+        "production_blobs",
+        "namespace_observation",
+    )
+
+
+def test_source_origin_accepts_identical_e_and_declared_origins() -> None:
+    result = common.validate_reviewer_executable_source_origin_v1(**_origin_inputs())
+
+    assert result["executable_source_origin_precheck_passed"] is True
+    assert result["observed_executable_source_closure_sha"] == result[
+        "reviewed_executable_source_closure_sha"
+    ]
+    assert len(result["reviewed_executable_source_closure_sha"]) == 64
+
+
+@pytest.mark.parametrize(
+    "attack_id",
+    (
+        "current-worktree",
+        "extra-module",
+        "dynamic-import",
+        "namespace-shadow",
+        "wrong-mode",
+        "wrong-oid",
+        "wrong-bytes",
+    ),
+)
+def test_source_origin_totalizes_candidate_attacks(attack_id: str) -> None:
+    inputs = _origin_inputs()
+    evidence = list(inputs["evidence_blobs"])
+    compare_index = next(
+        index for index, blob in enumerate(evidence) if blob[1].endswith("compare.py")
+    )
+    common_index = next(
+        index for index, blob in enumerate(evidence) if blob[1].endswith("common.py")
+    )
+    if attack_id == "current-worktree":
+        evidence[0] = ("f" * 40, *evidence[0][1:])
+    elif attack_id == "extra-module":
+        evidence.append(
+            _tree_blob(
+                EVIDENCE_COMMIT,
+                "experiments/v3m0_b7_schema_lab/extra.py",
+                b"",
+            )
+        )
+        evidence.sort(key=lambda blob: blob[1].encode())
+    elif attack_id == "dynamic-import":
+        raw = evidence[compare_index][5].replace(
+            b"    _load_all_routes()\n",
+            b"    __import__('experiments.v3m0_b7_schema_lab.a_flat')\n",
+            1,
+        )
+        evidence[compare_index] = _tree_blob(
+            EVIDENCE_COMMIT, evidence[compare_index][1], raw
+        )
+    elif attack_id == "namespace-shadow":
+        inputs["namespace_observation"]["shadowing_paths"] = [
+            "/tmp/hostile/experiments"
+        ]
+    elif attack_id == "wrong-mode":
+        blob = evidence[common_index]
+        evidence[common_index] = (blob[0], blob[1], "100755", *blob[3:])
+    elif attack_id == "wrong-oid":
+        blob = evidence[common_index]
+        evidence[common_index] = (*blob[:4], "0" * 40, blob[5])
+    else:
+        blob = evidence[common_index]
+        raw = blob[5] + b"\n# candidate-only-byte-drift\n"
+        evidence[common_index] = _tree_blob(EVIDENCE_COMMIT, blob[1], raw)
+    inputs["evidence_blobs"] = tuple(evidence)
+
+    result = common.validate_reviewer_executable_source_origin_v1(**inputs)
+
+    assert result["executable_source_origin_precheck_passed"] is False
+    if attack_id == "wrong-bytes":
+        assert result["observed_executable_source_closure_sha"] is not None
+        assert result["observed_executable_source_closure_sha"] != result[
+            "reviewed_executable_source_closure_sha"
+        ]
+    else:
+        assert result["observed_executable_source_closure_sha"] is None
+
+
+@pytest.mark.parametrize("attack_id", ("wrong-origin-commit", "wrong-origin-oid"))
+def test_source_origin_rejects_malformed_declared_origins(attack_id: str) -> None:
+    inputs = _origin_inputs()
+    routes = list(inputs["route_origin_blobs"])
+    blob = routes[1]
+    if attack_id == "wrong-origin-commit":
+        routes[1] = ("f" * 40, *blob[1:])
+    else:
+        routes[1] = (*blob[:4], "0" * 40, blob[5])
+    inputs["route_origin_blobs"] = tuple(routes)
+
+    with pytest.raises((TypeError, ValueError), match="origin"):
+        common.validate_reviewer_executable_source_origin_v1(**inputs)
