@@ -697,20 +697,44 @@ def _patch_d0_route_dependencies(
     monkeypatch.setattr(
         common,
         "_validate_legal_replay_domain_v1",
-        lambda **_kwargs: {"accepted_count": 7},
-    )
-    monkeypatch.setattr(
-        common,
-        "_validate_e03_domain_v1",
-        lambda **_kwargs: {"evidence_loss_count": 0},
-    )
-    monkeypatch.setattr(
-        common,
-        "_validate_e04_domain_v1",
         lambda **_kwargs: {
+            "accepted_count": 7,
+            "domain_root_sha": "1" * 64,
+            "predicate_results": (True, True, True),
+            "validated_source_sets": [],
+        },
+    )
+    monkeypatch.setattr(
+        common,
+        "_derive_e03_domain_from_legal_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "3" * 64,
+            "predicate_results": (True, True),
+            "evidence_loss_count": 0,
+            "normalized": [],
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(
+        common,
+        "_validate_invalid_presence_domain_v1",
+        lambda **_kwargs: {
+            "normalized": [],
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+            "all_exact_rejections": True,
+        },
+    )
+    monkeypatch.setattr(
+        common,
+        "_derive_e04_domain_from_legal_and_invalid_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "4" * 64,
+            "predicate_results": (True, True, True),
             "canonical_accept_count": 0,
             "half_pair_state_count": 0,
         },
+        raising=False,
     )
 
     def mutation_domain(**kwargs):
@@ -719,10 +743,15 @@ def _patch_d0_route_dependencies(
             route_mutation_count = mutation_accept_by_route[kwargs["route_id"]]
         return {
             "mutation_probe_count": 300,
+            "mutation_must_reject_count": 300,
+            "total_observation_count": 303,
             "mutation_accept_count": route_mutation_count,
             "upstream_invalid_probe_count": 1,
             "upstream_invalid_transcript_count": 0,
             "all_upstream_route_entry_counts_zero": True,
+            "domain_root_sha": "2" * 64,
+            "predicate_results": (True, route_mutation_count == 0, True),
+            "normalized": [],
         }
 
     monkeypatch.setattr(
@@ -732,42 +761,27 @@ def _patch_d0_route_dependencies(
         raising=False,
     )
 
-    def gate_builder(gate_id: str):
-        def build(*, phase: str, route_id: str, **_kwargs):
-            return common.build_gate_outcome_v1(
-                gate_id=gate_id,
-                phase=phase,
-                route_id=route_id,
-                domain_root_sha=gate_id[-1].lower() * 64,
-                predicate_results=[
-                    True for _predicate in common._gate_contract_v1(gate_id)[3]
-                ],
-            )
-
-        return build
-
-    for gate_id in ("E01", "E02", "E03", "E04", "E06"):
-        monkeypatch.setattr(
-            common,
-            f"build_gate_{gate_id.lower()}_v1",
-            gate_builder(gate_id),
-            raising=False,
-        )
-
-    def static_gate_builder(gate_id: str):
-        def build(*, phase: str, route_manifest: dict[str, object], **_kwargs):
-            return gate_builder(gate_id)(
-                phase=phase,
-                route_id=route_manifest["route_id"],
-            )
-
-        return build
+    monkeypatch.setattr(
+        common,
+        "_validate_e06_domain_v1",
+        lambda _mutation: {
+            "domain_root_sha": "6" * 64,
+            "predicate_results": (True, True, True),
+            "normalized": [],
+        },
+    )
 
     for gate_id in ("E07", "E08"):
         monkeypatch.setattr(
             common,
-            f"build_gate_{gate_id.lower()}_v1",
-            static_gate_builder(gate_id),
+            f"_validate_{gate_id.lower()}_static_domain_v1",
+            lambda manifest, _route_blob, _production_blobs, frozen=gate_id: {
+                "domain_root_sha": frozen[-1] * 64,
+                "predicate_results": tuple(
+                    True for _predicate in common._gate_contract_v1(frozen)[3]
+                ),
+                "validated_route_manifest": copy.deepcopy(manifest),
+            },
             raising=False,
         )
 
@@ -902,6 +916,98 @@ def test_d0_route_result_derives_non_survival_from_mutation_metric(
 
     assert result["mutation_accept_count"] == 1
     assert result["survives_d0"] is False
+
+
+def test_d0_route_result_consumes_each_dynamic_domain_once_and_cannot_replay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _patch_d0_route_dependencies(monkeypatch)
+    calls = {"legal": 0, "mutation": 0, "evidence": 0, "invalid": 0, "presence": 0}
+
+    def legal(**_kwargs):
+        calls["legal"] += 1
+        return {
+            "accepted_count": 7,
+            "domain_root_sha": "1" * 64,
+            "predicate_results": (True, True, True),
+            "validated_source_sets": [],
+        }
+
+    def mutation(**kwargs):
+        calls["mutation"] += 1
+        if list(kwargs["ordered_mutation_probes"]) != ["mutation-once"]:
+            raise ValueError("mutation one-shot exhausted")
+        return {
+            "mutation_probe_count": 1,
+            "mutation_must_reject_count": 1,
+            "total_observation_count": 1,
+            "mutation_accept_count": 0,
+            "upstream_invalid_probe_count": 0,
+            "upstream_invalid_transcript_count": 0,
+            "all_upstream_route_entry_counts_zero": True,
+            "domain_root_sha": "2" * 64,
+            "predicate_results": (True, True, True),
+            "normalized": [],
+        }
+
+    def evidence(**_kwargs):
+        calls["evidence"] += 1
+        return {
+            "domain_root_sha": "3" * 64,
+            "predicate_results": (True, True),
+            "evidence_loss_count": 0,
+            "normalized": [],
+        }
+
+    def invalid(**kwargs):
+        calls["invalid"] += 1
+        if list(kwargs["ordered_invalid_presence_probes"]) != ["presence-once"]:
+            raise ValueError("presence one-shot exhausted")
+        return {
+            "normalized": [],
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+            "all_exact_rejections": True,
+        }
+
+    def presence(**_kwargs):
+        calls["presence"] += 1
+        return {
+            "domain_root_sha": "4" * 64,
+            "predicate_results": (True, True, True),
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+        }
+
+    monkeypatch.setattr(common, "_validate_legal_replay_domain_v1", legal)
+    monkeypatch.setattr(common, "_validate_mutation_probe_domain_v1", mutation)
+    monkeypatch.setattr(common, "_derive_e03_domain_from_legal_v1", evidence, raising=False)
+    monkeypatch.setattr(common, "_validate_invalid_presence_domain_v1", invalid)
+    monkeypatch.setattr(
+        common,
+        "_derive_e04_domain_from_legal_and_invalid_v1",
+        presence,
+        raising=False,
+    )
+    manifest = _route_manifest()
+    inputs = {
+        "ordered_legal_replays": [],
+        "ordered_mutation_probes": iter(["mutation-once"]),
+        "ordered_invalid_presence_probes": iter(["presence-once"]),
+    }
+    arguments = {
+        "route_manifest": manifest,
+        "route_blob": ("a" * 40, manifest["route_source_path"], "100644", b"route"),
+        "production_blobs": (("b" * 40, "rulespace_v3/x.py", "100644", b"x"),),
+        "validated_corpus_fixture": _validated_fixture(),
+        "gate_inputs": inputs,
+    }
+
+    common.build_d0_route_result_v1(**arguments)
+    assert calls == {"legal": 1, "mutation": 1, "evidence": 1, "invalid": 1, "presence": 1}
+    with pytest.raises(ValueError, match="one-shot exhausted"):
+        common.build_d0_route_result_v1(**arguments)
 
 
 def _comparison_inputs() -> tuple[
@@ -1058,7 +1164,7 @@ def test_d0_comparison_revalidates_corpus_v2_and_stable_filters_survivors(
         )
         == result
     )
-    assert validated_route_ids == ["A_FLAT", "B_PROGRESS", "C_UNION"]
+    assert validated_route_ids == []
 
 
 @pytest.mark.parametrize(

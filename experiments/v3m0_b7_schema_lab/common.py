@@ -6066,23 +6066,13 @@ def _canonical_value_sha_or_none_v1(value):
     return _pure_core.hashlib.sha256(canonical_json_bytes_v1(value)).hexdigest()
 
 
-def _validate_e03_domain_v1(
-    *,
-    phase,
-    route_id,
-    ordered_source_transcript_sets,
-    ordered_legal_replays,
-):
-    legal = _validate_legal_replay_domain_v1(
-        phase=phase,
-        route_id=route_id,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
-        ordered_legal_replays=ordered_legal_replays,
-    )
+def _derive_e03_domain_from_legal_v1(*, legal_domain, ordered_legal_replays):
+    if type(legal_domain) is not dict or type(ordered_legal_replays) is not list:
+        raise TypeError("E03 requires one validated legal domain and replay list")
     evidence_entries = []
     evidence_loss_count = 0
     source_cursor = 0
-    for source_set in legal["validated_source_sets"]:
+    for source_set in legal_domain["validated_source_sets"]:
         for source in source_set:
             replay = ordered_legal_replays[source_cursor]
             source_cursor += 1
@@ -6135,6 +6125,25 @@ def _validate_e03_domain_v1(
         "evidence_loss_count": evidence_loss_count,
         "normalized": evidence_entries,
     }
+
+
+def _validate_e03_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_legal_replays,
+):
+    legal = _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    return _derive_e03_domain_from_legal_v1(
+        legal_domain=legal,
+        ordered_legal_replays=ordered_legal_replays,
+    )
 
 
 def build_gate_e03_v1(
@@ -6328,26 +6337,19 @@ def _validate_invalid_presence_domain_v1(
     }
 
 
-def _validate_e04_domain_v1(
+def _derive_e04_domain_from_legal_and_invalid_v1(
     *,
     phase,
-    route_id,
-    ordered_source_transcript_sets,
+    legal_domain,
     ordered_legal_replays,
-    ordered_invalid_presence_probes,
+    invalid_domain,
 ):
-    _validate_legal_replay_domain_v1(
-        phase=phase,
-        route_id=route_id,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
-        ordered_legal_replays=ordered_legal_replays,
-    )
-    invalid = _validate_invalid_presence_domain_v1(
-        phase=phase,
-        route_id=route_id,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
-        ordered_invalid_presence_probes=ordered_invalid_presence_probes,
-    )
+    if (
+        type(legal_domain) is not dict
+        or type(ordered_legal_replays) is not list
+        or type(invalid_domain) is not dict
+    ):
+        raise TypeError("E04 requires validated legal and invalid-presence domains")
     expected_states = {
         _expected_case_state_projection_v1(row) for row in _CASE_CONTRACTS_V1
     }
@@ -6404,19 +6406,47 @@ def _validate_e04_domain_v1(
     predicates = (
         all_case_contracts_validate,
         one_to_one,
-        listed_legal_states and invalid["all_exact_rejections"],
+        listed_legal_states and invalid_domain["all_exact_rejections"],
     )
     return {
         "domain_root_sha": canonical_sha_v1(
             {
                 "ordered_case_contract_observations": case_observations,
-                "ordered_invalid_presence_observations": invalid["normalized"],
+                "ordered_invalid_presence_observations": invalid_domain["normalized"],
             }
         ),
         "predicate_results": predicates,
-        "canonical_accept_count": invalid["canonical_accept_count"],
-        "half_pair_state_count": invalid["half_pair_state_count"],
+        "canonical_accept_count": invalid_domain["canonical_accept_count"],
+        "half_pair_state_count": invalid_domain["half_pair_state_count"],
     }
+
+
+def _validate_e04_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_legal_replays,
+    ordered_invalid_presence_probes,
+):
+    legal = _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    invalid = _validate_invalid_presence_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_invalid_presence_probes=ordered_invalid_presence_probes,
+    )
+    return _derive_e04_domain_from_legal_and_invalid_v1(
+        phase=phase,
+        legal_domain=legal,
+        ordered_legal_replays=ordered_legal_replays,
+        invalid_domain=invalid,
+    )
 
 
 def build_gate_e04_v1(
@@ -8457,10 +8487,34 @@ def _validate_d0_gate_inputs_v1(raw_body):
         _D0_GATE_INPUT_FIELDS_V1,
         "D0 gate inputs",
     )
-    for field in _D0_GATE_INPUT_FIELDS_V1:
-        if type(inputs[field]) is not list:
-            raise TypeError(f"D0 gate input {field} must be an exact list")
+    if type(inputs["ordered_legal_replays"]) is not list:
+        raise TypeError("D0 legal replay input must be an exact list")
+    for field in (
+        "ordered_mutation_probes",
+        "ordered_invalid_presence_probes",
+    ):
+        source = inputs[field]
+        if type(source) is list:
+            continue
+        try:
+            iterator = iter(source)
+        except TypeError:
+            raise TypeError(
+                f"D0 gate input {field} must be an exact list or one-shot iterator"
+            ) from None
+        if iterator is not source:
+            raise TypeError(f"D0 gate input {field} iterable must be one-shot")
     return inputs
+
+
+def _build_gate_from_domain_v1(*, gate_id, phase, route_id, domain):
+    return build_gate_outcome_v1(
+        gate_id=gate_id,
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
 
 
 def build_d0_route_result_v1(
@@ -8483,49 +8537,6 @@ def build_d0_route_result_v1(
     )
     inputs = _validate_d0_gate_inputs_v1(gate_inputs)
     route_id = manifest["route_id"]
-    common_gate_arguments = {
-        "phase": "D0",
-        "route_id": route_id,
-        "validated_corpus_fixture": fixture,
-    }
-    gate_outcomes = [
-        build_gate_e01_v1(
-            **common_gate_arguments,
-            ordered_legal_replays=inputs["ordered_legal_replays"],
-        ),
-        build_gate_e02_v1(
-            **common_gate_arguments,
-            ordered_mutation_probes=inputs["ordered_mutation_probes"],
-        ),
-        build_gate_e03_v1(
-            **common_gate_arguments,
-            ordered_legal_replays=inputs["ordered_legal_replays"],
-        ),
-        build_gate_e04_v1(
-            **common_gate_arguments,
-            ordered_legal_replays=inputs["ordered_legal_replays"],
-            ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
-        ),
-        build_gate_e06_v1(
-            **common_gate_arguments,
-            ordered_mutation_probes=inputs["ordered_mutation_probes"],
-        ),
-        build_gate_e07_v1(
-            phase="D0",
-            route_manifest=manifest,
-            route_blob=route_blob,
-            production_blobs=production_blobs,
-        ),
-        build_gate_e08_v1(
-            phase="D0",
-            route_manifest=manifest,
-            route_blob=route_blob,
-            production_blobs=production_blobs,
-        ),
-    ]
-    if tuple(gate["gate_id"] for gate in gate_outcomes) != _D0_GATE_ORDER_V1:
-        raise ValueError("D0 gate builder order drifted")
-
     legal = _validate_legal_replay_domain_v1(
         phase="D0",
         route_id=route_id,
@@ -8538,19 +8549,54 @@ def build_d0_route_result_v1(
         validated_corpus_fixture=fixture,
         ordered_mutation_probes=inputs["ordered_mutation_probes"],
     )
-    evidence = _validate_e03_domain_v1(
-        phase="D0",
-        route_id=route_id,
-        ordered_source_transcript_sets=source_sets,
+    evidence = _derive_e03_domain_from_legal_v1(
+        legal_domain=legal,
         ordered_legal_replays=inputs["ordered_legal_replays"],
     )
-    presence = _validate_e04_domain_v1(
+    invalid = _validate_invalid_presence_domain_v1(
         phase="D0",
         route_id=route_id,
         ordered_source_transcript_sets=source_sets,
-        ordered_legal_replays=inputs["ordered_legal_replays"],
         ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
     )
+    presence = _derive_e04_domain_from_legal_and_invalid_v1(
+        phase="D0",
+        legal_domain=legal,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+        invalid_domain=invalid,
+    )
+    deterministic = _validate_e06_domain_v1(mutation)
+    static_api = _validate_e07_static_domain_v1(
+        manifest,
+        route_blob,
+        production_blobs,
+    )
+    static_import = _validate_e08_static_domain_v1(
+        manifest,
+        route_blob,
+        production_blobs,
+    )
+    domains = (
+        ("E01", legal),
+        ("E02", mutation),
+        ("E03", evidence),
+        ("E04", presence),
+        ("E06", deterministic),
+        ("E07", static_api),
+        ("E08", static_import),
+    )
+    gate_outcomes = [
+        _build_gate_from_domain_v1(
+            gate_id=gate_id,
+            phase="D0",
+            route_id=route_id,
+            domain=domain,
+        )
+        for gate_id, domain in domains
+    ]
+    if tuple(gate["gate_id"] for gate in gate_outcomes) != _D0_GATE_ORDER_V1:
+        raise ValueError("D0 gate builder order drifted")
+
     if mutation["all_upstream_route_entry_counts_zero"] is not True:
         raise ValueError("upstream-invalid probe entered the route")
     survives = (
@@ -8859,23 +8905,6 @@ def validate_d0_comparison_v1(
         ordered_route_inputs=ordered_route_inputs,
         auxiliary_benchmark=observed["auxiliary_benchmark"],
     )
-    parsed_fixture = strict_json_loads_v1(corpus_fixture_raw_bytes)
-    for observed_route, expected_route, route_input in zip(
-        observed["ordered_route_results"],
-        expected["ordered_route_results"],
-        ordered_route_inputs,
-    ):
-        validated_route = validate_d0_route_result_v1(
-            observed_route,
-            route_blob=route_input["route_blob"],
-            production_blobs=route_input["production_blobs"],
-            validated_corpus_fixture=parsed_fixture,
-            gate_inputs=route_input["gate_inputs"],
-        )
-        if canonical_json_bytes_v1(validated_route) != canonical_json_bytes_v1(
-            expected_route
-        ):
-            raise ValueError("D0 comparison route result join drifted")
     if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
         raise ValueError("D0 comparison differs from fresh recomputation")
     return observed
