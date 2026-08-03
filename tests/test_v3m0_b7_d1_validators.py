@@ -618,33 +618,67 @@ def test_d0_route_reports_only_must_reject_mutation_probe_count(
     monkeypatch.setattr(
         common,
         "_validate_legal_replay_domain_v1",
-        lambda **_kwargs: {"accepted_count": 7},
+        lambda **_kwargs: {
+            "domain_root_sha": "1" * 64,
+            "predicate_results": (True, True, True),
+            "accepted_count": 7,
+        },
     )
     monkeypatch.setattr(
         common,
         "_validate_mutation_probe_domain_v1",
         lambda **_kwargs: {
-            "mutation_probe_count": 5,
-            "mutation_must_reject_probe_count": 2,
+            "domain_root_sha": "2" * 64,
+            "predicate_results": (True, True, True),
+            "total_observation_count": 5,
+            "mutation_probe_count": 2,
             "mutation_accept_count": 0,
             "upstream_invalid_probe_count": 1,
             "upstream_invalid_transcript_count": 0,
             "all_upstream_route_entry_counts_zero": True,
+            "normalized": [],
         },
     )
     monkeypatch.setattr(
         common,
-        "_validate_e03_domain_v1",
-        lambda **_kwargs: {"evidence_loss_count": 0},
+        "_derive_e03_domain_from_legal_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "3" * 64,
+            "predicate_results": (True, True),
+            "evidence_loss_count": 0,
+        },
     )
     monkeypatch.setattr(
         common,
-        "_validate_e04_domain_v1",
+        "_validate_invalid_presence_domain_v1",
         lambda **_kwargs: {
+            "normalized": [],
+            "all_exact_rejections": True,
             "canonical_accept_count": 0,
             "half_pair_state_count": 0,
         },
     )
+    monkeypatch.setattr(
+        common,
+        "_derive_e04_domain_from_legal_and_invalid_v1",
+        lambda **_kwargs: {
+            "domain_root_sha": "4" * 64,
+            "predicate_results": (True, True, True),
+            "canonical_accept_count": 0,
+            "half_pair_state_count": 0,
+        },
+    )
+    for gate_id in ("E07", "E08"):
+        monkeypatch.setattr(
+            common,
+            f"_validate_{gate_id.lower()}_static_domain_v1",
+            lambda *_args, gate_id=gate_id: {
+                "domain_root_sha": gate_id[-1].lower() * 64,
+                "predicate_results": tuple(
+                    True for _ in common._gate_contract_v1(gate_id)[3]
+                ),
+            },
+        )
     manifest = _route_manifest()
 
     result = common.build_d0_route_result_v1(
