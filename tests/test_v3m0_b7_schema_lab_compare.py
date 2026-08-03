@@ -12,8 +12,89 @@ import time
 
 import pytest
 
+from rulespace_v3.b7_replay_core_v1 import canonical_json_bytes_v1, canonical_sha_v1
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _replay_report() -> dict[str, object]:
+    report = {
+        "replay_report_schema_version": "experimental.v3m0.b7.replay-report.v1",
+        "reviewer_role": "CORPUS_REPLAY",
+        "review_protocol_id": "v3m0-b7-corpus-replay-v1",
+        "lab_evidence_commit_sha": "1" * 40,
+        "replay_input_root_sha": "2" * 64,
+        "recomputed_d0_decision_payload_sha": "3" * 64,
+        "recomputed_d1_decision_payload_sha": "4" * 64,
+        "observed_surviving_route_ids": ["A_FLAT", "C_UNION"],
+        "observed_provisional_winner_route_id": "A_FLAT",
+        "replay_output_root_sha": "",
+        "replay_report_sha": "",
+    }
+    report["replay_output_root_sha"] = canonical_sha_v1(
+        {
+            name: value
+            for name, value in report.items()
+            if name not in ("replay_output_root_sha", "replay_report_sha")
+        }
+    )
+    report["replay_report_sha"] = canonical_sha_v1(
+        {name: value for name, value in report.items() if name != "replay_report_sha"}
+    )
+    return report
+
+
+def test_replay_report_codec_is_exact_canonical_json_plus_one_lf() -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        decode_replay_report_stdout_v1,
+        encode_replay_report_stdout_v1,
+    )
+
+    report = _replay_report()
+    encoded = encode_replay_report_stdout_v1(report)
+
+    assert encoded == canonical_json_bytes_v1(report) + b"\n"
+    assert decode_replay_report_stdout_v1(encoded) == report
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda report: report.update(replay_output_root_sha="0" * 64),
+        lambda report: report.update(replay_report_sha="0" * 64),
+        lambda report: report.update(review_protocol_id="v3m0-b7-metric-replay-v1"),
+        lambda report: report.update(unexpected=True),
+    ),
+)
+def test_replay_report_validator_rejects_root_identity_and_shape_attacks(
+    mutator,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import validate_replay_report_v1
+
+    hostile = _replay_report()
+    mutator(hostile)
+    with pytest.raises((TypeError, ValueError)):
+        validate_replay_report_v1(hostile)
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    (
+        canonical_json_bytes_v1(_replay_report()),
+        canonical_json_bytes_v1(_replay_report()) + b"\n\n",
+        b" " + canonical_json_bytes_v1(_replay_report()) + b"\n",
+        b'{"duplicate":1,"duplicate":2}\n',
+        b"\xef\xbb\xbf" + canonical_json_bytes_v1(_replay_report()) + b"\n",
+    ),
+)
+def test_replay_report_decoder_rejects_noncanonical_or_non_single_lf_stdout(
+    hostile: bytes,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import decode_replay_report_stdout_v1
+
+    with pytest.raises((TypeError, ValueError)):
+        decode_replay_report_stdout_v1(hostile)
 
 
 def test_reviewer_spawn_environment_is_exact_and_caller_independent() -> None:
@@ -118,12 +199,19 @@ def test_frozen_python_precheck_accepts_exact_executable_file(tmp_path: Path) ->
     payload = b"frozen-python-bytes"
     executable.write_bytes(payload)
     executable.chmod(0o755)
+    status = executable.stat()
 
     observed = _python_precheck(executable, hashlib.sha256(payload).hexdigest())
 
     assert observed == {
         "observed_realpath": str(executable),
         "observed_raw_sha256": hashlib.sha256(payload).hexdigest(),
+        "observed_device": status.st_dev,
+        "observed_inode": status.st_ino,
+        "observed_mode": status.st_mode,
+        "observed_size": status.st_size,
+        "observed_mtime_ns": status.st_mtime_ns,
+        "observed_ctime_ns": status.st_ctime_ns,
         "regular_file": True,
         "executable": True,
         "precheck_passed": True,
@@ -135,6 +223,12 @@ def test_frozen_python_precheck_totalizes_missing_and_wrong_sha(tmp_path: Path) 
     assert _python_precheck(missing, "0" * 64) == {
         "observed_realpath": None,
         "observed_raw_sha256": None,
+        "observed_device": None,
+        "observed_inode": None,
+        "observed_mode": None,
+        "observed_size": None,
+        "observed_mtime_ns": None,
+        "observed_ctime_ns": None,
         "regular_file": False,
         "executable": False,
         "precheck_passed": False,
@@ -162,8 +256,74 @@ def test_frozen_python_precheck_rejects_nonregular_nonexecutable_and_alias(
     alias = tmp_path / "python-alias"
     alias.symlink_to(nonexecutable)
     aliased = _python_precheck(alias, expected_sha)
-    assert aliased["observed_realpath"] == str(nonexecutable)
     assert aliased["precheck_passed"] is False
+
+
+def test_frozen_python_precheck_binds_hash_and_mode_to_one_descriptor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = tmp_path / "python"
+    old_payload = b"old-python"
+    executable.write_bytes(old_payload)
+    executable.chmod(0o755)
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(b"new-python")
+    replacement.chmod(0o644)
+    real_read = os.read
+    swapped = False
+
+    def swap_path_then_read(file_descriptor: int, count: int) -> bytes:
+        nonlocal swapped
+        if not swapped:
+            replacement.replace(executable)
+            swapped = True
+        return real_read(file_descriptor, count)
+
+    monkeypatch.setattr(os, "read", swap_path_then_read)
+    observed = _python_precheck(executable, hashlib.sha256(old_payload).hexdigest())
+
+    assert observed["observed_raw_sha256"] == hashlib.sha256(old_payload).hexdigest()
+    assert observed["precheck_passed"] is False
+    assert os.access(executable, os.X_OK) is False
+
+
+def test_frozen_python_precheck_never_reads_fifo(tmp_path: Path) -> None:
+    fifo = tmp_path / "python-fifo"
+    os.mkfifo(fifo)
+
+    observed = _python_precheck(fifo, "0" * 64)
+
+    assert observed["regular_file"] is False
+    assert observed["observed_raw_sha256"] is None
+    assert observed["precheck_passed"] is False
+
+
+def test_frozen_python_identity_must_recheck_immediately_before_spawn(
+    tmp_path: Path,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        recheck_frozen_python_executable_identity_v1,
+    )
+
+    executable = tmp_path / "python"
+    payload = b"python"
+    executable.write_bytes(payload)
+    executable.chmod(0o755)
+    observation = _python_precheck(executable, hashlib.sha256(payload).hexdigest())
+    assert recheck_frozen_python_executable_identity_v1(
+        recorded_realpath=str(executable),
+        precheck_observation=observation,
+    )
+
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(payload)
+    replacement.chmod(0o755)
+    replacement.replace(executable)
+    assert not recheck_frozen_python_executable_identity_v1(
+        recorded_realpath=str(executable),
+        precheck_observation=observation,
+    )
 
 
 @pytest.mark.parametrize(

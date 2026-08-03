@@ -1875,6 +1875,26 @@ def _validate_exact_lab_record_v1(record_name, raw_body):
     return _detach_json_v1(validated)
 
 
+def canonical_json_bytes_v1(value):
+    """Expose the unique pure-core canonical JSON algorithm to lab consumers."""
+    return _pure_core.canonical_json_bytes_v1(value)
+
+
+def canonical_sha_v1(value):
+    """Expose the unique pure-core canonical SHA algorithm to lab consumers."""
+    return _pure_core.canonical_sha_v1(value)
+
+
+def strict_json_loads_v1(canonical_json_utf8):
+    """Expose the unique pure-core strict JSON decoder to lab consumers."""
+    return _pure_core.strict_json_loads_v1(canonical_json_utf8)
+
+
+def validate_exact_lab_record_v1(record_name, raw_body):
+    """Validate and detach one registry-frozen lab record by exact name."""
+    return _validate_exact_lab_record_v1(record_name, raw_body)
+
+
 def validate_environment_manifest_v1(raw_body):
     """Validate the owner-neutral environment manifest basic contract."""
     manifest = _validate_exact_lab_record_v1(
