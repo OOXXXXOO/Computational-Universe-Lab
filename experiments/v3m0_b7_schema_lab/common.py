@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast as _ast
 import difflib as _difflib
-import hashlib as _hashlib
 
 import rulespace_v3.b7_replay_core_v1 as _pure_core
 
@@ -8319,7 +8318,7 @@ def _git_blob_oid_v1(raw_bytes):
     if type(raw_bytes) is not bytes:
         raise TypeError("Git blob body must be exact bytes")
     header = f"blob {len(raw_bytes)}\0".encode("ascii")
-    return _hashlib.sha1(header + raw_bytes).hexdigest()
+    return _pure_core.hashlib.sha1(header + raw_bytes).hexdigest()
 
 
 def _validate_git_tree_blob_observation_v1(
