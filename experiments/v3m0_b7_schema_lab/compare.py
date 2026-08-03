@@ -383,6 +383,318 @@ def iter_d0_gate_inputs_v1(*, validated_corpus_fixture):
     yield "C_UNION", _capture_d0_route_gate_inputs_v1("C_UNION", domain)
 
 
+def _validate_d1_survivor_route_order_v1(ordered_survivor_route_ids):
+    if (
+        type(ordered_survivor_route_ids) is not list
+        or not ordered_survivor_route_ids
+        or any(type(route_id) is not str for route_id in ordered_survivor_route_ids)
+        or len(set(ordered_survivor_route_ids)) != len(ordered_survivor_route_ids)
+    ):
+        raise TypeError("D1 capture survivor domain must be a nonempty unique list")
+    expected = [
+        route_id
+        for route_id in _D0_CAPTURE_ROUTE_ORDER_V1
+        if route_id in ordered_survivor_route_ids
+    ]
+    if expected != ordered_survivor_route_ids:
+        raise ValueError("D1 capture survivor order is not the frozen D0 order")
+    return list(ordered_survivor_route_ids)
+
+
+def _prepare_d1_capture_domain_v1(
+    validated_corpus_fixture,
+    ordered_capture_source_bytes,
+):
+    captures = _common._validate_d1_capture_source_bytes_v1(
+        ordered_capture_source_bytes
+    )
+    supplied_source_sets = [capture["transcripts"] for capture in captures]
+    fixture, source_sets = _common._validated_gate_fixture_source_domain_v1(
+        "D1",
+        validated_corpus_fixture,
+        supplied_source_sets,
+    )
+    if _common.canonical_json_bytes_v1(source_sets) != _common.canonical_json_bytes_v1(
+        supplied_source_sets
+    ):
+        raise ValueError("D1 capture source bodies changed during fixture validation")
+    graph = _common.validate_synthetic_graph_manifest_v1(
+        fixture["synthetic_graph_manifest"]
+    )
+    if graph.get("selected_fejer_order") != 256 or _common.canonical_json_bytes_v1(
+        graph
+    ) != _common.canonical_json_bytes_v1(fixture["synthetic_graph_manifest"]):
+        raise ValueError("D1 capture graph is not the exact fixture T=256 graph")
+    corpus_spec_sha = fixture["corpus_spec"]["corpus_spec_sha"]
+    environment_sha = fixture["environment_manifest"]["environment_sha"]
+    for source_set in source_sets:
+        for source in source_set:
+            validated = (
+                _common._validate_normalized_transcript_against_validated_graph_v1(
+                    source,
+                    corpus_spec_sha=corpus_spec_sha,
+                    environment_manifest_sha=environment_sha,
+                    validated_graph=graph,
+                )
+            )
+            if _common.canonical_json_bytes_v1(
+                validated
+            ) != _common.canonical_json_bytes_v1(source):
+                raise ValueError("D1 capture lineage validator substituted a source")
+
+    _d0_fixture, d0_source_sets = _common._validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if type(d0_source_sets) is not list or len(d0_source_sets) != 1:
+        raise ValueError("D1 capture mutation universe has no unique D0 source")
+    universe = fixture.get("mutation_universe")
+    if type(universe) is not dict:
+        raise TypeError("D1 capture mutation universe must be an exact dict")
+    raw_mutations = universe.get("ordered_mutations")
+    mutation_count = universe.get("mutation_count")
+    if type(raw_mutations) is not list or type(mutation_count) is not int:
+        raise TypeError("D1 capture mutation universe domain is not exact")
+    mutations = [_common.validate_mutation_v1(raw) for raw in raw_mutations]
+    expected_mutations = _common.generate_ordered_mutations_v1(d0_source_sets[0])
+    if (
+        mutation_count != len(mutations)
+        or mutation_count != len(expected_mutations)
+        or _common.canonical_json_bytes_v1(mutations)
+        != _common.canonical_json_bytes_v1(expected_mutations)
+        or [mutation["mutation_ordinal"] for mutation in mutations]
+        != list(range(mutation_count))
+    ):
+        raise ValueError("D1 capture mutation universe differs from its D0 freeze")
+
+    capture_domains = []
+    for capture, source_set in zip(captures, source_sets):
+        sources_by_case = {source["case_id"]: source for source in source_set}
+        if len(sources_by_case) != 7 or "success" not in sources_by_case:
+            raise ValueError("D1 capture source case domain drifted")
+        source_bytes = [
+            _common.canonical_json_bytes_v1(source) for source in source_set
+        ]
+        if source_bytes != capture["source_bytes"]:
+            raise ValueError("D1 capture canonical source bytes drifted")
+        capture_domains.append(
+            {
+                "capture_ordinal": capture["capture_ordinal"],
+                "source_set": source_set,
+                "source_bytes": source_bytes,
+                "sources_by_case": sources_by_case,
+                "success": sources_by_case["success"],
+                "snapshots": {
+                    case_id: _common.discover_record_self_hashes_v1(source)
+                    for case_id, source in sources_by_case.items()
+                },
+            }
+        )
+    return {"captures": capture_domains, "mutations": mutations}
+
+
+def _capture_d1_legal_replays_v1(route_id, domain):
+    observations = []
+    for capture in domain["captures"]:
+        for source, source_bytes in zip(
+            capture["source_set"],
+            capture["source_bytes"],
+        ):
+            encode, decode = _call_d0_route_pipeline_v1(route_id, source_bytes)
+            observations.append(
+                {
+                    "capture_ordinal": capture["capture_ordinal"],
+                    "case_id": source["case_id"],
+                    "route_id": route_id,
+                    "source_transcript_bytes": source_bytes,
+                    "encode_result": encode,
+                    "decode_result": decode,
+                }
+            )
+    if len(observations) != 21:
+        raise ValueError("D1 legal replay capture cardinality drifted")
+    return observations
+
+
+def _capture_d1_mutation_probes_v1(route_id, domain):
+    for capture in domain["captures"]:
+        for mutation in domain["mutations"]:
+            probe_kind = mutation["probe_kind"]
+            not_called = _not_called_route_call_v1
+            if probe_kind == "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT":
+                materialized_bytes = None
+                upstream_transcript_count = 0
+                first_encode = not_called()
+                first_decode = not_called()
+                second_encode = not_called()
+                second_decode = not_called()
+            else:
+                base_case_id = mutation["base_case_id"]
+                if base_case_id not in capture["sources_by_case"]:
+                    raise ValueError("D1 mutation base case is outside the capture")
+                base = capture["sources_by_case"][base_case_id]
+                if probe_kind in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL"):
+                    materialized = base
+                else:
+                    materialized = _common.apply_transcript_mutation_v1(
+                        base,
+                        mutation,
+                        capture["success"],
+                        capture["snapshots"][base_case_id],
+                    )
+                materialized_bytes = _common.canonical_json_bytes_v1(materialized)
+                upstream_transcript_count = 1
+                first_encode, first_decode = _call_d0_route_pipeline_v1(
+                    route_id,
+                    materialized_bytes,
+                )
+                if probe_kind == "REPEAT_MUST_EQUAL":
+                    second_encode, second_decode = _call_d0_route_pipeline_v1(
+                        route_id,
+                        materialized_bytes,
+                    )
+                else:
+                    second_encode = not_called()
+                    second_decode = not_called()
+            yield {
+                "capture_ordinal": capture["capture_ordinal"],
+                "mutation_ordinal": mutation["mutation_ordinal"],
+                "mutation_id": mutation["mutation_id"],
+                "mutation_sha": mutation["mutation_sha"],
+                "route_id": route_id,
+                "materialized_transcript_bytes": materialized_bytes,
+                "upstream_transcript_count": upstream_transcript_count,
+                "first_encode_result": first_encode,
+                "first_decode_result": first_decode,
+                "second_encode_result": second_encode,
+                "second_decode_result": second_decode,
+            }
+
+
+def _capture_d1_invalid_presence_probes_v1(route_id, domain):
+    for capture in domain["captures"]:
+        candidate_count = 0
+        candidates = _common.iter_constructible_invalid_presence_candidates_v1(
+            capture["success"]
+        )
+        if iter(candidates) is not candidates:
+            raise TypeError("D1 invalid-presence producer must be one-shot")
+        for candidate in candidates:
+            if candidate_count >= 1393:
+                raise ValueError("D1 invalid-presence capture cardinality drifted")
+            candidate_count += 1
+            candidate_bytes = _common.canonical_json_bytes_v1(candidate["transcript"])
+            yield {
+                "capture_ordinal": capture["capture_ordinal"],
+                "terminal_tag": candidate["terminal_tag"],
+                "bit_integer": candidate["bit_integer"],
+                "presence_bits": candidate["presence_bits"],
+                "route_id": route_id,
+                "candidate_transcript_bytes": candidate_bytes,
+                "encode_result": _call_d0_route_encode_v1(
+                    route_id,
+                    candidate_bytes,
+                ),
+            }
+        if candidate_count != 1393:
+            raise ValueError("D1 invalid-presence capture cardinality drifted")
+
+
+def _capture_d1_route_gate_inputs_v1(route_id, domain):
+    return {
+        "ordered_legal_replays": _capture_d1_legal_replays_v1(route_id, domain),
+        "ordered_mutation_probes": _capture_d1_mutation_probes_v1(
+            route_id,
+            domain,
+        ),
+        "ordered_invalid_presence_probes": (
+            _capture_d1_invalid_presence_probes_v1(route_id, domain)
+        ),
+    }
+
+
+def iter_d1_gate_inputs_v1(
+    *,
+    validated_corpus_fixture,
+    ordered_survivor_route_ids,
+    ordered_capture_source_bytes,
+):
+    """Broadcast three fresh-harness capture sets to D0 survivors in order."""
+
+    route_ids = _validate_d1_survivor_route_order_v1(ordered_survivor_route_ids)
+    domain = _prepare_d1_capture_domain_v1(
+        validated_corpus_fixture,
+        ordered_capture_source_bytes,
+    )
+    for route_id in route_ids:
+        yield route_id, _capture_d1_route_gate_inputs_v1(route_id, domain)
+
+
+def build_d1_route_inputs_from_capture_v1(
+    *,
+    d0_comparison,
+    ordered_d0_route_inputs,
+    validated_corpus_fixture,
+    ordered_capture_source_bytes,
+):
+    """Join D0 survivor manifests/blobs to their fresh D1 capture streams."""
+
+    d0 = _common.validate_exact_lab_record_v1(
+        "B7LabD0ComparisonV1",
+        d0_comparison,
+    )
+    _common.validate_d0_decision_payload_projection_v1(d0)
+    survivor_ids = _validate_d1_survivor_route_order_v1(d0["surviving_route_ids"])
+    d0_inputs = _common._validate_d0_route_inputs_v1(
+        ordered_d0_route_inputs,
+        d0["common_commit_sha"],
+    )
+    input_by_route = {
+        route_input["route_manifest"]["route_id"]: route_input
+        for route_input in d0_inputs
+    }
+    result_by_route = {
+        route_result["route_id"]: route_result
+        for route_result in d0["ordered_route_results"]
+    }
+    captured = iter_d1_gate_inputs_v1(
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_survivor_route_ids=survivor_ids,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+    )
+    route_inputs = []
+    for expected_route_id in survivor_ids:
+        try:
+            captured_route_id, gate_inputs = next(captured)
+        except StopIteration:
+            raise ValueError("D1 capture omitted a D0 survivor") from None
+        if captured_route_id != expected_route_id:
+            raise ValueError("D1 capture survivor order drifted")
+        if (
+            expected_route_id not in input_by_route
+            or expected_route_id not in result_by_route
+        ):
+            raise ValueError("D1 capture survivor has no D0 route identity")
+        d0_input = input_by_route[expected_route_id]
+        d0_manifest = result_by_route[expected_route_id]["route_manifest"]
+        if _common.canonical_json_bytes_v1(
+            d0_input["route_manifest"]
+        ) != _common.canonical_json_bytes_v1(d0_manifest):
+            raise ValueError("D1 capture route manifest differs from D0")
+        route_inputs.append(
+            {
+                "route_manifest": d0_manifest,
+                "route_blob": d0_input["route_blob"],
+                "production_blobs": d0_input["production_blobs"],
+                "gate_inputs": gate_inputs,
+            }
+        )
+    try:
+        next(captured)
+    except StopIteration:
+        return route_inputs
+    raise ValueError("D1 capture emitted a non-survivor route")
+
+
 def _require_lower_hex_v1(value, width, field):
     if (
         type(value) is not str
