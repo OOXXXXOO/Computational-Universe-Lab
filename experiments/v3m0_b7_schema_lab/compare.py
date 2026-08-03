@@ -35,6 +35,10 @@ _REVIEWER_PROTOCOLS_V1 = (
     ("CORPUS_REPLAY", "v3m0-b7-corpus-replay-v1"),
     ("METRIC_REPLAY", "v3m0-b7-metric-replay-v1"),
 )
+_REVIEWER_PROTOCOLS_V2 = (
+    ("CORPUS_REPLAY", "v3m0-b7-corpus-replay-v2"),
+    ("METRIC_REPLAY", "v3m0-b7-metric-replay-v2"),
+)
 _REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1 = (
     "replay_report_schema_version",
     "reviewer_role",
@@ -100,7 +104,7 @@ def validate_replay_report_v1(raw_body):
 
     report = _common.validate_exact_lab_record_v1("B7LabReplayReportV1", raw_body)
     expected_protocol = None
-    for reviewer_role, review_protocol_id in _REVIEWER_PROTOCOLS_V1:
+    for reviewer_role, review_protocol_id in _REVIEWER_PROTOCOLS_V2:
         if report["reviewer_role"] == reviewer_role:
             expected_protocol = review_protocol_id
             break

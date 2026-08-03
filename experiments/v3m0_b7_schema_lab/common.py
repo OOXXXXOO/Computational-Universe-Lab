@@ -1668,7 +1668,7 @@ _LAB_SEMANTIC_STRING_DOMAINS_V1 = (
     ("probe-kind", _MUTATION_PROBE_KINDS_V1),
     (
         "review-protocol-id",
-        ("v3m0-b7-corpus-replay-v1", "v3m0-b7-metric-replay-v1"),
+        ("v3m0-b7-corpus-replay-v2", "v3m0-b7-metric-replay-v2"),
     ),
     (
         "route-domain",

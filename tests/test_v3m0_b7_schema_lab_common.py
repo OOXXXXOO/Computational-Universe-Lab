@@ -251,7 +251,7 @@ def test_common_mechanically_freezes_all_v91_exact_record_catalogs() -> None:
         ("mutation-class", "TERMINAL_TAG", "NOT_A_CLASS"),
         ("mutation-operation", "SET_VALUE", "EXECUTE"),
         ("probe-kind", "MUTATION_MUST_REJECT", "MAY_ACCEPT"),
-        ("review-protocol-id", "v3m0-b7-corpus-replay-v1", "review-anything"),
+        ("review-protocol-id", "v3m0-b7-corpus-replay-v2", "review-anything"),
         ("route-domain", "experimental.v3m0.b7.a-flat", "production.route"),
         ("route-id", "A_FLAT", "NOT_A_ROUTE"),
         (

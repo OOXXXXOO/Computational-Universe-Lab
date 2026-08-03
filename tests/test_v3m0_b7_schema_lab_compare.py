@@ -22,7 +22,7 @@ def _replay_report() -> dict[str, object]:
     report = {
         "replay_report_schema_version": "experimental.v3m0.b7.replay-report.v1",
         "reviewer_role": "CORPUS_REPLAY",
-        "review_protocol_id": "v3m0-b7-corpus-replay-v1",
+        "review_protocol_id": "v3m0-b7-corpus-replay-v2",
         "lab_evidence_commit_sha": "1" * 40,
         "replay_input_root_sha": "2" * 64,
         "recomputed_d0_decision_payload_sha": "3" * 64,
@@ -63,7 +63,7 @@ def test_replay_report_codec_is_exact_canonical_json_plus_one_lf() -> None:
     (
         lambda report: report.update(replay_output_root_sha="0" * 64),
         lambda report: report.update(replay_report_sha="0" * 64),
-        lambda report: report.update(review_protocol_id="v3m0-b7-metric-replay-v1"),
+        lambda report: report.update(review_protocol_id="v3m0-b7-metric-replay-v2"),
         lambda report: report.update(unexpected=True),
     ),
 )
