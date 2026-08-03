@@ -47,6 +47,43 @@ _REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1 = (
     "observed_provisional_winner_route_id",
 )
 _PYTHON_EXECUTABLE_HASH_CHUNK_BYTES_V1 = 1048576
+_PYTHON_INVOCATION_MAX_SYMLINK_HOPS_V2 = 40
+_PYTHON_ENVIRONMENT_PROBE_TIMEOUT_SECONDS_V2 = 30
+_PYTHON_ENVIRONMENT_PROBE_STDOUT_HARD_CAP_BYTES_V2 = 262144
+_PYTHON_ENVIRONMENT_PROBE_STDERR_HARD_CAP_BYTES_V2 = 262144
+_PYTHON_ENVIRONMENT_IMPORT_PROBE_UTF8_V2 = (
+    "import json,os,platform,sys;import numpy as np;import scipy;"
+    "from threadpoolctl import threadpool_info;"
+    "payload={'python_implementation':platform.python_implementation(),"
+    "'python_version':platform.python_version(),"
+    "'python_invocation_path':os.path.normpath(os.path.abspath(sys.executable)),"
+    "'python_executable_realpath':os.path.realpath(sys.executable),"
+    "'python_venv_prefix':os.path.normpath(os.path.abspath(sys.prefix)),"
+    "'numpy_version':str(np.__version__),'scipy_version':str(scipy.__version__),"
+    "'platform_system':platform.system(),'platform_release':platform.release(),"
+    "'platform_machine':platform.machine(),"
+    "'numpy_float64_dtype_str':np.dtype(np.float64).str,"
+    "'numpy_float64_itemsize':np.dtype(np.float64).itemsize,"
+    "'byteorder':sys.byteorder,'threadpool_info':threadpool_info()};"
+    "sys.stdout.buffer.write(json.dumps(payload,allow_nan=False,ensure_ascii=False,"
+    "sort_keys=True,separators=(',',':')).encode('utf-8')+b'\\n')"
+)
+_PYTHON_ENVIRONMENT_PROBE_FIELDS_V2 = (
+    "byteorder",
+    "numpy_float64_dtype_str",
+    "numpy_float64_itemsize",
+    "numpy_version",
+    "platform_machine",
+    "platform_release",
+    "platform_system",
+    "python_executable_realpath",
+    "python_implementation",
+    "python_invocation_path",
+    "python_venv_prefix",
+    "python_version",
+    "scipy_version",
+    "threadpool_info",
+)
 
 
 def _require_lower_hex_v1(value, width, field):
@@ -346,6 +383,328 @@ def recheck_frozen_python_executable_identity_v1(
     )
 
 
+def _require_normalized_absolute_path_v2(value, field):
+    import os
+
+    if (
+        type(value) is not str
+        or not os.path.isabs(value)
+        or value.startswith("//")
+        or os.path.normpath(value) != value
+    ):
+        raise ValueError(f"{field} must be an absolute lexically normalized path")
+    return value
+
+
+def _stable_regular_file_observation_v2(path, *, executable_required):
+    import os
+    import stat
+
+    empty = {
+        "raw_sha256": None,
+        "device": None,
+        "inode": None,
+        "mode": None,
+        "size": None,
+        "mtime_ns": None,
+        "ctime_ns": None,
+        "regular_file": False,
+        "executable": False,
+        "stable": False,
+    }
+    file_descriptor = None
+    try:
+        file_descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+        before = os.fstat(file_descriptor)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        regular_file = stat.S_ISREG(before.st_mode)
+        executable = regular_file and bool(before.st_mode & 0o111)
+        complete_read = regular_file
+        observed_raw_sha256 = None
+        if regular_file:
+            hash_state = hashlib.sha256()
+            remaining = before.st_size
+            while remaining:
+                chunk = os.read(
+                    file_descriptor,
+                    min(_PYTHON_EXECUTABLE_HASH_CHUNK_BYTES_V1, remaining),
+                )
+                if not chunk:
+                    complete_read = False
+                    break
+                hash_state.update(chunk)
+                remaining -= len(chunk)
+            if complete_read and os.read(file_descriptor, 1):
+                complete_read = False
+            if complete_read:
+                observed_raw_sha256 = hash_state.hexdigest()
+        after = os.fstat(file_descriptor)
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        final = os.stat(path, follow_symlinks=False)
+        final_identity = (
+            final.st_dev,
+            final.st_ino,
+            final.st_mode,
+            final.st_size,
+            final.st_mtime_ns,
+            final.st_ctime_ns,
+        )
+        path_executable = os.access(path, os.X_OK)
+        stable = (
+            complete_read
+            and before_identity == after_identity == final_identity
+            and regular_file
+            and (not executable_required or (executable and path_executable))
+        )
+        return {
+            "raw_sha256": observed_raw_sha256,
+            "device": before.st_dev,
+            "inode": before.st_ino,
+            "mode": before.st_mode,
+            "size": before.st_size,
+            "mtime_ns": before.st_mtime_ns,
+            "ctime_ns": before.st_ctime_ns,
+            "regular_file": regular_file,
+            "executable": executable,
+            "stable": stable,
+        }
+    except OSError:
+        return empty
+    finally:
+        if file_descriptor is not None:
+            try:
+                os.close(file_descriptor)
+            except OSError:
+                pass
+
+
+def _resolve_python_invocation_chain_v2(python_invocation_path):
+    import os
+    import stat
+
+    cursor = python_invocation_path
+    observed_inodes = set()
+    ordered_hops = []
+    symlink_count = 0
+    try:
+        while True:
+            status = os.lstat(cursor)
+            inode_identity = (status.st_dev, status.st_ino)
+            if inode_identity in observed_inodes:
+                return ordered_hops, None, False
+            observed_inodes.add(inode_identity)
+            is_symlink = stat.S_ISLNK(status.st_mode)
+            symlink_target = os.readlink(cursor) if is_symlink else None
+            ordered_hops.append(
+                {
+                    "hop_ordinal": len(ordered_hops),
+                    "absolute_normalized_path": cursor,
+                    "lstat_device": status.st_dev,
+                    "lstat_inode": status.st_ino,
+                    "lstat_mode": status.st_mode,
+                    "lstat_size": status.st_size,
+                    "lstat_mtime_ns": status.st_mtime_ns,
+                    "lstat_ctime_ns": status.st_ctime_ns,
+                    "symlink_target_or_null": symlink_target,
+                }
+            )
+            if not is_symlink:
+                return ordered_hops, cursor, True
+            symlink_count += 1
+            if symlink_count > _PYTHON_INVOCATION_MAX_SYMLINK_HOPS_V2:
+                return ordered_hops, None, False
+            if os.path.isabs(symlink_target):
+                cursor = os.path.normpath(symlink_target)
+            else:
+                cursor = os.path.normpath(
+                    os.path.join(os.path.dirname(cursor), symlink_target)
+                )
+            if not os.path.isabs(cursor) or cursor.startswith("//"):
+                return ordered_hops, None, False
+    except OSError:
+        return ordered_hops, None, False
+
+
+def _nearest_pyvenv_cfg_v2(python_invocation_path):
+    import os
+
+    cursor = os.path.dirname(python_invocation_path)
+    while True:
+        candidate = os.path.join(cursor, "pyvenv.cfg")
+        try:
+            os.lstat(candidate)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return candidate, cursor, None
+        else:
+            return (
+                candidate,
+                cursor,
+                _stable_regular_file_observation_v2(
+                    candidate,
+                    executable_required=False,
+                ),
+            )
+        parent = os.path.dirname(cursor)
+        if parent == cursor:
+            return None, None, None
+        cursor = parent
+
+
+def precheck_python_invocation_identity_v2(
+    *,
+    python_invocation_path,
+    recorded_realpath,
+    recorded_raw_sha256,
+    recorded_venv_prefix,
+    recorded_pyvenv_cfg_path,
+    recorded_pyvenv_cfg_raw_sha256,
+):
+    """Observe the v9.2 venv invocation and resolved-target identities."""
+
+    invocation = _require_normalized_absolute_path_v2(
+        python_invocation_path,
+        "Python invocation",
+    )
+    target = _require_normalized_absolute_path_v2(
+        recorded_realpath,
+        "recorded Python target",
+    )
+    venv_prefix = _require_normalized_absolute_path_v2(
+        recorded_venv_prefix,
+        "recorded venv prefix",
+    )
+    pyvenv_cfg = _require_normalized_absolute_path_v2(
+        recorded_pyvenv_cfg_path,
+        "recorded pyvenv.cfg",
+    )
+    _require_lower_hex_v1(recorded_raw_sha256, 64, "recorded Python raw SHA")
+    _require_lower_hex_v1(
+        recorded_pyvenv_cfg_raw_sha256,
+        64,
+        "recorded pyvenv.cfg raw SHA",
+    )
+    ordered_hops, observed_target, chain_complete = _resolve_python_invocation_chain_v2(
+        invocation
+    )
+    target_observation = _stable_regular_file_observation_v2(
+        observed_target or target,
+        executable_required=True,
+    )
+    observed_cfg, observed_prefix, cfg_observation = _nearest_pyvenv_cfg_v2(invocation)
+    if cfg_observation is None:
+        cfg_observation = _stable_regular_file_observation_v2(
+            pyvenv_cfg,
+            executable_required=False,
+        )
+    complete_identity = (
+        chain_complete
+        and observed_target is not None
+        and target_observation["stable"] is True
+        and observed_cfg is not None
+        and observed_prefix is not None
+        and cfg_observation["stable"] is True
+    )
+    projection = None
+    identity_sha = None
+    if complete_identity:
+        projection = {
+            "python_invocation_path": invocation,
+            "ordered_lstat_hops": ordered_hops,
+            "python_executable_realpath": observed_target,
+            "python_executable_raw_sha256": target_observation["raw_sha256"],
+            "python_venv_prefix": observed_prefix,
+            "python_pyvenv_cfg_path": observed_cfg,
+            "python_pyvenv_cfg_raw_sha256": cfg_observation["raw_sha256"],
+        }
+        identity_sha = _common.canonical_sha_v1(projection)
+    precheck_passed = (
+        complete_identity
+        and observed_target == target
+        and target_observation["raw_sha256"] == recorded_raw_sha256
+        and observed_prefix == venv_prefix
+        and observed_cfg == pyvenv_cfg
+        and cfg_observation["raw_sha256"] == recorded_pyvenv_cfg_raw_sha256
+    )
+    return {
+        "profile_id": "v3m0-b7-python-venv-invocation-identity-v1",
+        "python_invocation_path": invocation,
+        "recorded_realpath": target,
+        "recorded_raw_sha256": recorded_raw_sha256,
+        "recorded_venv_prefix": venv_prefix,
+        "recorded_pyvenv_cfg_path": pyvenv_cfg,
+        "recorded_pyvenv_cfg_raw_sha256": recorded_pyvenv_cfg_raw_sha256,
+        "ordered_lstat_hops": ordered_hops,
+        "observed_realpath": observed_target,
+        "observed_raw_sha256": target_observation["raw_sha256"],
+        "observed_venv_prefix": observed_prefix,
+        "observed_pyvenv_cfg_path": observed_cfg,
+        "observed_pyvenv_cfg_raw_sha256": cfg_observation["raw_sha256"],
+        "python_invocation_identity_projection": projection,
+        "python_invocation_identity_sha": identity_sha,
+        "target_identity": target_observation,
+        "pyvenv_cfg_identity": cfg_observation,
+        "precheck_passed": precheck_passed,
+    }
+
+
+def recheck_python_invocation_identity_v2(*, precheck_observation):
+    """Immediately recompute the full v9.2 path identity before Popen."""
+
+    if (
+        type(precheck_observation) is not dict
+        or precheck_observation.get("profile_id")
+        != "v3m0-b7-python-venv-invocation-identity-v1"
+        or precheck_observation.get("precheck_passed") is not True
+    ):
+        return False
+    required = (
+        "python_invocation_path",
+        "recorded_realpath",
+        "recorded_raw_sha256",
+        "recorded_venv_prefix",
+        "recorded_pyvenv_cfg_path",
+        "recorded_pyvenv_cfg_raw_sha256",
+    )
+    try:
+        arguments = {name: precheck_observation[name] for name in required}
+        refreshed = precheck_python_invocation_identity_v2(**arguments)
+    except (KeyError, OSError, TypeError, ValueError):
+        return False
+    if refreshed["precheck_passed"] is not True:
+        return False
+    compared_fields = (
+        "ordered_lstat_hops",
+        "python_invocation_identity_projection",
+        "python_invocation_identity_sha",
+        "target_identity",
+        "pyvenv_cfg_identity",
+    )
+    return all(
+        _common.canonical_json_bytes_v1(refreshed[field])
+        == _common.canonical_json_bytes_v1(precheck_observation.get(field))
+        for field in compared_fields
+    )
+
+
 def _empty_process_observation_v1(termination_kind):
     empty = b""
     empty_sha = hashlib.sha256(empty).hexdigest()
@@ -462,15 +821,29 @@ def run_bounded_reviewer_process_v1(
     term_grace_seconds = float(term_grace_seconds)
     kill_grace_seconds = float(kill_grace_seconds)
     final_pipe_close_deadline_seconds = float(final_pipe_close_deadline_seconds)
-    if python_precheck_observation is not None and (
-        type(python_precheck_observation) is not dict
-        or python_precheck_observation.get("observed_realpath") != argv[0]
-        or not recheck_frozen_python_executable_identity_v1(
-            recorded_realpath=argv[0],
-            precheck_observation=python_precheck_observation,
+    if python_precheck_observation is not None:
+        v2_identity = (
+            type(python_precheck_observation) is dict
+            and python_precheck_observation.get("profile_id")
+            == "v3m0-b7-python-venv-invocation-identity-v1"
         )
-    ):
-        return _empty_process_observation_v1("PRECHECK_FAILED")
+        if v2_identity:
+            identity_passed = python_precheck_observation.get(
+                "python_invocation_path"
+            ) == argv[0] and recheck_python_invocation_identity_v2(
+                precheck_observation=python_precheck_observation,
+            )
+        else:
+            identity_passed = (
+                type(python_precheck_observation) is dict
+                and python_precheck_observation.get("observed_realpath") == argv[0]
+                and recheck_frozen_python_executable_identity_v1(
+                    recorded_realpath=argv[0],
+                    precheck_observation=python_precheck_observation,
+                )
+            )
+        if not identity_passed:
+            return _empty_process_observation_v1("PRECHECK_FAILED")
     try:
         process = subprocess.Popen(
             argv,
@@ -617,6 +990,94 @@ def run_bounded_reviewer_process_v1(
         stderr_bytes,
         False,
     )
+
+
+def run_python_environment_import_probe_v2(
+    *,
+    python_invocation_path,
+    python_identity_observation,
+):
+    """Run and strictly decode the bounded v9.2 NumPy/SciPy import probe."""
+
+    invocation = _require_normalized_absolute_path_v2(
+        python_invocation_path,
+        "Python invocation",
+    )
+    invalid = {
+        "probe_passed": False,
+        "process_observation": _empty_process_observation_v1("PRECHECK_FAILED"),
+        "report": None,
+    }
+    if (
+        type(python_identity_observation) is not dict
+        or python_identity_observation.get("precheck_passed") is not True
+        or python_identity_observation.get("python_invocation_path") != invocation
+    ):
+        return invalid
+    process_observation = run_bounded_reviewer_process_v1(
+        argv=(
+            invocation,
+            "-s",
+            "-c",
+            _PYTHON_ENVIRONMENT_IMPORT_PROBE_UTF8_V2,
+        ),
+        cwd=python_identity_observation["recorded_venv_prefix"],
+        environment=build_sanitized_reviewer_environment_v1(),
+        timeout_seconds=_PYTHON_ENVIRONMENT_PROBE_TIMEOUT_SECONDS_V2,
+        stdout_hard_cap_bytes=(_PYTHON_ENVIRONMENT_PROBE_STDOUT_HARD_CAP_BYTES_V2),
+        stderr_hard_cap_bytes=(_PYTHON_ENVIRONMENT_PROBE_STDERR_HARD_CAP_BYTES_V2),
+        io_chunk_bytes=REVIEWER_PROCESS_IO_CHUNK_BYTES_V1,
+        term_grace_seconds=REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1,
+        kill_grace_seconds=REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1,
+        final_pipe_close_deadline_seconds=(
+            REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1
+        ),
+        python_precheck_observation=python_identity_observation,
+    )
+    if not (
+        process_observation["replay_termination_kind"] == "EXITED"
+        and process_observation["replay_exit_code"] == 0
+        and process_observation["replay_signal_number"] is None
+        and process_observation["replay_stderr_bytes"] == b""
+        and process_observation["process_cleanup_deadline_exceeded"] is False
+    ):
+        return {
+            "probe_passed": False,
+            "process_observation": process_observation,
+            "report": None,
+        }
+    stdout_bytes = process_observation["replay_stdout_bytes"]
+    try:
+        if (
+            not stdout_bytes.endswith(b"\n")
+            or b"\n" in stdout_bytes[:-1]
+            or not stdout_bytes[:-1]
+        ):
+            raise ValueError("environment probe stdout framing drifted")
+        payload = stdout_bytes[:-1]
+        report = _common.strict_json_loads_v1(payload)
+        if (
+            type(report) is not dict
+            or tuple(sorted(report)) != _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2
+            or _common.canonical_json_bytes_v1(report) != payload
+            or report["python_invocation_path"] != invocation
+            or report["python_executable_realpath"]
+            != python_identity_observation["recorded_realpath"]
+            or report["python_venv_prefix"]
+            != python_identity_observation["recorded_venv_prefix"]
+        ):
+            raise ValueError("environment probe report identity drifted")
+    except (KeyError, TypeError, ValueError):
+        return {
+            "probe_passed": False,
+            "process_observation": process_observation,
+            "report": None,
+        }
+    return {
+        "probe_passed": True,
+        "process_observation": process_observation,
+        "report": report,
+    }
 
 
 def run_frozen_reviewer_process_v1(
