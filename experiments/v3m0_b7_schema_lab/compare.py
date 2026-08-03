@@ -89,6 +89,296 @@ _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2 = (
     "threadpool_info",
 )
 
+_D0_CAPTURE_ROUTE_ORDER_V1 = ("A_FLAT", "B_PROGRESS", "C_UNION")
+
+
+def _returned_route_call_v1(result):
+    if type(result) is bytes:
+        return {"termination_kind": "RETURNED_BYTES", "raw_bytes": result}
+    return {"termination_kind": "RETURNED_NONBYTES", "raw_bytes": None}
+
+
+def _rejected_route_call_v1():
+    return {"termination_kind": "B7LabMutationRejected", "raw_bytes": None}
+
+
+def _wrong_exception_route_call_v1():
+    return {"termination_kind": "WRONG_EXCEPTION", "raw_bytes": None}
+
+
+def _not_called_route_call_v1():
+    return {"termination_kind": "NOT_CALLED", "raw_bytes": None}
+
+
+def _call_a_flat_encode_v1(raw_bytes):
+    from .a_flat import encode_normalized_transcript as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_a_flat_decode_v1(raw_bytes):
+    from .a_flat import verify_and_decode_route_wire as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_b_progress_encode_v1(raw_bytes):
+    from .b_progress import encode_normalized_transcript as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_b_progress_decode_v1(raw_bytes):
+    from .b_progress import verify_and_decode_route_wire as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_c_union_encode_v1(raw_bytes):
+    from .c_union import encode_normalized_transcript as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_c_union_decode_v1(raw_bytes):
+    from .c_union import verify_and_decode_route_wire as route_call
+
+    try:
+        result = route_call(raw_bytes)
+    except _common.B7LabMutationRejected:
+        return _rejected_route_call_v1()
+    except Exception:
+        return _wrong_exception_route_call_v1()
+    return _returned_route_call_v1(result)
+
+
+def _call_d0_route_encode_v1(route_id, raw_bytes):
+    if route_id == "A_FLAT":
+        return _call_a_flat_encode_v1(raw_bytes)
+    if route_id == "B_PROGRESS":
+        return _call_b_progress_encode_v1(raw_bytes)
+    if route_id == "C_UNION":
+        return _call_c_union_encode_v1(raw_bytes)
+    raise ValueError("D0 capture route is not frozen")
+
+
+def _call_d0_route_decode_v1(route_id, raw_bytes):
+    if route_id == "A_FLAT":
+        return _call_a_flat_decode_v1(raw_bytes)
+    if route_id == "B_PROGRESS":
+        return _call_b_progress_decode_v1(raw_bytes)
+    if route_id == "C_UNION":
+        return _call_c_union_decode_v1(raw_bytes)
+    raise ValueError("D0 capture route is not frozen")
+
+
+def _call_d0_route_pipeline_v1(route_id, source_bytes):
+    encode = _call_d0_route_encode_v1(route_id, source_bytes)
+    if encode["termination_kind"] != "RETURNED_BYTES":
+        return encode, _not_called_route_call_v1()
+    return encode, _call_d0_route_decode_v1(route_id, encode["raw_bytes"])
+
+
+def _prepare_d0_capture_domain_v1(validated_corpus_fixture):
+    fixture, source_sets = _common._validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if type(source_sets) is not list or len(source_sets) != 1:
+        raise ValueError("D0 capture requires exactly one source transcript set")
+    source_set = _common.strict_json_loads_v1(
+        _common.canonical_json_bytes_v1(source_sets[0])
+    )
+    universe = fixture.get("mutation_universe")
+    if type(universe) is not dict:
+        raise TypeError("D0 capture mutation universe must be an exact dict")
+    raw_mutations = universe.get("ordered_mutations")
+    mutation_count = universe.get("mutation_count")
+    if type(raw_mutations) is not list or type(mutation_count) is not int:
+        raise TypeError("D0 capture mutation universe domain is not exact")
+    mutations = [_common.validate_mutation_v1(raw) for raw in raw_mutations]
+    expected_mutations = _common.generate_ordered_mutations_v1(source_set)
+    if (
+        mutation_count != len(mutations)
+        or mutation_count != len(expected_mutations)
+        or _common.canonical_json_bytes_v1(mutations)
+        != _common.canonical_json_bytes_v1(expected_mutations)
+        or [mutation["mutation_ordinal"] for mutation in mutations]
+        != list(range(mutation_count))
+    ):
+        raise ValueError("D0 capture mutation universe differs from source domain")
+    sources_by_case = {source["case_id"]: source for source in source_set}
+    if len(sources_by_case) != 7 or "success" not in sources_by_case:
+        raise ValueError("D0 capture source case domain drifted")
+    success = sources_by_case["success"]
+    snapshots = {
+        case_id: _common.discover_record_self_hashes_v1(source)
+        for case_id, source in sources_by_case.items()
+    }
+    invalid_presence = (
+        _common.generate_constructible_invalid_presence_candidates_v1(success)
+    )
+    if type(invalid_presence) is not list or len(invalid_presence) != 1393:
+        raise ValueError("D0 invalid-presence domain cardinality drifted")
+    return {
+        "source_set": source_set,
+        "sources_by_case": sources_by_case,
+        "success": success,
+        "snapshots": snapshots,
+        "mutations": mutations,
+        "invalid_presence": invalid_presence,
+    }
+
+
+def _capture_d0_legal_replays_v1(route_id, domain):
+    observations = []
+    for source in domain["source_set"]:
+        source_bytes = _common.canonical_json_bytes_v1(source)
+        encode, decode = _call_d0_route_pipeline_v1(route_id, source_bytes)
+        observations.append(
+            {
+                "capture_ordinal": 0,
+                "case_id": source["case_id"],
+                "route_id": route_id,
+                "source_transcript_bytes": source_bytes,
+                "encode_result": encode,
+                "decode_result": decode,
+            }
+        )
+    return observations
+
+
+def _capture_d0_mutation_probes_v1(route_id, domain):
+    observations = []
+    for mutation in domain["mutations"]:
+        probe_kind = mutation["probe_kind"]
+        not_called = _not_called_route_call_v1
+        if probe_kind == "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT":
+            materialized_bytes = None
+            upstream_transcript_count = 0
+            first_encode = not_called()
+            first_decode = not_called()
+            second_encode = not_called()
+            second_decode = not_called()
+        else:
+            base_case_id = mutation["base_case_id"]
+            if base_case_id not in domain["sources_by_case"]:
+                raise ValueError("D0 mutation base case is outside the corpus")
+            base = domain["sources_by_case"][base_case_id]
+            if probe_kind in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL"):
+                materialized = base
+            else:
+                materialized = _common.apply_transcript_mutation_v1(
+                    base,
+                    mutation,
+                    domain["success"],
+                    domain["snapshots"][base_case_id],
+                )
+            materialized_bytes = _common.canonical_json_bytes_v1(materialized)
+            upstream_transcript_count = 1
+            first_encode, first_decode = _call_d0_route_pipeline_v1(
+                route_id,
+                materialized_bytes,
+            )
+            if probe_kind == "REPEAT_MUST_EQUAL":
+                second_encode, second_decode = _call_d0_route_pipeline_v1(
+                    route_id,
+                    materialized_bytes,
+                )
+            else:
+                second_encode = not_called()
+                second_decode = not_called()
+        observations.append(
+            {
+                "capture_ordinal": 0,
+                "mutation_ordinal": mutation["mutation_ordinal"],
+                "mutation_id": mutation["mutation_id"],
+                "mutation_sha": mutation["mutation_sha"],
+                "route_id": route_id,
+                "materialized_transcript_bytes": materialized_bytes,
+                "upstream_transcript_count": upstream_transcript_count,
+                "first_encode_result": first_encode,
+                "first_decode_result": first_decode,
+                "second_encode_result": second_encode,
+                "second_decode_result": second_decode,
+            }
+        )
+    return observations
+
+
+def _capture_d0_invalid_presence_probes_v1(route_id, domain):
+    observations = []
+    for candidate in domain["invalid_presence"]:
+        candidate_bytes = _common.canonical_json_bytes_v1(candidate["transcript"])
+        observations.append(
+            {
+                "capture_ordinal": 0,
+                "terminal_tag": candidate["terminal_tag"],
+                "bit_integer": candidate["bit_integer"],
+                "presence_bits": candidate["presence_bits"],
+                "route_id": route_id,
+                "candidate_transcript_bytes": candidate_bytes,
+                "encode_result": _call_d0_route_encode_v1(
+                    route_id,
+                    candidate_bytes,
+                ),
+            }
+        )
+    return observations
+
+
+def _capture_d0_route_gate_inputs_v1(route_id, domain):
+    if route_id not in _D0_CAPTURE_ROUTE_ORDER_V1:
+        raise ValueError("D0 capture route is not frozen")
+    return {
+        "ordered_legal_replays": _capture_d0_legal_replays_v1(route_id, domain),
+        "ordered_mutation_probes": _capture_d0_mutation_probes_v1(
+            route_id,
+            domain,
+        ),
+        "ordered_invalid_presence_probes": (
+            _capture_d0_invalid_presence_probes_v1(route_id, domain)
+        ),
+    }
+
+
+def iter_d0_gate_inputs_v1(*, validated_corpus_fixture):
+    """Yield the three D0 route gate-input domains in frozen route order."""
+
+    domain = _prepare_d0_capture_domain_v1(validated_corpus_fixture)
+    yield "A_FLAT", _capture_d0_route_gate_inputs_v1("A_FLAT", domain)
+    yield "B_PROGRESS", _capture_d0_route_gate_inputs_v1("B_PROGRESS", domain)
+    yield "C_UNION", _capture_d0_route_gate_inputs_v1("C_UNION", domain)
+
 
 def _require_lower_hex_v1(value, width, field):
     if (
