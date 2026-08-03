@@ -155,6 +155,32 @@ def test_common_pure_validator_wrappers_are_single_static_delegations() -> None:
         assert returned.value.keywords == []
 
 
+def test_synthetic_graph_manifest_validator_delegates_complete_embedded_parent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common_module()
+    parent = {"parent_freeze_v3_sha": "1" * 64}
+    graph = {"parent_freeze_v3_body": parent}
+    calls: list[tuple[object, object]] = []
+
+    def validate(raw_graph: object, raw_parent: object) -> object:
+        calls.append((raw_graph, raw_parent))
+        return raw_graph
+
+    monkeypatch.setattr(common._pure_core, "_validate_synthetic_graph_raw_v1", validate)
+
+    assert common.validate_synthetic_graph_manifest_v1(graph) is graph
+    assert calls == [(graph, parent)]
+
+
+@pytest.mark.parametrize("hostile", (None, [], {}, {"parent_freeze_v3_body": None}))
+def test_synthetic_graph_manifest_validator_rejects_missing_embedded_parent(
+    hostile: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        _common_module().validate_synthetic_graph_manifest_v1(hostile)
+
+
 def test_common_imports_no_production_authority_owner() -> None:
     tree = ast.parse(COMMON_PATH.read_text(encoding="utf-8"))
     imported = []

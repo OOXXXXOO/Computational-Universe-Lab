@@ -3190,6 +3190,16 @@ def validate_synthetic_component_body_v1(
     )
 
 
+def validate_synthetic_graph_manifest_v1(raw_body):
+    """Validate one complete graph through the pure core and its embedded Parent."""
+    if type(raw_body) is not dict:
+        raise TypeError("synthetic graph manifest must be an exact dict")
+    parent_raw = raw_body.get("parent_freeze_v3_body")
+    if type(parent_raw) is not dict:
+        raise ValueError("synthetic graph manifest embedded Parent is absent")
+    return _pure_core._validate_synthetic_graph_raw_v1(raw_body, parent_raw)
+
+
 def validate_provenance_fixture_v1(raw_body):
     """Delegate one provenance fixture validation to the pure core."""
     return _pure_core.validate_provenance_fixture_v1(raw_body)
