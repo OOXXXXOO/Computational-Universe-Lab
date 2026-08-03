@@ -5195,6 +5195,776 @@ def validate_gate_outcome_v1(
     return observed
 
 
+_GATE_CAPTURE_ORDINALS_V1 = (("D0", (0,)), ("D1", (0, 1, 2)))
+_ROUTE_CALL_OBSERVATION_FIELDS_V1 = ("termination_kind", "raw_bytes")
+_ROUTE_CALL_TERMINATION_KINDS_V1 = (
+    "RETURNED_BYTES",
+    "B7LabMutationRejected",
+    "WRONG_EXCEPTION",
+    "RETURNED_NONBYTES",
+    "NOT_CALLED",
+)
+_LEGAL_REPLAY_OBSERVATION_FIELDS_V1 = (
+    "capture_ordinal",
+    "case_id",
+    "route_id",
+    "source_transcript_bytes",
+    "encode_result",
+    "decode_result",
+)
+
+
+def _require_exact_ordered_dict_v1(raw_body, fields, label):
+    if type(raw_body) is not dict:
+        raise TypeError(f"{label} must be an exact dict")
+    if tuple(raw_body) != fields:
+        raise ValueError(f"{label} fields or field order drifted")
+    return raw_body
+
+
+def _gate_capture_ordinals_v1(phase):
+    if type(phase) is not str:
+        raise TypeError("gate phase must be an exact str")
+    for frozen_phase, capture_ordinals in _GATE_CAPTURE_ORDINALS_V1:
+        if phase == frozen_phase:
+            return capture_ordinals
+    raise ValueError("gate phase is not frozen")
+
+
+def _case_state_projection_v1(transcript, case_contract):
+    actual = transcript.get("actual_branch_attempt")
+    matched = transcript.get("matched_ablated_branch_attempt")
+    if actual is not None and type(actual) is not dict:
+        raise TypeError("actual branch attempt must be an exact dict or None")
+    if matched is not None and type(matched) is not dict:
+        raise TypeError("matched branch attempt must be an exact dict or None")
+    return (
+        transcript.get("terminal_tag"),
+        case_contract[3],
+        None if actual is None else actual.get("branch"),
+        None if actual is None else actual.get("failure"),
+        None if matched is None else matched.get("branch"),
+        None if matched is None else matched.get("failure"),
+        _transcript_presence_bits_v1(transcript),
+    )
+
+
+def _expected_case_state_projection_v1(case_contract):
+    presence_bits = case_contract[4]
+    return (
+        case_contract[2],
+        case_contract[3],
+        "actual" if presence_bits[1] == "1" else None,
+        case_contract[5],
+        "matched_ablated" if presence_bits[3] == "1" else None,
+        case_contract[6],
+        presence_bits,
+    )
+
+
+def _validate_source_transcript_sets_v1(
+    phase,
+    raw_sets,
+    *,
+    expected_corpus_spec_sha=None,
+    expected_environment_sha=None,
+):
+    capture_ordinals = _gate_capture_ordinals_v1(phase)
+    if type(raw_sets) is not list or len(raw_sets) != len(capture_ordinals):
+        raise TypeError("source transcript capture domain drifted")
+    expected_case_ids = tuple(row[1] for row in _CASE_CONTRACTS_V1)
+    validated_sets = []
+    for capture_ordinal, raw_set in zip(capture_ordinals, raw_sets):
+        if (
+            type(raw_set) is not list
+            or len(raw_set) != 7
+            or any(type(raw) is not dict for raw in raw_set)
+        ):
+            raise TypeError(
+                f"capture {capture_ordinal} source domain must contain seven dicts"
+            )
+        validated = [_detach_json_v1(raw) for raw in raw_set]
+        if tuple(raw.get("case_id") for raw in validated) != expected_case_ids:
+            raise ValueError("source transcript case order drifted")
+        for checked, case_contract in zip(validated, _CASE_CONTRACTS_V1):
+            if (
+                expected_corpus_spec_sha is not None
+                and checked.get("corpus_spec_sha") != expected_corpus_spec_sha
+            ):
+                raise ValueError("source transcript corpus root drifted")
+            if (
+                expected_environment_sha is not None
+                and checked.get("environment_manifest_sha") != expected_environment_sha
+            ):
+                raise ValueError("source transcript environment root drifted")
+            if _case_state_projection_v1(
+                checked,
+                case_contract,
+            ) != _expected_case_state_projection_v1(case_contract):
+                raise ValueError("source transcript case-contract join drifted")
+            canonical_json_bytes_v1(checked)
+        validated_sets.append(validated)
+    return capture_ordinals, validated_sets
+
+
+def _validated_d0_fixture_source_domain_v1(validated_corpus_fixture):
+    fixture = _validate_corpus_fixture_v2_top_level_v1(validated_corpus_fixture)
+    expected_fixture_sha = canonical_sha_v1(
+        {
+            name: fixture[name]
+            for name in _CORPUS_FIXTURE_V2_FIELDS
+            if name != "fixture_sha"
+        }
+    )
+    if fixture["fixture_sha"] != expected_fixture_sha:
+        raise ValueError("validated corpus fixture self root drifted")
+    corpus_root = _require_sha256_root_v1(
+        fixture["corpus_spec"].get("corpus_spec_sha"),
+        "validated corpus spec",
+    )
+    environment_root = _require_sha256_root_v1(
+        fixture["environment_manifest"].get("environment_sha"),
+        "validated corpus environment",
+    )
+    _capture_ordinals, source_sets = _validate_source_transcript_sets_v1(
+        "D0",
+        [fixture["ordered_d0_transcripts"]],
+        expected_corpus_spec_sha=corpus_root,
+        expected_environment_sha=environment_root,
+    )
+    return fixture, source_sets
+
+
+def _validate_route_call_observation_v1(raw_body, label):
+    call = _require_exact_ordered_dict_v1(
+        raw_body,
+        _ROUTE_CALL_OBSERVATION_FIELDS_V1,
+        label,
+    )
+    kind = call["termination_kind"]
+    raw_bytes = call["raw_bytes"]
+    if type(kind) is not str or kind not in _ROUTE_CALL_TERMINATION_KINDS_V1:
+        raise ValueError(f"{label} termination kind is not frozen")
+    if kind == "RETURNED_BYTES":
+        if type(raw_bytes) is not bytes:
+            raise TypeError(f"{label} returned bytes must be exact bytes")
+    elif raw_bytes is not None:
+        raise ValueError(f"{label} non-return termination must not carry bytes")
+    return call
+
+
+def _raw_bytes_sha_or_none_v1(raw_bytes):
+    if raw_bytes is None:
+        return None
+    if type(raw_bytes) is not bytes:
+        raise TypeError("raw byte root input must be exact bytes or None")
+    return _pure_core.hashlib.sha256(raw_bytes).hexdigest()
+
+
+def _canonical_json_bytes_observation_v1(raw_bytes):
+    if type(raw_bytes) is not bytes:
+        return False
+    try:
+        decoded = strict_json_loads_v1(raw_bytes)
+        return canonical_json_bytes_v1(decoded) == raw_bytes
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return False
+
+
+def _normalize_route_call_observation_v1(call):
+    raw_bytes = call["raw_bytes"]
+    return {
+        "termination_kind": call["termination_kind"],
+        "raw_sha256": _raw_bytes_sha_or_none_v1(raw_bytes),
+        "is_canonical_json_bytes": _canonical_json_bytes_observation_v1(raw_bytes),
+    }
+
+
+def _validate_legal_replay_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_legal_replays,
+):
+    _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    capture_ordinals, source_sets = _validate_source_transcript_sets_v1(
+        phase,
+        ordered_source_transcript_sets,
+    )
+    expected_count = 7 * len(capture_ordinals)
+    if (
+        type(ordered_legal_replays) is not list
+        or len(ordered_legal_replays) != expected_count
+    ):
+        raise TypeError("legal replay observation cardinality drifted")
+
+    normalized = []
+    accepted_count = 0
+    cursor = 0
+    for capture_ordinal, source_set in zip(capture_ordinals, source_sets):
+        for case_ordinal, source in enumerate(source_set):
+            row = _require_exact_ordered_dict_v1(
+                ordered_legal_replays[cursor],
+                _LEGAL_REPLAY_OBSERVATION_FIELDS_V1,
+                "legal replay observation",
+            )
+            cursor += 1
+            if (
+                type(row["capture_ordinal"]) is not int
+                or row["capture_ordinal"] != capture_ordinal
+                or type(row["case_id"]) is not str
+                or row["case_id"] != source["case_id"]
+                or row["route_id"] != route_id
+            ):
+                raise ValueError("legal replay capture/case/route order drifted")
+            source_bytes = row["source_transcript_bytes"]
+            if type(
+                source_bytes
+            ) is not bytes or source_bytes != canonical_json_bytes_v1(source):
+                raise ValueError("legal replay source body differs from frozen capture")
+            encode = _validate_route_call_observation_v1(
+                row["encode_result"],
+                "legal encode result",
+            )
+            decode = _validate_route_call_observation_v1(
+                row["decode_result"],
+                "legal decode result",
+            )
+            if (
+                encode["termination_kind"] != "RETURNED_BYTES"
+                and decode["termination_kind"] != "NOT_CALLED"
+            ):
+                raise ValueError("legal decoder ran without encoded bytes")
+            encoded_canonical = encode[
+                "termination_kind"
+            ] == "RETURNED_BYTES" and _canonical_json_bytes_observation_v1(
+                encode["raw_bytes"]
+            )
+            decoded_equal = (
+                decode["termination_kind"] == "RETURNED_BYTES"
+                and decode["raw_bytes"] == source_bytes
+            )
+            if encoded_canonical and decoded_equal:
+                accepted_count += 1
+            normalized.append(
+                {
+                    "capture_ordinal": capture_ordinal,
+                    "case_ordinal": case_ordinal,
+                    "case_id": source["case_id"],
+                    "route_id": route_id,
+                    "source_transcript_raw_sha256": _raw_bytes_sha_or_none_v1(
+                        source_bytes
+                    ),
+                    "encode_result": _normalize_route_call_observation_v1(encode),
+                    "decode_result": _normalize_route_call_observation_v1(decode),
+                    "decoded_equals_source": decoded_equal,
+                }
+            )
+    predicates = (
+        len(normalized) == expected_count,
+        all(
+            row["encode_result"]["termination_kind"] == "RETURNED_BYTES"
+            and row["encode_result"]["is_canonical_json_bytes"]
+            for row in normalized
+        ),
+        all(row["decoded_equals_source"] for row in normalized),
+    )
+    return {
+        "domain_root_sha": canonical_sha_v1(normalized),
+        "predicate_results": predicates,
+        "accepted_count": accepted_count,
+        "normalized": normalized,
+        "validated_source_sets": source_sets,
+    }
+
+
+def build_gate_e01_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+):
+    """Build E01 only from the complete ordered legal replay byte domain."""
+
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E01",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e01_v1(
+    raw_body,
+    *,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+):
+    """Reject an E01 report unless its full byte domain recomputes exactly."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E01":
+        raise ValueError("E01 validator received another gate")
+    route_id = observed["observation"]["route_id"]
+    phase = observed["phase"]
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def _canonical_value_sha_or_none_v1(value):
+    if value is None:
+        return None
+    return _pure_core.hashlib.sha256(canonical_json_bytes_v1(value)).hexdigest()
+
+
+def _validate_e03_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_legal_replays,
+):
+    legal = _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    evidence_entries = []
+    evidence_loss_count = 0
+    source_cursor = 0
+    for source_set in legal["validated_source_sets"]:
+        for source in source_set:
+            replay = ordered_legal_replays[source_cursor]
+            source_cursor += 1
+            decode = replay["decode_result"]
+            decoded = {}
+            if decode["termination_kind"] == "RETURNED_BYTES":
+                try:
+                    parsed = strict_json_loads_v1(decode["raw_bytes"])
+                    if type(parsed) is dict:
+                        decoded = parsed
+                except (TypeError, ValueError, UnicodeDecodeError):
+                    decoded = {}
+            for pointer in _EVIDENCE_POINTER_ORDER_V1:
+                source_present, source_value = _optional_pointer_value_v1(
+                    source,
+                    pointer,
+                )
+                if not source_present or source_value is None:
+                    continue
+                decoded_present, decoded_value = _optional_pointer_value_v1(
+                    decoded,
+                    pointer,
+                )
+                equal = (
+                    decoded_present
+                    and decoded_value is not None
+                    and canonical_json_bytes_v1(decoded_value)
+                    == canonical_json_bytes_v1(source_value)
+                )
+                if not equal:
+                    evidence_loss_count += 1
+                evidence_entries.append(
+                    {
+                        "capture_ordinal": replay["capture_ordinal"],
+                        "case_id": replay["case_id"],
+                        "json_pointer": pointer,
+                        "source_value_sha256": _canonical_value_sha_or_none_v1(
+                            source_value
+                        ),
+                        "decoded_pointer_resolved": decoded_present,
+                        "decoded_value_sha256": _canonical_value_sha_or_none_v1(
+                            decoded_value if decoded_present else None
+                        ),
+                        "canonical_values_equal": equal,
+                    }
+                )
+    return {
+        "domain_root_sha": canonical_sha_v1(evidence_entries),
+        "predicate_results": (True, evidence_loss_count == 0),
+        "evidence_loss_count": evidence_loss_count,
+        "normalized": evidence_entries,
+    }
+
+
+def build_gate_e03_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+):
+    """Build E03 from every non-null frozen evidence-pointer pair."""
+
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_e03_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E03",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e03_v1(
+    raw_body,
+    *,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+):
+    """Reject E03 unless its complete evidence byte-pair domain recomputes."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E03":
+        raise ValueError("E03 validator received another gate")
+    route_id = observed["observation"]["route_id"]
+    phase = observed["phase"]
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_e03_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
+_INVALID_PRESENCE_OBSERVATION_FIELDS_V1 = (
+    "capture_ordinal",
+    "terminal_tag",
+    "bit_integer",
+    "presence_bits",
+    "route_id",
+    "candidate_transcript_bytes",
+    "encode_result",
+)
+
+
+def _transcript_presence_bits_v1(transcript):
+    actual = transcript.get("actual_branch_attempt")
+    matched = transcript.get("matched_ablated_branch_attempt")
+    return "".join(
+        (
+            _presence_bit_v1(transcript.get("shell_outcome")),
+            _presence_bit_v1(actual),
+            _presence_bit_v1(
+                None if type(actual) is not dict else actual.get("response_values")
+            ),
+            _presence_bit_v1(matched),
+            _presence_bit_v1(
+                None if type(matched) is not dict else matched.get("response_values")
+            ),
+            _presence_bit_v1(
+                None if type(actual) is not dict else actual.get("bridge_audit")
+            ),
+            _presence_bit_v1(
+                None if type(matched) is not dict else matched.get("bridge_audit")
+            ),
+            _presence_bit_v1(transcript.get("actual_completed_response")),
+            _presence_bit_v1(transcript.get("matched_ablated_completed_response")),
+        )
+    )
+
+
+def _validate_invalid_presence_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_invalid_presence_probes,
+):
+    _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    capture_ordinals, source_sets = _validate_source_transcript_sets_v1(
+        phase,
+        ordered_source_transcript_sets,
+    )
+    expected_by_capture = []
+    for source_set in source_sets:
+        candidates = generate_constructible_invalid_presence_candidates_v1(
+            source_set[6]
+        )
+        if len(candidates) != 1393:
+            raise ValueError("invalid-presence generator cardinality drifted")
+        expected_by_capture.append(candidates)
+    expected_count = 1393 * len(capture_ordinals)
+    if (
+        type(ordered_invalid_presence_probes) is not list
+        or len(ordered_invalid_presence_probes) != expected_count
+    ):
+        raise TypeError("invalid-presence observation cardinality drifted")
+
+    normalized = []
+    invalid_indicator_count = 0
+    half_pair_state_count = 0
+    exact_rejections = True
+    cursor = 0
+    for capture_ordinal, candidates in zip(
+        capture_ordinals,
+        expected_by_capture,
+    ):
+        for candidate in candidates:
+            row = _require_exact_ordered_dict_v1(
+                ordered_invalid_presence_probes[cursor],
+                _INVALID_PRESENCE_OBSERVATION_FIELDS_V1,
+                "invalid-presence observation",
+            )
+            cursor += 1
+            expected_bytes = canonical_json_bytes_v1(candidate["transcript"])
+            if (
+                type(row["capture_ordinal"]) is not int
+                or row["capture_ordinal"] != capture_ordinal
+                or row["terminal_tag"] != candidate["terminal_tag"]
+                or type(row["bit_integer"]) is not int
+                or row["bit_integer"] != candidate["bit_integer"]
+                or row["presence_bits"] != candidate["presence_bits"]
+                or row["route_id"] != route_id
+                or type(row["candidate_transcript_bytes"]) is not bytes
+                or row["candidate_transcript_bytes"] != expected_bytes
+            ):
+                raise ValueError(
+                    "invalid-presence capture/tag/bit/route/body order drifted"
+                )
+            encode = _validate_route_call_observation_v1(
+                row["encode_result"],
+                "invalid-presence encode result",
+            )
+            if encode["termination_kind"] == "NOT_CALLED":
+                raise ValueError("constructible invalid-presence route was not called")
+            exact_rejection = encode["termination_kind"] == "B7LabMutationRejected"
+            exact_rejections = exact_rejections and exact_rejection
+            canonical_accept = encode[
+                "termination_kind"
+            ] == "RETURNED_BYTES" and _canonical_json_bytes_observation_v1(
+                encode["raw_bytes"]
+            )
+            if not exact_rejection:
+                invalid_indicator_count += 1
+            if canonical_accept and candidate["half_pair"]:
+                half_pair_state_count += 1
+            normalized.append(
+                {
+                    "capture_ordinal": capture_ordinal,
+                    "terminal_tag": candidate["terminal_tag"],
+                    "bit_integer": candidate["bit_integer"],
+                    "presence_bits": candidate["presence_bits"],
+                    "half_pair": candidate["half_pair"],
+                    "route_id": route_id,
+                    "candidate_transcript_raw_sha256": (
+                        _raw_bytes_sha_or_none_v1(expected_bytes)
+                    ),
+                    "encode_result": _normalize_route_call_observation_v1(encode),
+                }
+            )
+    return {
+        "normalized": normalized,
+        "invalid_indicator_count": invalid_indicator_count,
+        "half_pair_state_count": half_pair_state_count,
+        "all_exact_rejections": exact_rejections,
+    }
+
+
+def _validate_e04_domain_v1(
+    *,
+    phase,
+    route_id,
+    ordered_source_transcript_sets,
+    ordered_legal_replays,
+    ordered_invalid_presence_probes,
+):
+    _validate_legal_replay_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_legal_replays=ordered_legal_replays,
+    )
+    invalid = _validate_invalid_presence_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
+        ordered_invalid_presence_probes=ordered_invalid_presence_probes,
+    )
+    expected_states = {
+        _expected_case_state_projection_v1(row) for row in _CASE_CONTRACTS_V1
+    }
+    case_observations = []
+    observed_states = []
+    all_case_contracts_validate = True
+    for row, case_contract in zip(
+        ordered_legal_replays,
+        _CASE_CONTRACTS_V1 * len(_gate_capture_ordinals_v1(phase)),
+    ):
+        decode = row["decode_result"]
+        checked = None
+        if decode["termination_kind"] == "RETURNED_BYTES":
+            try:
+                decoded = strict_json_loads_v1(decode["raw_bytes"])
+                checked = validate_case_contract_v1(decoded)
+                if checked["case_id"] != row["case_id"]:
+                    raise ValueError("decoded case ID drifted")
+            except (TypeError, ValueError, UnicodeDecodeError):
+                checked = None
+        if checked is None:
+            all_case_contracts_validate = False
+            state = None
+        else:
+            state = _case_state_projection_v1(checked, case_contract)
+            observed_states.append(state)
+        case_observations.append(
+            {
+                "capture_ordinal": row["capture_ordinal"],
+                "case_id": row["case_id"],
+                "validated_case_contract": checked is not None,
+                "terminal_tag": None if state is None else state[0],
+                "injected_failure_stage": None if state is None else state[1],
+                "actual_branch": None if state is None else state[2],
+                "actual_attempt_failure": None if state is None else state[3],
+                "matched_ablated_branch": None if state is None else state[4],
+                "matched_ablated_attempt_failure": (
+                    None if state is None else state[5]
+                ),
+                "presence_bits": None if state is None else state[6],
+                "decoded_transcript_raw_sha256": _raw_bytes_sha_or_none_v1(
+                    decode["raw_bytes"]
+                ),
+            }
+        )
+    capture_count = len(_gate_capture_ordinals_v1(phase))
+    one_to_one = all_case_contracts_validate and all(
+        len(set(observed_states[offset : offset + 7])) == 7
+        for offset in range(0, 7 * capture_count, 7)
+    )
+    listed_legal_states = all_case_contracts_validate and all(
+        state in expected_states for state in observed_states
+    )
+    predicates = (
+        all_case_contracts_validate,
+        one_to_one,
+        listed_legal_states and invalid["all_exact_rejections"],
+    )
+    return {
+        "domain_root_sha": canonical_sha_v1(
+            {
+                "ordered_case_contract_observations": case_observations,
+                "ordered_invalid_presence_observations": invalid["normalized"],
+            }
+        ),
+        "predicate_results": predicates,
+        "invalid_indicator_count": invalid["invalid_indicator_count"],
+        "half_pair_state_count": invalid["half_pair_state_count"],
+    }
+
+
+def build_gate_e04_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+    ordered_invalid_presence_probes,
+):
+    """Build E04 from every legal state and all 1,393 invalid pairs."""
+
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_e04_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+        ordered_invalid_presence_probes=ordered_invalid_presence_probes,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E04",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e04_v1(
+    raw_body,
+    *,
+    validated_corpus_fixture,
+    ordered_legal_replays,
+    ordered_invalid_presence_probes,
+):
+    """Reject E04 unless both legal and invalid-state domains recompute."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E04":
+        raise ValueError("E04 validator received another gate")
+    route_id = observed["observation"]["route_id"]
+    phase = observed["phase"]
+    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if phase != "D0":
+        raise ValueError("D0 corpus fixture cannot authorize another phase")
+    domain = _validate_e04_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=ordered_legal_replays,
+        ordered_invalid_presence_probes=ordered_invalid_presence_probes,
+    )
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
 def _route_static_registry_entry_v1(route_id):
     if type(route_id) is not str:
         raise TypeError("route ID must be an exact str")
