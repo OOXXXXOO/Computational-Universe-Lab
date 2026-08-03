@@ -9464,6 +9464,297 @@ def validate_reviewer_receipt_v1(
     return receipt
 
 
+_REVIEWER_RECEIPT_CONTEXT_FIELDS_V1 = (
+    "environment_observation",
+    "source_origin_observation",
+    "replay_source_blob",
+    "process_observation",
+)
+
+
+def _validate_terminal_review_base_v1(
+    record,
+    *,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+):
+    _require_reviewer_git_sha1_v1(evidence_commit_sha, "review evidence commit")
+    if record["lab_evidence_commit_sha"] != evidence_commit_sha:
+        raise ValueError("terminal review evidence commit drifted")
+    d0 = validated_d0_result
+    d1 = validated_d1_result
+    if type(d0) is not dict or type(d1) is not dict:
+        raise TypeError("terminal review D0/D1 inputs must be validated dicts")
+    for raw_bytes, expected, label in (
+        (d0_raw_bytes, d0, "D0"),
+        (d1_raw_bytes, d1, "D1"),
+    ):
+        parsed = strict_json_loads_v1(raw_bytes)
+        if canonical_json_bytes_v1(parsed) != canonical_json_bytes_v1(expected):
+            raise ValueError(f"terminal review {label} blob body drifted")
+    d0_raw_sha = _raw_source_sha256_v1(d0_raw_bytes, "terminal D0")
+    d1_raw_sha = _raw_source_sha256_v1(d1_raw_bytes, "terminal D1")
+    for field, expected in (
+        ("d0_result_raw_sha256", d0_raw_sha),
+        ("d0_result_sha", d0["d0_result_sha"]),
+        ("d0_decision_payload_sha", d0["decision_payload_sha"]),
+        ("d1_result_raw_sha256", d1_raw_sha),
+        ("d1_result_sha", d1["d1_result_sha"]),
+        ("d1_decision_payload_sha", d1["decision_payload_sha"]),
+    ):
+        if record[field] != expected:
+            raise ValueError(f"terminal review {field} drifted")
+    for field, expected in (
+        ("d0_result_raw_sha256", d0_raw_sha),
+        ("d0_result_sha", d0["d0_result_sha"]),
+        ("d0_decision_payload_sha", d0["decision_payload_sha"]),
+    ):
+        if d1[field] != expected:
+            raise ValueError(f"terminal review D1 {field} join drifted")
+    shared_fields = (
+        "common_commit_sha",
+        "common_source_sha256",
+        "compare_source_sha256",
+        "corpus_fixture_raw_sha256",
+        "corpus_spec_sha",
+        "mutation_universe_sha",
+        "metric_spec_sha",
+    )
+    for field in shared_fields:
+        if d1[field] != d0[field] or record[field] != d0[field]:
+            raise ValueError(f"terminal review {field} join drifted")
+    d0_environment = d0["environment_manifest"]
+    d1_environment = d1["environment_manifest"]
+    if canonical_json_bytes_v1(d1_environment) != canonical_json_bytes_v1(
+        d0_environment
+    ):
+        raise ValueError("terminal review D0/D1 environment body drifted")
+    if record["environment_manifest_sha"] != d0_environment["environment_sha"]:
+        raise ValueError("terminal review environment root drifted")
+    d0_rows = d0["ordered_route_results"]
+    d1_rows = d1["ordered_route_results"]
+    if type(d0_rows) is not list or type(d1_rows) is not list:
+        raise TypeError("terminal review route results must be exact lists")
+    d0_manifests = [row["route_manifest"] for row in d0_rows]
+    if len(d0_manifests) != 3:
+        raise ValueError("terminal review must bind exactly three D0 routes")
+    d0_by_route = {manifest["route_id"]: manifest for manifest in d0_manifests}
+    if len(d0_by_route) != len(d0_manifests):
+        raise ValueError("terminal review D0 route IDs are not unique")
+    d1_route_ids = [row["route_manifest"]["route_id"] for row in d1_rows]
+    if d1_route_ids != d0["surviving_route_ids"]:
+        raise ValueError("terminal review D1 route order drifted")
+    for row in d1_rows:
+        manifest = row["route_manifest"]
+        if (
+            manifest["route_id"] not in d0_by_route
+            or canonical_json_bytes_v1(manifest)
+            != canonical_json_bytes_v1(d0_by_route[manifest["route_id"]])
+        ):
+            raise ValueError("terminal review D1 route manifest drifted")
+    route_commits = [manifest["route_commit_sha"] for manifest in d0_manifests]
+    route_sources = [manifest["route_source_sha256"] for manifest in d0_manifests]
+    if record["ordered_route_commit_shas"] != route_commits:
+        raise ValueError("terminal review route commit order drifted")
+    if record["ordered_route_source_sha256s"] != route_sources:
+        raise ValueError("terminal review route source order drifted")
+    winner = d1["provisional_winner_route_id"]
+    if (
+        d1["tie_detected"] is not False
+        or type(winner) is not str
+        or winner not in d1["surviving_route_ids"]
+        or winner not in d0_by_route
+        or record["provisional_winner_route_id"] != winner
+    ):
+        raise ValueError("terminal review does not have a unique D1 winner")
+    return d0, d1, d0_by_route, d0_by_route[winner]
+
+
+def _validate_terminal_reviewer_receipts_v1(
+    receipts,
+    contexts,
+    *,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+):
+    if type(receipts) is not list or len(receipts) != 2:
+        raise TypeError("terminal review receipts must be an exact pair")
+    if type(contexts) is not tuple or len(contexts) != 2:
+        raise TypeError("terminal reviewer contexts must be an exact tuple pair")
+    validated = []
+    for receipt, context in zip(receipts, contexts):
+        if type(context) is not dict or tuple(context) != (
+            _REVIEWER_RECEIPT_CONTEXT_FIELDS_V1
+        ):
+            raise TypeError("terminal reviewer observation context drifted")
+        validated.append(
+            validate_reviewer_receipt_v1(
+                receipt,
+                evidence_commit_sha=evidence_commit_sha,
+                validated_d0_result=validated_d0_result,
+                validated_d1_result=validated_d1_result,
+                d0_raw_bytes=d0_raw_bytes,
+                d1_raw_bytes=d1_raw_bytes,
+                **context,
+            )
+        )
+    if [receipt["reviewer_role"] for receipt in validated] != [
+        "CORPUS_REPLAY",
+        "METRIC_REPLAY",
+    ]:
+        raise ValueError("terminal reviewer role order drifted")
+    if len({receipt["reviewer_id"] for receipt in validated}) != 2:
+        raise ValueError("terminal reviewer IDs are not independent")
+    closure_roots = {
+        receipt["reviewed_executable_source_closure_sha"]
+        for receipt in validated
+    }
+    if len(closure_roots) != 1:
+        raise ValueError("terminal reviewer expected source closures diverged")
+    return validated
+
+
+def validate_selection_review_v1(
+    raw_body,
+    *,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+    reviewer_receipt_contexts,
+):
+    """Validate the success-only two-reviewer schema selection record."""
+
+    selection = _validate_exact_lab_record_v1("B7LabSelectionReviewV1", raw_body)
+    _d0, d1, _d0_by_route, winner_manifest = _validate_terminal_review_base_v1(
+        selection,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_raw_bytes,
+        d1_raw_bytes=d1_raw_bytes,
+    )
+    receipts = _validate_terminal_reviewer_receipts_v1(
+        selection["reviewer_receipts"],
+        reviewer_receipt_contexts,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_raw_bytes,
+        d1_raw_bytes=d1_raw_bytes,
+    )
+    if any(receipt["verdict"] != "ACCEPT" for receipt in receipts):
+        raise ValueError("selection requires two ACCEPT reviewer receipts")
+    for receipt in receipts:
+        if (
+            receipt["observed_surviving_route_ids"] != d1["surviving_route_ids"]
+            or receipt["observed_provisional_winner_route_id"]
+            != d1["provisional_winner_route_id"]
+        ):
+            raise ValueError("selection reviewer observations drifted")
+    expected_selected = (
+        ("selected_route_id", winner_manifest["route_id"]),
+        ("selected_route_schema_domain", winner_manifest["route_schema_domain"]),
+        ("selected_route_commit_sha", winner_manifest["route_commit_sha"]),
+        (
+            "selected_route_source_sha256",
+            winner_manifest["route_source_sha256"],
+        ),
+    )
+    for field, expected in expected_selected:
+        if selection[field] != expected:
+            raise ValueError(f"selection {field} drifted")
+    if (
+        selection["review_outcome"] != "UNIQUE_SCHEMA_SELECTED"
+        or selection["engineering_disposition"]
+        != "B7_UNIQUE_SCHEMA_SELECTED_FOR_IMPLEMENTATION"
+        or selection["production_implementation_allowed"] is not True
+    ):
+        raise ValueError("selection terminal disposition drifted")
+    expected_sha = canonical_sha_v1(
+        {
+            key: value
+            for key, value in selection.items()
+            if key != "selection_review_sha"
+        }
+    )
+    if selection["selection_review_sha"] != expected_sha:
+        raise ValueError("selection review self hash drifted")
+    return selection
+
+
+def validate_review_halt_v1(
+    raw_body,
+    *,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+    reviewer_receipt_contexts,
+):
+    """Validate the failure-only two-reviewer terminal halt record."""
+
+    halt = _validate_exact_lab_record_v1("B7LabReviewHaltV1", raw_body)
+    _validate_terminal_review_base_v1(
+        halt,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_raw_bytes,
+        d1_raw_bytes=d1_raw_bytes,
+    )
+    receipts = _validate_terminal_reviewer_receipts_v1(
+        halt["reviewer_receipts"],
+        reviewer_receipt_contexts,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_raw_bytes,
+        d1_raw_bytes=d1_raw_bytes,
+    )
+    compared_fields = (
+        "replayed_d0_decision_payload_sha",
+        "replayed_d1_decision_payload_sha",
+        "observed_surviving_route_ids",
+        "observed_provisional_winner_route_id",
+    )
+    divergence = any(
+        receipts[0][field] is not None
+        and receipts[1][field] is not None
+        and receipts[0][field] != receipts[1][field]
+        for field in compared_fields
+    )
+    if not divergence and all(
+        receipt["verdict"] == "ACCEPT" for receipt in receipts
+    ):
+        raise ValueError("review halt requires a rejection or replay divergence")
+    expected_reason = (
+        "HALT_REVIEW_DIVERGENCE" if divergence else "HALT_REPLAY_MISMATCH"
+    )
+    if halt["halt_reason"] != expected_reason:
+        raise ValueError("review halt reason drifted")
+    if halt["production_implementation_allowed"] is not False:
+        raise ValueError("review halt cannot authorize production")
+    expected_sha = canonical_sha_v1(
+        {
+            key: value
+            for key, value in halt.items()
+            if key != "review_halt_sha"
+        }
+    )
+    if halt["review_halt_sha"] != expected_sha:
+        raise ValueError("review halt self hash drifted")
+    return halt
+
+
 def _validate_e07_static_domain_v1(route_manifest, route_blob, production_blobs):
     manifest = validate_route_static_surface_v1(
         route_manifest,

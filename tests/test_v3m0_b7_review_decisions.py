@@ -38,6 +38,10 @@ def _context():
             SHA[:3],
         )
     ]
+    environment = {
+        "environment_sha": SHA[11],
+        "python_invocation_path": "/frozen/venv/bin/python",
+    }
     d0 = {
         "d0_result_sha": SHA[3],
         "decision_payload_sha": SHA[4],
@@ -48,10 +52,11 @@ def _context():
         "corpus_spec_sha": SHA[8],
         "mutation_universe_sha": SHA[9],
         "metric_spec_sha": SHA[10],
-        "environment_manifest": {"environment_sha": SHA[11]},
+        "environment_manifest": copy.deepcopy(environment),
         "ordered_route_results": [
             {"route_manifest": manifest} for manifest in manifests
         ],
+        "surviving_route_ids": ["A_FLAT", "B_PROGRESS", "C_UNION"],
     }
     d1 = {
         "d1_result_sha": SHA[12],
@@ -63,10 +68,10 @@ def _context():
         "corpus_spec_sha": SHA[8],
         "mutation_universe_sha": SHA[9],
         "metric_spec_sha": SHA[10],
-        "environment_manifest": {
-            "environment_sha": SHA[11],
-            "python_invocation_path": "/frozen/venv/bin/python",
-        },
+        "environment_manifest": copy.deepcopy(environment),
+        "ordered_route_results": [
+            {"route_manifest": copy.deepcopy(manifest)} for manifest in manifests
+        ],
         "surviving_route_ids": ["A_FLAT"],
         "provisional_winner_route_id": "A_FLAT",
         "tie_detected": False,
@@ -74,11 +79,15 @@ def _context():
     return d0, d1, manifests
 
 
-def _report(replay_input_root):
+def _report(replay_input_root, role="CORPUS_REPLAY"):
+    protocol = {
+        "CORPUS_REPLAY": "v3m0-b7-corpus-replay-v2",
+        "METRIC_REPLAY": "v3m0-b7-metric-replay-v2",
+    }[role]
     body = {
         "replay_report_schema_version": "experimental.v3m0.b7.replay-report.v1",
-        "reviewer_role": "CORPUS_REPLAY",
-        "review_protocol_id": "v3m0-b7-corpus-replay-v2",
+        "reviewer_role": role,
+        "review_protocol_id": protocol,
         "lab_evidence_commit_sha": E,
         "replay_input_root_sha": replay_input_root,
         "recomputed_d0_decision_payload_sha": SHA[4],
@@ -97,18 +106,28 @@ def _report(replay_input_root):
     return body
 
 
-def _receipt_fixture():
+def _receipt_fixture(
+    role="CORPUS_REPLAY",
+    reviewer_id="independent-reviewer-corpus",
+):
     d0, d1, manifests = _context()
     replay_source = b"placeholder"
     compare_sha = _sha_bytes(replay_source)
     d0["compare_source_sha256"] = compare_sha
     d1["compare_source_sha256"] = compare_sha
     d0_bytes = common.canonical_json_bytes_v1(d0) + b"\n"
+    d1["d0_result_raw_sha256"] = _sha_bytes(d0_bytes)
+    d1["d0_result_sha"] = d0["d0_result_sha"]
+    d1["d0_decision_payload_sha"] = d0["decision_payload_sha"]
     d1_bytes = common.canonical_json_bytes_v1(d1) + b"\n"
     closure = SHA[14]
+    protocol, subcommand = {
+        "CORPUS_REPLAY": ("v3m0-b7-corpus-replay-v2", "review-corpus"),
+        "METRIC_REPLAY": ("v3m0-b7-metric-replay-v2", "review-metric"),
+    }[role]
     projection = {
-        "reviewer_role": "CORPUS_REPLAY",
-        "review_protocol_id": "v3m0-b7-corpus-replay-v2",
+        "reviewer_role": role,
+        "review_protocol_id": protocol,
         "reviewed_lab_evidence_commit_sha": E,
         "review_environment_manifest_sha": SHA[11],
         "reviewed_d0_result_raw_sha256": _sha_bytes(d0_bytes),
@@ -127,11 +146,11 @@ def _receipt_fixture():
         "replay_source_sha256": compare_sha,
     }
     input_root = common.canonical_sha_v1(projection)
-    report = _report(input_root)
+    report = _report(input_root, role)
     stdout = common.canonical_json_bytes_v1(report) + b"\n"
     body = {
         "receipt_schema_version": "experimental.v3m0.b7.reviewer-receipt.v1",
-        "reviewer_id": "independent-reviewer-corpus",
+        "reviewer_id": reviewer_id,
         **{key: projection[key] for key in tuple(projection)[:3]},
         "review_environment_manifest_sha": SHA[11],
         "observed_review_environment_manifest_sha": SHA[11],
@@ -143,7 +162,7 @@ def _receipt_fixture():
         "replay_source_sha256": compare_sha,
         "replay_command_argv": [
             "/frozen/venv/bin/python", "-s", "-m",
-            "experiments.v3m0_b7_schema_lab.compare", "review-corpus",
+            "experiments.v3m0_b7_schema_lab.compare", subcommand,
             "--evidence-commit", E,
             "--reviewed-executable-source-closure-sha", closure,
             "--emit-replay-report",
@@ -195,13 +214,21 @@ def _receipt_fixture():
     }
 
 
-def test_reviewer_receipt_accepts_fully_joined_accept() -> None:
-    body, context = _receipt_fixture()
-    assert common.validate_reviewer_receipt_v1(body, **context) == body
+_RECEIPT_OBSERVATION_FIELDS = (
+    "environment_observation",
+    "source_origin_observation",
+    "replay_source_blob",
+    "process_observation",
+)
 
 
-def test_reviewer_receipt_accepts_totalized_precheck_reject() -> None:
-    body, context = _receipt_fixture()
+def _receipt_observation_context(context):
+    return {field: context[field] for field in _RECEIPT_OBSERVATION_FIELDS}
+
+
+def _make_precheck_reject(body, context):
+    body = copy.deepcopy(body)
+    context = copy.deepcopy(context)
     context["environment_observation"] = {
         "expected_sha": SHA[11], "observed_sha": None, "passed": False,
     }
@@ -241,6 +268,105 @@ def test_reviewer_receipt_accepts_totalized_precheck_reject() -> None:
     body["receipt_sha"] = common.canonical_sha_v1(
         {key: value for key, value in body.items() if key != "receipt_sha"}
     )
+    return body, context
+
+
+def _terminal_review_fixture(*, halt=False):
+    corpus_receipt, corpus_context = _receipt_fixture()
+    metric_receipt, metric_context = _receipt_fixture(
+        role="METRIC_REPLAY",
+        reviewer_id="independent-reviewer-metric",
+    )
+    if halt:
+        metric_receipt, metric_context = _make_precheck_reject(
+            metric_receipt,
+            metric_context,
+        )
+    d0 = corpus_context["validated_d0_result"]
+    d1 = corpus_context["validated_d1_result"]
+    d0_bytes = corpus_context["d0_raw_bytes"]
+    d1_bytes = corpus_context["d1_raw_bytes"]
+    manifests = [
+        row["route_manifest"] for row in d0["ordered_route_results"]
+    ]
+    common_fields = {
+        "lab_evidence_commit_sha": E,
+        "d0_result_raw_sha256": _sha_bytes(d0_bytes),
+        "d0_result_sha": d0["d0_result_sha"],
+        "d0_decision_payload_sha": d0["decision_payload_sha"],
+        "d1_result_raw_sha256": _sha_bytes(d1_bytes),
+        "d1_result_sha": d1["d1_result_sha"],
+        "d1_decision_payload_sha": d1["decision_payload_sha"],
+        "common_commit_sha": d0["common_commit_sha"],
+        "common_source_sha256": d0["common_source_sha256"],
+        "compare_source_sha256": d0["compare_source_sha256"],
+        "corpus_fixture_raw_sha256": d0["corpus_fixture_raw_sha256"],
+        "corpus_spec_sha": d0["corpus_spec_sha"],
+        "mutation_universe_sha": d0["mutation_universe_sha"],
+        "metric_spec_sha": d0["metric_spec_sha"],
+        "environment_manifest_sha": d0["environment_manifest"]["environment_sha"],
+        "ordered_route_commit_shas": [
+            manifest["route_commit_sha"] for manifest in manifests
+        ],
+        "ordered_route_source_sha256s": [
+            manifest["route_source_sha256"] for manifest in manifests
+        ],
+        "provisional_winner_route_id": d1["provisional_winner_route_id"],
+        "reviewer_receipts": [corpus_receipt, metric_receipt],
+    }
+    context = {
+        "evidence_commit_sha": E,
+        "validated_d0_result": d0,
+        "validated_d1_result": d1,
+        "d0_raw_bytes": d0_bytes,
+        "d1_raw_bytes": d1_bytes,
+        "reviewer_receipt_contexts": (
+            _receipt_observation_context(corpus_context),
+            _receipt_observation_context(metric_context),
+        ),
+    }
+    if halt:
+        body = {
+            "review_halt_schema_version": "experimental.v3m0.b7.review-halt.v1",
+            **common_fields,
+            "halt_reason": "HALT_REPLAY_MISMATCH",
+            "production_implementation_allowed": False,
+            "review_halt_sha": "",
+        }
+        self_hash_field = "review_halt_sha"
+    else:
+        selected = manifests[0]
+        body = {
+            "selection_review_schema_version": (
+                "experimental.v3m0.b7.selection-review.v1"
+            ),
+            **common_fields,
+            "review_outcome": "UNIQUE_SCHEMA_SELECTED",
+            "selected_route_id": selected["route_id"],
+            "selected_route_schema_domain": selected["route_schema_domain"],
+            "selected_route_commit_sha": selected["route_commit_sha"],
+            "selected_route_source_sha256": selected["route_source_sha256"],
+            "engineering_disposition": (
+                "B7_UNIQUE_SCHEMA_SELECTED_FOR_IMPLEMENTATION"
+            ),
+            "production_implementation_allowed": True,
+            "selection_review_sha": "",
+        }
+        self_hash_field = "selection_review_sha"
+    body[self_hash_field] = common.canonical_sha_v1(
+        {key: value for key, value in body.items() if key != self_hash_field}
+    )
+    return body, context
+
+
+def test_reviewer_receipt_accepts_fully_joined_accept() -> None:
+    body, context = _receipt_fixture()
+    assert common.validate_reviewer_receipt_v1(body, **context) == body
+
+
+def test_reviewer_receipt_accepts_totalized_precheck_reject() -> None:
+    body, context = _receipt_fixture()
+    body, context = _make_precheck_reject(body, context)
 
     assert common.validate_reviewer_receipt_v1(body, **context) == body
 
@@ -250,6 +376,152 @@ def test_reviewer_receipt_rejects_non_normalized_process_observation() -> None:
     context["process_observation"]["signal_number"] = 9
     with pytest.raises((TypeError, ValueError)):
         common.validate_reviewer_receipt_v1(body, **context)
+
+
+def test_selection_review_accepts_two_independent_accept_receipts() -> None:
+    body, context = _terminal_review_fixture()
+    assert common.validate_selection_review_v1(body, **context) == body
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "d1_result_raw_sha256",
+        "ordered_route_source_sha256s",
+        "selected_route_id",
+        "production_implementation_allowed",
+        "selection_review_sha",
+    ),
+)
+def test_selection_review_rejects_terminal_join_attacks(field: str) -> None:
+    body, context = _terminal_review_fixture()
+    attacked = copy.deepcopy(body)
+    if type(attacked[field]) is bool:
+        attacked[field] = not attacked[field]
+    elif type(attacked[field]) is list:
+        attacked[field][0] = "0" * 64
+    else:
+        attacked[field] = "0" * 64
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_selection_review_v1(attacked, **context)
+
+
+def test_selection_review_rejects_reviewer_context_substitution() -> None:
+    body, context = _terminal_review_fixture()
+    attacked_context = copy.deepcopy(context)
+    attacked_context["reviewer_receipt_contexts"] = (
+        context["reviewer_receipt_contexts"][0],
+        context["reviewer_receipt_contexts"][0],
+    )
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_selection_review_v1(body, **attacked_context)
+
+
+def test_review_halt_accepts_completed_reviewer_reject() -> None:
+    body, context = _terminal_review_fixture(halt=True)
+    assert common.validate_review_halt_v1(body, **context) == body
+
+
+def test_review_halt_classifies_two_nonnull_replay_observations_as_divergence(
+) -> None:
+    body, context = _terminal_review_fixture()
+    metric_receipt = body["reviewer_receipts"][1]
+    metric_context = context["reviewer_receipt_contexts"][1]
+    stdout = metric_context["process_observation"]["stdout_bytes"]
+    report = common.strict_json_loads_v1(stdout[:-1])
+    report["observed_provisional_winner_route_id"] = "B_PROGRESS"
+    report["replay_output_root_sha"] = common.canonical_sha_v1(
+        {
+            key: report[key]
+            for key in (
+                "replay_report_schema_version",
+                "reviewer_role",
+                "review_protocol_id",
+                "lab_evidence_commit_sha",
+                "replay_input_root_sha",
+                "recomputed_d0_decision_payload_sha",
+                "recomputed_d1_decision_payload_sha",
+                "observed_surviving_route_ids",
+                "observed_provisional_winner_route_id",
+            )
+        }
+    )
+    report["replay_report_sha"] = common.canonical_sha_v1(
+        {
+            key: value
+            for key, value in report.items()
+            if key != "replay_report_sha"
+        }
+    )
+    attacked_stdout = common.canonical_json_bytes_v1(report) + b"\n"
+    metric_context["process_observation"]["stdout_bytes"] = attacked_stdout
+    metric_receipt["observed_provisional_winner_route_id"] = "B_PROGRESS"
+    metric_receipt["replay_output_root_sha"] = report["replay_output_root_sha"]
+    metric_receipt["replay_stdout_sha256"] = _sha_bytes(attacked_stdout)
+    metric_receipt["reason_codes"] = ["REPLAY_WINNER_MISMATCH"]
+    metric_receipt["verdict"] = "REJECT"
+    metric_receipt["receipt_sha"] = common.canonical_sha_v1(
+        {
+            key: value
+            for key, value in metric_receipt.items()
+            if key != "receipt_sha"
+        }
+    )
+    halt = {
+        "review_halt_schema_version": "experimental.v3m0.b7.review-halt.v1",
+        **{
+            key: value
+            for key, value in body.items()
+            if key
+            not in (
+                "selection_review_schema_version",
+                "review_outcome",
+                "selected_route_id",
+                "selected_route_schema_domain",
+                "selected_route_commit_sha",
+                "selected_route_source_sha256",
+                "engineering_disposition",
+                "production_implementation_allowed",
+                "selection_review_sha",
+            )
+        },
+        "halt_reason": "HALT_REVIEW_DIVERGENCE",
+        "production_implementation_allowed": False,
+        "review_halt_sha": "",
+    }
+    halt["review_halt_sha"] = common.canonical_sha_v1(
+        {key: value for key, value in halt.items() if key != "review_halt_sha"}
+    )
+
+    assert common.validate_review_halt_v1(halt, **context) == halt
+
+
+@pytest.mark.parametrize(
+    "field",
+    ("halt_reason", "production_implementation_allowed", "review_halt_sha"),
+)
+def test_review_halt_rejects_terminal_attacks(field: str) -> None:
+    body, context = _terminal_review_fixture(halt=True)
+    attacked = copy.deepcopy(body)
+    if type(attacked[field]) is bool:
+        attacked[field] = not attacked[field]
+    else:
+        attacked[field] = "0" * 64
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_review_halt_v1(attacked, **context)
+
+
+def test_review_halt_rejects_two_accept_receipts() -> None:
+    body, _ = _terminal_review_fixture(halt=True)
+    _, accept_context = _terminal_review_fixture()
+    accept_body, _ = _terminal_review_fixture()
+    attacked = copy.deepcopy(body)
+    attacked["reviewer_receipts"] = accept_body["reviewer_receipts"]
+    attacked["review_halt_sha"] = common.canonical_sha_v1(
+        {key: value for key, value in attacked.items() if key != "review_halt_sha"}
+    )
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_review_halt_v1(attacked, **accept_context)
 
 
 @pytest.mark.parametrize("field", (
