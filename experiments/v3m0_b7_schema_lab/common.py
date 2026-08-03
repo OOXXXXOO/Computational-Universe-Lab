@@ -5691,15 +5691,21 @@ def _validate_mutation_probe_domain_v1(
 
     _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
     capture_ordinals = _gate_capture_ordinals_v1(phase)
-    fixture, source_sets = _validated_gate_fixture_source_domain_v1(
-        phase,
-        validated_corpus_fixture,
-        ordered_source_transcript_sets,
-    )
-    _fixture_again, fixture_source_sets = _validated_d0_fixture_source_domain_v1(
+    d0_fixture, fixture_source_sets = _validated_d0_fixture_source_domain_v1(
         validated_corpus_fixture
     )
     fixture_source_set = fixture_source_sets[0]
+    if phase == "D1" and ordered_source_transcript_sets is None:
+        # Compatibility for the standalone historical domain probe.  The
+        # authoritative D1 route builder always supplies all three captures.
+        fixture = d0_fixture
+        source_sets = [fixture_source_set for _capture in capture_ordinals]
+    else:
+        fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+            phase,
+            validated_corpus_fixture,
+            ordered_source_transcript_sets,
+        )
     universe = fixture.get("mutation_universe")
     if type(universe) is not dict:
         raise TypeError("validated corpus mutation universe must be an exact dict")
@@ -5932,7 +5938,6 @@ def build_gate_e02_v1(
     route_id,
     validated_corpus_fixture,
     ordered_mutation_probes,
-    ordered_source_transcript_sets=None,
 ):
     """Build E02 from the exact dynamic mutation universe and outcomes."""
 
@@ -5941,7 +5946,6 @@ def build_gate_e02_v1(
         route_id=route_id,
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     return build_gate_outcome_v1(
         gate_id="E02",
@@ -5957,7 +5961,6 @@ def validate_gate_e02_v1(
     *,
     validated_corpus_fixture,
     ordered_mutation_probes,
-    ordered_source_transcript_sets=None,
 ):
     """Reject E02 unless every dynamic mutation outcome recomputes."""
 
@@ -5969,7 +5972,6 @@ def validate_gate_e02_v1(
         route_id=observed["observation"]["route_id"],
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     return validate_gate_outcome_v1(
         observed,
@@ -6014,7 +6016,6 @@ def build_gate_e06_v1(
     route_id,
     validated_corpus_fixture,
     ordered_mutation_probes,
-    ordered_source_transcript_sets=None,
 ):
     """Build E06 from roundtrip, repeat, and M02--M07 probe subsets."""
 
@@ -6023,7 +6024,6 @@ def build_gate_e06_v1(
         route_id=route_id,
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     domain = _validate_e06_domain_v1(mutation)
     return build_gate_outcome_v1(
@@ -6040,7 +6040,6 @@ def validate_gate_e06_v1(
     *,
     validated_corpus_fixture,
     ordered_mutation_probes,
-    ordered_source_transcript_sets=None,
 ):
     """Reject E06 unless its exact dynamic subsets recompute."""
 
@@ -6052,7 +6051,6 @@ def validate_gate_e06_v1(
         route_id=observed["observation"]["route_id"],
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
-        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     domain = _validate_e06_domain_v1(mutation)
     return validate_gate_outcome_v1(
