@@ -1,0 +1,247 @@
+{
+  "registry_schema_version": "experimental.v3m0.b7.v9.2.1-machine-contract-overlay.v1",
+  "base_contract_chain": [
+    {
+      "layer_ordinal": 0,
+      "role": "BASE_V91",
+      "path": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+      "registry_schema_version": "experimental.v3m0.b7.v9.1-machine-contract-registry.v1",
+      "raw_sha256": "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72"
+    },
+    {
+      "layer_ordinal": 1,
+      "role": "OVERLAY_V92",
+      "path": "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+      "registry_schema_version": "experimental.v3m0.b7.v9.2-machine-contract-overlay.v1",
+      "raw_sha256": "b7a0d0a1a319ccb4ee56804a8e994bcf3bb90b138284f14841c87be594705b5f"
+    }
+  ],
+  "overlay_algorithm": {
+    "algorithm": "VERIFY_V91_RAW_APPLY_V92_THEN_VERIFY_V92_RAW_APPLY_ORDERED_V921",
+    "ordered_digest_algorithm": "recursively-freeze-mappings-as-insertion-order-tuples-then-json-dumps-ensure_ascii-false-separators-comma-colon-and-sha256",
+    "unlisted_prior_effective_mutation_allowed": false,
+    "ordered_operations": [
+      {
+        "json_pointer": "/lab_contract/exact_records/B7LabReviewerReceiptV1",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "0bf7f327313d74da4caa36b113487e845c52862cf356e9d86e6ab8bf9b213e6d",
+        "replacement_ref": "/record_replacements/B7LabReviewerReceiptV1"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_child_static_scan_contract/lab_authored_import_contract/common",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "1a1cc3bc75342f8a1d480f16b3caae9d5c809053561654e82663eb8fee8e355f",
+        "replacement_ref": "/contract_replacements/common_import_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_child_static_scan_contract/lab_authored_external_call_allowlist",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "667c04cf6ed162a3164d2ba28ab36e4c071e7e2d59c083b40491fc9e53930b2e",
+        "replacement_ref": "/contract_replacements/external_call_allowlist"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_child_static_scan_contract/lab_authored_import_contract/compare_outer_runner_only",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "fe6fa8cf83e620e52e7b1167050e63d39280b3e3c74fcc94d03faa113748dd87",
+        "replacement_ref": "/contract_replacements/compare_outer_runner_only"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_replay_materialization_contract",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "4650f8d88b8ab577f7c1dee4ce057c1afdc3088d98e711eaf8189eb0aad53d6c",
+        "replacement_ref": "/contract_replacements/reviewer_replay_materialization_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_executable_source_origin_contract",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "903a913925aa46c15879d4b6c4d82127db7985c414e7008750210f97b6840a2e",
+        "replacement_ref": "/contract_replacements/reviewer_executable_source_origin_contract"
+      }
+    ]
+  },
+  "record_replacements": {
+    "B7LabReviewerReceiptV1": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/field_specs/26/wire_type",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": "Literal[fresh-python-s-immutable-E-export-canonical-stdout-v1]",
+          "replacement_value": "Literal[fresh-python-s-immutable-E-venv-invocation-v2]"
+        }
+      ],
+      "result_ordered_sha256": "35660e58518592194949728a22200edfc7b569dbceed9940956306f965bb1ee2"
+    }
+  },
+  "contract_replacements": {
+    "common_import_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/allowed_external_import_modules_exact",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["__future__", "ast", "base64", "binascii", "copy", "dataclasses", "enum", "hashlib", "json", "math", "numpy", "pathlib", "re", "struct", "typing"],
+          "replacement_value": ["__future__", "ast", "base64", "binascii", "copy", "dataclasses", "difflib", "enum", "hashlib", "json", "math", "numpy", "pathlib", "re", "struct", "typing"]
+        }
+      ],
+      "result_ordered_sha256": "134dac86b3399c0976163f3ccf2c6e6b1aa389ddd0320024c7dd4fee47e61321"
+    },
+    "external_call_allowlist": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/allowed_external_calls_exact",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["argparse.ArgumentParser", "argparse.ArgumentParser.add_argument", "argparse.ArgumentParser.parse_args", "ast.parse", "ast.unparse", "ast.walk", "base64.b64decode", "base64.b64encode", "binascii.Error", "copy.deepcopy", "dataclasses.asdict", "dataclasses.dataclass", "dataclasses.fields", "dataclasses.is_dataclass", "dataclasses.replace", "enum.Enum", "fractions.Fraction", "hashlib.sha256", "json.dumps", "json.loads", "math.cos", "math.fsum", "math.isfinite", "math.sin", "math.sqrt", "numpy.abs", "numpy.all", "numpy.any", "numpy.arange", "numpy.array", "numpy.asarray", "numpy.block", "numpy.concatenate", "numpy.conj", "numpy.diag", "numpy.dot", "numpy.dtype", "numpy.einsum", "numpy.eye", "numpy.float64", "numpy.int64", "numpy.isclose", "numpy.isfinite", "numpy.linalg.cond", "numpy.linalg.det", "numpy.linalg.eig", "numpy.linalg.eigh", "numpy.linalg.eigvals", "numpy.linalg.eigvalsh", "numpy.linalg.inv", "numpy.linalg.matrix_rank", "numpy.linalg.norm", "numpy.linalg.pinv", "numpy.linalg.solve", "numpy.linalg.svd", "numpy.max", "numpy.mean", "numpy.min", "numpy.ones", "numpy.real", "numpy.reshape", "numpy.stack", "numpy.sum", "numpy.vdot", "numpy.where", "numpy.zeros", "pathlib.Path", "pathlib.Path.read_bytes", "pathlib.PurePosixPath", "re.compile", "re.fullmatch", "scipy.linalg.schur", "struct.pack", "struct.unpack", "sys.stdout.buffer.write"],
+          "replacement_value": ["argparse.ArgumentParser", "argparse.ArgumentParser.add_argument", "argparse.ArgumentParser.parse_args", "ast.parse", "ast.unparse", "ast.walk", "base64.b64decode", "base64.b64encode", "binascii.Error", "copy.deepcopy", "dataclasses.asdict", "dataclasses.dataclass", "dataclasses.fields", "dataclasses.is_dataclass", "dataclasses.replace", "difflib.unified_diff", "enum.Enum", "fractions.Fraction", "hashlib.sha256", "json.dumps", "json.loads", "math.cos", "math.fsum", "math.isfinite", "math.sin", "math.sqrt", "numpy.abs", "numpy.all", "numpy.any", "numpy.arange", "numpy.array", "numpy.asarray", "numpy.block", "numpy.concatenate", "numpy.conj", "numpy.diag", "numpy.dot", "numpy.dtype", "numpy.einsum", "numpy.eye", "numpy.float64", "numpy.int64", "numpy.isclose", "numpy.isfinite", "numpy.linalg.cond", "numpy.linalg.det", "numpy.linalg.eig", "numpy.linalg.eigh", "numpy.linalg.eigvals", "numpy.linalg.eigvalsh", "numpy.linalg.inv", "numpy.linalg.matrix_rank", "numpy.linalg.norm", "numpy.linalg.pinv", "numpy.linalg.solve", "numpy.linalg.svd", "numpy.max", "numpy.mean", "numpy.min", "numpy.ones", "numpy.real", "numpy.reshape", "numpy.stack", "numpy.sum", "numpy.vdot", "numpy.where", "numpy.zeros", "pathlib.Path", "pathlib.Path.read_bytes", "pathlib.PurePosixPath", "re.compile", "re.fullmatch", "scipy.linalg.schur", "struct.pack", "struct.unpack", "sys.stdout.buffer.write"]
+        },
+        {
+          "relative_pointer": "/allowed_immutable_value_method_calls_exact",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["bytes.decode", "bytes.hex", "bytes.startswith", "dict.copy", "dict.get", "dict.items", "dict.keys", "dict.pop", "dict.values", "hashlib.sha256.digest", "hashlib.sha256.hexdigest", "complex.conjugate", "list.append", "list.extend", "list.pop", "numpy.ndarray.astype", "numpy.ndarray.conj", "numpy.ndarray.copy", "numpy.ndarray.reshape", "numpy.ndarray.tobytes", "numpy.ndarray.tolist", "numpy.ndarray.transpose", "set.add", "set.difference", "set.issubset", "str.encode", "str.endswith", "str.join", "str.lower", "str.replace", "str.split", "str.startswith", "str.strip", "tuple.index"],
+          "replacement_value": ["bytes.decode", "bytes.hex", "bytes.startswith", "dict.copy", "dict.get", "dict.items", "dict.keys", "dict.pop", "dict.values", "hashlib.sha256.digest", "hashlib.sha256.hexdigest", "complex.conjugate", "list.append", "list.extend", "list.pop", "numpy.ndarray.astype", "numpy.ndarray.conj", "numpy.ndarray.copy", "numpy.ndarray.reshape", "numpy.ndarray.tobytes", "numpy.ndarray.tolist", "numpy.ndarray.transpose", "set.add", "set.difference", "set.issubset", "str.encode", "str.endswith", "str.join", "str.lower", "str.replace", "str.split", "str.splitlines", "str.startswith", "str.strip", "tuple.index"]
+        }
+      ],
+      "result_ordered_sha256": "a41a1fce04fb6d011ed799fda4cb890d75553d7c93fea8c74358745e33092876"
+    },
+    "compare_outer_runner_only": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/v92_outer_root_symbols_exact",
+          "operation": "ADD_ABSENT",
+          "replacement_value": ["precheck_python_invocation_identity_v2", "recheck_python_invocation_identity_v2", "run_python_environment_import_probe_v2", "capture_environment_manifest_v2", "run_frozen_reviewer_process_v2"]
+        },
+        {
+          "relative_pointer": "/v92_outer_static_helper_closure_exact",
+          "operation": "ADD_ABSENT",
+          "replacement_value": ["_require_lower_hex_v1", "build_sanitized_reviewer_environment_v1", "recheck_frozen_python_executable_identity_v1", "_require_normalized_absolute_path_v2", "_stable_regular_file_observation_v2", "_resolve_python_invocation_chain_v2", "_nearest_pyvenv_cfg_v2", "_python_environment_probe_report_is_well_typed_v2", "_empty_process_observation_v1", "_process_observation_v1", "_validate_bounded_process_configuration_v1", "run_bounded_reviewer_process_v1", "experiments.v3m0_b7_schema_lab.common.canonical_json_bytes_v1", "experiments.v3m0_b7_schema_lab.common.canonical_sha_v1", "experiments.v3m0_b7_schema_lab.common.strict_json_loads_v1", "experiments.v3m0_b7_schema_lab.common.validate_environment_manifest_v2", "experiments.v3m0_b7_schema_lab.common.validate_exact_lab_record_v1"]
+        },
+        {
+          "relative_pointer": "/v92_outer_closure_rule",
+          "operation": "ADD_ABSENT",
+          "replacement_value": "start-from-v92_outer_root_symbols_exact-follow-statically-resolved-repository-local-call-edges-to-fixed-point-and-require-the-exact-v92_outer_static_helper_closure_exact-no-missing-extra-or-unresolved-edge;list-order-is-compare-top-level-definition-order-followed-by-qualified-common-symbol-lexicographic-order"
+        },
+        {
+          "relative_pointer": "/reviewer_child_forbidden_reachable_symbols_exact",
+          "operation": "ADD_ABSENT",
+          "replacement_value": ["precheck_python_invocation_identity_v2", "recheck_python_invocation_identity_v2", "run_bounded_reviewer_process_v1", "run_python_environment_import_probe_v2", "capture_environment_manifest_v2", "run_frozen_reviewer_process_v2"]
+        },
+        {
+          "relative_pointer": "/reviewer_child_exclusion_rule",
+          "operation": "ADD_ABSENT",
+          "replacement_value": "both-reviewer-child-role-roots-and-module-bootstrap-must-have-zero-call-or-import-edge-to-every-v92-outer-root-helper-and-reviewer_child_forbidden_reachable_symbols_exact;run_python_environment_import_probe_v2-and-run_bounded_reviewer_process_v1-are-outer-process-only;any-edge-reject"
+        },
+        {
+          "relative_pointer": "/scope_rule",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": "these-Import-or-ImportFrom-nodes-must-be-function-local-to-declared-outer-receipt-materializer-and-cleanup-symbols-that-are-not-reachable-from-module-bootstrap-or-either-reviewer-child-role-root;any-edge-into-child-union-reject",
+          "replacement_value": "these-Import-or-ImportFrom-nodes-must-be-function-local-to-declared-outer-receipt-materializer-cleanup-symbols-or-the-exact-v92-outer-root-and-helper-closure;none-may-be-reachable-from-module-bootstrap-or-either-reviewer-child-role-root;any-edge-into-child-union-reject"
+        },
+        {
+          "relative_pointer": "/environment_runtime_producer_symbol",
+          "operation": "ADD_ABSENT",
+          "replacement_value": "experiments.v3m0_b7_schema_lab.compare.capture_environment_manifest_v2"
+        },
+        {
+          "relative_pointer": "/environment_observation_join_symbol",
+          "operation": "ADD_ABSENT",
+          "replacement_value": "experiments.v3m0_b7_schema_lab.common.validate_environment_manifest_v2"
+        },
+        {
+          "relative_pointer": "/environment_ownership_rule",
+          "operation": "ADD_ABSENT",
+          "replacement_value": "compare-runtime-producer-captures-invocation-chain-target-same-fd-environment_sha-self-root-and-import-probe-observations;common-observation-join-only-validates-detached-bodies-and-caller-supplied-observation-evidence-and-must-not-read-files-environment-or-clock-or-spawn-a-process"
+        }
+      ],
+      "result_ordered_sha256": "ac160b6b963fdf3c565ea8388d1a9627f4b0e2ef10ceec4fe14cb48ee1b2feb5"
+    },
+    "reviewer_replay_materialization_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/immutable_source_export/included_path_order",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json", "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json", "docsv3/v3-机器合同-B7-v9.1-registry.json", "docsv3/v3-机器合同-B7-v9.2-overlay.json", "experiments/v3m0_b7_schema_lab", "rulespace_v3", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"],
+          "replacement_value": ["data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json", "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json", "docsv3/v3-机器合同-B7-v9.1-registry.json", "docsv3/v3-机器合同-B7-v9.2-overlay.json", "docsv3/v3-机器合同-B7-v9.2.1-overlay.json", "experiments/v3m0_b7_schema_lab", "rulespace_v3", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"]
+        },
+        {
+          "relative_pointer": "/immutable_source_export/required_input_paths",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": {
+            "d0": "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+            "d1": "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+            "registry_base": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+            "registry_overlay": "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+            "corpus": "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+          },
+          "replacement_value": {
+            "d0": "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+            "d1": "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+            "registry_base": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+            "registry_overlay": "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+            "corpus": "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+            "registry_overlay_v921": "docsv3/v3-机器合同-B7-v9.2.1-overlay.json"
+          }
+        },
+        {
+          "relative_pointer": "/immutable_source_export/machine_contract_materialization",
+          "operation": "ADD_ABSENT",
+          "replacement_value": {
+            "overlay_input_path": "docsv3/v3-机器合同-B7-v9.2.1-overlay.json",
+            "ordered_contract_json_pointer": "/ordered_materialization_contract",
+            "required_input_role_order": ["BASE_V91", "OVERLAY_V92", "OVERLAY_V921"],
+            "resolution_rule": "strict-parse-overlay-with-duplicate-key-rejection-then-resolve-the-exact-ordered_contract_json_pointer-and-apply-that-contract-without-copying-or-reordering-fields"
+          }
+        }
+      ],
+      "result_ordered_sha256": "45bb36f45ca5838bb7ee3ae992679ed62f4d6bfef2f7070e0010e1fe916512a6"
+    },
+    "reviewer_executable_source_origin_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/common_origin_exact_blob_paths",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["docsv3/v3-机器合同-B7-v9.1-registry.json", "docsv3/v3-机器合同-B7-v9.2-overlay.json", "experiments/v3m0_b7_schema_lab/__init__.py", "experiments/v3m0_b7_schema_lab/common.py", "experiments/v3m0_b7_schema_lab/compare.py", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"],
+          "replacement_value": ["docsv3/v3-机器合同-B7-v9.1-registry.json", "docsv3/v3-机器合同-B7-v9.2-overlay.json", "docsv3/v3-机器合同-B7-v9.2.1-overlay.json", "experiments/v3m0_b7_schema_lab/__init__.py", "experiments/v3m0_b7_schema_lab/common.py", "experiments/v3m0_b7_schema_lab/compare.py", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"]
+        }
+      ],
+      "result_ordered_sha256": "ac6905c0c17083d3f19b89425d1450d6f4e51b7f7189272bb576e549156f694e"
+    }
+  },
+  "ordered_materialization_contract": {
+    "algorithm": "VERIFY_EXACT_RAW_SHA_IN_INPUT_ROLE_ORDER_AND_APPLY_OVERLAYS_SEQUENTIALLY",
+    "input_role_order": ["BASE_V91", "OVERLAY_V92", "OVERLAY_V921"],
+    "ordered_inputs": [
+      {"layer_ordinal": 0, "role": "BASE_V91", "path": "docsv3/v3-机器合同-B7-v9.1-registry.json", "raw_sha256": "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72"},
+      {"layer_ordinal": 1, "role": "OVERLAY_V92", "path": "docsv3/v3-机器合同-B7-v9.2-overlay.json", "raw_sha256": "b7a0d0a1a319ccb4ee56804a8e994bcf3bb90b138284f14841c87be594705b5f"},
+      {"layer_ordinal": 2, "role": "OVERLAY_V921", "path": "docsv3/v3-机器合同-B7-v9.2.1-overlay.json", "raw_sha_source": "root-test-literal-and-signed-Chinese-erratum"}
+    ],
+    "v921_raw_sha_source": "root-test-literal-and-signed-Chinese-erratum",
+    "effective_contract_schema_version": "experimental.v3m0.b7.v9.2.1-effective-machine-contract.v1",
+    "mutation_rule": "all-three-input-byte-streams-remain-immutable-and-each-overlay-applies-only-after-every-prior-layer-raw-root-and-ordered-operation-validates",
+    "failure_rule": "any-missing-input-raw-root-mismatch-prior-digest-mismatch-operation-order-drift-or-unlisted-mutation-rejects-before-D0"
+  },
+  "source_closure_additions": [
+    "docsv3/v3-机器合同-B7-v9.2.1-overlay.json",
+    "docsv3/v3-勘误-B7-v9.2.1-reviewer合同机械闭合-2026-08-03.md",
+    "tests/test_v3m0_b7_v921_contracts.py"
+  ],
+  "activation_contract": {
+    "effective_scope": "B7-reviewer-contract-mechanical-closure-only",
+    "activation_point": "before-first-v3m0-b7-schema-lab-D0-artifact",
+    "v91_files_modified": false,
+    "v92_files_modified": false,
+    "contract_only": true,
+    "d0_unlocked": false,
+    "d1_unlocked": false,
+    "production_unlocked": false,
+    "gpu_unlocked": false
+  },
+  "physical_contract_preservation": {
+    "physical_object_changed": false,
+    "thresholds_changed": false,
+    "route_order_changed": false,
+    "seven_cases_changed": false,
+    "gate_or_metric_order_changed": false,
+    "d1_selected_fejer_order_changed": false,
+    "scientific_status_effect": "NONE-CONTRACT-ERRATUM-ONLY",
+    "d0_unlock_effect": "NONE",
+    "gpu_unlock_effect": "NONE"
+  }
+}
