@@ -13,6 +13,83 @@ REVIEWER_PROCESS_IO_CHUNK_BYTES_V1 = 65536
 REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1 = 5
+_SANITIZED_REVIEWER_ENVIRONMENT_V1 = (
+    ("PYTHONHASHSEED", "0"),
+    ("PYTHONNOUSERSITE", "1"),
+    ("PYTHONDONTWRITEBYTECODE", "1"),
+    ("PYTHONUTF8", "1"),
+    ("OPENBLAS_NUM_THREADS", "1"),
+    ("OMP_NUM_THREADS", "1"),
+    ("MKL_NUM_THREADS", "1"),
+    ("VECLIB_MAXIMUM_THREADS", "1"),
+    ("NUMEXPR_NUM_THREADS", "1"),
+    ("LANG", "C"),
+    ("LC_ALL", "C"),
+)
+_REVIEWER_SUBCOMMANDS_V1 = (
+    ("CORPUS_REPLAY", "review-corpus"),
+    ("METRIC_REPLAY", "review-metric"),
+)
+
+
+def _require_lower_hex_v1(value, width, field):
+    if (
+        type(value) is not str
+        or len(value) != width
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(f"{field} must be exact lowercase hexadecimal width {width}")
+
+
+def build_sanitized_reviewer_environment_v1():
+    """Build the exact caller-independent reviewer child environment."""
+
+    return {name: value for name, value in _SANITIZED_REVIEWER_ENVIRONMENT_V1}
+
+
+def materialize_reviewer_command_v1(
+    *,
+    reviewer_role,
+    frozen_python_executable,
+    evidence_commit_sha,
+    reviewed_executable_source_closure_sha,
+):
+    """Materialize one exact role-specific reviewer argv tuple."""
+
+    subcommand = None
+    for frozen_role, frozen_subcommand in _REVIEWER_SUBCOMMANDS_V1:
+        if reviewer_role == frozen_role and type(reviewer_role) is str:
+            subcommand = frozen_subcommand
+            break
+    if subcommand is None:
+        raise ValueError("reviewer role is not frozen")
+    if (
+        type(frozen_python_executable) is not str
+        or not frozen_python_executable.startswith("/")
+        or frozen_python_executable.startswith("//")
+        or any(
+            part in ("", ".", "..") for part in frozen_python_executable.split("/")[1:]
+        )
+    ):
+        raise ValueError("frozen Python executable path is not normalized absolute")
+    _require_lower_hex_v1(evidence_commit_sha, 40, "evidence commit SHA")
+    _require_lower_hex_v1(
+        reviewed_executable_source_closure_sha,
+        64,
+        "reviewed executable source closure SHA",
+    )
+    return (
+        frozen_python_executable,
+        "-s",
+        "-m",
+        "experiments.v3m0_b7_schema_lab.compare",
+        subcommand,
+        "--evidence-commit",
+        evidence_commit_sha,
+        "--reviewed-executable-source-closure-sha",
+        reviewed_executable_source_closure_sha,
+        "--emit-replay-report",
+    )
 
 
 def precheck_frozen_python_executable_v1(

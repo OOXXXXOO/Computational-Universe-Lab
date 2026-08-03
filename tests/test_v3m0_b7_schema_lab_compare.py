@@ -16,6 +16,92 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_reviewer_spawn_environment_is_exact_and_caller_independent() -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        build_sanitized_reviewer_environment_v1,
+    )
+
+    first = build_sanitized_reviewer_environment_v1()
+    second = build_sanitized_reviewer_environment_v1()
+
+    assert first == {
+        "PYTHONHASHSEED": "0",
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUTF8": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "OMP_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "VECLIB_MAXIMUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
+        "LANG": "C",
+        "LC_ALL": "C",
+    }
+    assert second == first
+    assert second is not first
+
+
+@pytest.mark.parametrize(
+    ("reviewer_role", "subcommand"),
+    (("CORPUS_REPLAY", "review-corpus"), ("METRIC_REPLAY", "review-metric")),
+)
+def test_reviewer_command_materialization_is_exact_registry_template(
+    reviewer_role: str,
+    subcommand: str,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        materialize_reviewer_command_v1,
+    )
+
+    argv = materialize_reviewer_command_v1(
+        reviewer_role=reviewer_role,
+        frozen_python_executable="/frozen/python",
+        evidence_commit_sha="1" * 40,
+        reviewed_executable_source_closure_sha="2" * 64,
+    )
+
+    assert argv == (
+        "/frozen/python",
+        "-s",
+        "-m",
+        "experiments.v3m0_b7_schema_lab.compare",
+        subcommand,
+        "--evidence-commit",
+        "1" * 40,
+        "--reviewed-executable-source-closure-sha",
+        "2" * 64,
+        "--emit-replay-report",
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("reviewer_role", "UNKNOWN"),
+        ("frozen_python_executable", "relative/python"),
+        ("evidence_commit_sha", "BAD"),
+        ("reviewed_executable_source_closure_sha", "BAD"),
+    ),
+)
+def test_reviewer_command_materialization_rejects_unfrozen_inputs(
+    field: str,
+    value: str,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        materialize_reviewer_command_v1,
+    )
+
+    arguments = {
+        "reviewer_role": "CORPUS_REPLAY",
+        "frozen_python_executable": "/frozen/python",
+        "evidence_commit_sha": "1" * 40,
+        "reviewed_executable_source_closure_sha": "2" * 64,
+    }
+    arguments[field] = value
+    with pytest.raises((TypeError, ValueError)):
+        materialize_reviewer_command_v1(**arguments)
+
+
 def _python_precheck(path: Path, raw_sha256: str) -> dict[str, object]:
     from experiments.v3m0_b7_schema_lab.compare import (
         precheck_frozen_python_executable_v1,
