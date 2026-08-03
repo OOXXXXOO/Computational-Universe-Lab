@@ -1248,3 +1248,72 @@ def run_frozen_reviewer_process_v1(
         ),
         python_precheck_observation=python_precheck_observation,
     )
+
+
+def run_frozen_reviewer_process_v2(
+    *,
+    argv,
+    cwd,
+    environment,
+    environment_manifest,
+):
+    """Run one active reviewer only after the complete v9.2 environment join."""
+
+    _validate_bounded_process_configuration_v1(
+        argv,
+        cwd,
+        environment,
+        REVIEWER_PROCESS_TIMEOUT_SECONDS_V1,
+        REVIEWER_PROCESS_STDOUT_HARD_CAP_BYTES_V1,
+        REVIEWER_PROCESS_STDERR_HARD_CAP_BYTES_V1,
+        REVIEWER_PROCESS_IO_CHUNK_BYTES_V1,
+        REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1,
+        REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1,
+        REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1,
+    )
+    if environment != build_sanitized_reviewer_environment_v1():
+        return _empty_process_observation_v1("PRECHECK_FAILED")
+    try:
+        manifest = _common.validate_exact_lab_record_v1(
+            "B7LabEnvironmentManifestV2",
+            environment_manifest,
+        )
+        if argv[0] != manifest["python_invocation_path"]:
+            return _empty_process_observation_v1("PRECHECK_FAILED")
+        python_precheck_observation = precheck_python_invocation_identity_v2(
+            python_invocation_path=manifest["python_invocation_path"],
+            recorded_realpath=manifest["python_executable_realpath"],
+            recorded_raw_sha256=manifest["python_executable_raw_sha256"],
+            recorded_venv_prefix=manifest["python_venv_prefix"],
+            recorded_pyvenv_cfg_path=manifest["python_pyvenv_cfg_path"],
+            recorded_pyvenv_cfg_raw_sha256=(manifest["python_pyvenv_cfg_raw_sha256"]),
+        )
+        if python_precheck_observation["precheck_passed"] is not True:
+            return _empty_process_observation_v1("PRECHECK_FAILED")
+        python_probe_result = run_python_environment_import_probe_v2(
+            python_invocation_path=manifest["python_invocation_path"],
+            python_identity_observation=python_precheck_observation,
+        )
+        _common.validate_environment_manifest_v2(
+            manifest,
+            python_identity_observation=python_precheck_observation,
+            python_probe_result=python_probe_result,
+        )
+    except (KeyError, OSError, TypeError, ValueError):
+        return _empty_process_observation_v1("PRECHECK_FAILED")
+
+    return run_bounded_reviewer_process_v1(
+        argv=argv,
+        cwd=cwd,
+        environment=environment,
+        timeout_seconds=REVIEWER_PROCESS_TIMEOUT_SECONDS_V1,
+        stdout_hard_cap_bytes=REVIEWER_PROCESS_STDOUT_HARD_CAP_BYTES_V1,
+        stderr_hard_cap_bytes=REVIEWER_PROCESS_STDERR_HARD_CAP_BYTES_V1,
+        io_chunk_bytes=REVIEWER_PROCESS_IO_CHUNK_BYTES_V1,
+        term_grace_seconds=REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1,
+        kill_grace_seconds=REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1,
+        final_pipe_close_deadline_seconds=(
+            REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1
+        ),
+        python_precheck_observation=python_precheck_observation,
+    )

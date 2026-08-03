@@ -2176,6 +2176,15 @@ def validate_environment_manifest_v2(
         raise ValueError("environment Python hash seed drifted")
     if manifest["fresh_process_per_capture"] is not True:
         raise ValueError("environment fresh-process policy drifted")
+    expected_environment_sha = canonical_sha_v1(
+        {
+            field: value
+            for field, value in manifest.items()
+            if field != "environment_sha"
+        }
+    )
+    if manifest["environment_sha"] != expected_environment_sha:
+        raise ValueError("environment self root drifted")
 
     if (
         type(python_identity_observation) is not dict
