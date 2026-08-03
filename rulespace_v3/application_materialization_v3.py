@@ -445,6 +445,7 @@ class _VerifiedApplicationMaterializationViewV3:
     materialization: ApplicationScenarioMaterializationV3
     actual_factory: VerifiedFactory
     matched_ablated_factory: VerifiedFactory
+    permit: object
 
 
 @dataclass(frozen=True)
@@ -1102,6 +1103,7 @@ def _make_application_materialization_v3_graph(
             materialization=clone(authority.materialization),
             actual_factory=authority.actual_factory,
             matched_ablated_factory=authority.matched_ablated_factory,
+            permit=authority.permit,
         )
 
     def issue(parent, permit, replay_value):
@@ -1219,6 +1221,7 @@ def _make_application_materialization_v3_graph(
             materialization=clone(refreshed.materialization),
             actual_factory=refreshed.actual_factory,
             matched_ablated_factory=refreshed.matched_ablated_factory,
+            permit=authority.permit,
         )
 
     return _ApplicationMaterializationV3Graph(

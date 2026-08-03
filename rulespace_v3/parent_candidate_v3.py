@@ -81,21 +81,11 @@ from .parent_v3_contracts import (
 )
 
 
-APPLICATION_SUPERSESSION_V3_SCHEMA_VERSION = (
-    "v3m0.application-supersession.v3"
-)
-PARENT_FREEZE_CANDIDATE_V3_SCHEMA_VERSION = (
-    "v3m0.parent-freeze-candidate.v3"
-)
-CURRENT_APPLICATION_REGISTRY_V3_SCHEMA_VERSION = (
-    "v3m0.current-application-registry.v3"
-)
-PARENT_V3_SOURCE_CLOSURE_V1_SCHEMA_VERSION = (
-    "v3m0.parent-v3-source-closure.v1"
-)
-REVIEWED_PATH_CLOSURE_V1_SCHEMA_VERSION = (
-    "v3m0.parent-reviewed-path-closure.v1"
-)
+APPLICATION_SUPERSESSION_V3_SCHEMA_VERSION = "v3m0.application-supersession.v3"
+PARENT_FREEZE_CANDIDATE_V3_SCHEMA_VERSION = "v3m0.parent-freeze-candidate.v3"
+CURRENT_APPLICATION_REGISTRY_V3_SCHEMA_VERSION = "v3m0.current-application-registry.v3"
+PARENT_V3_SOURCE_CLOSURE_V1_SCHEMA_VERSION = "v3m0.parent-v3-source-closure.v1"
+REVIEWED_PATH_CLOSURE_V1_SCHEMA_VERSION = "v3m0.parent-reviewed-path-closure.v1"
 
 PARENT_V3_CANDIDATE_AUTHORITY_STATE = "PROVISIONAL_NOT_ISSUED"
 PARENT_V3_PROGRAM_ID = "projective-rule-space-v3m0-v3"
@@ -140,8 +130,7 @@ def _resolve_fresh_audit_external_import_roots() -> tuple[str, ...]:
         if spec is None or not spec.submodule_search_locations:
             continue
         raw_roots.extend(
-            Path(location).parent
-            for location in spec.submodule_search_locations
+            Path(location).parent for location in spec.submodule_search_locations
         )
 
     resolved_roots: set[str] = set()
@@ -165,9 +154,7 @@ def _resolve_fresh_audit_external_import_roots() -> tuple[str, ...]:
     return tuple(sorted(resolved_roots, key=lambda item: item.encode("utf-8")))
 
 
-_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS = (
-    _resolve_fresh_audit_external_import_roots()
-)
+_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS = _resolve_fresh_audit_external_import_roots()
 _FRESH_AUDIT_SYSTEM_LIBRARY_ROOTS = tuple(
     sorted(
         {
@@ -195,8 +182,7 @@ _PARENT_V3_REVIEW_RECEIPT_PATHS = (
 )
 _PARENT_V3_MANDATORY_DRAFT_STATUS_BY_PATH = {
     "docsv3/v3-勘误-geometry-scenario-audit-2026-07-31.md": (
-        "*Computational Universe Lab · 2026-07-31 · "
-        "状态：DRAFT / 未签发 / 不生效*"
+        "*Computational Universe Lab · 2026-07-31 · 状态：DRAFT / 未签发 / 不生效*"
     ),
     "docsv3/v3-设计勘误-C19-refreeze-v2-2026-08-01.md": (
         "*Computational Universe Lab · 2026-08-01 · "
@@ -213,8 +199,7 @@ _PARENT_V3_MANDATORY_DRAFT_STATUS_BY_PATH = {
 }
 _PARENT_V3_MANDATORY_SIGNED_STATUS_BY_PATH = {
     "docsv3/v3-勘误-geometry-scenario-audit-2026-07-31.md": (
-        "*Computational Universe Lab · 2026-07-31 · "
-        "状态：SIGNED / 已签发 / 生效*"
+        "*Computational Universe Lab · 2026-07-31 · 状态：SIGNED / 已签发 / 生效*"
     ),
     "docsv3/v3-设计勘误-C19-refreeze-v2-2026-08-01.md": (
         "*Computational Universe Lab · 2026-08-01 · "
@@ -229,9 +214,7 @@ _PARENT_V3_MANDATORY_SIGNED_STATUS_BY_PATH = {
         "状态：SIGNED / 已签发 / 非 Parent、permit、runtime 或 scientific authority*"
     ),
 }
-_PARENT_V3_SIGNING_LITERALS_PATH = (
-    "rulespace_v3/parent_signing_literals_v1.py"
-)
+_PARENT_V3_SIGNING_LITERALS_PATH = "rulespace_v3/parent_signing_literals_v1.py"
 _PARENT_V3_SIGNING_LITERAL_SPEC = (
     ("PARENT_V3_PREPARATION_COMMIT_SHA", "str | None", None),
     ("PARENT_V3_REVIEWED_CANDIDATE_SHA256", "str | None", None),
@@ -253,9 +236,7 @@ _FRESH_INTERPRETER_AUDIT_SCHEMA_VERSION = (
 )
 _FRESH_INTERPRETER_AUDIT_MODE = "PARENT_V3_CANDIDATE_P_REPLAY"
 _FRESH_INTERPRETER_IMPORT_SMOKE_MODE = "DEPENDENCY_IMPORT_PATH_SMOKE"
-_FRESH_INTERPRETER_CANDIDATE_IMPORT_SMOKE_MODE = (
-    "REPOSITORY_CANDIDATE_IMPORT_SMOKE"
-)
+_FRESH_INTERPRETER_CANDIDATE_IMPORT_SMOKE_MODE = "REPOSITORY_CANDIDATE_IMPORT_SMOKE"
 _FRESH_INTERPRETER_EVENT_PROBE_MODE = "SECURITY_EVENT_BOUNDARY_PROBE"
 _FRESH_INTERPRETER_HOOK_STATE = "HOOK_INSTALLED_BEFORE_REPOSITORY_IMPORT"
 _FRESH_AUDIT_FRAME_SCHEMA_VERSION = "v3m0.fresh-audit-frame.v1"
@@ -272,7 +253,7 @@ _FRESH_AUDIT_REQUIRED_REPOSITORY_MODULE_PATHS = frozenset(
 # The active bootstrap keeps the audit authority inside one live function frame.
 # Reviewed repository code can append untrusted stdout noise, but it cannot obtain
 # the frame writer or its hash-chain state through ``__main__``/builtins.
-_FRESH_AUDIT_BOOTSTRAP = r'''
+_FRESH_AUDIT_BOOTSTRAP = r"""
 import ast
 import base64
 import binascii
@@ -1224,7 +1205,7 @@ def _bootstrap():
     frame_writer("final", result)
 
 _bootstrap()
-'''.strip()
+""".strip()
 
 
 def _exact_record(value: object, record_type: type, field: str) -> None:
@@ -1351,9 +1332,7 @@ def _require_exact_recursive_match(
     if type(expected) in (tuple, list):
         if len(observed) != len(expected):
             raise ValueError(f"{field} length differs from the P replay")
-        for index, (observed_item, expected_item) in enumerate(
-            zip(observed, expected)
-        ):
+        for index, (observed_item, expected_item) in enumerate(zip(observed, expected)):
             _require_exact_recursive_match(
                 observed_item,
                 expected_item,
@@ -1462,9 +1441,7 @@ def _fresh_audit_expectation_from_candidate(
         source_closure_sha=candidate.source_closure_sha,
         source_closure=candidate.source_closure,
         trusted_git_executable_realpath=_TRUSTED_GIT_EXECUTABLE_REALPATH,
-        trusted_python_executable_realpath=(
-            _TRUSTED_PYTHON_EXECUTABLE_REALPATH
-        ),
+        trusted_python_executable_realpath=(_TRUSTED_PYTHON_EXECUTABLE_REALPATH),
     )
 
 
@@ -1479,12 +1456,10 @@ def _validate_fresh_audit_process_identity(request: object) -> None:
     if not required.issubset(request):
         raise RuntimeError("fresh-audit child frozen process identity drifted")
     if (
-        request["trusted_git_executable_realpath"]
-        != _TRUSTED_GIT_EXECUTABLE_REALPATH
+        request["trusted_git_executable_realpath"] != _TRUSTED_GIT_EXECUTABLE_REALPATH
         or request["trusted_python_executable_realpath"]
         != _TRUSTED_PYTHON_EXECUTABLE_REALPATH
-        or request["external_import_roots"]
-        != list(_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS)
+        or request["external_import_roots"] != list(_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS)
     ):
         raise RuntimeError("fresh-audit child frozen process identity drifted")
 
@@ -1502,9 +1477,7 @@ def _build_fresh_audit_p_data_not_executed(
     expectation.__post_init__()
     closure = {
         path: (mode, raw_sha)
-        for path, mode, raw_sha in _validated_source_closure(
-            expectation.source_closure
-        )
+        for path, mode, raw_sha in _validated_source_closure(expectation.source_closure)
     }
     expected = closure.get(_PARENT_V3_SIGNING_LITERALS_PATH)
     if expected is None:
@@ -1568,26 +1541,35 @@ def _project_source_closure_to_reviewed_path_closure(
 
 
 _SLICE2_CORE_REPLAY_SOURCE_PATHS = (
+    "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "docsv3/v3-设计勘误-B7-v9.1机器合同闭合-2026-08-03.md",
+    "docsv3/v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md",
     "docsv3/v3-设计勘误-C19-refreeze-v2-2026-08-01.md",
     "docsv3/v3-设计勘误-metric-support-authority-v1-2026-08-01.md",
+    "rulespace_v3/b7_replay_core_v1.py",
     "rulespace_v3/c19_refreeze_v2.py",
     "rulespace_v3/parent_candidate_v2.py",
     "rulespace_v3/parent_freeze.py",
     "rulespace_v3/parent_freeze_v2.py",
     "rulespace_v3/parent_v3_contracts.py",
+    "tests/fixtures/v3m0_b7_legacy_response_18b0d43.json",
+    "tests/test_v3m0_b7_import_purity.py",
+    "tests/test_v3m0_b7_legacy_golden.py",
+    "tests/test_v3m0_b7_p0_provenance_contracts.py",
+    "tests/test_v3m0_b7_pure_replay_core.py",
 )
 
 
 def _source_path_is_selected(relative_path: str) -> bool:
     path = PurePosixPath(relative_path)
     parts = path.parts
+    if relative_path == "docsv3/v3-机器合同-B7-v9.1-registry.json":
+        return True
+    if relative_path == "tests/fixtures/v3m0_b7_legacy_response_18b0d43.json":
+        return True
     if len(parts) == 2 and parts[0] == "docsv3" and path.suffix == ".md":
         return True
-    if (
-        len(parts) >= 3
-        and parts[:2] == ("formal", "v3m0")
-        and ".lake" not in parts[2:]
-    ):
+    if len(parts) >= 3 and parts[:2] == ("formal", "v3m0") and ".lake" not in parts[2:]:
         return True
     if len(parts) >= 2 and parts[0] == "rulespace_v3" and path.suffix == ".py":
         return True
@@ -1601,10 +1583,7 @@ def _source_path_is_selected(relative_path: str) -> bool:
     if (
         len(parts) == 2
         and parts[0] == "tests"
-        and (
-            parts[1].startswith("test_v3m0_")
-            or parts[1].startswith("test_v3_gpu_")
-        )
+        and (parts[1].startswith("test_v3m0_") or parts[1].startswith("test_v3_gpu_"))
         and path.suffix == ".py"
     ):
         return True
@@ -1628,9 +1607,7 @@ def _enumerate_parent_v3_source_entries_at_preparation_commit(
 ) -> tuple[tuple[str, str, str], ...]:
     """Enumerate selected P paths/modes/blob OIDs without reading blob bytes."""
 
-    commit_sha, tree_sha = _require_preparation_commit_sha(
-        preparation_commit_sha
-    )
+    commit_sha, tree_sha = _require_preparation_commit_sha(preparation_commit_sha)
     tree = _git_read_object(
         "ls-tree",
         "-r",
@@ -1659,7 +1636,9 @@ def _enumerate_parent_v3_source_entries_at_preparation_commit(
             git_mode = raw_mode.decode("ascii")
             object_id = raw_object_id.decode("ascii")
         except UnicodeDecodeError as exc:
-            raise ValueError("preparation source tree metadata is not UTF-8/ASCII") from exc
+            raise ValueError(
+                "preparation source tree metadata is not UTF-8/ASCII"
+            ) from exc
         canonical_path = _relative_path(relative_path, "preparation source path")
         if canonical_path in seen_paths:
             raise ValueError("preparation source tree contains duplicate paths")
@@ -1674,9 +1653,7 @@ def _enumerate_parent_v3_source_entries_at_preparation_commit(
     selected.sort(key=lambda item: item[0].encode("utf-8"))
     selected_paths = frozenset(item[0] for item in selected)
     missing_core = tuple(
-        path
-        for path in _SLICE2_CORE_REPLAY_SOURCE_PATHS
-        if path not in selected_paths
+        path for path in _SLICE2_CORE_REPLAY_SOURCE_PATHS if path not in selected_paths
     )
     if missing_core:
         raise ValueError(
@@ -1695,9 +1672,7 @@ def _select_parent_v3_source_closure_at_preparation_commit(
         preparation_commit_sha,
         "preparation source commit",
     )
-    entries = _enumerate_parent_v3_source_entries_at_preparation_commit(
-        commit_sha
-    )
+    entries = _enumerate_parent_v3_source_entries_at_preparation_commit(commit_sha)
     selected = tuple(
         (
             canonical_path,
@@ -1813,9 +1788,7 @@ class ParentFreezeCandidateV3Manifest:
     inherited_current_application_authorities_v2: tuple[
         CurrentApplicationAuthorityV2, ...
     ]
-    superseded_application_authorities_v2: tuple[
-        CurrentApplicationAuthorityV2, ...
-    ]
+    superseded_application_authorities_v2: tuple[CurrentApplicationAuthorityV2, ...]
     refrozen_current_application_authorities_v3: tuple[
         CurrentApplicationAuthorityV3, ...
     ]
@@ -1826,9 +1799,7 @@ class ParentFreezeCandidateV3Manifest:
     candidate_sha: str
 
     def __post_init__(self) -> None:
-        if self.candidate_schema_version != (
-            PARENT_FREEZE_CANDIDATE_V3_SCHEMA_VERSION
-        ):
+        if self.candidate_schema_version != (PARENT_FREEZE_CANDIDATE_V3_SCHEMA_VERSION):
             raise ValueError("Parent-v3 candidate schema drifted")
         if self.authority_state != PARENT_V3_CANDIDATE_AUTHORITY_STATE:
             raise ValueError("Parent-v3 candidate cannot claim authority")
@@ -1880,7 +1851,9 @@ class ParentFreezeCandidateV3Manifest:
             self.block_success_scenario_ids
         ):
             raise TypeError("block_success_scenario_ids must be a non-empty tuple")
-        if not all(type(item) is str and item for item in self.block_success_scenario_ids):
+        if not all(
+            type(item) is str and item for item in self.block_success_scenario_ids
+        ):
             raise TypeError("block_success_scenario_ids must contain exact strings")
         if len(self.block_success_scenario_ids) != len(
             set(self.block_success_scenario_ids)
@@ -1900,9 +1873,7 @@ def parent_v3_source_closure_v1_payload(
     commit_sha = _git_sha1(preparation_commit_sha, "preparation_commit_sha")
     entries = _validated_source_closure(source_closure)
     return {
-        "source_closure_schema_version": (
-            PARENT_V3_SOURCE_CLOSURE_V1_SCHEMA_VERSION
-        ),
+        "source_closure_schema_version": (PARENT_V3_SOURCE_CLOSURE_V1_SCHEMA_VERSION),
         "preparation_commit_sha": commit_sha,
         "entries": [
             {
@@ -1926,8 +1897,7 @@ def reviewed_path_closure_v1_payload(
             REVIEWED_PATH_CLOSURE_V1_SCHEMA_VERSION
         ),
         "entries": [
-            {"relative_path": path, "raw_sha256": raw_sha}
-            for path, raw_sha in entries
+            {"relative_path": path, "raw_sha256": raw_sha} for path, raw_sha in entries
         ],
     }
 
@@ -2023,9 +1993,7 @@ def parent_freeze_candidate_v3_manifest_payload(
             "parent_freeze_sha": candidate.historical_parent_v1.parent_freeze_sha,
         },
         "reviewed_candidate_v1": {
-            **parent_freeze_candidate_manifest_payload(
-                candidate.reviewed_candidate_v1
-            ),
+            **parent_freeze_candidate_manifest_payload(candidate.reviewed_candidate_v1),
             "candidate_sha": candidate.reviewed_candidate_v1.candidate_sha,
         },
         "reviewed_candidate_v2": {
@@ -2071,9 +2039,7 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
 ) -> ParentFreezeCandidateV3Manifest:
     """Freshly construct the authority-neutral core candidate from one P commit."""
 
-    commit_sha, _tree_sha = _require_preparation_commit_sha(
-        preparation_commit_sha
-    )
+    commit_sha, _tree_sha = _require_preparation_commit_sha(preparation_commit_sha)
     historical_parent_v1 = issue_v3m0_parent_freeze().manifest
     reviewed_candidate_v1 = verify_parent_freeze_candidate(
         build_v3m0_parent_freeze_candidate()
@@ -2088,8 +2054,7 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
     if raw_control_ids != APPLICATION_CONTROL_CASE_IDS:
         raise ValueError("Parent-v2 raw applications drifted from Parent-v1 ordinals")
     candidate_v1_control_ids = tuple(
-        item.control_case_id
-        for item in reviewed_candidate_v1.application_candidates
+        item.control_case_id for item in reviewed_candidate_v1.application_candidates
     )
     if candidate_v1_control_ids != APPLICATION_CONTROL_CASE_IDS:
         raise ValueError("reviewed candidate-v1 application ordinals drifted")
@@ -2111,9 +2076,7 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
         raise ValueError("historical C19 application instance drifted")
 
     replacement_c19 = (
-        _replay_c19_current_application_authority_v3_at_preparation_commit(
-            commit_sha
-        )
+        _replay_c19_current_application_authority_v3_at_preparation_commit(commit_sha)
     )
     if (
         replacement_c19.control_case_id != C19_CONTROL_CASE_ID
@@ -2130,19 +2093,13 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
 
     inherited_v2 = raw_v2[:c19_ordinal] + raw_v2[c19_ordinal + 1 :]
     supersession_provisional = ApplicationSupersessionV3(
-        supersession_schema_version=(
-            APPLICATION_SUPERSESSION_V3_SCHEMA_VERSION
-        ),
+        supersession_schema_version=(APPLICATION_SUPERSESSION_V3_SCHEMA_VERSION),
         control_case_id=C19_CONTROL_CASE_ID,
-        superseded_application_instance_id=(
-            superseded_c19.application_instance_id
-        ),
+        superseded_application_instance_id=(superseded_c19.application_instance_id),
         superseded_application_authority_v2_sha=(
             superseded_c19.application_authority_sha
         ),
-        replacement_application_instance_id=(
-            replacement_c19.application_instance_id
-        ),
+        replacement_application_instance_id=(replacement_c19.application_instance_id),
         replacement_application_authority_v3_sha=(
             replacement_c19.application_authority_sha
         ),
@@ -2164,10 +2121,8 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
             else application.scenario_authorities
         )
     )
-    if (
-        len(block_success_scenario_ids) != 23
-        or len(block_success_scenario_ids)
-        != len(set(block_success_scenario_ids))
+    if len(block_success_scenario_ids) != 23 or len(block_success_scenario_ids) != len(
+        set(block_success_scenario_ids)
     ):
         raise ValueError("Parent-v3 current registry is not the exact 23 success lanes")
     historical_c19_scenario_id = superseded_c19.scenario_authorities[0].scenario_id
@@ -2179,9 +2134,7 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
     ):
         raise ValueError("C19/C20 success-scenario registry drifted")
 
-    source_closure = _select_parent_v3_source_closure_at_preparation_commit(
-        commit_sha
-    )
+    source_closure = _select_parent_v3_source_closure_at_preparation_commit(commit_sha)
     source_closure_sha = canonical_sha(
         parent_v3_source_closure_v1_payload(commit_sha, source_closure)
     )
@@ -2212,9 +2165,7 @@ def _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
     canonical_sha(current_application_registry_v3_payload(candidate))
     canonical_sha(
         reviewed_path_closure_v1_payload(
-            _project_source_closure_to_reviewed_path_closure(
-                candidate.source_closure
-            )
+            _project_source_closure_to_reviewed_path_closure(candidate.source_closure)
         )
     )
     return candidate
@@ -2251,7 +2202,9 @@ def _verify_parent_candidate_v3_roots_and_registry(
         len(candidate.refrozen_current_application_authorities_v3) != 1
         or candidate.refrozen_current_application_authorities_v3[0].control_case_id
         != C19_CONTROL_CASE_ID
-        or candidate.refrozen_current_application_authorities_v3[0].application_instance_id
+        or candidate.refrozen_current_application_authorities_v3[
+            0
+        ].application_instance_id
         != C19_REPLACEMENT_APPLICATION_INSTANCE_ID
         or candidate.refrozen_current_application_authorities_v3[0].authority_state
         != PARENT_V3_CANDIDATE_AUTHORITY_STATE
@@ -2316,9 +2269,7 @@ def _verify_parent_candidate_v3_roots_and_registry(
     canonical_sha(current_application_registry_v3_payload(candidate))
     canonical_sha(
         reviewed_path_closure_v1_payload(
-            _project_source_closure_to_reviewed_path_closure(
-                candidate.source_closure
-            )
+            _project_source_closure_to_reviewed_path_closure(candidate.source_closure)
         )
     )
 
@@ -2362,10 +2313,8 @@ def _fresh_audit_child_main(request: dict[str, object]) -> dict[str, object]:
         or observed_tree_sha != preparation_tree_sha
     ):
         raise RuntimeError("fresh-audit child P/tree identity drifted")
-    selected_entries = (
-        _enumerate_parent_v3_source_entries_at_preparation_commit(
-            preparation_commit_sha
-        )
+    selected_entries = _enumerate_parent_v3_source_entries_at_preparation_commit(
+        preparation_commit_sha
     )
     requested_source_closure = request["source_closure"]
     if type(requested_source_closure) is not list:
@@ -2374,7 +2323,9 @@ def _fresh_audit_child_main(request: dict[str, object]) -> dict[str, object]:
     candidate = _replay_v3m0_parent_freeze_candidate_v3_at_preparation_commit(
         preparation_commit_sha
     )
-    _exact_record(candidate, ParentFreezeCandidateV3Manifest, "fresh Parent-v3 candidate")
+    _exact_record(
+        candidate, ParentFreezeCandidateV3Manifest, "fresh Parent-v3 candidate"
+    )
     _require_exact_wire_tree(candidate, "fresh Parent-v3 candidate")
     _verify_parent_candidate_v3_roots_and_registry(candidate)
     if candidate.preparation_commit_sha != preparation_commit_sha:
@@ -2530,9 +2481,7 @@ def _validate_source_execution_record(
     observed_sha = _sha256(value["sha256"], "source-execution sha256")
     closure = {
         path: (mode, raw_sha)
-        for path, mode, raw_sha in _validated_source_closure(
-            expectation.source_closure
-        )
+        for path, mode, raw_sha in _validated_source_closure(expectation.source_closure)
     }
     expected = closure.get(relative_path)
     if expected is None:
@@ -2573,9 +2522,7 @@ def _expected_inert_p_data_states(
 ) -> tuple[dict[str, str], ...]:
     closure = {
         path: (mode, raw_sha)
-        for path, mode, raw_sha in _validated_source_closure(
-            expectation.source_closure
-        )
+        for path, mode, raw_sha in _validated_source_closure(expectation.source_closure)
     }
     expected = closure.get(_PARENT_V3_SIGNING_LITERALS_PATH)
     if expected is None:
@@ -2635,22 +2582,19 @@ def _validate_dynamic_library_execution_record(value: object) -> str:
     except (OSError, ValueError) as exc:
         raise ValueError("fresh-audit dynamic-library identity is unstable") from exc
     if (
-        (
-            opened.st_dev,
-            opened.st_ino,
-            opened.st_mode,
-            opened.st_size,
-            opened.st_mtime_ns,
-            observed_sha,
-        )
-        != (
-            value["st_dev"],
-            value["st_ino"],
-            value["st_mode"],
-            value["st_size"],
-            value["st_mtime_ns"],
-            value["sha256"],
-        )
+        opened.st_dev,
+        opened.st_ino,
+        opened.st_mode,
+        opened.st_size,
+        opened.st_mtime_ns,
+        observed_sha,
+    ) != (
+        value["st_dev"],
+        value["st_ino"],
+        value["st_mode"],
+        value["st_size"],
+        value["st_mtime_ns"],
+        value["sha256"],
     ):
         raise ValueError("fresh-audit dynamic-library loader identity drifted")
     return path
@@ -2741,7 +2685,9 @@ def _assemble_fresh_audit_transcript(
     }:
         raise ValueError("fresh-audit final core drifted")
     if not _FRESH_AUDIT_REQUIRED_REPOSITORY_MODULE_PATHS.issubset(executed_paths):
-        raise ValueError("fresh-audit lacks stable execution records for required modules")
+        raise ValueError(
+            "fresh-audit lacks stable execution records for required modules"
+        )
     expected_inert_p_data_states = _expected_inert_p_data_states(expectation)
     if tuple(inert_p_data_states) != expected_inert_p_data_states:
         raise ValueError("fresh-audit inert P data state count/order drifted")
@@ -2877,18 +2823,13 @@ def _run_bounded_fresh_interpreter(
         raise TypeError("fresh-interpreter cwd must be an existing exact Path")
     if type(input_bytes) is not bytes or len(input_bytes) > 65536:
         raise TypeError("fresh-interpreter input must be bounded exact bytes")
-    if (
-        type(timeout_seconds) not in (int, float)
-        or timeout_seconds <= 0
-    ):
+    if type(timeout_seconds) not in (int, float) or timeout_seconds <= 0:
         raise TypeError("fresh-interpreter timeout must be positive")
     with _pinned_trusted_python_executable() as pinned_python:
         pinned_command = (pinned_python, *command[1:])
         environment = _minimal_process_environment()
         if sysconfig.get_platform().startswith("macosx"):
-            environment["__PYVENV_LAUNCHER__"] = (
-                _TRUSTED_PYTHON_LAUNCHER_PATH
-            )
+            environment["__PYVENV_LAUNCHER__"] = _TRUSTED_PYTHON_LAUNCHER_PATH
         completed = _run_bounded_process(
             pinned_command,
             cwd=cwd,
@@ -2910,7 +2851,9 @@ def _run_bounded_fresh_interpreter(
 def _canonical_observed_paths(value: object, field: str) -> tuple[str, ...]:
     if type(value) is not list:
         raise TypeError(f"{field} must be an exact JSON array")
-    paths = tuple(_relative_path(item, f"{field}[{index}]") for index, item in enumerate(value))
+    paths = tuple(
+        _relative_path(item, f"{field}[{index}]") for index, item in enumerate(value)
+    )
     if paths != tuple(sorted(paths, key=lambda item: item.encode("utf-8"))):
         raise ValueError(f"{field} is not in UTF-8 path order")
     if len(paths) != len(set(paths)):
@@ -2960,10 +2903,7 @@ def _valid_fresh_audit_git_argv(
     expectation: _FreshInterpreterAuditExpectation,
     argv: tuple[str, ...],
 ) -> bool:
-    if (
-        len(argv) < 2
-        or argv[0] != expectation.trusted_git_executable_realpath
-    ):
+    if len(argv) < 2 or argv[0] != expectation.trusted_git_executable_realpath:
         return False
     trusted_git = expectation.trusted_git_executable_realpath
     if argv in (
@@ -3030,12 +2970,9 @@ def _validate_observed_git_commands(
         executable_realpath = record["executable_realpath"]
         if (
             type(executable_realpath) is not str
-            or executable_realpath
-            != expectation.trusted_git_executable_realpath
+            or executable_realpath != expectation.trusted_git_executable_realpath
         ):
-            raise ValueError(
-                f"observed_git_commands[{index}] executable drifted"
-            )
+            raise ValueError(f"observed_git_commands[{index}] executable drifted")
         if not _valid_fresh_audit_git_argv(expectation, argv):
             raise ValueError(f"observed_git_commands[{index}].argv is not allowlisted")
         if record["cwd_state"] != "EXACT_REPOSITORY_ROOT":
@@ -3161,9 +3098,7 @@ def _validate_observed_live_paths(
 ) -> None:
     closure = {
         path: (mode, raw_sha)
-        for path, mode, raw_sha in _validated_source_closure(
-            expectation.source_closure
-        )
+        for path, mode, raw_sha in _validated_source_closure(expectation.source_closure)
     }
     root = _REPOSITORY_ROOT.resolve()
     for relative_path in tuple(dict.fromkeys((*module_paths, *file_paths))):
@@ -3187,17 +3122,13 @@ def _validate_observed_live_paths(
         except (OSError, ValueError) as exc:
             raise ValueError("fresh-audit live source escaped this worktree") from exc
         if resolved_live_path != canonical_live_path:
-            raise ValueError(
-                "fresh-audit live source has a symlinked parent component"
-            )
+            raise ValueError("fresh-audit live source has a symlinked parent component")
         expected_mode, expected_sha = expected
         opened_metadata, observed_sha = _stable_regular_file_sha256(
             live_path,
             metadata,
         )
-        observed_mode = (
-            "100755" if opened_metadata.st_mode & 0o111 else "100644"
-        )
+        observed_mode = "100755" if opened_metadata.st_mode & 0o111 else "100644"
         if observed_mode != expected_mode:
             raise ValueError("fresh-audit live source mode differs from P")
         if observed_sha != expected_sha:
@@ -3263,7 +3194,9 @@ def _validate_fresh_interpreter_audit_output(
     if _canonical_json_line(payload) != completed.stdout:
         raise ValueError("fresh-audit observation JSON is not canonical")
     observation_sha = _sha256(payload["observation_sha"], "observation_sha")
-    unsigned = {key: value for key, value in payload.items() if key != "observation_sha"}
+    unsigned = {
+        key: value for key, value in payload.items() if key != "observation_sha"
+    }
     if observation_sha != canonical_sha(unsigned):
         raise ValueError("fresh-audit observation root drifted")
     if payload["audit_schema_version"] != _FRESH_INTERPRETER_AUDIT_SCHEMA_VERSION:
@@ -3299,9 +3232,7 @@ def _validate_fresh_interpreter_audit_output(
         payload["observed_file_read_paths"],
         "observed_file_read_paths",
     )
-    _validate_observed_dynamic_library_paths(
-        payload["observed_dynamic_library_paths"]
-    )
+    _validate_observed_dynamic_library_paths(payload["observed_dynamic_library_paths"])
     _validate_observed_repository_directory_scans(
         payload["observed_repository_directory_scans"]
     )
@@ -3333,9 +3264,7 @@ def _run_fresh_interpreter_dependency_import_smoke() -> dict[str, object]:
         ("numpy", "scipy.linalg"),
         ("numpy", "scipy.linalg", "sympy"),
     ):
-        raise ValueError(
-            "fresh-audit dependency smoke requires NumPy and SciPy linalg"
-        )
+        raise ValueError("fresh-audit dependency smoke requires NumPy and SciPy linalg")
     nonce = secrets.token_hex(32)
     request = {
         "audit_mode": _FRESH_INTERPRETER_IMPORT_SMOKE_MODE,
@@ -3345,12 +3274,12 @@ def _run_fresh_interpreter_dependency_import_smoke() -> dict[str, object]:
         "p_data_not_executed": [],
         "source_closure": [],
         "trusted_git_executable_realpath": _TRUSTED_GIT_EXECUTABLE_REALPATH,
-        "trusted_python_executable_realpath": (
-            _TRUSTED_PYTHON_EXECUTABLE_REALPATH
-        ),
+        "trusted_python_executable_realpath": (_TRUSTED_PYTHON_EXECUTABLE_REALPATH),
     }
     request_bytes = _canonical_json_line(request)
-    with tempfile.TemporaryDirectory(prefix="culab-parent-v3-smoke-pycache-") as pycache:
+    with tempfile.TemporaryDirectory(
+        prefix="culab-parent-v3-smoke-pycache-"
+    ) as pycache:
         pycache_realpath = os.fspath(Path(pycache).resolve(strict=True))
         command = (
             _TRUSTED_PYTHON_EXECUTABLE_REALPATH,
@@ -3399,12 +3328,12 @@ def _run_fresh_interpreter_candidate_import_smoke() -> dict[str, object]:
         "p_data_not_executed": [],
         "source_closure": _live_repository_python_source_closure(),
         "trusted_git_executable_realpath": _TRUSTED_GIT_EXECUTABLE_REALPATH,
-        "trusted_python_executable_realpath": (
-            _TRUSTED_PYTHON_EXECUTABLE_REALPATH
-        ),
+        "trusted_python_executable_realpath": (_TRUSTED_PYTHON_EXECUTABLE_REALPATH),
     }
     request_bytes = _canonical_json_line(request)
-    with tempfile.TemporaryDirectory(prefix="culab-parent-v3-import-pycache-") as pycache:
+    with tempfile.TemporaryDirectory(
+        prefix="culab-parent-v3-import-pycache-"
+    ) as pycache:
         pycache_realpath = os.fspath(Path(pycache).resolve(strict=True))
         command = (
             _TRUSTED_PYTHON_EXECUTABLE_REALPATH,
@@ -3446,12 +3375,8 @@ def _run_fresh_interpreter_candidate_import_smoke() -> dict[str, object]:
         "audit_mode": _FRESH_INTERPRETER_CANDIDATE_IMPORT_SMOKE_MODE,
         "hook_installation_state": _FRESH_INTERPRETER_HOOK_STATE,
         "imported_repository_module": "rulespace_v3.parent_candidate_v3",
-        "module_external_import_roots": list(
-            _FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS
-        ),
-        "module_trusted_git_executable_realpath": (
-            _TRUSTED_GIT_EXECUTABLE_REALPATH
-        ),
+        "module_external_import_roots": list(_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS),
+        "module_trusted_git_executable_realpath": (_TRUSTED_GIT_EXECUTABLE_REALPATH),
         "module_trusted_python_executable_realpath": (
             _TRUSTED_PYTHON_EXECUTABLE_REALPATH
         ),
@@ -3495,12 +3420,12 @@ def _run_fresh_interpreter_event_boundary_probe(
         "probe": probe,
         "source_closure": [],
         "trusted_git_executable_realpath": _TRUSTED_GIT_EXECUTABLE_REALPATH,
-        "trusted_python_executable_realpath": (
-            _TRUSTED_PYTHON_EXECUTABLE_REALPATH
-        ),
+        "trusted_python_executable_realpath": (_TRUSTED_PYTHON_EXECUTABLE_REALPATH),
     }
     request_bytes = _canonical_json_line(request)
-    with tempfile.TemporaryDirectory(prefix="culab-parent-v3-probe-pycache-") as pycache:
+    with tempfile.TemporaryDirectory(
+        prefix="culab-parent-v3-probe-pycache-"
+    ) as pycache:
         pycache_realpath = os.fspath(Path(pycache).resolve(strict=True))
         command = (
             _TRUSTED_PYTHON_EXECUTABLE_REALPATH,
@@ -3532,11 +3457,7 @@ def _run_fresh_interpreter_event_boundary_probe(
     observed = {
         **final_core,
         "observed_file_read_paths": sorted(
-            {
-                frame["payload"]
-                for frame in frames
-                if frame["kind"] == "file_read_path"
-            },
+            {frame["payload"] for frame in frames if frame["kind"] == "file_read_path"},
             key=lambda item: item.encode("utf-8"),
         ),
         "observed_dynamic_library_paths": sorted(
@@ -3573,9 +3494,7 @@ def _run_fresh_interpreter_completeness_audit(
             expectation.trusted_python_executable_realpath
         ),
         "external_import_roots": list(_FRESH_AUDIT_EXTERNAL_IMPORT_ROOTS),
-        "p_data_not_executed": _build_fresh_audit_p_data_not_executed(
-            expectation
-        ),
+        "p_data_not_executed": _build_fresh_audit_p_data_not_executed(expectation),
         "source_closure": [
             {"path": path, "mode": mode, "sha256": raw_sha}
             for path, mode, raw_sha in expectation.source_closure
@@ -3703,9 +3622,10 @@ def _validate_parent_signing_placeholder_blob(raw: bytes) -> None:
         and isinstance(node.ctx, ast.Store)
         and node.id.startswith("PARENT_V3_")
     )
-    if len(top_level) != len(_PARENT_V3_SIGNING_LITERAL_SPEC) or tuple(
-        statement.target for statement in top_level
-    ) != all_authority_stores:
+    if (
+        len(top_level) != len(_PARENT_V3_SIGNING_LITERAL_SPEC)
+        or tuple(statement.target for statement in top_level) != all_authority_stores
+    ):
         raise ValueError("Parent-v3 signing literal declarations are not exact")
 
     for statement, (expected_name, annotation_source, placeholder) in zip(
@@ -3722,8 +3642,7 @@ def _validate_parent_signing_placeholder_blob(raw: bytes) -> None:
             raise ValueError("Parent-v3 signing literal annotation drifted")
         if placeholder is None:
             if not (
-                type(statement.value) is ast.Constant
-                and statement.value.value is None
+                type(statement.value) is ast.Constant and statement.value.value is None
             ):
                 raise ValueError("Parent-v3 signing literal is not a placeholder")
         elif not (
@@ -3743,9 +3662,10 @@ def _validate_preparation_authority_blobs(
         preparation_commit_sha,
         "preparation authority commit",
     )
-    for relative_path, draft_status in (
-        _PARENT_V3_MANDATORY_DRAFT_STATUS_BY_PATH.items()
-    ):
+    for (
+        relative_path,
+        draft_status,
+    ) in _PARENT_V3_MANDATORY_DRAFT_STATUS_BY_PATH.items():
         raw = _read_preparation_head_regular_blob(
             commit_sha,
             relative_path,
@@ -3755,7 +3675,9 @@ def _validate_preparation_authority_blobs(
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
-            raise ValueError("mandatory preparation authority doc is not UTF-8") from exc
+            raise ValueError(
+                "mandatory preparation authority doc is not UTF-8"
+            ) from exc
         lines = text.splitlines()
         signed_status = _PARENT_V3_MANDATORY_SIGNED_STATUS_BY_PATH[relative_path]
         if lines.count(draft_status) != 1 or signed_status in lines:

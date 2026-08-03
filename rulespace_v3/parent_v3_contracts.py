@@ -8,6 +8,7 @@ with a fresh closed replay of the committed C19 construction.
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 import selectors
@@ -15,6 +16,7 @@ import shutil
 import signal
 import stat
 import subprocess
+import struct
 import sys
 import time
 from collections.abc import Callable
@@ -38,6 +40,7 @@ from .c19_refreeze_v2 import (
     c19_basis_contract_v2_payload,
     c19_observer_geometry_bundle_v1_payload,
     c19_runtime_construction_v2_payload,
+    compile_c19_observer_geometry_bundle_v1,
     dynamics_k_grid_derivation_protocol_v1_payload,
     verify_c19_refreeze_v2_candidate,
 )
@@ -68,6 +71,27 @@ RUNTIME_ARTIFACT_STATE = "DYNAMICS_AND_BRIDGE_NOT_DERIVED_PRE_RESPONSE"
 MEASUREMENT_STATE = "NOT_EVALUATED_PRE_RESPONSE"
 METRIC_SUPPORT_DERIVATION_PROTOCOL_V1_SCHEMA_VERSION = (
     "v3m0.metric-support-derivation-protocol.v1"
+)
+CURRENT_CURVATURE_NORMALIZER_PROTOCOL_V1_SCHEMA_VERSION = (
+    "v3m0.current-curvature-normalizer-protocol.v1"
+)
+CURRENT_READOUT_CALIBRATION_SPEC_V3_SCHEMA_VERSION = (
+    "v3m0.current-readout-calibration-spec.v3"
+)
+CURRENT_CURVATURE_NORMALIZER_ID = "spin2-lattice-khat2-nonzero-v1"
+CURRENT_CURVATURE_NORMALIZER_FORMULA_ID = "nu-inc-4-sum-sin2-half-v1"
+CURRENT_CURVATURE_NORMALIZER_DERIVATION_ID = (
+    "2-exp(+ik)-exp(-ik)-centered-second-difference-v1"
+)
+CURRENT_CURVATURE_ZERO_MODE_POLICY = "excluded-from-curvature-rank-and-scaling"
+CURRENT_READOUT_CALIBRATION_DERIVATION_ID = "c19-geometry-bundle-readout-calibration-v1"
+CURRENT_REFERENCE_PHASE_BAND_SOURCE_ID = "analytic-quarter-turn-positive-band-v1"
+CURRENT_EXPECTED_SHELL_RANK_SOURCE_ID = "parent-v3-current-scenario-prophecy-v1"
+CURRENT_SOURCE_TRIAL_GENERATION_ID = "c19-positive-frequency-coordinate-identity-v1"
+CURRENT_BRIDGE_TOLERANCE = 1.0e-12
+CURRENT_BRIDGE_TOLERANCE_SOURCE_ID = "v3m0-frozen-thresholds-bridge-tolerance-v1"
+CURRENT_PREREGISTERED_PHASE_BANDS = (
+    (math.pi / 2.0 - 1.0 / 8.0, math.pi / 2.0 + 1.0 / 8.0),
 )
 _LOWER_SHA = re.compile(r"[0-9a-f]{64}\Z")
 _LOWER_GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -255,7 +279,9 @@ def _run_bounded_process(
         or not command
         or any(type(argument) is not str or not argument for argument in command)
     ):
-        raise TypeError("bounded process command must be a non-empty exact string tuple")
+        raise TypeError(
+            "bounded process command must be a non-empty exact string tuple"
+        )
     if type(input_bytes) is not bytes:
         raise TypeError("bounded process input must be exact bytes")
     if (
@@ -268,8 +294,7 @@ def _run_bounded_process(
     ):
         raise ValueError("bounded process limits are invalid")
     if type(env) is not dict or any(
-        type(key) is not str or type(value) is not str
-        for key, value in env.items()
+        type(key) is not str or type(value) is not str for key, value in env.items()
     ):
         raise TypeError("bounded process environment must contain exact strings")
     _verify_trusted_executable_identity(executable_identity)
@@ -342,11 +367,7 @@ def _run_bounded_process(
                     continue
                 target = stdout if key.data == "stdout" else stderr
                 target.extend(chunk)
-                limit = (
-                    max_stdout_bytes
-                    if key.data == "stdout"
-                    else max_stderr_bytes
-                )
+                limit = max_stdout_bytes if key.data == "stdout" else max_stderr_bytes
                 if len(target) > limit:
                     raise ValueError(f"bounded process {key.data} limit exceeded")
         returncode = process.wait(timeout=max(0.0, deadline - time.monotonic()))
@@ -871,11 +892,18 @@ def _bridge_protocol_record(
     }
 
 
-def _geometry_record(bundle: C19ObserverGeometryBundleV1) -> dict[str, object]:
-    return {
-        **c19_observer_geometry_bundle_v1_payload(bundle),
+def _geometry_record(
+    bundle: C19ObserverGeometryBundleV1,
+    *,
+    payload_builder=c19_observer_geometry_bundle_v1_payload,
+    record_fields=dataclass_fields,
+    record_type=C19ObserverGeometryBundleV1,
+) -> dict[str, object]:
+    payload = {
+        **payload_builder(bundle),
         "geometry_bundle_sha": bundle.geometry_bundle_sha,
     }
+    return {field.name: payload[field.name] for field in record_fields(record_type)}
 
 
 OperationRegistryRow = tuple[Literal["actual", "matched_ablated"], int, str, Primitive]
@@ -1039,6 +1067,469 @@ def verify_metric_support_derivation_protocol_v1(
     return protocol
 
 
+def _fp64_bits(
+    value: object,
+    field: str,
+    *,
+    is_finite: Callable[[float], bool] = math.isfinite,
+    pack: Callable[[str, float], bytes] = struct.pack,
+) -> str:
+    if type(value) is not float:
+        raise TypeError(f"{field} must be an exact float")
+    if not is_finite(value):
+        raise ValueError(f"{field} must be finite")
+    return pack(">d", value).hex()
+
+
+@dataclass(frozen=True)
+class CurrentCurvatureNormalizerProtocolV1:
+    protocol_schema_version: str
+    normalizer_id: str
+    formula_id: str
+    derivation_id: str
+    spatial_shape: tuple[int, ...]
+    response_grid_sha: str
+    ordered_reciprocal_indices: tuple[tuple[int, ...], ...]
+    ordered_momentum_values: tuple[tuple[float, ...], ...]
+    ordered_momentum_fp64_bits: tuple[tuple[str, ...], ...]
+    ordered_normalizer_values: tuple[float, ...]
+    ordered_normalizer_fp64_bits: tuple[str, ...]
+    zero_mode_policy: str
+    protocol_sha: str
+
+
+def _current_curvature_normalizer_protocol_v1_payload_impl(
+    protocol: CurrentCurvatureNormalizerProtocolV1,
+    *,
+    fp64_bits: Callable[[object, str], str] = _fp64_bits,
+) -> dict[str, object]:
+    _exact_record(
+        protocol,
+        CurrentCurvatureNormalizerProtocolV1,
+        "current curvature normalizer protocol v1",
+    )
+    _require_plain_wire_tree(protocol, "current curvature normalizer protocol v1")
+    shape = _positive_int_tuple(protocol.spatial_shape, "normalizer spatial_shape")
+    ndim = len(shape)
+    if type(protocol.ordered_reciprocal_indices) is not tuple:
+        raise TypeError("ordered_reciprocal_indices must be an exact tuple")
+    indices = tuple(
+        _integer_tuple(row, f"ordered_reciprocal_indices[{index}]", ndim=ndim)
+        for index, row in enumerate(protocol.ordered_reciprocal_indices)
+    )
+    if not indices:
+        raise ValueError("ordered_reciprocal_indices must be non-empty")
+    cardinality = len(indices)
+    for field_name in (
+        "ordered_momentum_values",
+        "ordered_momentum_fp64_bits",
+        "ordered_normalizer_values",
+        "ordered_normalizer_fp64_bits",
+    ):
+        value = getattr(protocol, field_name)
+        if type(value) is not tuple or len(value) != cardinality:
+            raise ValueError(f"{field_name} cardinality mismatch")
+    momentum_values: list[list[float]] = []
+    momentum_bits: list[list[str]] = []
+    for row_index, (values, bits) in enumerate(
+        zip(protocol.ordered_momentum_values, protocol.ordered_momentum_fp64_bits)
+    ):
+        if type(values) is not tuple or len(values) != ndim:
+            raise ValueError(f"ordered_momentum_values[{row_index}] dimension mismatch")
+        if type(bits) is not tuple or len(bits) != ndim:
+            raise ValueError(
+                f"ordered_momentum_fp64_bits[{row_index}] dimension mismatch"
+            )
+        value_row: list[float] = []
+        bits_row: list[str] = []
+        for axis, (value, observed_bits) in enumerate(zip(values, bits)):
+            expected_bits = fp64_bits(
+                value, f"ordered_momentum_values[{row_index}][{axis}]"
+            )
+            if type(observed_bits) is not str or observed_bits != expected_bits:
+                raise ValueError("ordered momentum fp64 bits differ from values")
+            value_row.append(value)
+            bits_row.append(observed_bits)
+        momentum_values.append(value_row)
+        momentum_bits.append(bits_row)
+    normalizer_values: list[float] = []
+    normalizer_bits: list[str] = []
+    for index, (value, observed_bits) in enumerate(
+        zip(
+            protocol.ordered_normalizer_values,
+            protocol.ordered_normalizer_fp64_bits,
+        )
+    ):
+        expected_bits = fp64_bits(value, f"ordered_normalizer_values[{index}]")
+        if type(observed_bits) is not str or observed_bits != expected_bits:
+            raise ValueError("ordered normalizer fp64 bits differ from values")
+        normalizer_values.append(value)
+        normalizer_bits.append(observed_bits)
+    _sha(protocol.response_grid_sha, "normalizer response_grid_sha")
+    _sha(protocol.protocol_sha, "normalizer protocol_sha")
+    return {
+        "protocol_schema_version": protocol.protocol_schema_version,
+        "normalizer_id": protocol.normalizer_id,
+        "formula_id": protocol.formula_id,
+        "derivation_id": protocol.derivation_id,
+        "spatial_shape": list(shape),
+        "response_grid_sha": protocol.response_grid_sha,
+        "ordered_reciprocal_indices": [list(row) for row in indices],
+        "ordered_momentum_values": momentum_values,
+        "ordered_momentum_fp64_bits": momentum_bits,
+        "ordered_normalizer_values": normalizer_values,
+        "ordered_normalizer_fp64_bits": normalizer_bits,
+        "zero_mode_policy": protocol.zero_mode_policy,
+    }
+
+
+def _make_current_curvature_normalizer_protocol_v1_payload(
+    implementation,
+    fp64_bits,
+):
+    def current_curvature_normalizer_protocol_v1_payload(
+        protocol: CurrentCurvatureNormalizerProtocolV1,
+    ) -> dict[str, object]:
+        return implementation(protocol, fp64_bits=fp64_bits)
+
+    return current_curvature_normalizer_protocol_v1_payload
+
+
+current_curvature_normalizer_protocol_v1_payload = (
+    _make_current_curvature_normalizer_protocol_v1_payload(
+        _current_curvature_normalizer_protocol_v1_payload_impl,
+        _fp64_bits,
+    )
+)
+del _make_current_curvature_normalizer_protocol_v1_payload
+
+
+def _build_current_curvature_normalizer_protocol_v1(
+    response_grid: ResponseKGridManifest,
+    *,
+    schema_version: str = CURRENT_CURVATURE_NORMALIZER_PROTOCOL_V1_SCHEMA_VERSION,
+    normalizer_id: str = CURRENT_CURVATURE_NORMALIZER_ID,
+    formula_id: str = CURRENT_CURVATURE_NORMALIZER_FORMULA_ID,
+    derivation_id: str = CURRENT_CURVATURE_NORMALIZER_DERIVATION_ID,
+    zero_mode_policy: str = CURRENT_CURVATURE_ZERO_MODE_POLICY,
+    pi: float = math.pi,
+    sine: Callable[[float], float] = math.sin,
+    fp64_bits: Callable[[object, str], str] = _fp64_bits,
+    grid_record_builder: Callable[
+        [ResponseKGridManifest], dict[str, object]
+    ] = _response_grid_record,
+    payload_builder: Callable[
+        [CurrentCurvatureNormalizerProtocolV1], dict[str, object]
+    ] = current_curvature_normalizer_protocol_v1_payload,
+    sha_builder: Callable[[object], str] = canonical_sha,
+    replace_fn: Callable[..., object] = replace,
+) -> CurrentCurvatureNormalizerProtocolV1:
+    grid = grid_record_builder(response_grid)
+    shape = tuple(response_grid.torus_denominators)
+    indices = tuple(response_grid.reciprocal_indices)
+    momenta = tuple(
+        tuple(2.0 * pi * component / length for component, length in zip(row, shape))
+        for row in indices
+    )
+    if any(all(component == 0 for component in row) for row in indices):
+        raise ValueError("current curvature normalizer forbids the zero mode")
+    normalizers = tuple(
+        4.0 * sum(sine(component / 2.0) ** 2 for component in row) for row in momenta
+    )
+    if any(value == 0.0 for value in normalizers):
+        raise ValueError("current curvature normalizer is undefined at zero")
+    provisional = CurrentCurvatureNormalizerProtocolV1(
+        protocol_schema_version=schema_version,
+        normalizer_id=normalizer_id,
+        formula_id=formula_id,
+        derivation_id=derivation_id,
+        spatial_shape=shape,
+        response_grid_sha=grid["response_grid_sha"],
+        ordered_reciprocal_indices=indices,
+        ordered_momentum_values=momenta,
+        ordered_momentum_fp64_bits=tuple(
+            tuple(fp64_bits(value, "momentum") for value in row) for row in momenta
+        ),
+        ordered_normalizer_values=normalizers,
+        ordered_normalizer_fp64_bits=tuple(
+            fp64_bits(value, "normalizer") for value in normalizers
+        ),
+        zero_mode_policy=zero_mode_policy,
+        protocol_sha="0" * 64,
+    )
+    return replace_fn(
+        provisional,
+        protocol_sha=sha_builder(payload_builder(provisional)),
+    )
+
+
+def _verify_current_curvature_normalizer_protocol_v1_impl(
+    protocol: CurrentCurvatureNormalizerProtocolV1,
+    response_grid: ResponseKGridManifest,
+    *,
+    candidate_builder: Callable[[], object] = build_c19_refreeze_v2_candidate,
+    candidate_verifier: Callable[[object], object] = verify_c19_refreeze_v2_candidate,
+    exact_match: Callable[[object, object, str], None] = _require_exact_recursive_match,
+    payload_builder: Callable[
+        [CurrentCurvatureNormalizerProtocolV1], dict[str, object]
+    ] = current_curvature_normalizer_protocol_v1_payload,
+    sha_builder: Callable[[object], str] = canonical_sha,
+    protocol_builder: Callable[
+        [ResponseKGridManifest], CurrentCurvatureNormalizerProtocolV1
+    ] = _build_current_curvature_normalizer_protocol_v1,
+) -> CurrentCurvatureNormalizerProtocolV1:
+    current_candidate = candidate_verifier(candidate_builder())
+    exact_match(
+        response_grid,
+        current_candidate.response_grid,
+        "current curvature normalizer response grid",
+    )
+    payload = payload_builder(protocol)
+    if protocol.protocol_sha != sha_builder(payload):
+        raise ValueError("current curvature normalizer protocol SHA drifted")
+    expected = protocol_builder(response_grid)
+    exact_match(
+        protocol,
+        expected,
+        "current curvature normalizer protocol v1",
+    )
+    return protocol
+
+
+def _make_verify_current_curvature_normalizer_protocol_v1(
+    implementation,
+    candidate_builder,
+    candidate_verifier,
+    exact_match,
+    payload_builder,
+    sha_builder,
+    protocol_builder,
+):
+    def verify_current_curvature_normalizer_protocol_v1(
+        protocol: CurrentCurvatureNormalizerProtocolV1,
+        response_grid: ResponseKGridManifest,
+    ) -> CurrentCurvatureNormalizerProtocolV1:
+        return implementation(
+            protocol,
+            response_grid,
+            candidate_builder=candidate_builder,
+            candidate_verifier=candidate_verifier,
+            exact_match=exact_match,
+            payload_builder=payload_builder,
+            sha_builder=sha_builder,
+            protocol_builder=protocol_builder,
+        )
+
+    return verify_current_curvature_normalizer_protocol_v1
+
+
+verify_current_curvature_normalizer_protocol_v1 = (
+    _make_verify_current_curvature_normalizer_protocol_v1(
+        _verify_current_curvature_normalizer_protocol_v1_impl,
+        build_c19_refreeze_v2_candidate,
+        verify_c19_refreeze_v2_candidate,
+        _require_exact_recursive_match,
+        current_curvature_normalizer_protocol_v1_payload,
+        canonical_sha,
+        _build_current_curvature_normalizer_protocol_v1,
+    )
+)
+del _make_verify_current_curvature_normalizer_protocol_v1
+
+
+@dataclass(frozen=True)
+class CurrentReadoutCalibrationSpecV3:
+    spec_schema_version: str
+    derivation_id: str
+    geometry_bundle_sha: str
+    source_metric_whitener: FrozenComplexTensor
+    h_metric_whitener: FrozenComplexTensor
+    curvature_incidence_operator: FrozenComplexTensor
+    curvature_normalizer_protocol: CurrentCurvatureNormalizerProtocolV1
+    curvature_metric_whitener: FrozenComplexTensor
+    spec_sha: str
+
+
+def _current_readout_calibration_spec_v3_payload_impl(
+    spec: CurrentReadoutCalibrationSpecV3,
+    *,
+    normalizer_payload_builder: Callable[
+        [CurrentCurvatureNormalizerProtocolV1], dict[str, object]
+    ] = current_curvature_normalizer_protocol_v1_payload,
+    tensor_record_builder: Callable[[FrozenComplexTensor], dict[str, object]] = (
+        _tensor_record
+    ),
+) -> dict[str, object]:
+    _exact_record(spec, CurrentReadoutCalibrationSpecV3, "current readout calibration")
+    _require_plain_wire_tree(spec, "current readout calibration")
+    _sha(spec.geometry_bundle_sha, "current readout geometry_bundle_sha")
+    normalizer = normalizer_payload_builder(spec.curvature_normalizer_protocol)
+    _sha(spec.spec_sha, "current readout spec_sha")
+    return {
+        "spec_schema_version": spec.spec_schema_version,
+        "derivation_id": spec.derivation_id,
+        "geometry_bundle_sha": spec.geometry_bundle_sha,
+        "source_metric_whitener": tensor_record_builder(spec.source_metric_whitener),
+        "h_metric_whitener": tensor_record_builder(spec.h_metric_whitener),
+        "curvature_incidence_operator": tensor_record_builder(
+            spec.curvature_incidence_operator
+        ),
+        "curvature_normalizer_protocol": {
+            **normalizer,
+            "protocol_sha": spec.curvature_normalizer_protocol.protocol_sha,
+        },
+        "curvature_metric_whitener": tensor_record_builder(
+            spec.curvature_metric_whitener
+        ),
+    }
+
+
+def _make_current_readout_calibration_spec_v3_payload(
+    implementation,
+    normalizer_payload_builder,
+    tensor_record_builder,
+):
+    def current_readout_calibration_spec_v3_payload(
+        spec: CurrentReadoutCalibrationSpecV3,
+    ) -> dict[str, object]:
+        return implementation(
+            spec,
+            normalizer_payload_builder=normalizer_payload_builder,
+            tensor_record_builder=tensor_record_builder,
+        )
+
+    return current_readout_calibration_spec_v3_payload
+
+
+current_readout_calibration_spec_v3_payload = (
+    _make_current_readout_calibration_spec_v3_payload(
+        _current_readout_calibration_spec_v3_payload_impl,
+        current_curvature_normalizer_protocol_v1_payload,
+        _tensor_record,
+    )
+)
+del _make_current_readout_calibration_spec_v3_payload
+
+
+def _build_current_readout_calibration_spec_v3(
+    geometry: C19ObserverGeometryBundleV1,
+    response_grid: ResponseKGridManifest,
+    *,
+    schema_version: str = CURRENT_READOUT_CALIBRATION_SPEC_V3_SCHEMA_VERSION,
+    derivation_id: str = CURRENT_READOUT_CALIBRATION_DERIVATION_ID,
+    normalizer_builder: Callable[
+        [ResponseKGridManifest], CurrentCurvatureNormalizerProtocolV1
+    ] = _build_current_curvature_normalizer_protocol_v1,
+    payload_builder: Callable[
+        [CurrentReadoutCalibrationSpecV3], dict[str, object]
+    ] = current_readout_calibration_spec_v3_payload,
+    sha_builder: Callable[[object], str] = canonical_sha,
+    replace_fn: Callable[..., object] = replace,
+) -> CurrentReadoutCalibrationSpecV3:
+    normalizer = normalizer_builder(response_grid)
+    provisional = CurrentReadoutCalibrationSpecV3(
+        spec_schema_version=schema_version,
+        derivation_id=derivation_id,
+        geometry_bundle_sha=geometry.geometry_bundle_sha,
+        source_metric_whitener=geometry.source_whitener,
+        h_metric_whitener=geometry.h_whitener,
+        curvature_incidence_operator=geometry.incidence_q,
+        curvature_normalizer_protocol=normalizer,
+        curvature_metric_whitener=geometry.curvature_whitener,
+        spec_sha="0" * 64,
+    )
+    return replace_fn(
+        provisional,
+        spec_sha=sha_builder(payload_builder(provisional)),
+    )
+
+
+def _verify_current_readout_calibration_spec_v3_impl(
+    spec: CurrentReadoutCalibrationSpecV3,
+    geometry: C19ObserverGeometryBundleV1,
+    response_grid: ResponseKGridManifest,
+    *,
+    candidate_builder: Callable[[], object] = build_c19_refreeze_v2_candidate,
+    candidate_verifier: Callable[[object], object] = verify_c19_refreeze_v2_candidate,
+    geometry_compiler: Callable[[C19ObserverGeometryBundleV1], object] = (
+        compile_c19_observer_geometry_bundle_v1
+    ),
+    exact_match: Callable[[object, object, str], None] = _require_exact_recursive_match,
+    payload_builder: Callable[
+        [CurrentReadoutCalibrationSpecV3], dict[str, object]
+    ] = current_readout_calibration_spec_v3_payload,
+    sha_builder: Callable[[object], str] = canonical_sha,
+    calibration_builder: Callable[
+        [C19ObserverGeometryBundleV1, ResponseKGridManifest],
+        CurrentReadoutCalibrationSpecV3,
+    ] = _build_current_readout_calibration_spec_v3,
+) -> CurrentReadoutCalibrationSpecV3:
+    current_candidate = candidate_verifier(candidate_builder())
+    geometry_compiler(geometry)
+    exact_match(
+        geometry,
+        current_candidate.geometry_bundle,
+        "current readout calibration geometry",
+    )
+    exact_match(
+        response_grid,
+        current_candidate.response_grid,
+        "current readout calibration response grid",
+    )
+    payload = payload_builder(spec)
+    if spec.spec_sha != sha_builder(payload):
+        raise ValueError("current readout calibration spec SHA drifted")
+    expected = calibration_builder(geometry, response_grid)
+    exact_match(spec, expected, "current readout calibration spec v3")
+    return spec
+
+
+def _make_verify_current_readout_calibration_spec_v3(
+    implementation,
+    candidate_builder,
+    candidate_verifier,
+    geometry_compiler,
+    exact_match,
+    payload_builder,
+    sha_builder,
+    calibration_builder,
+):
+    def verify_current_readout_calibration_spec_v3(
+        spec: CurrentReadoutCalibrationSpecV3,
+        geometry: C19ObserverGeometryBundleV1,
+        response_grid: ResponseKGridManifest,
+    ) -> CurrentReadoutCalibrationSpecV3:
+        return implementation(
+            spec,
+            geometry,
+            response_grid,
+            candidate_builder=candidate_builder,
+            candidate_verifier=candidate_verifier,
+            geometry_compiler=geometry_compiler,
+            exact_match=exact_match,
+            payload_builder=payload_builder,
+            sha_builder=sha_builder,
+            calibration_builder=calibration_builder,
+        )
+
+    return verify_current_readout_calibration_spec_v3
+
+
+verify_current_readout_calibration_spec_v3 = (
+    _make_verify_current_readout_calibration_spec_v3(
+        _verify_current_readout_calibration_spec_v3_impl,
+        build_c19_refreeze_v2_candidate,
+        verify_c19_refreeze_v2_candidate,
+        compile_c19_observer_geometry_bundle_v1,
+        _require_exact_recursive_match,
+        current_readout_calibration_spec_v3_payload,
+        canonical_sha,
+        _build_current_readout_calibration_spec_v3,
+    )
+)
+del _make_verify_current_readout_calibration_spec_v3
+
+
 @dataclass(frozen=True)
 class CurrentScenarioResponseContractV3:
     response_contract_schema_version: str
@@ -1051,8 +1542,15 @@ class CurrentScenarioResponseContractV3:
     metric_support_derivation: MetricSupportDerivationProtocolV1
     response_grid: ResponseKGridManifest
     response_reference_reciprocal_index: tuple[int, ...]
+    preregistered_phase_bands: tuple[tuple[float, float], ...]
+    reference_phase_band_source_id: str
+    expected_shell_rank_source_id: str
+    source_trial_generation_id: str
     bridge_grid_derivation: BridgeKGridDerivationProtocolV1
+    bridge_tolerance: float
+    bridge_tolerance_source_id: str
     geometry_bundle: C19ObserverGeometryBundleV1
+    current_readout_calibration_spec: CurrentReadoutCalibrationSpecV3
     runtime_construction_sha: str
     actual_factory_sha: str
     matched_factory_sha: str
@@ -1066,8 +1564,19 @@ class CurrentScenarioResponseContractV3:
     response_contract_sha: str
 
 
-def current_scenario_response_contract_v3_payload(
+def _current_scenario_response_contract_v3_payload_impl(
     contract: CurrentScenarioResponseContractV3,
+    *,
+    response_grid_record_builder: Callable[
+        [ResponseKGridManifest], dict[str, object]
+    ] = _response_grid_record,
+    fp64_bits: Callable[[object, str], str] = _fp64_bits,
+    calibration_payload_builder: Callable[
+        [CurrentReadoutCalibrationSpecV3], dict[str, object]
+    ] = current_readout_calibration_spec_v3_payload,
+    geometry_record_builder: Callable[
+        [C19ObserverGeometryBundleV1], dict[str, object]
+    ] = _geometry_record,
 ) -> dict[str, object]:
     _exact_record(
         contract,
@@ -1075,7 +1584,7 @@ def current_scenario_response_contract_v3_payload(
         "current scenario response contract v3",
     )
     _require_plain_wire_tree(contract, "current scenario response contract v3")
-    response_grid = _response_grid_record(contract.response_grid)
+    response_grid = response_grid_record_builder(contract.response_grid)
     reference_index = _integer_tuple(
         contract.response_reference_reciprocal_index,
         "response_reference_reciprocal_index",
@@ -1083,6 +1592,30 @@ def current_scenario_response_contract_v3_payload(
             contract.response_grid.spatial_ndim,
             "response grid spatial_ndim",
         ),
+    )
+    if type(contract.preregistered_phase_bands) is not tuple:
+        raise TypeError("preregistered_phase_bands must be an exact tuple")
+    phase_bands: list[list[float]] = []
+    for index, band in enumerate(contract.preregistered_phase_bands):
+        if type(band) is not tuple or len(band) != 2:
+            raise TypeError(f"preregistered_phase_bands[{index}] must be a pair")
+        lower_bits = fp64_bits(band[0], f"preregistered_phase_bands[{index}][0]")
+        upper_bits = fp64_bits(band[1], f"preregistered_phase_bands[{index}][1]")
+        if not band[0] < band[1]:
+            raise ValueError("phase-band endpoints are not ascending")
+        if len(lower_bits) != 16 or len(upper_bits) != 16:
+            raise RuntimeError("fp64 encoder returned a non-64-bit value")
+        phase_bands.append([band[0], band[1]])
+    if not phase_bands:
+        raise ValueError("preregistered_phase_bands must be non-empty")
+    bridge_tolerance_bits = fp64_bits(
+        contract.bridge_tolerance,
+        "bridge_tolerance",
+    )
+    if len(bridge_tolerance_bits) != 16:
+        raise RuntimeError("fp64 encoder returned a non-64-bit bridge tolerance")
+    calibration_payload = calibration_payload_builder(
+        contract.current_readout_calibration_spec
     )
     return {
         "response_contract_schema_version": contract.response_contract_schema_version,
@@ -1102,10 +1635,20 @@ def current_scenario_response_contract_v3_payload(
         },
         "response_grid": response_grid,
         "response_reference_reciprocal_index": list(reference_index),
+        "preregistered_phase_bands": phase_bands,
+        "reference_phase_band_source_id": contract.reference_phase_band_source_id,
+        "expected_shell_rank_source_id": contract.expected_shell_rank_source_id,
+        "source_trial_generation_id": contract.source_trial_generation_id,
         "bridge_grid_derivation": _bridge_protocol_record(
             contract.bridge_grid_derivation
         ),
-        "geometry_bundle": _geometry_record(contract.geometry_bundle),
+        "bridge_tolerance": contract.bridge_tolerance,
+        "bridge_tolerance_source_id": contract.bridge_tolerance_source_id,
+        "geometry_bundle": geometry_record_builder(contract.geometry_bundle),
+        "current_readout_calibration_spec": {
+            **calibration_payload,
+            "spec_sha": contract.current_readout_calibration_spec.spec_sha,
+        },
         "runtime_construction_sha": contract.runtime_construction_sha,
         "actual_factory_sha": contract.actual_factory_sha,
         "matched_factory_sha": contract.matched_factory_sha,
@@ -1117,6 +1660,39 @@ def current_scenario_response_contract_v3_payload(
         "uses_global_fft_projection": contract.uses_global_fft_projection,
         "uses_per_k_time_step_projector": contract.uses_per_k_time_step_projector,
     }
+
+
+def _make_current_scenario_response_contract_v3_payload(
+    implementation,
+    response_grid_record_builder,
+    fp64_bits,
+    calibration_payload_builder,
+    geometry_record_builder,
+):
+    def current_scenario_response_contract_v3_payload(
+        contract: CurrentScenarioResponseContractV3,
+    ) -> dict[str, object]:
+        return implementation(
+            contract,
+            response_grid_record_builder=response_grid_record_builder,
+            fp64_bits=fp64_bits,
+            calibration_payload_builder=calibration_payload_builder,
+            geometry_record_builder=geometry_record_builder,
+        )
+
+    return current_scenario_response_contract_v3_payload
+
+
+current_scenario_response_contract_v3_payload = (
+    _make_current_scenario_response_contract_v3_payload(
+        _current_scenario_response_contract_v3_payload_impl,
+        _response_grid_record,
+        _fp64_bits,
+        current_readout_calibration_spec_v3_payload,
+        _geometry_record,
+    )
+)
+del _make_current_scenario_response_contract_v3_payload
 
 
 @dataclass(frozen=True)
@@ -1310,8 +1886,13 @@ def current_application_authority_v3_payload(
 def _grid_protocol_root(
     candidate,
     metric_support: MetricSupportDerivationProtocolV1,
+    *,
+    response_grid_record_builder: Callable[
+        [ResponseKGridManifest], dict[str, object]
+    ] = _response_grid_record,
+    sha_builder: Callable[[object], str] = canonical_sha,
 ) -> str:
-    return canonical_sha(
+    return sha_builder(
         {
             "dynamics_grid_derivation": _dynamics_protocol_record(
                 candidate.dynamics_grid_derivation
@@ -1320,7 +1901,7 @@ def _grid_protocol_root(
                 **metric_support_derivation_protocol_v1_payload(metric_support),
                 "protocol_sha": metric_support.protocol_sha,
             },
-            "response_grid": _response_grid_record(candidate.response_grid),
+            "response_grid": response_grid_record_builder(candidate.response_grid),
             "bridge_grid_derivation": _bridge_protocol_record(
                 candidate.bridge_grid_derivation
             ),
@@ -1391,12 +1972,34 @@ def _build_dependency_closure(
 
 def _build_c19_current_application_authority_v3(
     read_dependency_blob: Callable[[str], bytes] = _read_live_dependency_blob,
+    *,
+    preregistered_phase_bands: tuple[tuple[float, float], ...] = (
+        CURRENT_PREREGISTERED_PHASE_BANDS
+    ),
+    reference_phase_band_source_id: str = CURRENT_REFERENCE_PHASE_BAND_SOURCE_ID,
+    expected_shell_rank_source_id: str = CURRENT_EXPECTED_SHELL_RANK_SOURCE_ID,
+    source_trial_generation_id: str = CURRENT_SOURCE_TRIAL_GENERATION_ID,
+    bridge_tolerance: float = CURRENT_BRIDGE_TOLERANCE,
+    bridge_tolerance_source_id: str = CURRENT_BRIDGE_TOLERANCE_SOURCE_ID,
+    readout_calibration_builder: Callable[
+        [C19ObserverGeometryBundleV1, ResponseKGridManifest],
+        CurrentReadoutCalibrationSpecV3,
+    ] = _build_current_readout_calibration_spec_v3,
+    response_payload_builder: Callable[
+        [CurrentScenarioResponseContractV3], dict[str, object]
+    ] = current_scenario_response_contract_v3_payload,
+    sha_builder: Callable[[object], str] = canonical_sha,
+    replace_fn: Callable[..., object] = replace,
 ) -> CurrentApplicationAuthorityV3:
     candidate = verify_c19_refreeze_v2_candidate(build_c19_refreeze_v2_candidate())
     runtime = candidate.runtime_construction
     basis = candidate.basis_contract
     metric_support = _build_metric_support_protocol(
         candidate.geometry_bundle.state_metric
+    )
+    current_readout_calibration = readout_calibration_builder(
+        candidate.geometry_bundle,
+        candidate.response_grid,
     )
     response_provisional = CurrentScenarioResponseContractV3(
         response_contract_schema_version=(
@@ -1413,8 +2016,15 @@ def _build_c19_current_application_authority_v3(
         response_reference_reciprocal_index=(
             candidate.response_reference_reciprocal_index
         ),
+        preregistered_phase_bands=preregistered_phase_bands,
+        reference_phase_band_source_id=reference_phase_band_source_id,
+        expected_shell_rank_source_id=expected_shell_rank_source_id,
+        source_trial_generation_id=source_trial_generation_id,
         bridge_grid_derivation=candidate.bridge_grid_derivation,
+        bridge_tolerance=bridge_tolerance,
+        bridge_tolerance_source_id=bridge_tolerance_source_id,
         geometry_bundle=candidate.geometry_bundle,
+        current_readout_calibration_spec=current_readout_calibration,
         runtime_construction_sha=runtime.construction_sha,
         actual_factory_sha=runtime.actual_factory.factory_sha,
         matched_factory_sha=runtime.matched_factory.factory_sha,
@@ -1427,10 +2037,10 @@ def _build_c19_current_application_authority_v3(
         uses_per_k_time_step_projector=False,
         response_contract_sha="0" * 64,
     )
-    response = replace(
+    response = replace_fn(
         response_provisional,
-        response_contract_sha=canonical_sha(
-            current_scenario_response_contract_v3_payload(response_provisional)
+        response_contract_sha=sha_builder(
+            response_payload_builder(response_provisional)
         ),
     )
     scenario_provisional = CurrentScenarioAuthorityV3(
@@ -1575,18 +2185,26 @@ def verify_current_application_authority_v3(
 __all__ = [
     "CONSTRUCTION_DEPENDENCY_CLOSURE_STATE",
     "CURRENT_APPLICATION_AUTHORITY_V3_SCHEMA_VERSION",
+    "CURRENT_CURVATURE_NORMALIZER_PROTOCOL_V1_SCHEMA_VERSION",
+    "CURRENT_READOUT_CALIBRATION_SPEC_V3_SCHEMA_VERSION",
     "CURRENT_SCENARIO_AUTHORITY_V3_SCHEMA_VERSION",
     "CURRENT_SCENARIO_RESPONSE_CONTRACT_V3_SCHEMA_VERSION",
     "CurrentApplicationAuthorityV3",
+    "CurrentCurvatureNormalizerProtocolV1",
+    "CurrentReadoutCalibrationSpecV3",
     "CurrentScenarioAuthorityV3",
     "CurrentScenarioResponseContractV3",
     "METRIC_SUPPORT_DERIVATION_PROTOCOL_V1_SCHEMA_VERSION",
     "MetricSupportDerivationProtocolV1",
     "build_c19_current_application_authority_v3",
     "current_application_authority_v3_payload",
+    "current_curvature_normalizer_protocol_v1_payload",
+    "current_readout_calibration_spec_v3_payload",
     "current_scenario_authority_v3_payload",
     "current_scenario_response_contract_v3_payload",
     "metric_support_derivation_protocol_v1_payload",
+    "verify_current_curvature_normalizer_protocol_v1",
+    "verify_current_readout_calibration_spec_v3",
     "verify_metric_support_derivation_protocol_v1",
     "verify_current_application_authority_v3",
 ]

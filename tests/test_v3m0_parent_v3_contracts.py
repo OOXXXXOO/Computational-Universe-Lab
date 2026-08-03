@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import inspect
+import math
 import os
 import sys
 import subprocess
@@ -52,15 +53,21 @@ def test_parent_v3_contract_module_exists() -> None:
 def test_parent_v3_raw_contract_api_is_present() -> None:
     expected = {
         "CurrentApplicationAuthorityV3",
+        "CurrentCurvatureNormalizerProtocolV1",
+        "CurrentReadoutCalibrationSpecV3",
         "CurrentScenarioAuthorityV3",
         "CurrentScenarioResponseContractV3",
         "MetricSupportDerivationProtocolV1",
         "build_c19_current_application_authority_v3",
         "current_application_authority_v3_payload",
+        "current_curvature_normalizer_protocol_v1_payload",
+        "current_readout_calibration_spec_v3_payload",
         "current_scenario_authority_v3_payload",
         "current_scenario_response_contract_v3_payload",
         "metric_support_derivation_protocol_v1_payload",
         "verify_metric_support_derivation_protocol_v1",
+        "verify_current_curvature_normalizer_protocol_v1",
+        "verify_current_readout_calibration_spec_v3",
         "verify_current_application_authority_v3",
     }
     assert expected <= set(vars(contracts))
@@ -345,7 +352,9 @@ def test_security_s3p0_trusted_runtime_executables_have_frozen_exact_identity() 
         ),
     ):
         assert identity.realpath == realpath
-        assert identity.sha256 == hashlib.sha256(Path(realpath).read_bytes()).hexdigest()
+        assert (
+            identity.sha256 == hashlib.sha256(Path(realpath).read_bytes()).hexdigest()
+        )
         contracts._verify_trusted_executable_identity(identity)
 
 
@@ -366,9 +375,7 @@ def test_security_s3p0_darwin_framework_bin_launcher_resolves_to_application() -
     if not application.is_file():
         pytest.skip("current bin launcher has no sibling Python.app")
     framework_image = running.parent.parent / "Python3"
-    assert contracts._TRUSTED_PYTHON_LAUNCHER_PATH == os.path.abspath(
-        sys.executable
-    )
+    assert contracts._TRUSTED_PYTHON_LAUNCHER_PATH == os.path.abspath(sys.executable)
     assert contracts._TRUSTED_PYTHON_EXECUTABLE_REALPATH == os.fspath(
         application.resolve(strict=True)
     )
@@ -384,7 +391,11 @@ def test_security_s4p1_bounded_process_rejects_stdout_overflow() -> None:
     )
     with pytest.raises(ValueError, match="stdout limit"):
         contracts._run_bounded_process(
-            (identity.realpath, "-c", "import sys; sys.stdout.buffer.write(b'x'*65536)"),
+            (
+                identity.realpath,
+                "-c",
+                "import sys; sys.stdout.buffer.write(b'x'*65536)",
+            ),
             cwd=Path.cwd(),
             env=contracts._minimal_process_environment(),
             input_bytes=b"",
@@ -444,7 +455,9 @@ def test_security_s4p1_git_reader_times_out_and_reaps_hanging_tool(
     hanging_git.chmod(0o755)
     identity = contracts._freeze_trusted_executable(hanging_git, "hanging Git")
     monkeypatch.setattr(contracts, "_TRUSTED_GIT_EXECUTABLE_IDENTITY", identity)
-    monkeypatch.setattr(contracts, "_TRUSTED_GIT_EXECUTABLE_REALPATH", identity.realpath)
+    monkeypatch.setattr(
+        contracts, "_TRUSTED_GIT_EXECUTABLE_REALPATH", identity.realpath
+    )
     monkeypatch.setattr(contracts, "_TRUSTED_GIT_TIMEOUT_SECONDS", 0.2)
     monkeypatch.setattr(contracts, "_REPOSITORY_ROOT", tmp_path)
     started = time.monotonic()
@@ -508,7 +521,9 @@ def test_security_s2p0_git_reader_uses_exact_minimal_environment(
         == b"reviewed P bytes\n"
     )
     assert observed_environments
-    assert all(environment == expected_environment for environment in observed_environments)
+    assert all(
+        environment == expected_environment for environment in observed_environments
+    )
 
 
 def test_c19_preparation_replay_is_private_stable_and_rejects_duplicate_closure(
@@ -751,13 +766,37 @@ def test_response_contract_is_complete_pre_response_and_has_no_live_grid_artifac
     assert response.response_grid.torus_denominators == (8,)
     assert response.response_grid.reciprocal_indices == ((1,),)
     assert response.response_reference_reciprocal_index == (1,)
+    assert response.preregistered_phase_bands == (
+        (math.pi / 2.0 - 1.0 / 8.0, math.pi / 2.0 + 1.0 / 8.0),
+    )
+    assert response.reference_phase_band_source_id == (
+        "analytic-quarter-turn-positive-band-v1"
+    )
+    assert response.expected_shell_rank_source_id == (
+        "parent-v3-current-scenario-prophecy-v1"
+    )
+    assert response.source_trial_generation_id == (
+        "c19-positive-frequency-coordinate-identity-v1"
+    )
     assert response.bridge_grid_derivation.protocol_schema_version == (
         BRIDGE_K_GRID_DERIVATION_PROTOCOL_V1_SCHEMA_VERSION
+    )
+    assert response.bridge_tolerance == 1.0e-12
+    assert response.bridge_tolerance_source_id == (
+        "v3m0-frozen-thresholds-bridge-tolerance-v1"
     )
     assert response.geometry_bundle.geometry_bundle_schema_version == (
         C19_OBSERVER_GEOMETRY_BUNDLE_V1_SCHEMA_VERSION
     )
     assert response.geometry_bundle.state_dim == 20
+    calibration = response.current_readout_calibration_spec
+    assert type(calibration) is contracts.CurrentReadoutCalibrationSpecV3
+    assert (
+        calibration.geometry_bundle_sha == response.geometry_bundle.geometry_bundle_sha
+    )
+    assert type(calibration.curvature_normalizer_protocol) is (
+        contracts.CurrentCurvatureNormalizerProtocolV1
+    )
     assert response.expected_actual_shell_rank == 10
     assert response.expected_matched_shell_rank == 10
     assert response.response_contract_sha == canonical_sha(

@@ -492,6 +492,27 @@ def test_b2_upstream_permit_resolver_tamper_is_rejected_before_materialization(
     assert caught.value.reason_id == "PERMIT_INVALID"
 
 
+def test_b2_owner_view_retains_the_exact_live_permit_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    current_c19_application,
+) -> None:
+    from rulespace_v3.factory import _reverify_verified_factory
+
+    fixture = _fixture(monkeypatch, current_c19_application)
+    capability = fixture.graph.materialize(fixture.parent, fixture.permit)
+
+    view = fixture.graph.require_for_parent(fixture.parent, capability)
+
+    assert view.permit is fixture.permit
+    assert view.materialization == capability.materialization
+    assert _reverify_verified_factory(view.actual_factory).factory == (
+        _reverify_verified_factory(capability.actual_factory).factory
+    )
+    assert _reverify_verified_factory(view.matched_ablated_factory).factory == (
+        _reverify_verified_factory(capability.matched_ablated_factory).factory
+    )
+
+
 def test_b2_raw_hydration_historical_parent_caller_factory_and_recipe_die(
     monkeypatch: pytest.MonkeyPatch,
     current_c19_application,
