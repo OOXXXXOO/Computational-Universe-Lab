@@ -360,14 +360,75 @@ def test_frozen_runner_uses_exact_v91_process_limits() -> None:
         REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1,
     ) == (1800, 1048576, 1048576, 65536, 5, 5, 5)
 
+    executable = Path(os.path.realpath(sys.executable))
+    executable_sha = hashlib.sha256(executable.read_bytes()).hexdigest()
     observed = run_frozen_reviewer_process_v1(
-        argv=(sys.executable, "-s", "-c", "pass"),
+        argv=(str(executable), "-s", "-c", "pass"),
         cwd=str(REPOSITORY_ROOT),
         environment={"PATH": os.environ.get("PATH", "")},
+        recorded_python_raw_sha256=executable_sha,
     )
 
     assert observed["replay_termination_kind"] == "EXITED"
     assert observed["replay_exit_code"] == 0
+
+
+def test_frozen_runner_refuses_replaced_python_after_successful_precheck(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import experiments.v3m0_b7_schema_lab.compare as compare
+
+    executable = tmp_path / "python"
+    executable.write_bytes(Path(sys.executable).read_bytes())
+    executable.chmod(0o755)
+    executable_sha = hashlib.sha256(executable.read_bytes()).hexdigest()
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(b"#!/bin/sh\necho substituted-python\n")
+    replacement.chmod(0o755)
+    real_precheck = compare.precheck_frozen_python_executable_v1
+
+    def precheck_then_replace(**arguments: object) -> dict[str, object]:
+        observation = real_precheck(**arguments)
+        assert observation["precheck_passed"] is True
+        replacement.replace(executable)
+        return observation
+
+    monkeypatch.setattr(
+        compare,
+        "precheck_frozen_python_executable_v1",
+        precheck_then_replace,
+    )
+
+    observed = compare.run_frozen_reviewer_process_v1(
+        argv=(str(executable), "-s", "-c", "print('must-not-run')"),
+        cwd=str(REPOSITORY_ROOT),
+        environment={"PATH": os.environ.get("PATH", "")},
+        recorded_python_raw_sha256=executable_sha,
+    )
+
+    assert observed["replay_termination_kind"] == "PRECHECK_FAILED"
+    assert observed["replay_exit_code"] is None
+    assert observed["replay_signal_number"] is None
+    assert observed["replay_stdout_bytes"] == b""
+    assert observed["replay_stderr_bytes"] == b""
+
+
+def test_frozen_runner_rejects_wrong_recorded_python_sha_before_spawn() -> None:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        run_frozen_reviewer_process_v1,
+    )
+
+    executable = Path(os.path.realpath(sys.executable))
+    observed = run_frozen_reviewer_process_v1(
+        argv=(str(executable), "-s", "-c", "print('must-not-run')"),
+        cwd=str(REPOSITORY_ROOT),
+        environment={"PATH": os.environ.get("PATH", "")},
+        recorded_python_raw_sha256="0" * 64,
+    )
+
+    assert observed["replay_termination_kind"] == "PRECHECK_FAILED"
+    assert observed["replay_stdout_bytes"] == b""
 
 
 def _run(argv: tuple[str, ...], **overrides: object) -> dict[str, object]:

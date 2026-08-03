@@ -436,6 +436,7 @@ def run_bounded_reviewer_process_v1(
     term_grace_seconds,
     kill_grace_seconds,
     final_pipe_close_deadline_seconds,
+    python_precheck_observation=None,
 ):
     """Run one reviewer child with bounded nonblocking pipes and cleanup."""
 
@@ -461,6 +462,15 @@ def run_bounded_reviewer_process_v1(
     term_grace_seconds = float(term_grace_seconds)
     kill_grace_seconds = float(kill_grace_seconds)
     final_pipe_close_deadline_seconds = float(final_pipe_close_deadline_seconds)
+    if python_precheck_observation is not None and (
+        type(python_precheck_observation) is not dict
+        or python_precheck_observation.get("observed_realpath") != argv[0]
+        or not recheck_frozen_python_executable_identity_v1(
+            recorded_realpath=argv[0],
+            precheck_observation=python_precheck_observation,
+        )
+    ):
+        return _empty_process_observation_v1("PRECHECK_FAILED")
     try:
         process = subprocess.Popen(
             argv,
@@ -609,8 +619,23 @@ def run_bounded_reviewer_process_v1(
     )
 
 
-def run_frozen_reviewer_process_v1(*, argv, cwd, environment):
+def run_frozen_reviewer_process_v1(
+    *,
+    argv,
+    cwd,
+    environment,
+    recorded_python_raw_sha256,
+):
     """Run one reviewer child with the exact frozen v9.1 process limits."""
+
+    if type(argv) is not tuple or not argv or type(argv[0]) is not str:
+        raise TypeError("frozen reviewer argv must contain its Python realpath")
+    python_precheck_observation = precheck_frozen_python_executable_v1(
+        recorded_realpath=argv[0],
+        recorded_raw_sha256=recorded_python_raw_sha256,
+    )
+    if python_precheck_observation["precheck_passed"] is not True:
+        return _empty_process_observation_v1("PRECHECK_FAILED")
 
     return run_bounded_reviewer_process_v1(
         argv=argv,
@@ -625,4 +650,5 @@ def run_frozen_reviewer_process_v1(*, argv, cwd, environment):
         final_pipe_close_deadline_seconds=(
             REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1
         ),
+        python_precheck_observation=python_precheck_observation,
     )
