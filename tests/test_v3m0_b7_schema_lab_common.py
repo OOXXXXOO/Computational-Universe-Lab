@@ -250,3 +250,75 @@ def test_decision_projection_validators_reject_order_hash_and_alias_attacks(
     )
     untouched[excluded_field] = {"changed": True}
     assert validator(untouched)["decision_payload_sha"] == legal["decision_payload_sha"]
+
+
+def test_b8_consumer_skeleton_is_bytes_only_and_renders_exact_route_literals() -> None:
+    common = _common_module()
+    skeleton = common.B8_CONSUMER_SKELETON_UTF8
+
+    assert type(skeleton) is bytes
+    assert skeleton.endswith(b"\n")
+    assert skeleton.count(b"__ROUTE_MODULE__") == 1
+    assert skeleton.count(b"__ROUTE_ID__") == 1
+    assert skeleton.count(b"__WIRE_SCHEMA_ID__") == 1
+
+    rendered = common.render_b8_consumer_adapter_utf8(
+        "A_FLAT",
+        "experiments.v3m0_b7_schema_lab.a_flat",
+        "experimental.v3m0.b7.a-flat.wire.v1",
+    )
+
+    assert type(rendered) is bytes
+    assert b"__ROUTE_MODULE__" not in rendered
+    assert b"__ROUTE_ID__" not in rendered
+    assert b"__WIRE_SCHEMA_ID__" not in rendered
+    ast.parse(rendered.decode("utf-8"), mode="exec")
+    normalized = (
+        rendered.replace(
+            b"experiments.v3m0_b7_schema_lab.a_flat",
+            b"__ROUTE_MODULE__",
+        )
+        .replace(b"A_FLAT", b"__ROUTE_ID__")
+        .replace(
+            b"experimental.v3m0.b7.a-flat.wire.v1",
+            b"__WIRE_SCHEMA_ID__",
+        )
+    )
+    assert normalized == skeleton
+
+
+@pytest.mark.parametrize(
+    ("route_id", "route_module", "wire_schema_id"),
+    (
+        ("A_FLAT\n", "experiments.v3m0_b7_schema_lab.a_flat", "wire"),
+        ("A_FLAT", "bad-module", "wire"),
+        ("A_FLAT", "experiments.v3m0_b7_schema_lab.a_flat", 'wire"quote'),
+        (1, "experiments.v3m0_b7_schema_lab.a_flat", "wire"),
+    ),
+)
+def test_b8_consumer_renderer_rejects_nonliteral_injection(
+    route_id: object,
+    route_module: object,
+    wire_schema_id: object,
+) -> None:
+    common = _common_module()
+    with pytest.raises((TypeError, ValueError)):
+        common.render_b8_consumer_adapter_utf8(
+            route_id,
+            route_module,
+            wire_schema_id,
+        )
+
+
+def test_b8_require_helpers_fail_closed_without_truthiness_dispatch() -> None:
+    common = _common_module()
+
+    common._b8_require_exact("x", "x", "field")
+    common._b8_require_present({}, "field")
+    common._b8_require_absent(None, "field")
+    with pytest.raises(ValueError):
+        common._b8_require_exact("x", "y", "field")
+    with pytest.raises(ValueError):
+        common._b8_require_present(None, "field")
+    with pytest.raises(ValueError):
+        common._b8_require_absent({}, "field")
