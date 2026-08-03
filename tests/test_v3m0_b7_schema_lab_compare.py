@@ -16,6 +16,82 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _python_precheck(path: Path, raw_sha256: str) -> dict[str, object]:
+    from experiments.v3m0_b7_schema_lab.compare import (
+        precheck_frozen_python_executable_v1,
+    )
+
+    return precheck_frozen_python_executable_v1(
+        recorded_realpath=str(path),
+        recorded_raw_sha256=raw_sha256,
+    )
+
+
+def test_frozen_python_precheck_accepts_exact_executable_file(tmp_path: Path) -> None:
+    executable = tmp_path / "python"
+    payload = b"frozen-python-bytes"
+    executable.write_bytes(payload)
+    executable.chmod(0o755)
+
+    observed = _python_precheck(executable, hashlib.sha256(payload).hexdigest())
+
+    assert observed == {
+        "observed_realpath": str(executable),
+        "observed_raw_sha256": hashlib.sha256(payload).hexdigest(),
+        "regular_file": True,
+        "executable": True,
+        "precheck_passed": True,
+    }
+
+
+def test_frozen_python_precheck_totalizes_missing_and_wrong_sha(tmp_path: Path) -> None:
+    missing = tmp_path / "missing"
+    assert _python_precheck(missing, "0" * 64) == {
+        "observed_realpath": None,
+        "observed_raw_sha256": None,
+        "regular_file": False,
+        "executable": False,
+        "precheck_passed": False,
+    }
+
+    executable = tmp_path / "python"
+    executable.write_bytes(b"python")
+    executable.chmod(0o755)
+    observed = _python_precheck(executable, "0" * 64)
+    assert observed["observed_raw_sha256"] == hashlib.sha256(b"python").hexdigest()
+    assert observed["precheck_passed"] is False
+
+
+def test_frozen_python_precheck_rejects_nonregular_nonexecutable_and_alias(
+    tmp_path: Path,
+) -> None:
+    nonexecutable = tmp_path / "python"
+    payload = b"python"
+    nonexecutable.write_bytes(payload)
+    nonexecutable.chmod(0o644)
+    expected_sha = hashlib.sha256(payload).hexdigest()
+    assert _python_precheck(nonexecutable, expected_sha)["precheck_passed"] is False
+    assert _python_precheck(tmp_path, expected_sha)["regular_file"] is False
+
+    alias = tmp_path / "python-alias"
+    alias.symlink_to(nonexecutable)
+    aliased = _python_precheck(alias, expected_sha)
+    assert aliased["observed_realpath"] == str(nonexecutable)
+    assert aliased["precheck_passed"] is False
+
+
+@pytest.mark.parametrize(
+    ("recorded_realpath", "recorded_raw_sha256"),
+    ((Path("relative-python"), "0" * 64), (Path("/bin/sh"), "BAD")),
+)
+def test_frozen_python_precheck_rejects_invalid_record_configuration(
+    recorded_realpath: Path,
+    recorded_raw_sha256: str,
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        _python_precheck(recorded_realpath, recorded_raw_sha256)
+
+
 def test_frozen_runner_uses_exact_v91_process_limits() -> None:
     from experiments.v3m0_b7_schema_lab.compare import (
         REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1,

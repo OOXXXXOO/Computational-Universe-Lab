@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import pathlib
 
 
 REVIEWER_PROCESS_TIMEOUT_SECONDS_V1 = 1800
@@ -12,6 +13,59 @@ REVIEWER_PROCESS_IO_CHUNK_BYTES_V1 = 65536
 REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1 = 5
+
+
+def precheck_frozen_python_executable_v1(
+    *,
+    recorded_realpath,
+    recorded_raw_sha256,
+):
+    """Totalize the frozen reviewer-Python realpath, mode, and raw-SHA check."""
+
+    import os
+    import stat
+
+    if type(recorded_realpath) is not str or not recorded_realpath.startswith("/"):
+        raise ValueError("recorded Python realpath must be an absolute exact string")
+    if (
+        type(recorded_raw_sha256) is not str
+        or len(recorded_raw_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in recorded_raw_sha256)
+    ):
+        raise ValueError("recorded Python raw SHA must be lowercase SHA-256")
+    try:
+        observed_realpath = os.path.realpath(recorded_realpath)
+        status = os.stat(recorded_realpath)
+    except OSError:
+        return {
+            "observed_realpath": None,
+            "observed_raw_sha256": None,
+            "regular_file": False,
+            "executable": False,
+            "precheck_passed": False,
+        }
+    regular_file = stat.S_ISREG(status.st_mode)
+    executable = os.access(recorded_realpath, os.X_OK)
+    observed_raw_sha256 = None
+    if regular_file:
+        try:
+            observed_raw_sha256 = hashlib.sha256(
+                pathlib.Path(recorded_realpath).read_bytes()
+            ).hexdigest()
+        except OSError:
+            observed_raw_sha256 = None
+    return {
+        "observed_realpath": observed_realpath,
+        "observed_raw_sha256": observed_raw_sha256,
+        "regular_file": regular_file,
+        "executable": executable,
+        "precheck_passed": (
+            observed_realpath == recorded_realpath
+            and regular_file
+            and executable
+            and observed_raw_sha256 == recorded_raw_sha256
+        ),
+    }
 
 
 def _empty_process_observation_v1(termination_kind):
