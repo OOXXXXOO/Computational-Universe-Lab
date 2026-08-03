@@ -5,6 +5,15 @@ from __future__ import annotations
 import hashlib
 
 
+REVIEWER_PROCESS_TIMEOUT_SECONDS_V1 = 1800
+REVIEWER_PROCESS_STDOUT_HARD_CAP_BYTES_V1 = 1048576
+REVIEWER_PROCESS_STDERR_HARD_CAP_BYTES_V1 = 1048576
+REVIEWER_PROCESS_IO_CHUNK_BYTES_V1 = 65536
+REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1 = 5
+REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1 = 5
+REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1 = 5
+
+
 def _empty_process_observation_v1(termination_kind):
     empty = b""
     empty_sha = hashlib.sha256(empty).hexdigest()
@@ -65,8 +74,8 @@ def _validate_bounded_process_configuration_v1(
         for key, value in environment.items()
     ):
         raise TypeError("reviewer environment must be an exact str-to-str dict")
-    if type(timeout_seconds) is not float or timeout_seconds <= 0.0:
-        raise ValueError("reviewer timeout must be a positive exact float")
+    if type(timeout_seconds) not in (int, float) or timeout_seconds <= 0.0:
+        raise ValueError("reviewer timeout must be a positive int or float")
     for name, value in (
         ("stdout_hard_cap_bytes", stdout_hard_cap_bytes),
         ("stderr_hard_cap_bytes", stderr_hard_cap_bytes),
@@ -79,8 +88,8 @@ def _validate_bounded_process_configuration_v1(
         ("kill_grace_seconds", kill_grace_seconds),
         ("final_pipe_close_deadline_seconds", final_pipe_close_deadline_seconds),
     ):
-        if type(value) is not float or value < 0.0:
-            raise ValueError(f"{name} must be a nonnegative exact float")
+        if type(value) not in (int, float) or value <= 0.0:
+            raise ValueError(f"{name} must be a positive int or float")
 
 
 def run_bounded_reviewer_process_v1(
@@ -116,6 +125,10 @@ def run_bounded_reviewer_process_v1(
         kill_grace_seconds,
         final_pipe_close_deadline_seconds,
     )
+    timeout_seconds = float(timeout_seconds)
+    term_grace_seconds = float(term_grace_seconds)
+    kill_grace_seconds = float(kill_grace_seconds)
+    final_pipe_close_deadline_seconds = float(final_pipe_close_deadline_seconds)
     try:
         process = subprocess.Popen(
             argv,
@@ -261,4 +274,23 @@ def run_bounded_reviewer_process_v1(
         stdout_bytes,
         stderr_bytes,
         False,
+    )
+
+
+def run_frozen_reviewer_process_v1(*, argv, cwd, environment):
+    """Run one reviewer child with the exact frozen v9.1 process limits."""
+
+    return run_bounded_reviewer_process_v1(
+        argv=argv,
+        cwd=cwd,
+        environment=environment,
+        timeout_seconds=REVIEWER_PROCESS_TIMEOUT_SECONDS_V1,
+        stdout_hard_cap_bytes=REVIEWER_PROCESS_STDOUT_HARD_CAP_BYTES_V1,
+        stderr_hard_cap_bytes=REVIEWER_PROCESS_STDERR_HARD_CAP_BYTES_V1,
+        io_chunk_bytes=REVIEWER_PROCESS_IO_CHUNK_BYTES_V1,
+        term_grace_seconds=REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1,
+        kill_grace_seconds=REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1,
+        final_pipe_close_deadline_seconds=(
+            REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1
+        ),
     )
