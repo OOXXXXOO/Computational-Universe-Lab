@@ -8529,11 +8529,7 @@ def _reviewer_binding_nodes_v1(node):
             definition_time = [
                 *child.decorator_list,
                 *child.args.defaults,
-                *(
-                    default
-                    for default in child.args.kw_defaults
-                    if default is not None
-                ),
+                *(default for default in child.args.kw_defaults if default is not None),
                 *(argument.annotation for argument in child.args.posonlyargs),
                 *(argument.annotation for argument in child.args.args),
                 *(argument.annotation for argument in child.args.kwonlyargs),
@@ -8608,7 +8604,9 @@ def _validate_reviewer_external_call_v1(resolved, call):
     components = resolved.split(".")
     if any(component.startswith("_") for component in components[1:]):
         raise ValueError("reviewer calls an external private attribute")
-    if any(resolved.startswith(prefix) for prefix in _REVIEWER_FORBIDDEN_CALL_PREFIXES_V1):
+    if any(
+        resolved.startswith(prefix) for prefix in _REVIEWER_FORBIDDEN_CALL_PREFIXES_V1
+    ):
         raise ValueError("reviewer child calls a forbidden capability")
     if components[0] in _REVIEWER_FORBIDDEN_MODULE_ROOTS_V1:
         raise ValueError("reviewer child uses a forbidden module root")
@@ -8633,7 +8631,10 @@ def _validate_reviewer_method_call_v1(call):
 
 def _reviewer_highest_attribute_v1(node, parents):
     cursor = node
-    while isinstance(parents.get(cursor), _ast.Attribute) and parents[cursor].value is cursor:
+    while (
+        isinstance(parents.get(cursor), _ast.Attribute)
+        and parents[cursor].value is cursor
+    ):
         cursor = parents[cursor]
     return cursor
 
@@ -8655,7 +8656,9 @@ def _validate_reviewer_module_and_callable_flows_v1(
         parent = parents.get(child)
         if kind == "MODULE":
             if not isinstance(parent, _ast.Attribute) or parent.value is not child:
-                raise ValueError("reviewer module object flows through a value/container")
+                raise ValueError(
+                    "reviewer module object flows through a value/container"
+                )
             highest = _reviewer_highest_attribute_v1(child, parents)
             use = parents.get(highest)
             qualified = _reviewer_resolve_qualified_v1(highest, aliases)
@@ -8678,7 +8681,9 @@ def _validate_reviewer_module_and_callable_flows_v1(
             if (resolved in external_calls or local is not None) and not (
                 isinstance(parent, _ast.Call) and parent.func is child
             ):
-                raise ValueError("reviewer imported callable flows without a direct call")
+                raise ValueError(
+                    "reviewer imported callable flows without a direct call"
+                )
 
 
 def _validate_reviewer_terminal_stdout_v1(call, parents, owner):
@@ -8706,9 +8711,7 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
             if isinstance(node, _ast.Name) and node.id in forbidden:
                 raise ValueError(f"reviewer source {path} uses forbidden exact name")
 
-    modules_by_path = {
-        path: _reviewer_module_name_by_path_v1(path) for path in trees
-    }
+    modules_by_path = {path: _reviewer_module_name_by_path_v1(path) for path in trees}
     module_definitions = {}
     module_aliases = {}
     parents_by_module = {}
@@ -8731,7 +8734,9 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
             module,
         )
         parents_by_module[module] = {
-            child: parent for parent in _ast.walk(tree) for child in _ast.iter_child_nodes(parent)
+            child: parent
+            for parent in _ast.walk(tree)
+            for child in _ast.iter_child_nodes(parent)
         }
 
     compare_module = "experiments.v3m0_b7_schema_lab.compare"
@@ -8771,7 +8776,9 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
         owner_calls = []
         local_edges = []
         for call in (
-            item for item in _reviewer_binding_nodes_v1(node) if isinstance(item, _ast.Call)
+            item
+            for item in _reviewer_binding_nodes_v1(node)
+            if isinstance(item, _ast.Call)
         ):
             target = None
             if isinstance(call.func, _ast.Name):
@@ -8795,9 +8802,7 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
                 if resolved is None:
                     resolved = _validate_reviewer_method_call_v1(call)
                 else:
-                    target = _reviewer_local_target_v1(
-                        resolved, module_definitions
-                    )
+                    target = _reviewer_local_target_v1(resolved, module_definitions)
                     if target is None:
                         _validate_reviewer_external_call_v1(resolved, call)
             owner_calls.append(resolved)
@@ -8862,7 +8867,9 @@ def _reviewer_module_static_scan_record_v1(path, source_bytes, tree):
             {
                 "scan_schema": "v3m0-b7-reviewer-module-ast.v1",
                 "path": path,
-                "ast_dump": _ast.dump(tree, annotate_fields=True, include_attributes=True),
+                "ast_dump": _ast.dump(
+                    tree, annotate_fields=True, include_attributes=True
+                ),
             }
         ),
     }
@@ -8889,7 +8896,9 @@ def validate_reviewer_child_static_surface_v1(
         _require_git_blob_descriptor_v1(blob, f"reviewer source blob {ordinal}")
         commit_sha, path, mode, source_bytes = blob
         if commit_sha != source_commit_sha:
-            raise ValueError("reviewer source is not bound to the frozen evidence commit")
+            raise ValueError(
+                "reviewer source is not bound to the frozen evidence commit"
+            )
         if mode != "100644" or path in source_by_path:
             raise ValueError("reviewer source mode/path set drifted")
         source_by_path[path] = source_bytes
@@ -9095,9 +9104,14 @@ def _reviewer_origin_blob_maps_v1(
         expected_commit=common_commit_sha,
     )
     common_by_path = {blob[1]: blob for blob in common}
-    if any(path not in common_by_path for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1):
+    if any(
+        path not in common_by_path for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1
+    ):
         raise ValueError("reviewer common origin omits an exact blob path")
-    if any(common_by_path[path][2] != "100644" for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1):
+    if any(
+        common_by_path[path][2] != "100644"
+        for path in _REVIEWER_COMMON_ORIGIN_EXACT_PATHS_V1
+    ):
         raise ValueError("reviewer common exact origin mode drifted")
     rulespace_paths = tuple(
         path for path in common_by_path if path.startswith("rulespace_v3/")
@@ -9200,9 +9214,7 @@ def _reviewer_source_memberships_v1(
         (role, tuple(static_surface["ordered_executed_module_paths"]))
         for role in static_surface["ordered_role_ids"]
     ]
-    groups.extend(
-        (entry[0], (entry[3],)) for entry in _ROUTE_STATIC_REGISTRY_V1
-    )
+    groups.extend((entry[0], (entry[3],)) for entry in _ROUTE_STATIC_REGISTRY_V1)
     records = []
     for group, paths in groups:
         for ordinal, path in enumerate(paths):
@@ -9419,17 +9431,11 @@ def _decode_reviewer_report_v1(stdout_bytes):
         if canonical_json_bytes_v1(parsed) != payload:
             return None
         report = _validate_exact_lab_record_v1("B7LabReplayReportV1", parsed)
-        output_projection = {
-            key: report[key] for key in tuple(report)[:9]
-        }
+        output_projection = {key: report[key] for key in tuple(report)[:9]}
         if report["replay_output_root_sha"] != canonical_sha_v1(output_projection):
             return None
         expected_report_sha = canonical_sha_v1(
-            {
-                key: value
-                for key, value in report.items()
-                if key != "replay_report_sha"
-            }
+            {key: value for key, value in report.items() if key != "replay_report_sha"}
         )
         if report["replay_report_sha"] != expected_report_sha:
             return None
@@ -9458,16 +9464,10 @@ def _validate_reviewer_process_observation_v1(observation):
         if type(observation[field]) is not bool:
             raise TypeError(f"review process {field} must be an exact bool")
     if kind == "EXITED":
-        normalized = (
-            type(exit_code) is int
-            and exit_code >= 0
-            and signal_number is None
-        )
+        normalized = type(exit_code) is int and exit_code >= 0 and signal_number is None
     elif kind == "SIGNALED":
         normalized = (
-            exit_code is None
-            and type(signal_number) is int
-            and signal_number > 0
+            exit_code is None and type(signal_number) is int and signal_number > 0
         )
     elif kind in ("PRECHECK_FAILED", "SPAWN_FAILED"):
         normalized = (
@@ -9551,7 +9551,9 @@ def validate_reviewer_receipt_v1(
     if d0["environment_manifest"]["environment_sha"] != environment_sha:
         raise ValueError("reviewed D0/D1 environment root drifted")
     if type(environment_observation) is not dict or tuple(environment_observation) != (
-        "expected_sha", "observed_sha", "passed"
+        "expected_sha",
+        "observed_sha",
+        "passed",
     ):
         raise TypeError("review environment observation shape drifted")
     if (
@@ -9585,15 +9587,21 @@ def validate_reviewer_receipt_v1(
     environment = d1["environment_manifest"]
     expected_argv = [
         environment["python_invocation_path"],
-        "-s", "-m", "experiments.v3m0_b7_schema_lab.compare", subcommand,
-        "--evidence-commit", evidence_commit_sha,
+        "-s",
+        "-m",
+        "experiments.v3m0_b7_schema_lab.compare",
+        subcommand,
+        "--evidence-commit",
+        evidence_commit_sha,
         "--reviewed-executable-source-closure-sha",
         receipt["reviewed_executable_source_closure_sha"],
         "--emit-replay-report",
     ]
-    if receipt["replay_command_argv"] != expected_argv or receipt[
-        "fresh_process_protocol_id"
-    ] != "fresh-python-s-immutable-E-venv-invocation-v2":
+    if (
+        receipt["replay_command_argv"] != expected_argv
+        or receipt["fresh_process_protocol_id"]
+        != "fresh-python-s-immutable-E-venv-invocation-v2"
+    ):
         raise ValueError("reviewer replay command/fresh protocol drifted")
     expected_input_root = canonical_sha_v1(
         {field: receipt[field] for field in _REPLAY_INPUT_PROJECTION_FIELDS_V1}
@@ -9622,7 +9630,10 @@ def validate_reviewer_receipt_v1(
         ("replayed_d0_decision_payload_sha", "recomputed_d0_decision_payload_sha"),
         ("replayed_d1_decision_payload_sha", "recomputed_d1_decision_payload_sha"),
         ("observed_surviving_route_ids", "observed_surviving_route_ids"),
-        ("observed_provisional_winner_route_id", "observed_provisional_winner_route_id"),
+        (
+            "observed_provisional_winner_route_id",
+            "observed_provisional_winner_route_id",
+        ),
     )
     for receipt_field, report_field in report_fields:
         expected = None if report is None else report[report_field]
@@ -9636,28 +9647,49 @@ def validate_reviewer_receipt_v1(
         ],
         "REPLAY_INPUT_ROOT_MISMATCH": (
             not process_observation["required_input_precheck_passed"]
-            or (report is not None and report["replay_input_root_sha"] != expected_input_root)
+            or (
+                report is not None
+                and report["replay_input_root_sha"] != expected_input_root
+            )
         ),
-        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation["termination_kind"] == "PRECHECK_FAILED",
-        "REPLAY_PROCESS_SPAWN_FAILED": process_observation["termination_kind"] == "SPAWN_FAILED",
-        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation["termination_kind"] == "OUTPUT_LIMIT_EXCEEDED",
-        "REPLAY_PROCESS_TIMED_OUT": process_observation["termination_kind"] == "TIMED_OUT",
-        "REPLAY_PROCESS_SIGNALED": process_observation["termination_kind"] == "SIGNALED",
-        "REPLAY_PROCESS_NONZERO": process_observation["termination_kind"] == "EXITED" and process_observation["exit_code"] != 0,
-        "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED": not process_observation["cleanup_deadline_passed"],
-        "REPLAY_EXPORT_CLEANUP_FAILED": not process_observation["export_cleanup_passed"],
+        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation["termination_kind"]
+        == "PRECHECK_FAILED",
+        "REPLAY_PROCESS_SPAWN_FAILED": process_observation["termination_kind"]
+        == "SPAWN_FAILED",
+        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation["termination_kind"]
+        == "OUTPUT_LIMIT_EXCEEDED",
+        "REPLAY_PROCESS_TIMED_OUT": process_observation["termination_kind"]
+        == "TIMED_OUT",
+        "REPLAY_PROCESS_SIGNALED": process_observation["termination_kind"]
+        == "SIGNALED",
+        "REPLAY_PROCESS_NONZERO": process_observation["termination_kind"] == "EXITED"
+        and process_observation["exit_code"] != 0,
+        "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED": not process_observation[
+            "cleanup_deadline_passed"
+        ],
+        "REPLAY_EXPORT_CLEANUP_FAILED": not process_observation[
+            "export_cleanup_passed"
+        ],
         "REPLAY_STDOUT_NOT_CANONICAL_REPORT": report is None,
-        "REPLAY_REPORT_IDENTITY_MISMATCH": report is not None and (
+        "REPLAY_REPORT_IDENTITY_MISMATCH": report is not None
+        and (
             report["reviewer_role"] != receipt["reviewer_role"]
             or report["review_protocol_id"] != receipt["review_protocol_id"]
             or report["lab_evidence_commit_sha"] != evidence_commit_sha
         ),
-        "REPLAY_D0_DECISION_MISMATCH": report is not None and report["recomputed_d0_decision_payload_sha"] != d0["decision_payload_sha"],
-        "REPLAY_D1_DECISION_MISMATCH": report is not None and report["recomputed_d1_decision_payload_sha"] != d1["decision_payload_sha"],
-        "REPLAY_SURVIVOR_MISMATCH": report is not None and report["observed_surviving_route_ids"] != d1["surviving_route_ids"],
-        "REPLAY_WINNER_MISMATCH": report is not None and report["observed_provisional_winner_route_id"] != d1["provisional_winner_route_id"],
+        "REPLAY_D0_DECISION_MISMATCH": report is not None
+        and report["recomputed_d0_decision_payload_sha"] != d0["decision_payload_sha"],
+        "REPLAY_D1_DECISION_MISMATCH": report is not None
+        and report["recomputed_d1_decision_payload_sha"] != d1["decision_payload_sha"],
+        "REPLAY_SURVIVOR_MISMATCH": report is not None
+        and report["observed_surviving_route_ids"] != d1["surviving_route_ids"],
+        "REPLAY_WINNER_MISMATCH": report is not None
+        and report["observed_provisional_winner_route_id"]
+        != d1["provisional_winner_route_id"],
     }
-    expected_reasons = [reason for reason in _REVIEWER_REASON_ORDER_V1 if predicates[reason]]
+    expected_reasons = [
+        reason for reason in _REVIEWER_REASON_ORDER_V1 if predicates[reason]
+    ]
     if receipt["reason_codes"] != expected_reasons:
         raise ValueError("reviewer receipt reason subset/order drifted")
     accept = (
@@ -9764,11 +9796,9 @@ def _validate_terminal_review_base_v1(
         raise ValueError("terminal review D1 route order drifted")
     for row in d1_rows:
         manifest = row["route_manifest"]
-        if (
-            manifest["route_id"] not in d0_by_route
-            or canonical_json_bytes_v1(manifest)
-            != canonical_json_bytes_v1(d0_by_route[manifest["route_id"]])
-        ):
+        if manifest["route_id"] not in d0_by_route or canonical_json_bytes_v1(
+            manifest
+        ) != canonical_json_bytes_v1(d0_by_route[manifest["route_id"]]):
             raise ValueError("terminal review D1 route manifest drifted")
     route_commits = [manifest["route_commit_sha"] for manifest in d0_manifests]
     route_sources = [manifest["route_source_sha256"] for manifest in d0_manifests]
@@ -9827,8 +9857,7 @@ def _validate_terminal_reviewer_receipts_v1(
     if len({receipt["reviewer_id"] for receipt in validated}) != 2:
         raise ValueError("terminal reviewer IDs are not independent")
     closure_roots = {
-        receipt["reviewed_executable_source_closure_sha"]
-        for receipt in validated
+        receipt["reviewed_executable_source_closure_sha"] for receipt in validated
     }
     if len(closure_roots) != 1:
         raise ValueError("terminal reviewer expected source closures diverged")
@@ -9947,23 +9976,15 @@ def validate_review_halt_v1(
         and receipts[0][field] != receipts[1][field]
         for field in compared_fields
     )
-    if not divergence and all(
-        receipt["verdict"] == "ACCEPT" for receipt in receipts
-    ):
+    if not divergence and all(receipt["verdict"] == "ACCEPT" for receipt in receipts):
         raise ValueError("review halt requires a rejection or replay divergence")
-    expected_reason = (
-        "HALT_REVIEW_DIVERGENCE" if divergence else "HALT_REPLAY_MISMATCH"
-    )
+    expected_reason = "HALT_REVIEW_DIVERGENCE" if divergence else "HALT_REPLAY_MISMATCH"
     if halt["halt_reason"] != expected_reason:
         raise ValueError("review halt reason drifted")
     if halt["production_implementation_allowed"] is not False:
         raise ValueError("review halt cannot authorize production")
     expected_sha = canonical_sha_v1(
-        {
-            key: value
-            for key, value in halt.items()
-            if key != "review_halt_sha"
-        }
+        {key: value for key, value in halt.items() if key != "review_halt_sha"}
     )
     if halt["review_halt_sha"] != expected_sha:
         raise ValueError("review halt self hash drifted")
@@ -10109,12 +10130,11 @@ def _validate_production_handoff_repository_observation_v1(
             expected_type="commit",
             field=f"handoff route commit object {ordinal}",
         )
-    if (
-        observation["common_is_ancestor_of_ordered_routes"]
-        != [True, True, True]
-        or observation["ordered_routes_are_ancestors_of_evidence"]
-        != [True, True, True]
-    ):
+    if observation["common_is_ancestor_of_ordered_routes"] != [
+        True,
+        True,
+        True,
+    ] or observation["ordered_routes_are_ancestors_of_evidence"] != [True, True, True]:
         raise ValueError("production handoff ancestry observation failed")
     selection_commit_body = _validate_git_object_observation_v1(
         observation["selection_commit_object"],
@@ -10126,9 +10146,7 @@ def _validate_production_handoff_repository_observation_v1(
         selection_commit_body,
         "handoff selection commit",
     )
-    selection_parents = [
-        value for name, value in selection_headers if name == "parent"
-    ]
+    selection_parents = [value for name, value in selection_headers if name == "parent"]
     if selection_parents != [evidence_commit_sha.encode("ascii")]:
         raise ValueError("production handoff selection parent drifted")
     expected_delta = [
@@ -10236,9 +10254,7 @@ def validate_production_handoff_v1(
     )
     d0 = validated_d0_result
     d1 = validated_d1_result
-    manifests = [
-        row["route_manifest"] for row in d0["ordered_route_results"]
-    ]
+    manifests = [row["route_manifest"] for row in d0["ordered_route_results"]]
     _validate_production_handoff_repository_observation_v1(
         repository_observation,
         evidence_commit_sha=evidence_commit_sha,
@@ -10287,16 +10303,10 @@ def validate_production_handoff_v1(
         ),
     )
     for field, expected in expected_joins:
-        if canonical_json_bytes_v1(handoff[field]) != canonical_json_bytes_v1(
-            expected
-        ):
+        if canonical_json_bytes_v1(handoff[field]) != canonical_json_bytes_v1(expected):
             raise ValueError(f"production handoff {field} drifted")
     expected_sha = canonical_sha_v1(
-        {
-            key: value
-            for key, value in handoff.items()
-            if key != "handoff_sha"
-        }
+        {key: value for key, value in handoff.items() if key != "handoff_sha"}
     )
     if handoff["handoff_sha"] != expected_sha:
         raise ValueError("production handoff self hash drifted")
