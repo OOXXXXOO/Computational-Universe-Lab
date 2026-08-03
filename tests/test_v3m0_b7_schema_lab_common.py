@@ -995,7 +995,6 @@ def _mutation_universe(
         else generator_source_bytes
     )
     mutations = common.generate_ordered_mutations_v1(transcripts)
-    assert len(mutations) == 326
     return _seal(
         {
             "mutation_universe_schema_version": (
@@ -1075,6 +1074,38 @@ def test_spec_join_validators_accept_registry_materialization_and_canonical_roun
             common_source,
         )
         == validated_universe
+    )
+
+
+def test_mutation_universe_count_is_the_exact_derived_length_not_a_literal() -> None:
+    common = _common_module()
+    source_bytes = COMMON_PATH.read_bytes()
+    metric = _metric_spec(source_bytes, COMPARE_PATH.read_bytes())
+    corpus = _corpus_spec(metric["metric_spec_sha"])
+    transcripts = _seven_transcripts()
+    for transcript in transcripts:
+        transcript["provenance_fixture"]["parent_freeze_v3_body"] = {
+            "additional_complete_body_sha": "6" * 64,
+        }
+        _seal(transcript["provenance_fixture"], "provenance_fixture_sha")
+        _seal(transcript, "experimental_sha")
+    universe = _mutation_universe(
+        transcripts,
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        source_bytes,
+    )
+
+    assert universe["mutation_count"] == 333
+    assert (
+        common.validate_mutation_universe_v1(
+            universe,
+            transcripts,
+            corpus["corpus_spec_sha"],
+            corpus["mutation_generation_contract_sha"],
+            source_bytes,
+        )
+        == universe
     )
 
 

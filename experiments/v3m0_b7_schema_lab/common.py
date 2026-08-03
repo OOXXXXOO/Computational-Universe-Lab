@@ -3062,7 +3062,7 @@ def validate_mutation_universe_v1(
     mutation_generation_contract_sha,
     generator_source_bytes,
 ):
-    """Validate the exact 326-row universe against the frozen generator."""
+    """Validate the exact derived universe against the frozen generator."""
     expected_corpus_root = _require_sha256_root_v1(
         corpus_spec_sha,
         "corpus spec root",
@@ -3091,19 +3091,23 @@ def validate_mutation_universe_v1(
         validate_mutation_v1(mutation) for mutation in universe["ordered_mutations"]
     ]
     expected_mutations = generate_ordered_mutations_v1(ordered_transcripts_raw)
+    expected_count = len(expected_mutations)
     if (
-        universe["mutation_count"] != 326
-        or len(observed_mutations) != 326
+        universe["mutation_count"] != expected_count
+        or len(observed_mutations) != expected_count
         or observed_mutations != expected_mutations
     ):
         raise ValueError("mutation universe differs from frozen generation")
     if tuple(mutation["mutation_ordinal"] for mutation in observed_mutations) != tuple(
-        range(326)
+        range(expected_count)
     ):
         raise ValueError("mutation universe ordinals are not contiguous")
     mutation_ids = tuple(mutation["mutation_id"] for mutation in observed_mutations)
     mutation_shas = tuple(mutation["mutation_sha"] for mutation in observed_mutations)
-    if len(set(mutation_ids)) != 326 or len(set(mutation_shas)) != 326:
+    if (
+        len(set(mutation_ids)) != expected_count
+        or len(set(mutation_shas)) != expected_count
+    ):
         raise ValueError("mutation universe IDs or SHAs are not unique")
     return universe
 
