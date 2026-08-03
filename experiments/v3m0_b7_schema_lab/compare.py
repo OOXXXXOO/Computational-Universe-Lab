@@ -244,18 +244,12 @@ def _prepare_d0_capture_domain_v1(validated_corpus_fixture):
         case_id: _common.discover_record_self_hashes_v1(source)
         for case_id, source in sources_by_case.items()
     }
-    invalid_presence = (
-        _common.generate_constructible_invalid_presence_candidates_v1(success)
-    )
-    if type(invalid_presence) is not list or len(invalid_presence) != 1393:
-        raise ValueError("D0 invalid-presence domain cardinality drifted")
     return {
         "source_set": source_set,
         "sources_by_case": sources_by_case,
         "success": success,
         "snapshots": snapshots,
         "mutations": mutations,
-        "invalid_presence": invalid_presence,
     }
 
 
@@ -278,7 +272,6 @@ def _capture_d0_legal_replays_v1(route_id, domain):
 
 
 def _capture_d0_mutation_probes_v1(route_id, domain):
-    observations = []
     for mutation in domain["mutations"]:
         probe_kind = mutation["probe_kind"]
         not_called = _not_called_route_call_v1
@@ -317,43 +310,47 @@ def _capture_d0_mutation_probes_v1(route_id, domain):
             else:
                 second_encode = not_called()
                 second_decode = not_called()
-        observations.append(
-            {
-                "capture_ordinal": 0,
-                "mutation_ordinal": mutation["mutation_ordinal"],
-                "mutation_id": mutation["mutation_id"],
-                "mutation_sha": mutation["mutation_sha"],
-                "route_id": route_id,
-                "materialized_transcript_bytes": materialized_bytes,
-                "upstream_transcript_count": upstream_transcript_count,
-                "first_encode_result": first_encode,
-                "first_decode_result": first_decode,
-                "second_encode_result": second_encode,
-                "second_decode_result": second_decode,
-            }
-        )
-    return observations
+        yield {
+            "capture_ordinal": 0,
+            "mutation_ordinal": mutation["mutation_ordinal"],
+            "mutation_id": mutation["mutation_id"],
+            "mutation_sha": mutation["mutation_sha"],
+            "route_id": route_id,
+            "materialized_transcript_bytes": materialized_bytes,
+            "upstream_transcript_count": upstream_transcript_count,
+            "first_encode_result": first_encode,
+            "first_decode_result": first_decode,
+            "second_encode_result": second_encode,
+            "second_decode_result": second_decode,
+        }
 
 
 def _capture_d0_invalid_presence_probes_v1(route_id, domain):
-    observations = []
-    for candidate in domain["invalid_presence"]:
+    candidate_count = 0
+    candidates = _common.iter_constructible_invalid_presence_candidates_v1(
+        domain["success"]
+    )
+    if iter(candidates) is not candidates:
+        raise TypeError("D0 invalid-presence producer must be one-shot")
+    for candidate in candidates:
+        if candidate_count >= 1393:
+            raise ValueError("D0 invalid-presence domain cardinality drifted")
+        candidate_count += 1
         candidate_bytes = _common.canonical_json_bytes_v1(candidate["transcript"])
-        observations.append(
-            {
-                "capture_ordinal": 0,
-                "terminal_tag": candidate["terminal_tag"],
-                "bit_integer": candidate["bit_integer"],
-                "presence_bits": candidate["presence_bits"],
-                "route_id": route_id,
-                "candidate_transcript_bytes": candidate_bytes,
-                "encode_result": _call_d0_route_encode_v1(
-                    route_id,
-                    candidate_bytes,
-                ),
-            }
-        )
-    return observations
+        yield {
+            "capture_ordinal": 0,
+            "terminal_tag": candidate["terminal_tag"],
+            "bit_integer": candidate["bit_integer"],
+            "presence_bits": candidate["presence_bits"],
+            "route_id": route_id,
+            "candidate_transcript_bytes": candidate_bytes,
+            "encode_result": _call_d0_route_encode_v1(
+                route_id,
+                candidate_bytes,
+            ),
+        }
+    if candidate_count != 1393:
+        raise ValueError("D0 invalid-presence domain cardinality drifted")
 
 
 def _capture_d0_route_gate_inputs_v1(route_id, domain):

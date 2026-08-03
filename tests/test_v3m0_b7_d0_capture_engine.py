@@ -108,7 +108,15 @@ def _install_small_domain(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     monkeypatch.setattr(
         common,
         "generate_constructible_invalid_presence_candidates_v1",
-        lambda _success: copy.deepcopy(candidates),
+        lambda _success: (_ for _ in ()).throw(
+            AssertionError("capture must not materialize the presence domain")
+        ),
+    )
+    monkeypatch.setattr(
+        common,
+        "iter_constructible_invalid_presence_candidates_v1",
+        lambda _success: (copy.deepcopy(candidate) for candidate in candidates),
+        raising=False,
     )
     return fixture
 
@@ -149,27 +157,83 @@ def test_d0_capture_iterates_fixed_routes_and_exact_gate_input_fields(
     fixture = _install_small_domain(monkeypatch)
     _install_route_stubs(monkeypatch)
 
-    captured = list(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
+    captured = iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
 
-    assert tuple(route_id for route_id, _inputs in captured) == ROUTE_IDS
-    for route_id, inputs in captured:
+    for expected_route_id in ROUTE_IDS:
+        route_id, inputs = next(captured)
+        assert route_id == expected_route_id
         assert tuple(inputs) == (
             "ordered_legal_replays",
             "ordered_mutation_probes",
             "ordered_invalid_presence_probes",
         )
         assert len(inputs["ordered_legal_replays"]) == 7
-        assert len(inputs["ordered_mutation_probes"]) == 5
-        assert len(inputs["ordered_invalid_presence_probes"]) == 1393
+        mutations = inputs["ordered_mutation_probes"]
+        presence = inputs["ordered_invalid_presence_probes"]
+        assert iter(mutations) is mutations
+        assert iter(presence) is presence
+        mutation_rows = list(mutations)
+        presence_rows = list(presence)
+        assert len(mutation_rows) == 5
+        assert len(presence_rows) == 1393
+        assert list(mutations) == []
+        assert list(presence) == []
         assert {row["route_id"] for row in inputs["ordered_legal_replays"]} == {
             route_id
         }
-        assert {row["route_id"] for row in inputs["ordered_mutation_probes"]} == {
-            route_id
-        }
-        assert {
-            row["route_id"] for row in inputs["ordered_invalid_presence_probes"]
-        } == {route_id}
+        assert {row["route_id"] for row in mutation_rows} == {route_id}
+        assert {row["route_id"] for row in presence_rows} == {route_id}
+    with pytest.raises(StopIteration):
+        next(captured)
+
+
+def test_d0_capture_keeps_mutation_and_presence_rows_lazy_one_shot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from experiments.v3m0_b7_schema_lab.compare import iter_d0_gate_inputs_v1
+
+    fixture = _install_small_domain(monkeypatch)
+    _install_route_stubs(monkeypatch)
+    mutation_materializations = 0
+    presence_candidates = 0
+
+    def materialize(base, mutation, _success, _snapshot):
+        nonlocal mutation_materializations
+        mutation_materializations += 1
+        return {"case_id": base["case_id"], "mutation_id": mutation["mutation_id"]}
+
+    def candidates(_success):
+        nonlocal presence_candidates
+        for ordinal in range(1393):
+            presence_candidates += 1
+            yield {
+                "terminal_tag": "success",
+                "bit_integer": ordinal,
+                "presence_bits": f"{ordinal % 512:09b}",
+                "half_pair": False,
+                "transcript": {"candidate_ordinal": ordinal},
+            }
+
+    monkeypatch.setattr(common, "apply_transcript_mutation_v1", materialize)
+    monkeypatch.setattr(
+        common,
+        "iter_constructible_invalid_presence_candidates_v1",
+        candidates,
+        raising=False,
+    )
+
+    _route_id, inputs = next(
+        iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
+    )
+    mutations = inputs["ordered_mutation_probes"]
+    presence = inputs["ordered_invalid_presence_probes"]
+    assert mutation_materializations == 0
+    assert presence_candidates == 0
+
+    next(mutations)
+    assert mutation_materializations == 1
+    next(presence)
+    assert presence_candidates == 1
 
 
 @pytest.mark.parametrize(
@@ -235,7 +299,7 @@ def test_rejected_encoder_prevents_decoder_and_upstream_probe_never_enters_route
             "termination_kind": "NOT_CALLED",
             "raw_bytes": None,
         }
-    upstream = inputs["ordered_mutation_probes"][-1]
+    upstream = list(inputs["ordered_mutation_probes"])[-1]
     assert upstream["upstream_transcript_count"] == 0
     assert upstream["materialized_transcript_bytes"] is None
     assert {
