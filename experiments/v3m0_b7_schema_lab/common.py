@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast as _ast
+import difflib as _difflib
 
 import rulespace_v3.b7_replay_core_v1 as _pure_core
 
@@ -3455,6 +3456,422 @@ def render_b8_consumer_adapter_utf8(route_id, route_module, wire_schema_id):
         .replace(b"__ROUTE_ID__", route_id.encode("utf-8"))
         .replace(b"__WIRE_SCHEMA_ID__", wire_schema_id.encode("utf-8"))
     )
+
+
+_ROUTE_METRIC_ROOTS_V1 = (
+    "encode_normalized_transcript",
+    "verify_and_decode_route_wire",
+)
+_ROUTE_METRIC_FORBIDDEN_CALLS_V1 = (
+    "eval",
+    "exec",
+    "compile",
+    "__import__",
+    "globals",
+    "locals",
+    "getattr",
+)
+_B8_COUNTED_EXACT_CALL_NAMES_V1 = (
+    "experiments.v3m0_b7_schema_lab.common._b8_require_exact",
+    "experiments.v3m0_b7_schema_lab.common._b8_require_present",
+    "experiments.v3m0_b7_schema_lab.common._b8_require_absent",
+)
+
+
+def _absolute_import_from_module_v1(node, route_module):
+    if not isinstance(node, _ast.ImportFrom):
+        raise TypeError("import-from resolver requires an ImportFrom node")
+    if node.level == 0:
+        return node.module or ""
+    package_parts = route_module.split(".")[:-1]
+    parent_count = node.level - 1
+    if parent_count >= len(package_parts):
+        raise ValueError("relative import escapes the route package")
+    base_parts = package_parts[: len(package_parts) - parent_count]
+    if node.module:
+        base_parts.extend(node.module.split("."))
+    return ".".join(base_parts)
+
+
+def _route_metric_bindings_v1(tree, route_module):
+    aliases = {}
+    binding_index = {}
+    bound_names = set()
+    for ordinal, node in enumerate(tree.body):
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                resolved = alias.name if alias.asname else alias.name.split(".")[0]
+                if bound in bound_names:
+                    raise ValueError("route metric closure has a duplicate binding")
+                bound_names.add(bound)
+                aliases[bound] = resolved
+            continue
+        if isinstance(node, _ast.ImportFrom):
+            module = _absolute_import_from_module_v1(node, route_module)
+            if module == "__future__":
+                continue
+            for alias in node.names:
+                if alias.name == "*":
+                    raise ValueError(
+                        "route metric closure cannot resolve a star import"
+                    )
+                bound = alias.asname or alias.name
+                if bound in bound_names:
+                    raise ValueError("route metric closure has a duplicate binding")
+                bound_names.add(bound)
+                aliases[bound] = f"{module}.{alias.name}"
+            continue
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            name = node.name
+        elif isinstance(node, _ast.Assign):
+            if len(node.targets) != 1 or not isinstance(node.targets[0], _ast.Name):
+                raise ValueError("route metric closure has a dynamic assignment target")
+            name = node.targets[0].id
+        elif isinstance(node, _ast.AnnAssign):
+            if not isinstance(node.target, _ast.Name):
+                raise ValueError("route metric closure has a dynamic annotated target")
+            name = node.target.id
+        elif (
+            ordinal == 0
+            and isinstance(node, _ast.Expr)
+            and isinstance(node.value, _ast.Constant)
+            and type(node.value.value) is str
+        ) or isinstance(node, _ast.Pass):
+            continue
+        else:
+            raise ValueError("route metric closure has dynamic top-level resolution")
+        if name in bound_names:
+            raise ValueError("route metric closure has a duplicate binding")
+        bound_names.add(name)
+        binding_index[name] = node
+    return aliases, binding_index
+
+
+def _binding_walk_roots_v1(node):
+    if isinstance(node, _ast.Assign):
+        return (node.value,)
+    if isinstance(node, _ast.AnnAssign):
+        return tuple(
+            value for value in (node.annotation, node.value) if value is not None
+        )
+    return (node,)
+
+
+def _resolve_metric_name_v1(node, aliases, binding_index, resolving=()):
+    if isinstance(node, _ast.Name):
+        if node.id in aliases:
+            return aliases[node.id]
+        if node.id not in binding_index:
+            return node.id
+        if node.id in resolving:
+            raise ValueError("route metric closure has a cyclic alias")
+        binding = binding_index[node.id]
+        if isinstance(
+            binding, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)
+        ):
+            return f"<route-binding>.{node.id}"
+        value = binding.value
+        if value is None:
+            return None
+        if not isinstance(value, (_ast.Name, _ast.Attribute)):
+            return None
+        return _resolve_metric_name_v1(
+            value,
+            aliases,
+            binding_index,
+            (*resolving, node.id),
+        )
+    if isinstance(node, _ast.Attribute):
+        if isinstance(node.value, _ast.Name):
+            owner = binding_index.get(node.value.id)
+            if isinstance(owner, _ast.ClassDef):
+                members = []
+                for statement in owner.body:
+                    if (
+                        isinstance(
+                            statement,
+                            (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef),
+                        )
+                        and statement.name == node.attr
+                    ):
+                        members.append(statement)
+                    elif (
+                        isinstance(statement, _ast.Assign)
+                        and len(statement.targets) == 1
+                        and isinstance(statement.targets[0], _ast.Name)
+                        and statement.targets[0].id == node.attr
+                    ):
+                        members.append(statement)
+                    elif (
+                        isinstance(statement, _ast.AnnAssign)
+                        and isinstance(statement.target, _ast.Name)
+                        and statement.target.id == node.attr
+                    ):
+                        members.append(statement)
+                if len(members) != 1:
+                    if members:
+                        raise ValueError(
+                            "route metric closure has a duplicate class binding"
+                        )
+                    return None
+                member = members[0]
+                if isinstance(
+                    member,
+                    (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef),
+                ):
+                    return f"<route-class-binding>.{node.value.id}.{node.attr}"
+                value = member.value
+                if value is None or not isinstance(
+                    value,
+                    (_ast.Name, _ast.Attribute),
+                ):
+                    return None
+                return _resolve_metric_name_v1(
+                    value,
+                    aliases,
+                    binding_index,
+                    resolving,
+                )
+        prefix = _resolve_metric_name_v1(
+            node.value,
+            aliases,
+            binding_index,
+            resolving,
+        )
+        if prefix is None:
+            return None
+        return f"{prefix}.{node.attr}"
+    return None
+
+
+def _validate_reachable_calls_v1(node, aliases, binding_index):
+    for child in _ast.walk(node):
+        if not isinstance(child, _ast.Call):
+            continue
+        resolved = _resolve_metric_name_v1(child.func, aliases, binding_index)
+        if resolved is None:
+            raise ValueError("route metric closure has dynamic call resolution")
+        terminal = resolved.split(".")[-1]
+        if resolved in _ROUTE_METRIC_FORBIDDEN_CALLS_V1 or terminal in (
+            _ROUTE_METRIC_FORBIDDEN_CALLS_V1
+        ):
+            raise ValueError("route metric closure calls a forbidden resolver")
+
+
+def _route_local_reachable_closure_v1(tree, route_module):
+    aliases, binding_index = _route_metric_bindings_v1(tree, route_module)
+    if any(root not in binding_index for root in _ROUTE_METRIC_ROOTS_V1):
+        raise ValueError("route metric closure omits a frozen root")
+    queue = list(_ROUTE_METRIC_ROOTS_V1)
+    queued = set(queue)
+    ordered_bindings = []
+    while queue:
+        name = queue.pop(0)
+        node = binding_index[name]
+        ordered_bindings.append((name, node))
+        edges = set()
+        for walk_root in _binding_walk_roots_v1(node):
+            _validate_reachable_calls_v1(walk_root, aliases, binding_index)
+            for child in _ast.walk(walk_root):
+                if (
+                    isinstance(child, _ast.Name)
+                    and isinstance(child.ctx, _ast.Load)
+                    and child.id in binding_index
+                    and child.id not in queued
+                ):
+                    edges.add(child.id)
+        for edge in sorted(edges, key=lambda value: value.encode("utf-8")):
+            queued.add(edge)
+            queue.append(edge)
+    return aliases, binding_index, ordered_bindings
+
+
+def _iter_route_closure_nodes_v1(ordered_bindings):
+    observed = set()
+    for _name, binding in ordered_bindings:
+        for walk_root in _binding_walk_roots_v1(binding):
+            for node in _ast.walk(walk_root):
+                if node not in observed:
+                    observed.add(node)
+                    yield node
+
+
+def _count_route_branches_v1(closure_nodes):
+    count = 0
+    for node in closure_nodes:
+        if isinstance(
+            node,
+            (_ast.If, _ast.IfExp, _ast.ExceptHandler, _ast.Assert),
+        ) or type(node).__name__ in ("Match", "match_case"):
+            count += 1
+        elif isinstance(node, _ast.BoolOp):
+            count += len(node.values) - 1
+        elif isinstance(node, _ast.comprehension):
+            count += len(node.ifs)
+    return count
+
+
+def _resolve_record_reference_v1(node, aliases, binding_index):
+    target = node.value if isinstance(node, _ast.Subscript) else node
+    root = target
+    while isinstance(root, _ast.Attribute):
+        root = root.value
+    if not isinstance(root, _ast.Name):
+        raise ValueError("route record test has dynamic resolution")
+    static_builtin_roots = (
+        "BaseException",
+        "Exception",
+        "ValueError",
+        "bytes",
+        "dict",
+        "float",
+        "frozenset",
+        "int",
+        "list",
+        "object",
+        "set",
+        "str",
+        "tuple",
+    )
+    if (
+        root.id not in aliases
+        and root.id not in binding_index
+        and root.id not in static_builtin_roots
+    ):
+        raise ValueError("route record test has dynamic resolution")
+    if isinstance(node, _ast.Subscript):
+        resolved = _resolve_metric_name_v1(node.value, aliases, binding_index)
+        if resolved is None or not resolved.startswith("typing."):
+            raise ValueError("route record base uses dynamic subscription")
+        return resolved
+    resolved = _resolve_metric_name_v1(node, aliases, binding_index)
+    if resolved is None:
+        raise ValueError("route record test has dynamic resolution")
+    return resolved
+
+
+def _route_record_classes_v1(closure_nodes, aliases, binding_index):
+    records = []
+    for node in closure_nodes:
+        if not isinstance(node, _ast.ClassDef):
+            continue
+        decorator_names = []
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, _ast.Call) else decorator
+            decorator_names.append(
+                _resolve_record_reference_v1(target, aliases, binding_index)
+            )
+        base_names = [
+            _resolve_record_reference_v1(base, aliases, binding_index)
+            for base in node.bases
+        ]
+        if "dataclasses.dataclass" in decorator_names or any(
+            name in ("enum.Enum", "enum.StrEnum", "enum.IntEnum") for name in base_names
+        ):
+            records.append(node)
+    return records
+
+
+def _class_has_direct_sha_field_v1(node):
+    for statement in node.body:
+        field_name = None
+        if isinstance(statement, _ast.AnnAssign) and isinstance(
+            statement.target,
+            _ast.Name,
+        ):
+            field_name = statement.target.id
+        elif (
+            isinstance(statement, _ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], _ast.Name)
+        ):
+            field_name = statement.targets[0].id
+        if field_name is not None and field_name.endswith(("_sha", "_sha256")):
+            return True
+    return False
+
+
+def _compute_b8_static_metrics_v1(route_id, route_module, wire_schema_id):
+    rendered = render_b8_consumer_adapter_utf8(
+        route_id,
+        route_module,
+        wire_schema_id,
+    )
+    tree = _parse_python_blob_v1(rendered, "<frozen-b8-consumer-adapter>")
+    aliases, binding_index = _route_metric_bindings_v1(
+        tree,
+        "experiments.v3m0_b7_schema_lab._b8_consumer_adapter",
+    )
+    assertion_count = sum(isinstance(node, _ast.Assert) for node in _ast.walk(tree))
+    for node in _ast.walk(tree):
+        if (
+            isinstance(node, _ast.Call)
+            and _resolve_metric_name_v1(
+                node.func,
+                aliases,
+                binding_index,
+            )
+            in _B8_COUNTED_EXACT_CALL_NAMES_V1
+        ):
+            assertion_count += 1
+
+    baseline_text = B8_CONSUMER_SKELETON_UTF8.decode("utf-8", errors="strict")
+    candidate_text = rendered.decode("utf-8", errors="strict")
+    normalized = candidate_text.replace(route_module, "__ROUTE_MODULE__")
+    normalized = normalized.replace(route_id, "__ROUTE_ID__")
+    normalized = normalized.replace(wire_schema_id, "__WIRE_SCHEMA_ID__")
+    diff_lines = _difflib.unified_diff(
+        baseline_text.splitlines(keepends=False),
+        normalized.splitlines(keepends=False),
+        fromfile="skeleton",
+        tofile="route",
+        n=0,
+        lineterm="",
+    )
+    changed_loc = sum(
+        1
+        for line in diff_lines
+        if (line.startswith("+") or line.startswith("-"))
+        and line not in ("--- skeleton", "+++ route")
+        and not line.startswith("@@")
+    )
+    return assertion_count, changed_loc
+
+
+def compute_route_static_metrics_v1(route_id, route_blob):
+    """Compute the five frozen static metrics from one immutable route Git blob."""
+
+    entry = _route_static_registry_entry_v1(route_id)
+    _require_git_blob_descriptor_v1(route_blob, "route metric blob")
+    _commit_sha, route_path, route_mode, route_source = route_blob
+    if route_path != entry[3] or route_mode != "100644":
+        raise ValueError("route metric blob path or mode drifted")
+    tree = _parse_python_blob_v1(route_source, route_path)
+    aliases, binding_index, ordered_bindings = _route_local_reachable_closure_v1(
+        tree,
+        entry[2],
+    )
+    closure_nodes = tuple(_iter_route_closure_nodes_v1(ordered_bindings))
+    record_classes = _route_record_classes_v1(
+        closure_nodes,
+        aliases,
+        binding_index,
+    )
+    b8_assertions, b8_changed_loc = _compute_b8_static_metrics_v1(
+        entry[0],
+        entry[2],
+        entry[4],
+    )
+    return {
+        "b8_consumer_assertion_count": b8_assertions,
+        "b8_consumer_changed_loc": b8_changed_loc,
+        "verifier_branch_count": _count_route_branches_v1(closure_nodes),
+        "route_record_count": len(set(record_classes)),
+        "route_hash_layer_count": len(
+            {node for node in record_classes if _class_has_direct_sha_field_v1(node)}
+        ),
+    }
 
 
 def _validate_decision_projection_v1(raw_body, fields, projection_fields):

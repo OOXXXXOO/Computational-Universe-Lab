@@ -190,7 +190,12 @@ def test_common_imports_no_production_authority_owner() -> None:
         elif isinstance(node, ast.ImportFrom):
             imported.append(node.module)
 
-    assert imported == ["__future__", "ast", "rulespace_v3.b7_replay_core_v1"]
+    assert imported == [
+        "__future__",
+        "ast",
+        "difflib",
+        "rulespace_v3.b7_replay_core_v1",
+    ]
     forbidden_tokens = ("authority", "issuer", "hydrate", "promote", "seal")
     for node in ast.walk(tree):
         if isinstance(node, ast.arg):
