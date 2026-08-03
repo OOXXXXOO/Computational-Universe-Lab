@@ -620,6 +620,76 @@ TASK3_EXPECTED_EXCEPTION_HANDLERS = Counter(
     }
 )
 
+TASK3_EXPECTED_RETURN_SPECS = (
+    (
+        ("canonical_json_bytes_v1",),
+        "Try.body",
+        0,
+        'str.encode(text, "utf-8")',
+    ),
+    (
+        ("canonical_json_bytes_v1", "validate_object_keys"),
+        "If.body",
+        0,
+        None,
+    ),
+    (
+        ("canonical_json_bytes_v1", "validate_object_keys"),
+        "If.body",
+        4,
+        None,
+    ),
+    (
+        ("canonical_json_bytes_v1", "validate_object_keys"),
+        "If.body",
+        4,
+        None,
+    ),
+    (
+        ("canonical_sha_v1",),
+        "FunctionDef.body",
+        1,
+        "hashlib.sha256(canonical_json_bytes_v1(value)).hexdigest()",
+    ),
+    (
+        ("strict_json_loads_v1", "reject_duplicate_object_pairs"),
+        "FunctionDef.body",
+        2,
+        "result",
+    ),
+    (
+        ("strict_json_loads_v1",),
+        "FunctionDef.body",
+        8,
+        "value",
+    ),
+)
+
+TASK3_EXPECTED_FUNCTION_BODY_SHA256 = {
+    (
+        "canonical_json_bytes_v1",
+    ): "cdb10942de36a1b5becf7b802b18f4949796cee984316296882812e3e1d501df",
+    (
+        "canonical_json_bytes_v1",
+        "validate_object_keys",
+    ): "3be9204927ccc1eb5ee4c054a0ba0e06a6a2b95f15bcef79620047e37d4c9d81",
+    (
+        "canonical_sha_v1",
+    ): "df9ce1ca2fad7ff08f79dd33288e19b2189faabf73ae990a1f4d6bc9f1e82b1b",
+    (
+        "strict_json_loads_v1",
+    ): "fd46d22d7a799ef4a5f467b6e62e0146a057737414491b67930039c7f22431f0",
+    (
+        "strict_json_loads_v1",
+        "reject_duplicate_object_pairs",
+    ): "e6684affcbbf87132c616d78742db7709c85e9c1848b190d043bbf62c6ced7d7",
+    (
+        "strict_json_loads_v1",
+        "reject_nonfinite_constant",
+    ): "d2fc09e7a475ed42ac9fa527cc761c29a7e7db2f5cf1aba69372499ac663c964",
+}
+
+
 def _registry() -> dict[str, object]:
     return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
 
@@ -852,6 +922,27 @@ def _expression_shape(source: str) -> str:
     return ast.dump(ast.parse(source, mode="eval").body, include_attributes=False)
 
 
+def _normalized_function_body_sha256(node: ast.FunctionDef) -> str:
+    normalized_body = ast.dump(
+        ast.Module(body=node.body, type_ignores=[]),
+        annotate_fields=True,
+        include_attributes=False,
+    )
+    return hashlib.sha256(normalized_body.encode("utf-8")).hexdigest()
+
+
+def _statement_parent_position(
+    node: ast.stmt,
+    parents: dict[ast.AST, ast.AST],
+) -> tuple[str, int]:
+    parent = parents[node]
+    for field in ("body", "orelse", "finalbody"):
+        statements = getattr(parent, field, None)
+        if isinstance(statements, list) and node in statements:
+            return f"{type(parent).__name__}.{field}", statements.index(node)
+    raise AssertionError("statement is outside a frozen statement list")
+
+
 def _target_names(node: ast.AST) -> tuple[str, ...]:
     if isinstance(node, ast.Name):
         return (node.id,)
@@ -1075,6 +1166,56 @@ def _assert_core_source_contract(source: str) -> None:
     ]
     assert TASK4_PUBLIC_VALIDATOR_SYMBOLS <= set(top_level_functions)
 
+    expected_return_shapes = Counter(
+        (
+            scope_path,
+            parent_field,
+            position,
+            None if expression is None else _expression_shape(expression),
+        )
+        for scope_path, parent_field, position, expression in (
+            TASK3_EXPECTED_RETURN_SPECS
+        )
+    )
+    observed_return_shapes: Counter[tuple[tuple[str, ...], str, int, str | None]] = (
+        Counter()
+    )
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Return):
+            continue
+        return_scope = _nearest_binding_scope(node, parents)
+        assert isinstance(return_scope, ast.FunctionDef)
+        scope_path = _scope_path(return_scope, parents)
+        if not scope_path or scope_path[0] not in TASK3_FUNCTION_SIGNATURES:
+            continue
+        parent_field, position = _statement_parent_position(node, parents)
+        observed_return_shapes[
+            (
+                scope_path,
+                parent_field,
+                position,
+                (
+                    None
+                    if node.value is None
+                    else ast.dump(node.value, include_attributes=False)
+                ),
+            )
+        ] += 1
+    assert observed_return_shapes == expected_return_shapes
+
+    observed_function_body_sha256: dict[tuple[str, ...], str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        function_path = _scope_path(node, parents)
+        if not function_path or function_path[0] not in TASK3_FUNCTION_SIGNATURES:
+            continue
+        assert function_path not in observed_function_body_sha256
+        observed_function_body_sha256[function_path] = _normalized_function_body_sha256(
+            node
+        )
+    assert observed_function_body_sha256 == TASK3_EXPECTED_FUNCTION_BODY_SHA256
+
     binding_events = _scope_binding_events(tree, parents)
     task3_module_bindings = {
         "annotations",
@@ -1275,6 +1416,7 @@ def _assert_core_source_contract(source: str) -> None:
         ast.ListComp,
         ast.NamedExpr,
         ast.Nonlocal,
+        ast.Pass,
         ast.Set,
         ast.SetComp,
         ast.Starred,
@@ -1782,6 +1924,98 @@ def test_dynamic_container_literals_dispatch_only_without_static_gate() -> None:
         with pytest.raises(TypeError, match="exact built-in JSON"):
             namespace["canonical_json_bytes_v1"](HashSentinel())
         assert callback_trace != []
+
+
+def test_early_return_dead_code_attack_runs_only_without_static_gate() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    attacked_source = source.replace(
+        canonical_body_anchor,
+        canonical_body_anchor + '\n    return b"ATTACK"\n',
+        1,
+    )
+    namespace: dict[str, object] = {}
+    exec(compile(attacked_source, "<early-return-attack>", "exec"), namespace)
+
+    assert namespace["canonical_json_bytes_v1"]({"safe": 1}) == b"ATTACK"
+    with pytest.raises((AssertionError, KeyError)):
+        _assert_core_source_contract(attacked_source)
+
+
+def test_static_contract_rejects_early_return_in_every_function_scope() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    attacks = {
+        "canonical_json_bytes_v1": (
+            '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n',
+            '\n    return b"ATTACK"\n',
+        ),
+        "validate_object_keys": (
+            "    def validate_object_keys(candidate: object, path: str) -> None:\n",
+            "        return\n",
+        ),
+        "canonical_sha_v1": (
+            '    """Hash the frozen canonical JSON bytes for one B7 raw value."""\n',
+            '\n    return "ATTACK"\n',
+        ),
+        "strict_json_loads_v1": (
+            '    """Decode strict UTF-8 JSON while rejecting BOMs, duplicates and NaN."""\n',
+            "\n    return canonical_json_utf8\n",
+        ),
+        "reject_duplicate_object_pairs": (
+            "    def reject_duplicate_object_pairs(\n"
+            "        pairs: list[tuple[str, object]],\n"
+            "    ) -> dict[str, object]:\n",
+            "        return pairs\n",
+        ),
+        "reject_nonfinite_constant": (
+            "    def reject_nonfinite_constant(constant_text: str) -> object:\n",
+            "        return constant_text\n",
+        ),
+    }
+
+    for attack_id, (anchor, injection) in attacks.items():
+        attacked_source = source.replace(anchor, anchor + injection, 1)
+        assert attacked_source != source, (
+            f"attack fixture did not mutate source: {attack_id}"
+        )
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
+
+
+def test_statement_reorder_attack_runs_only_without_static_gate() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    encode_try = (
+        '    try:\n        return str.encode(text, "utf-8")\n'
+        "    except UnicodeEncodeError as exc:\n"
+        '        raise ValueError("canonical JSON text must be valid UTF-8") from exc\n'
+    )
+    attacked_source = source.replace(encode_try, "", 1).replace(
+        canonical_body_anchor,
+        canonical_body_anchor + "\n" + encode_try,
+        1,
+    )
+    namespace: dict[str, object] = {}
+    exec(compile(attacked_source, "<statement-reorder-attack>", "exec"), namespace)
+
+    with pytest.raises(UnboundLocalError):
+        namespace["canonical_json_bytes_v1"]({"safe": 1})
+    with pytest.raises((AssertionError, KeyError)):
+        _assert_core_source_contract(attacked_source)
+
+
+def test_static_contract_rejects_zero_binding_zero_call_statements() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+
+    for statement in ("pass", 'b"ATTACK"'):
+        attacked_source = source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor + f"\n    {statement}\n",
+            1,
+        )
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
 
 
 def test_projection_literal_recomputes_from_the_pinned_registry() -> None:
