@@ -608,6 +608,18 @@ def test_c_union_distinguishes_lineage_shas_from_declared_self_hashes() -> None:
             "primitive_schema_version": "b7-synthetic-capture",
             "coefficient_digest": "4" * 64,
         },
+        "basis": {
+            "basis_schema_version": "b7-synthetic-capture",
+            "basis_digest": "5" * 64,
+        },
+        "attestation": _seal(
+            {
+                "attestation_schema_version": "b7-synthetic-capture",
+                "payload": "frozen",
+                "attestation_sha": "",
+            },
+            "attestation_sha",
+        ),
     }
     _seal(provenance, "provenance_fixture_sha")
     _seal(transcript, "experimental_sha")
@@ -627,6 +639,17 @@ def test_c_union_distinguishes_lineage_shas_from_declared_self_hashes() -> None:
         route.encode_normalized_transcript,
         _canonical(renamed),
         "SCHEMA_MISMATCH",
+    )
+
+    bad_attestation = copy.deepcopy(transcript)
+    bad_parent = bad_attestation["provenance_fixture"]["parent_freeze_v3_body"]
+    bad_parent["attestation"]["attestation_sha"] = "0" * 64
+    _seal(bad_attestation["provenance_fixture"], "provenance_fixture_sha")
+    _seal(bad_attestation, "experimental_sha")
+    _assert_rejected(
+        route.encode_normalized_transcript,
+        _canonical(bad_attestation),
+        "HASH_MISMATCH",
     )
 
     transcript["actual_branch_attempt"]["response_values"]["tensor_sha"] = "0" * 64
