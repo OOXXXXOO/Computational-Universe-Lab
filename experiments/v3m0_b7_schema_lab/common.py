@@ -1069,7 +1069,7 @@ LAB_EXACT_RECORD_CATALOGS_V2 = (
             ("replay_command_argv", "tuple[str,...]", "required", None),
             (
                 "fresh_process_protocol_id",
-                "Literal[fresh-python-s-immutable-E-export-canonical-stdout-v1]",
+                "Literal[fresh-python-s-immutable-E-venv-invocation-v2]",
                 "required",
                 None,
             ),
@@ -1332,6 +1332,15 @@ def _project_v91_catalog_from_v92_v1(catalog):
             "B7LabEnvironmentManifestV1",
             "required",
             "B7LabEnvironmentManifestV1",
+        )
+        field_specs = tuple(fields)
+    elif record_name == "B7LabReviewerReceiptV1":
+        fields = list(field_specs)
+        fields[26] = (
+            "fresh_process_protocol_id",
+            "Literal[fresh-python-s-immutable-E-export-canonical-stdout-v1]",
+            "required",
+            None,
         )
         field_specs = tuple(fields)
     return record_name, schema_id, self_hash_field, field_specs
@@ -9118,6 +9127,341 @@ def validate_reviewer_executable_source_origin_v1(
             all_origin_predicates
         ),
     }
+
+
+_REVIEWER_REASON_ORDER_V1 = (
+    "REVIEW_ENVIRONMENT_MISMATCH",
+    "REPLAY_SOURCE_MISMATCH",
+    "REPLAY_EXECUTABLE_SOURCE_ORIGIN_MISMATCH",
+    "REPLAY_INPUT_ROOT_MISMATCH",
+    "REPLAY_PROCESS_PRECHECK_FAILED",
+    "REPLAY_PROCESS_SPAWN_FAILED",
+    "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED",
+    "REPLAY_PROCESS_TIMED_OUT",
+    "REPLAY_PROCESS_SIGNALED",
+    "REPLAY_PROCESS_NONZERO",
+    "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED",
+    "REPLAY_EXPORT_CLEANUP_FAILED",
+    "REPLAY_STDOUT_NOT_CANONICAL_REPORT",
+    "REPLAY_REPORT_IDENTITY_MISMATCH",
+    "REPLAY_D0_DECISION_MISMATCH",
+    "REPLAY_D1_DECISION_MISMATCH",
+    "REPLAY_SURVIVOR_MISMATCH",
+    "REPLAY_WINNER_MISMATCH",
+)
+_REPLAY_INPUT_PROJECTION_FIELDS_V1 = (
+    "reviewer_role",
+    "review_protocol_id",
+    "reviewed_lab_evidence_commit_sha",
+    "review_environment_manifest_sha",
+    "reviewed_d0_result_raw_sha256",
+    "reviewed_d0_result_sha",
+    "reviewed_d0_decision_payload_sha",
+    "reviewed_d1_result_raw_sha256",
+    "reviewed_d1_result_sha",
+    "reviewed_d1_decision_payload_sha",
+    "reviewed_common_commit_sha",
+    "reviewed_route_commit_shas",
+    "reviewed_corpus_spec_sha",
+    "reviewed_mutation_universe_sha",
+    "reviewed_metric_spec_sha",
+    "reviewed_compare_source_sha256",
+    "reviewed_executable_source_closure_sha",
+    "replay_source_sha256",
+)
+_REVIEW_PROCESS_OBSERVATION_FIELDS_V1 = (
+    "termination_kind",
+    "exit_code",
+    "signal_number",
+    "stdout_bytes",
+    "stderr_bytes",
+    "cleanup_deadline_passed",
+    "export_cleanup_passed",
+    "required_input_precheck_passed",
+)
+
+
+def _reviewer_protocol_v1(role):
+    protocols = {
+        "CORPUS_REPLAY": ("v3m0-b7-corpus-replay-v2", "review-corpus"),
+        "METRIC_REPLAY": ("v3m0-b7-metric-replay-v2", "review-metric"),
+    }
+    if type(role) is not str or role not in protocols:
+        raise ValueError("reviewer role is not frozen")
+    return protocols[role]
+
+
+def _decode_reviewer_report_v1(stdout_bytes):
+    if (
+        type(stdout_bytes) is not bytes
+        or not stdout_bytes.endswith(b"\n")
+        or b"\n" in stdout_bytes[:-1]
+    ):
+        return None
+    payload = stdout_bytes[:-1]
+    try:
+        parsed = strict_json_loads_v1(payload)
+        if canonical_json_bytes_v1(parsed) != payload:
+            return None
+        report = _validate_exact_lab_record_v1("B7LabReplayReportV1", parsed)
+        output_projection = {
+            key: report[key] for key in tuple(report)[:9]
+        }
+        if report["replay_output_root_sha"] != canonical_sha_v1(output_projection):
+            return None
+        expected_report_sha = canonical_sha_v1(
+            {
+                key: value
+                for key, value in report.items()
+                if key != "replay_report_sha"
+            }
+        )
+        if report["replay_report_sha"] != expected_report_sha:
+            return None
+        return report
+    except (TypeError, ValueError, UnicodeError):
+        return None
+
+
+def _validate_reviewer_process_observation_v1(observation):
+    if type(observation) is not dict or tuple(observation) != (
+        _REVIEW_PROCESS_OBSERVATION_FIELDS_V1
+    ):
+        raise TypeError("review process observation shape drifted")
+    kind = observation["termination_kind"]
+    exit_code = observation["exit_code"]
+    signal_number = observation["signal_number"]
+    stdout = observation["stdout_bytes"]
+    stderr = observation["stderr_bytes"]
+    if type(stdout) is not bytes or type(stderr) is not bytes:
+        raise TypeError("review process streams must be exact bytes")
+    for field in (
+        "cleanup_deadline_passed",
+        "export_cleanup_passed",
+        "required_input_precheck_passed",
+    ):
+        if type(observation[field]) is not bool:
+            raise TypeError(f"review process {field} must be an exact bool")
+    if kind == "EXITED":
+        normalized = (
+            type(exit_code) is int
+            and exit_code >= 0
+            and signal_number is None
+        )
+    elif kind == "SIGNALED":
+        normalized = (
+            exit_code is None
+            and type(signal_number) is int
+            and signal_number > 0
+        )
+    elif kind in ("PRECHECK_FAILED", "SPAWN_FAILED"):
+        normalized = (
+            exit_code is None
+            and signal_number is None
+            and stdout == b""
+            and stderr == b""
+        )
+    elif kind in ("OUTPUT_LIMIT_EXCEEDED", "TIMED_OUT"):
+        normalized = exit_code is None and signal_number is None
+    else:
+        normalized = False
+    if not normalized:
+        raise ValueError("review process outcome normalization drifted")
+    return observation
+
+
+def validate_reviewer_receipt_v1(
+    raw_body,
+    *,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+    environment_observation,
+    source_origin_observation,
+    replay_source_blob,
+    process_observation,
+):
+    """Validate one parent-observed reviewer receipt without spawning a child."""
+
+    receipt = _validate_exact_lab_record_v1("B7LabReviewerReceiptV1", raw_body)
+    _require_reviewer_git_sha1_v1(evidence_commit_sha, "reviewed evidence commit")
+    if receipt["reviewed_lab_evidence_commit_sha"] != evidence_commit_sha:
+        raise ValueError("reviewer receipt evidence commit drifted")
+    protocol_id, subcommand = _reviewer_protocol_v1(receipt["reviewer_role"])
+    if receipt["review_protocol_id"] != protocol_id:
+        raise ValueError("reviewer role/protocol drifted")
+    d0 = validated_d0_result
+    d1 = validated_d1_result
+    if type(d0) is not dict or type(d1) is not dict:
+        raise TypeError("reviewer D0/D1 inputs must be validated exact dicts")
+    for raw_bytes, expected, label in (
+        (d0_raw_bytes, d0, "D0"),
+        (d1_raw_bytes, d1, "D1"),
+    ):
+        parsed = strict_json_loads_v1(raw_bytes)
+        if canonical_json_bytes_v1(parsed) != canonical_json_bytes_v1(expected):
+            raise ValueError(f"reviewed {label} raw blob body drifted")
+    manifests = [row["route_manifest"] for row in d0["ordered_route_results"]]
+    expected_joins = (
+        ("reviewed_d0_result_raw_sha256", _raw_source_sha256_v1(d0_raw_bytes, "D0")),
+        ("reviewed_d0_result_sha", d0["d0_result_sha"]),
+        ("reviewed_d0_decision_payload_sha", d0["decision_payload_sha"]),
+        ("reviewed_d1_result_raw_sha256", _raw_source_sha256_v1(d1_raw_bytes, "D1")),
+        ("reviewed_d1_result_sha", d1["d1_result_sha"]),
+        ("reviewed_d1_decision_payload_sha", d1["decision_payload_sha"]),
+        ("reviewed_common_commit_sha", d0["common_commit_sha"]),
+        ("reviewed_route_commit_shas", [row["route_commit_sha"] for row in manifests]),
+        ("reviewed_corpus_spec_sha", d0["corpus_spec_sha"]),
+        ("reviewed_mutation_universe_sha", d0["mutation_universe_sha"]),
+        ("reviewed_metric_spec_sha", d0["metric_spec_sha"]),
+        ("reviewed_compare_source_sha256", d0["compare_source_sha256"]),
+    )
+    for field, expected in expected_joins:
+        if canonical_json_bytes_v1(receipt[field]) != canonical_json_bytes_v1(expected):
+            raise ValueError(f"reviewer receipt {field} drifted")
+    for field in (
+        "common_commit_sha",
+        "common_source_sha256",
+        "compare_source_sha256",
+        "corpus_fixture_raw_sha256",
+        "corpus_spec_sha",
+        "mutation_universe_sha",
+        "metric_spec_sha",
+    ):
+        if d1[field] != d0[field]:
+            raise ValueError(f"reviewed D0/D1 {field} join drifted")
+    environment_sha = d1["environment_manifest"]["environment_sha"]
+    if d0["environment_manifest"]["environment_sha"] != environment_sha:
+        raise ValueError("reviewed D0/D1 environment root drifted")
+    if type(environment_observation) is not dict or tuple(environment_observation) != (
+        "expected_sha", "observed_sha", "passed"
+    ):
+        raise TypeError("review environment observation shape drifted")
+    if (
+        environment_observation["expected_sha"] != environment_sha
+        or receipt["review_environment_manifest_sha"] != environment_sha
+        or receipt["observed_review_environment_manifest_sha"]
+        != environment_observation["observed_sha"]
+        or receipt["review_environment_precheck_passed"]
+        is not environment_observation["passed"]
+    ):
+        raise ValueError("review environment observation join drifted")
+    for field in (
+        "reviewed_executable_source_closure_sha",
+        "observed_executable_source_closure_sha",
+        "executable_source_origin_precheck_passed",
+    ):
+        if receipt[field] != source_origin_observation[field]:
+            raise ValueError("reviewer source-origin observation join drifted")
+    _require_git_blob_descriptor_v1(replay_source_blob, "reviewer replay source")
+    source_commit, source_path, source_mode, source_bytes = replay_source_blob
+    source_matches = (
+        source_commit == evidence_commit_sha
+        and source_path == "experiments/v3m0_b7_schema_lab/compare.py"
+        and source_mode == "100644"
+        and _raw_source_sha256_v1(source_bytes, "reviewer replay source")
+        == receipt["reviewed_compare_source_sha256"]
+        == receipt["replay_source_sha256"]
+    )
+    if receipt["replay_source_path"] != source_path:
+        raise ValueError("reviewer replay source path drifted")
+    environment = d1["environment_manifest"]
+    expected_argv = [
+        environment["python_invocation_path"],
+        "-s", "-m", "experiments.v3m0_b7_schema_lab.compare", subcommand,
+        "--evidence-commit", evidence_commit_sha,
+        "--reviewed-executable-source-closure-sha",
+        receipt["reviewed_executable_source_closure_sha"],
+        "--emit-replay-report",
+    ]
+    if receipt["replay_command_argv"] != expected_argv or receipt[
+        "fresh_process_protocol_id"
+    ] != "fresh-python-s-immutable-E-venv-invocation-v2":
+        raise ValueError("reviewer replay command/fresh protocol drifted")
+    expected_input_root = canonical_sha_v1(
+        {field: receipt[field] for field in _REPLAY_INPUT_PROJECTION_FIELDS_V1}
+    )
+    if receipt["replay_input_root_sha"] != expected_input_root:
+        raise ValueError("reviewer replay input root drifted")
+    _validate_reviewer_process_observation_v1(process_observation)
+    stdout = process_observation["stdout_bytes"]
+    stderr = process_observation["stderr_bytes"]
+    for field, expected in (
+        ("replay_termination_kind", process_observation["termination_kind"]),
+        ("replay_exit_code", process_observation["exit_code"]),
+        ("replay_signal_number", process_observation["signal_number"]),
+        ("replay_stdout_sha256", _raw_source_sha256_v1(stdout, "stdout")),
+        ("replay_stderr_sha256", _raw_source_sha256_v1(stderr, "stderr")),
+    ):
+        if receipt[field] != expected:
+            raise ValueError(f"reviewer process {field} drifted")
+    report = _decode_reviewer_report_v1(stdout)
+    report_fields = (
+        ("observed_report_reviewer_role", "reviewer_role"),
+        ("observed_report_review_protocol_id", "review_protocol_id"),
+        ("observed_report_lab_evidence_commit_sha", "lab_evidence_commit_sha"),
+        ("observed_report_replay_input_root_sha", "replay_input_root_sha"),
+        ("replay_output_root_sha", "replay_output_root_sha"),
+        ("replayed_d0_decision_payload_sha", "recomputed_d0_decision_payload_sha"),
+        ("replayed_d1_decision_payload_sha", "recomputed_d1_decision_payload_sha"),
+        ("observed_surviving_route_ids", "observed_surviving_route_ids"),
+        ("observed_provisional_winner_route_id", "observed_provisional_winner_route_id"),
+    )
+    for receipt_field, report_field in report_fields:
+        expected = None if report is None else report[report_field]
+        if receipt[receipt_field] != expected:
+            raise ValueError("reviewer optional output presence/value drifted")
+    predicates = {
+        "REVIEW_ENVIRONMENT_MISMATCH": not environment_observation["passed"],
+        "REPLAY_SOURCE_MISMATCH": not source_matches,
+        "REPLAY_EXECUTABLE_SOURCE_ORIGIN_MISMATCH": not source_origin_observation[
+            "executable_source_origin_precheck_passed"
+        ],
+        "REPLAY_INPUT_ROOT_MISMATCH": (
+            not process_observation["required_input_precheck_passed"]
+            or (report is not None and report["replay_input_root_sha"] != expected_input_root)
+        ),
+        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation["termination_kind"] == "PRECHECK_FAILED",
+        "REPLAY_PROCESS_SPAWN_FAILED": process_observation["termination_kind"] == "SPAWN_FAILED",
+        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation["termination_kind"] == "OUTPUT_LIMIT_EXCEEDED",
+        "REPLAY_PROCESS_TIMED_OUT": process_observation["termination_kind"] == "TIMED_OUT",
+        "REPLAY_PROCESS_SIGNALED": process_observation["termination_kind"] == "SIGNALED",
+        "REPLAY_PROCESS_NONZERO": process_observation["termination_kind"] == "EXITED" and process_observation["exit_code"] != 0,
+        "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED": not process_observation["cleanup_deadline_passed"],
+        "REPLAY_EXPORT_CLEANUP_FAILED": not process_observation["export_cleanup_passed"],
+        "REPLAY_STDOUT_NOT_CANONICAL_REPORT": report is None,
+        "REPLAY_REPORT_IDENTITY_MISMATCH": report is not None and (
+            report["reviewer_role"] != receipt["reviewer_role"]
+            or report["review_protocol_id"] != receipt["review_protocol_id"]
+            or report["lab_evidence_commit_sha"] != evidence_commit_sha
+        ),
+        "REPLAY_D0_DECISION_MISMATCH": report is not None and report["recomputed_d0_decision_payload_sha"] != d0["decision_payload_sha"],
+        "REPLAY_D1_DECISION_MISMATCH": report is not None and report["recomputed_d1_decision_payload_sha"] != d1["decision_payload_sha"],
+        "REPLAY_SURVIVOR_MISMATCH": report is not None and report["observed_surviving_route_ids"] != d1["surviving_route_ids"],
+        "REPLAY_WINNER_MISMATCH": report is not None and report["observed_provisional_winner_route_id"] != d1["provisional_winner_route_id"],
+    }
+    expected_reasons = [reason for reason in _REVIEWER_REASON_ORDER_V1 if predicates[reason]]
+    if receipt["reason_codes"] != expected_reasons:
+        raise ValueError("reviewer receipt reason subset/order drifted")
+    accept = (
+        environment_observation["passed"]
+        and source_origin_observation["executable_source_origin_precheck_passed"]
+        and not expected_reasons
+        and process_observation["termination_kind"] == "EXITED"
+        and process_observation["exit_code"] == 0
+        and process_observation["signal_number"] is None
+        and report is not None
+    )
+    if receipt["verdict"] != ("ACCEPT" if accept else "REJECT"):
+        raise ValueError("reviewer receipt verdict drifted")
+    expected_sha = canonical_sha_v1(
+        {key: value for key, value in receipt.items() if key != "receipt_sha"}
+    )
+    if receipt["receipt_sha"] != expected_sha:
+        raise ValueError("reviewer receipt self hash drifted")
+    return receipt
 
 
 def _validate_e07_static_domain_v1(route_manifest, route_blob, production_blobs):
