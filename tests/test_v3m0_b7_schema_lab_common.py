@@ -1739,6 +1739,125 @@ def test_invalid_presence_generator_requires_the_legal_success_base() -> None:
             common.generate_constructible_invalid_presence_candidates_v1(hostile)
 
 
+def _joinable_success_transcript() -> dict[str, object]:
+    transcript = _transcript("success")
+    reference = {"reference": "body"}
+    shell = {
+        "reference_outcome": copy.deepcopy(reference),
+        "shell": {"shell_manifest_sha": "6" * 64},
+    }
+    transcript["reference_outcome"] = reference
+    transcript["shell_outcome"] = shell
+    for attempt_field, response_field, branch in (
+        ("actual_branch_attempt", "actual_completed_response", "actual"),
+        (
+            "matched_ablated_branch_attempt",
+            "matched_ablated_completed_response",
+            "matched_ablated",
+        ),
+    ):
+        attempt = transcript[attempt_field]
+        attempt["response_values"] = {"values": branch}
+        attempt["bridge_audit"] = {"bridge": branch}
+        _seal(attempt, "attempt_sha")
+        transcript[response_field] = {
+            "branch": branch,
+            "values": copy.deepcopy(attempt["response_values"]),
+            "bridge_audit": copy.deepcopy(attempt["bridge_audit"]),
+            "shell_manifest_sha": shell["shell"]["shell_manifest_sha"],
+        }
+    return _seal(transcript, "experimental_sha")
+
+
+def test_normalized_transcript_validator_runs_every_nested_validator_and_join(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common_module()
+    transcript = _joinable_success_transcript()
+    graph = {"graph": "body"}
+    calls: list[tuple[str, object]] = []
+
+    def identity(name: str):
+        def validate(raw: object, *joins: object) -> object:
+            calls.append((name, (raw, *joins)))
+            return raw
+
+        return validate
+
+    for symbol in (
+        "validate_synthetic_graph_manifest_v1",
+        "validate_provenance_fixture_v1",
+        "validate_response_run_spec_fixture_v1",
+        "validate_endpoint_reference_outcome_raw_v1",
+        "validate_endpoint_shell_outcome_raw_v1",
+        "validate_branch_attempt_v1",
+        "validate_source_readout_response_raw_v1",
+    ):
+        monkeypatch.setattr(common, symbol, identity(symbol))
+
+    observed = common.validate_normalized_transcript_v1(
+        transcript,
+        corpus_spec_sha="4" * 64,
+        environment_manifest_sha="5" * 64,
+        graph_raw=graph,
+    )
+
+    assert observed == transcript
+    assert [name for name, _arguments in calls] == [
+        "validate_synthetic_graph_manifest_v1",
+        "validate_provenance_fixture_v1",
+        "validate_response_run_spec_fixture_v1",
+        "validate_endpoint_reference_outcome_raw_v1",
+        "validate_endpoint_shell_outcome_raw_v1",
+        "validate_branch_attempt_v1",
+        "validate_branch_attempt_v1",
+        "validate_source_readout_response_raw_v1",
+        "validate_source_readout_response_raw_v1",
+    ]
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda raw: raw.update(corpus_spec_sha="0" * 64),
+        lambda raw: raw.update(environment_manifest_sha="0" * 64),
+        lambda raw: raw["shell_outcome"].update(reference_outcome={"wrong": True}),
+        lambda raw: raw["actual_completed_response"].update(
+            bridge_audit={"wrong": True}
+        ),
+        lambda raw: raw["matched_ablated_completed_response"].update(
+            shell_manifest_sha="0" * 64
+        ),
+    ),
+)
+def test_normalized_transcript_validator_rejects_aggregate_join_attacks(
+    monkeypatch: pytest.MonkeyPatch,
+    mutator,
+) -> None:
+    common = _common_module()
+    transcript = _joinable_success_transcript()
+    mutator(transcript)
+    _seal(transcript, "experimental_sha")
+    for symbol in (
+        "validate_synthetic_graph_manifest_v1",
+        "validate_provenance_fixture_v1",
+        "validate_response_run_spec_fixture_v1",
+        "validate_endpoint_reference_outcome_raw_v1",
+        "validate_endpoint_shell_outcome_raw_v1",
+        "validate_branch_attempt_v1",
+        "validate_source_readout_response_raw_v1",
+    ):
+        monkeypatch.setattr(common, symbol, lambda raw, *joins: raw)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_normalized_transcript_v1(
+            transcript,
+            corpus_spec_sha="4" * 64,
+            environment_manifest_sha="5" * 64,
+            graph_raw={"graph": "body"},
+        )
+
+
 def _decision_record(
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],

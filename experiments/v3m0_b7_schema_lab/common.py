@@ -3300,3 +3300,96 @@ def validate_provenance_fixture_v1(raw_body):
 def validate_branch_attempt_v1(raw_body):
     """Delegate one branch-attempt validation to the pure core."""
     return _pure_core.validate_branch_attempt_v1(raw_body)
+
+
+def _require_canonical_equal_v1(observed, expected, field):
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError(f"normalized transcript {field} drifted")
+
+
+def validate_normalized_transcript_v1(
+    raw_body,
+    *,
+    corpus_spec_sha,
+    environment_manifest_sha,
+    graph_raw,
+):
+    """Strictly validate one normalized transcript and all aggregate joins."""
+
+    expected_corpus_sha = _require_sha256_root_v1(corpus_spec_sha, "corpus spec")
+    expected_environment_sha = _require_sha256_root_v1(
+        environment_manifest_sha,
+        "environment manifest",
+    )
+    transcript = validate_case_contract_v1(raw_body)
+    if transcript["corpus_spec_sha"] != expected_corpus_sha:
+        raise ValueError("normalized transcript corpus root drifted")
+    if transcript["environment_manifest_sha"] != expected_environment_sha:
+        raise ValueError("normalized transcript environment root drifted")
+
+    graph = validate_synthetic_graph_manifest_v1(graph_raw)
+    provenance = validate_provenance_fixture_v1(transcript["provenance_fixture"])
+    run_spec = validate_response_run_spec_fixture_v1(
+        transcript["response_run_spec_fixture"],
+        provenance,
+        graph,
+    )
+    reference = validate_endpoint_reference_outcome_raw_v1(
+        transcript["reference_outcome"]
+    )
+    shell_raw = transcript["shell_outcome"]
+    shell = None
+    if shell_raw is not None:
+        shell = validate_endpoint_shell_outcome_raw_v1(shell_raw)
+        _require_canonical_equal_v1(
+            shell["reference_outcome"],
+            reference,
+            "shell/reference body",
+        )
+
+    attempts = {}
+    for field, branch in (
+        ("actual_branch_attempt", "actual"),
+        ("matched_ablated_branch_attempt", "matched_ablated"),
+    ):
+        attempt_raw = transcript[field]
+        attempt = None
+        if attempt_raw is not None:
+            attempt = validate_branch_attempt_v1(attempt_raw)
+            if attempt["branch"] != branch:
+                raise ValueError("normalized transcript attempt branch drifted")
+        attempts[branch] = attempt
+
+    for field, branch in (
+        ("actual_completed_response", "actual"),
+        ("matched_ablated_completed_response", "matched_ablated"),
+    ):
+        response_raw = transcript[field]
+        if response_raw is None:
+            continue
+        response = validate_source_readout_response_raw_v1(
+            response_raw,
+            run_spec,
+            provenance,
+            graph,
+        )
+        if response["branch"] != branch:
+            raise ValueError("normalized transcript completed branch drifted")
+        attempt = attempts[branch]
+        if attempt is None:
+            raise ValueError("normalized transcript completed response lacks attempt")
+        _require_canonical_equal_v1(
+            response["values"],
+            attempt["response_values"],
+            f"{branch} values/attempt",
+        )
+        _require_canonical_equal_v1(
+            response["bridge_audit"],
+            attempt["bridge_audit"],
+            f"{branch} bridge/attempt",
+        )
+        if shell is None or type(shell["shell"]) is not dict:
+            raise ValueError("normalized transcript completed response lacks shell")
+        if response["shell_manifest_sha"] != shell["shell"]["shell_manifest_sha"]:
+            raise ValueError("normalized transcript response/shell root drifted")
+    return transcript
