@@ -118,12 +118,11 @@ def _fixture(
         facade._parent_v3_scenario_replay_authority_v1_payload_impl,
         body_type=facade.ParentV3ScenarioReplayAuthorityV1,
         record_validator=facade._exact_record,
+        body_validator=facade.ParentV3ScenarioReplayAuthorityV1.__post_init__,
         parent_type=_FakeParentFreezeV3Manifest,
         parent_payload_builder=_fake_parent_payload,
         application_type=facade.V3M0SyntheticControlApplicationSpec,
-        application_payload_builder=(
-            facade.synthetic_control_application_spec_payload
-        ),
+        application_payload_builder=(facade.synthetic_control_application_spec_payload),
         scenario_type=facade.ApplicationScenarioExecutionSpec,
         scenario_payload_builder=(facade.application_scenario_execution_spec_payload),
     )
@@ -178,8 +177,7 @@ def _reviewed_path_closure_payload(closure) -> dict[str, object]:
             "v3m0.parent-reviewed-path-closure.v1"
         ),
         "entries": [
-            {"relative_path": path, "raw_sha256": raw_sha}
-            for path, raw_sha in closure
+            {"relative_path": path, "raw_sha256": raw_sha} for path, raw_sha in closure
         ],
     }
 
@@ -204,9 +202,7 @@ def test_owner_surface_exact_record_api_and_import_dag() -> None:
         for item in fields(facade._VerifiedParentV3ScenarioReplayAuthorityV1View)
     ] == ["replay_authority", "parent"]
     assert tuple(
-        inspect.signature(
-            facade.replay_parent_v3_scenario_authority_v1
-        ).parameters
+        inspect.signature(facade.replay_parent_v3_scenario_authority_v1).parameters
     ) == ("parent", "control_case_id")
     assert tuple(
         inspect.signature(
@@ -336,9 +332,7 @@ def test_replay_rejects_nonexact_or_excluded_control_ids(
     control_case_id: object,
 ) -> None:
     fixture = _fixture(monkeypatch, historical_parent_v1)
-    _assert_rejected(
-        lambda: fixture.graph.replay(fixture.parent, control_case_id)
-    )
+    _assert_rejected(lambda: fixture.graph.replay(fixture.parent, control_case_id))
 
 
 def test_replay_rejects_parent_copy_wrapper_forgery_cross_graph_and_death(
@@ -354,22 +348,25 @@ def test_replay_rejects_parent_copy_wrapper_forgery_cross_graph_and_death(
         lambda: fixture.graph.replay(equal_parent, "C01_BLIND_HOLDOUT_FULL")
     )
     _assert_rejected(
-        lambda: fixture.graph.require_for_parent(equal_parent, capability)
+        lambda capability=capability: fixture.graph.require_for_parent(
+            equal_parent,
+            capability,
+        )
     )
     _assert_rejected(lambda: fixture.graph.require_for_parent(fixture.parent, raw))
 
-    forged = object.__new__(
-        fixture.facade.VerifiedParentV3ScenarioReplayAuthorityV1
-    )
+    forged = object.__new__(fixture.facade.VerifiedParentV3ScenarioReplayAuthorityV1)
     _assert_rejected(lambda: fixture.graph.reverify(forged))
-    equal_copy = copy.copy(capability)
-    _assert_rejected(lambda: fixture.graph.reverify(equal_copy))
-    other_graph = (
-        fixture.facade._make_parent_v3_scenario_replay_authority_v1_graph(
-            fixture.facade._ISSUANCE_TOKEN
-        )
+    try:
+        equal_copy = copy.copy(capability)
+    except (AttributeError, TypeError, ValueError):
+        pass
+    else:
+        _assert_rejected(lambda: fixture.graph.reverify(equal_copy))
+    other_graph = fixture.facade._make_parent_v3_scenario_replay_authority_v1_graph(
+        fixture.facade._ISSUANCE_TOKEN
     )
-    _assert_rejected(lambda: other_graph.reverify(capability))
+    _assert_rejected(lambda capability=capability: other_graph.reverify(capability))
 
     reference = weakref.ref(capability)
     del capability
@@ -459,12 +456,25 @@ def test_graph_captures_dependencies_before_hostile_global_rebinding(
     historical_parent_v1,
 ) -> None:
     fixture = _fixture(monkeypatch, historical_parent_v1)
+    first = fixture.graph.replay(
+        fixture.parent,
+        "C01_BLIND_HOLDOUT_FULL",
+    )
+    first_raw = first.replay_authority
+    baseline_payload = fixture.owner_payload(first_raw)
+    expected_record_type = fixture.facade.ParentV3ScenarioReplayAuthorityV1
+    expected_wrapper_type = fixture.facade.VerifiedParentV3ScenarioReplayAuthorityV1
+    expected_view_type = fixture.facade._VerifiedParentV3ScenarioReplayAuthorityV1View
 
     def bomb(*args, **kwargs):
         del args, kwargs
         raise AssertionError("late-bound hostile dependency was called")
 
     for name in (
+        "VerifiedParentFreezeV3",
+        "ParentFreezeV3Manifest",
+        "V3M0SyntheticControlApplicationSpec",
+        "ApplicationScenarioExecutionSpec",
         "require_current_parent_v3",
         "_parent_freeze_v3_manifest_payload",
         "canonical_sha",
@@ -472,18 +482,55 @@ def test_graph_captures_dependencies_before_hostile_global_rebinding(
         "application_scenario_execution_spec_payload",
         "verify_synthetic_control_application_spec",
         "verify_application_scenario_execution_spec",
+        "ParentV3ScenarioReplayAuthorityV1",
+        "VerifiedParentV3ScenarioReplayAuthorityV1",
+        "_VerifiedParentV3ScenarioReplayAuthorityV1View",
+        "_exact_record",
+        "_text",
+        "_sha256",
+        "_git_sha1",
+        "_source_closure",
+        "_reviewed_path_closure_payload",
+        "_parent_v3_scenario_replay_authority_v1_payload_impl",
+        "PurePosixPath",
+        "dataclass_fields",
+        "replace",
+        "copy",
     ):
         monkeypatch.setattr(fixture.facade, name, bomb)
+    monkeypatch.setattr(
+        fixture.facade,
+        "PARENT_V3_SCENARIO_REPLAY_AUTHORITY_V1_SCHEMA_VERSION",
+        "redirected-schema",
+    )
+    monkeypatch.setattr(
+        fixture.facade,
+        "APPLICATION_CONTROL_CASE_IDS",
+        ("redirected-control",),
+    )
+    monkeypatch.setattr(
+        fixture.facade,
+        "_REPLAY_CONTROL_CASE_IDS",
+        ("redirected-replay",),
+    )
+    monkeypatch.setattr(
+        fixture.facade,
+        "weakref",
+        SimpleNamespace(ref=bomb),
+    )
 
+    assert fixture.owner_payload(first_raw) == baseline_payload
+    first_view = fixture.graph.reverify(first)
+    assert type(first) is expected_wrapper_type
+    assert type(first_view) is expected_view_type
+    assert type(first_view.replay_authority) is expected_record_type
     capability = fixture.graph.replay(
         fixture.parent,
         "C20_DM26_CLEAN_ZERO_TRUE_FLOOR",
     )
     view = fixture.graph.require_for_parent(fixture.parent, capability)
     assert view.parent is fixture.parent
-    assert view.replay_authority.control_case_id == (
-        "C20_DM26_CLEAN_ZERO_TRUE_FLOOR"
-    )
+    assert view.replay_authority.control_case_id == ("C20_DM26_CLEAN_ZERO_TRUE_FLOOR")
 
 
 def test_no_public_raw_verifier_or_capability_minting_surface() -> None:
