@@ -1645,6 +1645,100 @@ def test_case_contract_rejects_presence_trace_leaf_and_hash_attacks() -> None:
             validator(hostile)
 
 
+def test_invalid_presence_generator_freezes_all_1393_constructible_states() -> None:
+    common = _common_module()
+    success = _transcript("success")
+    original = copy.deepcopy(success)
+
+    candidates = common.generate_constructible_invalid_presence_candidates_v1(success)
+
+    assert len(candidates) == 1393
+    assert success == original
+    assert tuple(candidates[0]) == (
+        "terminal_tag",
+        "bit_integer",
+        "presence_bits",
+        "half_pair",
+        "transcript",
+    )
+    assert (
+        candidates[0]["bit_integer"],
+        candidates[0]["terminal_tag"],
+        candidates[0]["presence_bits"],
+    ) == (0, "shell_failure", "000000000")
+    assert (
+        candidates[-1]["bit_integer"],
+        candidates[-1]["terminal_tag"],
+        candidates[-1]["presence_bits"],
+    ) == (511, "matched_bridge_failure", "111111111")
+
+    observed_pairs = [
+        (candidate["terminal_tag"], candidate["presence_bits"])
+        for candidate in candidates
+    ]
+    assert len(set(observed_pairs)) == 1393
+    legal_pairs = {
+        (case["terminal_tag"], case["presence_bits"])
+        for case in (
+            _corpus_case(case_id)
+            for case_id in (
+                "reference_failure",
+                "shell_failure",
+                "actual_response_values_failure",
+                "matched_response_values_failure",
+                "actual_bridge_failure",
+                "matched_bridge_failure",
+                "success",
+            )
+        )
+    }
+    assert legal_pairs.isdisjoint(observed_pairs)
+    assert all(
+        candidate["half_pair"]
+        == (
+            (candidate["presence_bits"][5] != candidate["presence_bits"][6])
+            or (candidate["presence_bits"][7] != candidate["presence_bits"][8])
+        )
+        for candidate in candidates
+    )
+    assert all(
+        common.validate_exact_lab_record_v1(
+            "NormalizedB7ExecutionTranscriptV1",
+            candidate["transcript"],
+        )
+        == candidate["transcript"]
+        for candidate in candidates
+    )
+
+
+def test_invalid_presence_generator_applies_parent_child_bits_and_rehashes() -> None:
+    common = _common_module()
+    candidates = common.generate_constructible_invalid_presence_candidates_v1(
+        _transcript("success")
+    )
+    candidate = next(
+        item
+        for item in candidates
+        if item["presence_bits"] == "010000000" and item["terminal_tag"] == "success"
+    )
+    transcript = candidate["transcript"]
+
+    assert transcript["actual_branch_attempt"] is not None
+    assert transcript["actual_branch_attempt"]["response_values"] is None
+    assert transcript["actual_branch_attempt"]["bridge_audit"] is None
+    assert transcript["matched_ablated_branch_attempt"] is None
+    _assert_self_hash(transcript["actual_branch_attempt"], "attempt_sha")
+    _assert_self_hash(transcript, "experimental_sha")
+    assert not any(item["presence_bits"] == "001000000" for item in candidates)
+
+
+def test_invalid_presence_generator_requires_the_legal_success_base() -> None:
+    common = _common_module()
+    for hostile in (None, _transcript("shell_failure")):
+        with pytest.raises((TypeError, ValueError)):
+            common.generate_constructible_invalid_presence_candidates_v1(hostile)
+
+
 def _decision_record(
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],

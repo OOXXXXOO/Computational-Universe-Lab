@@ -2962,6 +2962,98 @@ def validate_case_contract_v1(raw_body):
     return transcript
 
 
+def _rehash_record_field_v1(raw_body, hash_field):
+    raw_body[hash_field] = canonical_sha_v1(
+        {name: value for name, value in raw_body.items() if name != hash_field}
+    )
+
+
+def _apply_presence_attempt_v1(candidate, success, field, parent_bit, *child_bits):
+    if parent_bit == "0":
+        candidate[field] = None
+        return
+    attempt = _detach_json_v1(success[field])
+    attempt["response_values"] = (
+        _detach_json_v1(success[field]["response_values"])
+        if child_bits[0] == "1"
+        else None
+    )
+    attempt["bridge_audit"] = (
+        _detach_json_v1(success[field]["bridge_audit"])
+        if child_bits[1] == "1"
+        else None
+    )
+    attempt["failure"] = None
+    _rehash_record_field_v1(attempt, "attempt_sha")
+    candidate[field] = attempt
+
+
+def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw):
+    """Generate the exact 1,393 constructible non-case tag/presence states."""
+
+    success = validate_case_contract_v1(success_transcript_raw)
+    if success["case_id"] != "success":
+        raise ValueError("invalid-presence generation requires the success case")
+    legal_pairs = {(row[2], row[4]) for row in _CASE_CONTRACTS_V1}
+    candidates = []
+    for bit_integer in range(512):
+        bits = f"{bit_integer:09b}"
+        if not (
+            bits[2] <= bits[1]
+            and bits[5] <= bits[1]
+            and bits[4] <= bits[3]
+            and bits[6] <= bits[3]
+        ):
+            continue
+        for terminal_tag in _TERMINAL_TAG_ORDER_V1:
+            if (terminal_tag, bits) in legal_pairs:
+                continue
+            transcript = _detach_json_v1(success)
+            transcript["shell_outcome"] = (
+                _detach_json_v1(success["shell_outcome"]) if bits[0] == "1" else None
+            )
+            _apply_presence_attempt_v1(
+                transcript,
+                success,
+                "actual_branch_attempt",
+                bits[1],
+                bits[2],
+                bits[5],
+            )
+            _apply_presence_attempt_v1(
+                transcript,
+                success,
+                "matched_ablated_branch_attempt",
+                bits[3],
+                bits[4],
+                bits[6],
+            )
+            transcript["actual_completed_response"] = (
+                _detach_json_v1(success["actual_completed_response"])
+                if bits[7] == "1"
+                else None
+            )
+            transcript["matched_ablated_completed_response"] = (
+                _detach_json_v1(success["matched_ablated_completed_response"])
+                if bits[8] == "1"
+                else None
+            )
+            transcript["terminal_tag"] = terminal_tag
+            _rehash_record_field_v1(transcript, "experimental_sha")
+            candidates.append(
+                {
+                    "terminal_tag": terminal_tag,
+                    "bit_integer": bit_integer,
+                    "presence_bits": bits,
+                    "half_pair": (bits[5] != bits[6] or bits[7] != bits[8]),
+                    "transcript": transcript,
+                }
+            )
+    if len(candidates) != 1393:
+        raise AssertionError("invalid-presence domain cardinality drifted")
+    return candidates
+
+
 _D0_COMPARISON_FIELDS = (
     "d0_result_schema_version",
     "common_commit_sha",
