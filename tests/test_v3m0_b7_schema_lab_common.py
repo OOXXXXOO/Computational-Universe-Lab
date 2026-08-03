@@ -212,6 +212,72 @@ def test_common_mechanically_freezes_all_v91_exact_record_catalogs() -> None:
     assert observed == expected
 
 
+@pytest.mark.parametrize(
+    ("wire_type", "legal", "hostile"),
+    (
+        ("branch-failure", "actual_response_failed", "NOT_A_FAILURE"),
+        ("case-id", "success", "NOT_A_CASE"),
+        ("expected-boundary", "TRANSCRIPT_CONSTRUCTION", "NOT_A_BOUNDARY"),
+        ("gate-id", "E05", "E99"),
+        ("metric-id", "canonical_wire_bytes", "wall_time"),
+        ("mutation-class", "TERMINAL_TAG", "NOT_A_CLASS"),
+        ("mutation-operation", "SET_VALUE", "EXECUTE"),
+        ("probe-kind", "MUTATION_MUST_REJECT", "MAY_ACCEPT"),
+        ("review-protocol-id", "v3m0-b7-corpus-replay-v1", "review-anything"),
+        ("route-domain", "experimental.v3m0.b7.a-flat", "production.route"),
+        ("route-id", "A_FLAT", "NOT_A_ROUTE"),
+        (
+            "route-wire-schema-id",
+            "experimental.v3m0.b7.a-flat.wire.v1",
+            "production.wire.v1",
+        ),
+        ("scheduler-stage-id", "reference", "shell_again"),
+        ("synthetic-graph-component-id", "permit", "hidden_component"),
+        ("terminal-tag", "success", "partial_success"),
+        ("validator-id", "validate_gate_e01_v1", "accept_everything"),
+    ),
+)
+def test_lab_semantic_wire_domains_are_exact_registry_sets(
+    wire_type: str,
+    legal: str,
+    hostile: str,
+) -> None:
+    validate = _common_module()._validate_lab_wire_semantics_v1
+
+    validate(legal, wire_type, None, "field")
+    with pytest.raises((TypeError, ValueError)):
+        validate(hostile, wire_type, None, "field")
+
+
+@pytest.mark.parametrize(
+    ("wire_type", "legal", "hostile"),
+    (
+        ("absolute-normalized-path", "/opt/python/bin/python3", "//opt/python"),
+        ("absolute-normalized-path", "/opt/python/bin/python3", "/opt/../evil"),
+        (
+            "fully-qualified-type-name",
+            "rulespace_v3.response.EndpointShellOutcome",
+            "rulespace-v3.response.EndpointShellOutcome",
+        ),
+        ("json-pointer", "", "relative/path"),
+        ("json-pointer", "/a~1b", "/a~2b"),
+        ("module-name", "experiments.v3m0_b7_schema_lab.a_flat", "a/../b"),
+        ("repo-relative-posix-path", "experiments/a.py", "/experiments/a.py"),
+        ("repo-relative-posix-path", "experiments/a.py", "experiments/../a.py"),
+    ),
+)
+def test_lab_semantic_wire_paths_are_normalized(
+    wire_type: str,
+    legal: str,
+    hostile: str,
+) -> None:
+    validate = _common_module()._validate_lab_wire_semantics_v1
+
+    validate(legal, wire_type, None, "field")
+    with pytest.raises((TypeError, ValueError)):
+        validate(hostile, wire_type, None, "field")
+
+
 def _seal(raw: dict[str, object], hash_field: str) -> dict[str, object]:
     raw[hash_field] = canonical_sha_v1(
         {name: value for name, value in raw.items() if name != hash_field}

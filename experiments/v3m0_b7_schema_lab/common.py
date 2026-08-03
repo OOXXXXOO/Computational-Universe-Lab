@@ -1377,9 +1377,150 @@ _MUTATION_PROBE_KINDS_V1 = (
     "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT",
 )
 _MUTATION_BOUNDARIES_V1 = (
+    "TRANSCRIPT_CONSTRUCTION",
     "ROUTE_VERIFICATION",
     "EQUALITY_CHECK",
     "UPSTREAM_JOIN",
+)
+_LAB_SEMANTIC_STRING_DOMAINS_V1 = (
+    (
+        "branch-failure",
+        (
+            "actual_response_failed",
+            "matched_ablated_response_failed",
+            "actual_bridge_failed",
+            "matched_ablated_bridge_failed",
+        ),
+    ),
+    (
+        "case-id",
+        (
+            "reference_failure",
+            "shell_failure",
+            "actual_response_values_failure",
+            "matched_response_values_failure",
+            "actual_bridge_failure",
+            "matched_bridge_failure",
+            "success",
+        ),
+    ),
+    ("expected-boundary", _MUTATION_BOUNDARIES_V1),
+    ("gate-id", ("E01", "E02", "E03", "E04", "E05", "E06", "E07", "E08")),
+    (
+        "metric-id",
+        (
+            "mutation_accept_count",
+            "evidence_loss_count",
+            "constructible_invalid_presence_count",
+            "half_pair_state_count",
+            "b8_consumer_assertion_count",
+            "b8_consumer_changed_loc",
+            "verifier_branch_count",
+            "route_record_count",
+            "route_hash_layer_count",
+            "canonical_wire_bytes",
+        ),
+    ),
+    ("mutation-class", _MUTATION_CLASSES_V1),
+    ("mutation-operation", _MUTATION_OPERATIONS_V1),
+    ("probe-kind", _MUTATION_PROBE_KINDS_V1),
+    (
+        "review-protocol-id",
+        ("v3m0-b7-corpus-replay-v1", "v3m0-b7-metric-replay-v1"),
+    ),
+    (
+        "route-domain",
+        (
+            "experimental.v3m0.b7.a-flat",
+            "experimental.v3m0.b7.b-progress",
+            "experimental.v3m0.b7.c-union",
+        ),
+    ),
+    ("route-id", ("A_FLAT", "B_PROGRESS", "C_UNION")),
+    (
+        "route-wire-schema-id",
+        (
+            "experimental.v3m0.b7.a-flat.wire.v1",
+            "experimental.v3m0.b7.b-progress.wire.v1",
+            "experimental.v3m0.b7.c-union.wire.v1",
+        ),
+    ),
+    (
+        "scheduler-stage-id",
+        (
+            "reference",
+            "shell",
+            "actual_response_values",
+            "matched_ablated_response_values",
+            "actual_bridge",
+            "matched_ablated_bridge",
+        ),
+    ),
+    (
+        "synthetic-graph-component-id",
+        (
+            "calibration_selection",
+            "permit",
+            "materialization",
+            "actual_transition_outcome",
+            "matched_ablated_transition_outcome",
+            "actual_metric_authority",
+            "matched_ablated_metric_authority",
+            "actual_bridge_grid_authority",
+            "matched_ablated_bridge_grid_authority",
+            "actual_certificate_outcome",
+            "matched_ablated_certificate_outcome",
+        ),
+    ),
+    (
+        "terminal-tag",
+        (
+            "reference_failure",
+            "shell_failure",
+            "actual_response_values_failure",
+            "matched_response_values_failure",
+            "actual_bridge_failure",
+            "matched_bridge_failure",
+            "success",
+        ),
+    ),
+    (
+        "validator-id",
+        (
+            "validate_branch_attempt_v1",
+            "validate_case_contract_v1",
+            "validate_corpus_fixture_v1",
+            "validate_d0_comparison_v1",
+            "validate_d0_decision_payload_projection_v1",
+            "validate_d0_route_result_v1",
+            "validate_d1_comparison_v1",
+            "validate_d1_decision_payload_projection_v1",
+            "validate_d1_route_result_v1",
+            "validate_endpoint_reference_outcome_raw_v1",
+            "validate_endpoint_shell_outcome_raw_v1",
+            "validate_gate_e01_v1",
+            "validate_gate_e02_v1",
+            "validate_gate_e03_v1",
+            "validate_gate_e04_v1",
+            "validate_gate_e05_v1",
+            "validate_gate_e06_v1",
+            "validate_gate_e07_v1",
+            "validate_gate_e08_v1",
+            "validate_production_handoff_v1",
+            "validate_provenance_fixture_v1",
+            "validate_response_run_spec_fixture_v1",
+            "validate_review_halt_v1",
+            "validate_reviewer_child_static_surface_v1",
+            "validate_reviewer_executable_source_origin_v1",
+            "validate_reviewer_receipt_v1",
+            "validate_route_static_surface_v1",
+            "validate_selection_review_v1",
+            "validate_source_readout_response_raw_v1",
+            "validate_synthetic_component_body_v1",
+            "validate_synthetic_graph_manifest_v1",
+            "validate_synthetic_parent_freeze_v3_body_v1",
+        ),
+    ),
 )
 
 
@@ -1399,6 +1540,38 @@ def _core_record_schemas_v1():
             ],
         ]
     return schemas
+
+
+def _require_dotted_identifier_v1(value, field, minimum_parts):
+    if type(value) is not str:
+        raise TypeError(f"{field} must be an exact str")
+    parts = value.split(".")
+    if len(parts) < minimum_parts or any(not part.isidentifier() for part in parts):
+        raise ValueError(f"{field} must be a normalized dotted identifier")
+
+
+def _require_absolute_normalized_path_v1(value, field):
+    if type(value) is not str:
+        raise TypeError(f"{field} must be an exact str")
+    if (
+        not value.startswith("/")
+        or value.startswith("//")
+        or "\\" in value
+        or "\x00" in value
+    ):
+        raise ValueError(f"{field} must be an absolute normalized path")
+    parts = value.split("/")[1:]
+    if not parts or any(part in ("", ".", "..") for part in parts):
+        raise ValueError(f"{field} must be an absolute normalized path")
+
+
+def _require_repo_relative_posix_path_v1(value, field):
+    if type(value) is not str:
+        raise TypeError(f"{field} must be an exact str")
+    if not value or value.startswith("/") or "\\" in value or "\x00" in value:
+        raise ValueError(f"{field} must be a normalized repository-relative path")
+    if any(part in ("", ".", "..") for part in value.split("/")):
+        raise ValueError(f"{field} must be a normalized repository-relative path")
 
 
 def _validate_lab_wire_semantics_v1(value, wire_type, nested_record, field):
@@ -1445,6 +1618,26 @@ def _validate_lab_wire_semantics_v1(value, wire_type, nested_record, field):
         return
     if nested_record is not None:
         _validate_exact_lab_record_v1(nested_record, value)
+        return
+    for semantic_wire_type, allowed_values in _LAB_SEMANTIC_STRING_DOMAINS_V1:
+        if wire_type == semantic_wire_type:
+            if type(value) is not str or value not in allowed_values:
+                raise ValueError(f"{field} is outside the frozen {wire_type} domain")
+            return
+    if wire_type == "absolute-normalized-path":
+        _require_absolute_normalized_path_v1(value, field)
+        return
+    if wire_type == "fully-qualified-type-name":
+        _require_dotted_identifier_v1(value, field, 2)
+        return
+    if wire_type == "json-pointer":
+        _require_json_pointer_v1(value, field)
+        return
+    if wire_type == "module-name":
+        _require_dotted_identifier_v1(value, field, 1)
+        return
+    if wire_type == "repo-relative-posix-path":
+        _require_repo_relative_posix_path_v1(value, field)
         return
     if wire_type in (
         "canonical-json-value",
@@ -1559,7 +1752,11 @@ def validate_corpus_case_v1(raw_body):
 
 
 def _require_json_pointer_v1(value, field):
-    if type(value) is not str or not value.startswith("/"):
+    if type(value) is not str:
+        raise TypeError(f"{field} must be an exact str")
+    if value == "":
+        return
+    if not value.startswith("/"):
         raise ValueError(f"{field} must be a rooted JSON pointer")
     for token in value.split("/")[1:]:
         index = 0
