@@ -386,11 +386,16 @@ def recheck_frozen_python_executable_identity_v1(
 def _require_normalized_absolute_path_v2(value, field):
     import os
 
+    parts = value.split("/")[1:] if type(value) is str else ()
     if (
         type(value) is not str
         or not os.path.isabs(value)
         or value.startswith("//")
+        or "\\" in value
+        or "\x00" in value
         or os.path.normpath(value) != value
+        or not parts
+        or any(part in ("", ".", "..") for part in parts)
     ):
         raise ValueError(f"{field} must be an absolute lexically normalized path")
     return value
@@ -580,6 +585,8 @@ def precheck_python_invocation_identity_v2(
 ):
     """Observe the v9.2 venv invocation and resolved-target identities."""
 
+    import os
+
     invocation = _require_normalized_absolute_path_v2(
         python_invocation_path,
         "Python invocation",
@@ -604,6 +611,9 @@ def precheck_python_invocation_identity_v2(
     )
     ordered_hops, observed_target, chain_complete = _resolve_python_invocation_chain_v2(
         invocation
+    )
+    invocation_resolves_to_recorded_target = (
+        os.path.realpath(invocation) == target and os.path.realpath(target) == target
     )
     target_observation = _stable_regular_file_observation_v2(
         observed_target or target,
@@ -638,6 +648,7 @@ def precheck_python_invocation_identity_v2(
         identity_sha = _common.canonical_sha_v1(projection)
     precheck_passed = (
         complete_identity
+        and invocation_resolves_to_recorded_target
         and observed_target == target
         and target_observation["raw_sha256"] == recorded_raw_sha256
         and observed_prefix == venv_prefix
@@ -664,6 +675,32 @@ def precheck_python_invocation_identity_v2(
         "pyvenv_cfg_identity": cfg_observation,
         "precheck_passed": precheck_passed,
     }
+
+
+def _python_environment_probe_report_is_well_typed_v2(report):
+    string_fields = (
+        "numpy_float64_dtype_str",
+        "numpy_version",
+        "platform_machine",
+        "platform_release",
+        "platform_system",
+        "python_executable_realpath",
+        "python_implementation",
+        "python_invocation_path",
+        "python_venv_prefix",
+        "python_version",
+        "scipy_version",
+    )
+    return (
+        type(report) is dict
+        and tuple(sorted(report)) == _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2
+        and all(type(report[name]) is str and report[name] for name in string_fields)
+        and type(report["numpy_float64_itemsize"]) is int
+        and report["numpy_float64_itemsize"] == 8
+        and type(report["byteorder"]) is str
+        and report["byteorder"] in ("little", "big")
+        and type(report["threadpool_info"]) is list
+    )
 
 
 def recheck_python_invocation_identity_v2(*, precheck_observation):
@@ -698,11 +735,14 @@ def recheck_python_invocation_identity_v2(*, precheck_observation):
         "target_identity",
         "pyvenv_cfg_identity",
     )
-    return all(
-        _common.canonical_json_bytes_v1(refreshed[field])
-        == _common.canonical_json_bytes_v1(precheck_observation.get(field))
-        for field in compared_fields
-    )
+    try:
+        return all(
+            _common.canonical_json_bytes_v1(refreshed[field])
+            == _common.canonical_json_bytes_v1(precheck_observation.get(field))
+            for field in compared_fields
+        )
+    except (TypeError, ValueError):
+        return False
 
 
 def _empty_process_observation_v1(termination_kind):
@@ -1012,6 +1052,9 @@ def run_python_environment_import_probe_v2(
         type(python_identity_observation) is not dict
         or python_identity_observation.get("precheck_passed") is not True
         or python_identity_observation.get("python_invocation_path") != invocation
+        or not recheck_python_invocation_identity_v2(
+            precheck_observation=python_identity_observation,
+        )
     ):
         return invalid
     process_observation = run_bounded_reviewer_process_v1(
@@ -1057,8 +1100,7 @@ def run_python_environment_import_probe_v2(
         payload = stdout_bytes[:-1]
         report = _common.strict_json_loads_v1(payload)
         if (
-            type(report) is not dict
-            or tuple(sorted(report)) != _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2
+            not _python_environment_probe_report_is_well_typed_v2(report)
             or _common.canonical_json_bytes_v1(report) != payload
             or report["python_invocation_path"] != invocation
             or report["python_executable_realpath"]
