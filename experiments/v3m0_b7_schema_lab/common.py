@@ -4803,9 +4803,7 @@ def _capture_leaf_digest_v1(leaves, leaf_id, call_args, output):
                 ],
             }
         ),
-        "output_body_sha": canonical_sha_v1(
-            _capture_leaf_value_projection_v1(output)
-        ),
+        "output_body_sha": canonical_sha_v1(_capture_leaf_value_projection_v1(output)),
     }
     leaves.append(leaf)
     return output
@@ -5137,12 +5135,13 @@ def capture_normalized_transcript_from_raw_v1(
                 )
 
     callback_trace = [leaf["leaf_id"] for leaf in leaves]
-    if tuple(callback_trace) != case_contract[7] or tuple(callback_trace) != case_contract[8]:
+    if (
+        tuple(callback_trace) != case_contract[7]
+        or tuple(callback_trace) != case_contract[8]
+    ):
         raise ValueError("capture leaf trace differs from frozen scheduler prefix")
     payload = {
-        "transcript_schema_version": (
-            "experimental.v3m0.b7.normalized-transcript.v1"
-        ),
+        "transcript_schema_version": ("experimental.v3m0.b7.normalized-transcript.v1"),
         "corpus_spec_sha": corpus_root,
         "case_id": case_id,
         "environment_manifest_sha": environment_root,
@@ -5165,6 +5164,193 @@ def capture_normalized_transcript_from_raw_v1(
         environment_manifest_sha=environment_root,
         graph_raw=graph,
     )
+
+
+def _d1_capture_control_entry_v1(provenance):
+    try:
+        entries = provenance["permit_body"]["calibration"]["calibration_outcome"][
+            "manifest"
+        ]["control_registry"]["entries"]
+    except (KeyError, TypeError):
+        raise ValueError("D1 capture provenance lacks its control registry") from None
+    if type(entries) is not list or not entries or type(entries[0]) is not dict:
+        raise TypeError("D1 capture control registry must contain a first entry")
+    return _detach_json_v1(entries[0])
+
+
+def _d1_capture_reference_spec_v1(provenance, run_spec, graph):
+    actual = _branch_lineage_v1(graph, "actual")
+    payload = {
+        "reference_spec_schema_version": "v3m0.endpoint-reference-spec.v1",
+        "window_protocol_sha": run_spec["window_protocol_sha"],
+        "control_registry_entry": _d1_capture_control_entry_v1(provenance),
+        "actual_factory_sha": actual["factory_sha"],
+        "actual_transition_sha": actual["transition_sha"],
+        "actual_dynamics_certificate_sha": actual["dynamics_certificate_sha"],
+        "candidate_fejer_order": run_spec["selected_fejer_order"],
+        "reference_reciprocal_index": _detach_json_v1(
+            run_spec["reference_reciprocal_index"]
+        ),
+        "preregistered_phase_bands": _detach_json_v1(
+            run_spec["preregistered_phase_bands"]
+        ),
+        "expected_shell_rank": run_spec["expected_shell_rank"],
+        "expected_shell_rank_source_id": ("parent-freeze-control-application-spec-v1"),
+    }
+    return {**payload, "reference_spec_sha": canonical_sha_v1(payload)}
+
+
+def _d1_capture_shell_spec_template_v1(provenance, run_spec):
+    payload = {
+        "shell_spec_schema_version": "v3m0.endpoint-shell-spec.v1",
+        "window_protocol_sha": run_spec["window_protocol_sha"],
+        "control_registry_entry": _d1_capture_control_entry_v1(provenance),
+        "response_grid": _detach_json_v1(run_spec["response_grid"]),
+        "preregistered_phase_bands": _detach_json_v1(
+            run_spec["preregistered_phase_bands"]
+        ),
+        "candidate_fejer_order": run_spec["selected_fejer_order"],
+        "endpoint_reference_projector": None,
+        "extraction_protocol_id": "endpoint-single-node-reference-v1",
+    }
+    return {**payload, "shell_spec_sha": canonical_sha_v1(payload)}
+
+
+def _d1_capture_leaf_inputs_v1(provenance, run_spec, graph, case_id):
+    channel_order = run_spec.get("channel_order")
+    shell_rank = run_spec.get("expected_shell_rank")
+    if type(channel_order) is not list or not channel_order:
+        raise TypeError("D1 capture channel order must be a nonempty list")
+    state_count = len(channel_order)
+    if type(shell_rank) is not int or not 0 < shell_rank <= state_count:
+        raise ValueError("D1 capture shell rank is outside the state space")
+    if run_spec.get("selected_fejer_order") != 256:
+        raise ValueError("D1 capture raw inputs require T=256")
+    bridge_grid = run_spec.get("source_readout_bridge_grid")
+    bridge_steps = run_spec.get("source_readout_bridge_steps")
+    if (
+        type(bridge_grid) is not dict
+        or type(bridge_grid.get("reciprocal_indices")) is not list
+        or type(bridge_steps) is not list
+    ):
+        raise TypeError("D1 capture bridge domain is not frozen")
+
+    np = _pure_core.np
+    success_transition = np.diag(
+        np.asarray(
+            [1.0j] * shell_rank + [1.0 + 0.0j] * (state_count - shell_rank),
+            dtype=np.complex128,
+        )
+    )
+    failure_transition = np.eye(state_count, dtype=np.complex128)
+    metric = np.eye(state_count, dtype=np.complex128)
+    source_injection = np.zeros((state_count, shell_rank), dtype=np.complex128)
+    source_injection[:shell_rank, :] = np.eye(shell_rank, dtype=np.complex128)
+    readout = np.zeros((shell_rank, state_count), dtype=np.complex128)
+    readout[:, :shell_rank] = np.eye(shell_rank, dtype=np.complex128)
+    bridge_differences = tuple(
+        (
+            tuple(reciprocal_index),
+            macro_steps,
+            np.zeros((shell_rank, shell_rank), dtype=np.complex128),
+        )
+        for reciprocal_index in bridge_grid["reciprocal_indices"]
+        for macro_steps in bridge_steps
+    )
+    return {
+        "reference_spec": _d1_capture_reference_spec_v1(
+            provenance,
+            run_spec,
+            graph,
+        ),
+        "shell_spec_template": _d1_capture_shell_spec_template_v1(
+            provenance,
+            run_spec,
+        ),
+        "reference_transition_matrix": (
+            failure_transition if case_id == "reference_failure" else success_transition
+        ),
+        "reference_metric_matrix": metric,
+        "ordered_shell_transition_matrices": (
+            failure_transition if case_id == "shell_failure" else success_transition,
+        ),
+        "ordered_shell_metric_matrices": (metric,),
+        "source_injection_matrix": source_injection,
+        "readout_matrix": readout,
+        "ordered_actual_transition_matrices": (success_transition,),
+        "ordered_actual_metric_matrices": (metric,),
+        "ordered_matched_ablated_transition_matrices": (success_transition,),
+        "ordered_matched_ablated_metric_matrices": (metric,),
+        "ordered_actual_raw_differences": bridge_differences,
+        "ordered_matched_ablated_raw_differences": bridge_differences,
+    }
+
+
+def capture_d1_transcript_set_v1(*, capture_ordinal, validated_corpus_fixture):
+    """Freshly recapture the seven T=256 cases through the common-owned harness."""
+
+    if type(capture_ordinal) is not int:
+        raise TypeError("D1 capture ordinal must be an exact int")
+    if capture_ordinal not in (0, 1, 2):
+        raise ValueError("D1 capture ordinal is not frozen")
+    fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    if type(source_sets) is not list or len(source_sets) != 1:
+        raise ValueError("D1 capture requires exactly one D0 fixture source set")
+    d0_sources = source_sets[0]
+    graph = validate_synthetic_graph_manifest_v1(fixture["synthetic_graph_manifest"])
+    if graph.get("selected_fejer_order") != 256 or canonical_json_bytes_v1(
+        graph
+    ) != canonical_json_bytes_v1(fixture["synthetic_graph_manifest"]):
+        raise ValueError("D1 capture fixture graph is not exact T=256")
+    corpus_root = fixture["corpus_spec"]["corpus_spec_sha"]
+    environment_root = fixture["environment_manifest"]["environment_sha"]
+    validated_sources = []
+    for source in d0_sources:
+        validated = _validate_normalized_transcript_against_validated_graph_v1(
+            source,
+            corpus_spec_sha=corpus_root,
+            environment_manifest_sha=environment_root,
+            validated_graph=graph,
+        )
+        if canonical_json_bytes_v1(validated) != canonical_json_bytes_v1(source):
+            raise ValueError("D1 capture D0 source lineage was substituted")
+        validated_sources.append(validated)
+
+    provenance = validated_sources[0].get("provenance_fixture")
+    run_spec = validated_sources[0].get("response_run_spec_fixture")
+    if type(provenance) is not dict or type(run_spec) is not dict:
+        raise TypeError("D1 capture source lacks provenance or run spec")
+    for source in validated_sources[1:]:
+        if canonical_json_bytes_v1(source.get("provenance_fixture")) != (
+            canonical_json_bytes_v1(provenance)
+        ) or canonical_json_bytes_v1(source.get("response_run_spec_fixture")) != (
+            canonical_json_bytes_v1(run_spec)
+        ):
+            raise ValueError("D1 capture D0 sources do not share one raw input graph")
+
+    transcripts = []
+    for case_contract in _CASE_CONTRACTS_V1:
+        case_id = case_contract[1]
+        transcript = capture_normalized_transcript_from_raw_v1(
+            case_id=case_id,
+            corpus_spec_sha=corpus_root,
+            environment_manifest_sha=environment_root,
+            provenance_fixture=provenance,
+            response_run_spec_fixture=run_spec,
+            synthetic_graph_manifest=graph,
+            leaf_inputs=_d1_capture_leaf_inputs_v1(
+                provenance,
+                run_spec,
+                graph,
+                case_id,
+            ),
+        )
+        if type(transcript) is not dict or transcript.get("case_id") != case_id:
+            raise ValueError("D1 capture scheduler returned a substituted case")
+        transcripts.append(transcript)
+    return transcripts
 
 
 _CORPUS_FIXTURE_V2_FIELDS = (

@@ -28,9 +28,7 @@ def _leaf_inputs() -> dict[str, object]:
         "ordered_matched_ablated_transition_matrices": ("matched-transition",),
         "ordered_matched_ablated_metric_matrices": ("matched-metric",),
         "ordered_actual_raw_differences": (((0,), 2, "actual-difference"),),
-        "ordered_matched_ablated_raw_differences": (
-            ((0,), 2, "matched-difference"),
-        ),
+        "ordered_matched_ablated_raw_differences": (((0,), 2, "matched-difference"),),
     }
 
 
@@ -143,7 +141,9 @@ def _install_leaf_spies(
             "branch": "actual",
             "response_values": actual_values,
             "bridge_audit": actual_bridge,
-            "failure": failure if failure in ("actual_response_failed", "actual_bridge_failed") else None,
+            "failure": failure
+            if failure in ("actual_response_failed", "actual_bridge_failed")
+            else None,
             "attempt_sha": "a" * 64,
         }
         matched = None
@@ -155,19 +155,25 @@ def _install_leaf_spies(
                 "branch": "matched_ablated",
                 "response_values": matched_values,
                 "bridge_audit": matched_bridge,
-                "failure": failure if failure and failure.startswith("matched") else None,
+                "failure": failure
+                if failure and failure.startswith("matched")
+                else None,
                 "attempt_sha": "m" * 64,
             }
         return actual, matched, failure
 
-    monkeypatch.setattr(common._pure_core, "_select_endpoint_reference_from_raw", reference)
+    monkeypatch.setattr(
+        common._pure_core, "_select_endpoint_reference_from_raw", reference
+    )
     monkeypatch.setattr(common._pure_core, "_track_endpoint_shell_from_raw", shell)
     monkeypatch.setattr(
         common._pure_core,
         "_build_fejer_branch_response_values_from_raw",
         values,
     )
-    monkeypatch.setattr(common._pure_core, "_audit_source_readout_bridge_from_raw", bridge)
+    monkeypatch.setattr(
+        common._pure_core, "_audit_source_readout_bridge_from_raw", bridge
+    )
     monkeypatch.setattr(
         common._pure_core,
         "_assemble_atomic_paired_response_attempt_from_raw",
@@ -291,6 +297,148 @@ def test_common_harness_leaf_digest_binds_actual_matrix_bytes(
     changed_inputs["reference_transition_matrix"] = "changed-transition"
     second = _capture("success", changed_inputs)
 
-    assert first["ordered_leaf_digests"][0]["input_body_sha"] != second[
-        "ordered_leaf_digests"
-    ][0]["input_body_sha"]
+    assert (
+        first["ordered_leaf_digests"][0]["input_body_sha"]
+        != second["ordered_leaf_digests"][0]["input_body_sha"]
+    )
+
+
+def _d1_wrapper_fixture() -> dict[str, object]:
+    provenance = {
+        "permit_body": {
+            "calibration": {
+                "calibration_outcome": {
+                    "manifest": {
+                        "control_registry": {"entries": [{"entry": "control"}]}
+                    }
+                }
+            }
+        }
+    }
+    run_spec = {
+        "window_protocol_sha": "1" * 64,
+        "selected_fejer_order": 256,
+        "reference_reciprocal_index": [1],
+        "preregistered_phase_bands": [[1.0, 2.0]],
+        "expected_shell_rank": 1,
+        "channel_order": ["x", "y"],
+        "response_grid": {"grid": "response"},
+        "source_readout_bridge_grid": {"reciprocal_indices": [[0], [1]]},
+        "source_readout_bridge_steps": [2],
+    }
+    transcripts = [
+        {
+            "case_id": row[1],
+            "provenance_fixture": copy.deepcopy(provenance),
+            "response_run_spec_fixture": copy.deepcopy(run_spec),
+        }
+        for row in common._CASE_CONTRACTS_V1
+    ]
+    return {
+        "corpus_spec": {"corpus_spec_sha": "2" * 64},
+        "environment_manifest": {"environment_sha": "3" * 64},
+        "synthetic_graph_manifest": {
+            "selected_fejer_order": 256,
+            "graph_sha": "4" * 64,
+        },
+        "ordered_d0_transcripts": transcripts,
+    }
+
+
+def test_d1_capture_wrapper_has_only_ordinal_and_validated_fixture_boundary() -> None:
+    assert tuple(inspect.signature(common.capture_d1_transcript_set_v1).parameters) == (
+        "capture_ordinal",
+        "validated_corpus_fixture",
+    )
+
+
+def test_d1_capture_wrapper_reconstructs_all_seven_raw_inputs_inside_common(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = _d1_wrapper_fixture()
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        common,
+        "_validated_d0_fixture_source_domain_v1",
+        lambda observed: (
+            observed,
+            [copy.deepcopy(observed["ordered_d0_transcripts"])],
+        ),
+    )
+    monkeypatch.setattr(
+        common,
+        "validate_synthetic_graph_manifest_v1",
+        lambda observed: copy.deepcopy(observed),
+    )
+    monkeypatch.setattr(
+        common,
+        "_validate_normalized_transcript_against_validated_graph_v1",
+        lambda observed, **_kwargs: copy.deepcopy(observed),
+    )
+    monkeypatch.setattr(
+        common,
+        "_branch_lineage_v1",
+        lambda _graph, branch: {
+            "factory_sha": ("a" if branch == "actual" else "b") * 64,
+            "transition_sha": ("c" if branch == "actual" else "d") * 64,
+            "dynamics_certificate_sha": "e" * 64,
+            "dt": 0.25,
+        },
+    )
+
+    def capture(**kwargs):
+        calls.append(kwargs)
+        return {"case_id": kwargs["case_id"], "captured": True}
+
+    monkeypatch.setattr(common, "capture_normalized_transcript_from_raw_v1", capture)
+
+    observed = common.capture_d1_transcript_set_v1(
+        capture_ordinal=2,
+        validated_corpus_fixture=fixture,
+    )
+
+    assert [row["case_id"] for row in observed] == [
+        row[1] for row in common._CASE_CONTRACTS_V1
+    ]
+    assert len(calls) == 7
+    assert all("leaf_provider" not in call and "callback" not in call for call in calls)
+    assert all(call["corpus_spec_sha"] == "2" * 64 for call in calls)
+    assert all(call["environment_manifest_sha"] == "3" * 64 for call in calls)
+    assert all(
+        call["synthetic_graph_manifest"] == fixture["synthetic_graph_manifest"]
+        for call in calls
+    )
+    first = calls[0]["leaf_inputs"]
+    second = calls[1]["leaf_inputs"]
+    success = calls[-1]["leaf_inputs"]
+    assert first["reference_transition_matrix"].shape == (2, 2)
+    assert first["reference_transition_matrix"].tolist() == [[1.0, 0.0], [0.0, 1.0]]
+    assert second["ordered_shell_transition_matrices"][0].tolist() == [
+        [1.0, 0.0],
+        [0.0, 1.0],
+    ]
+    assert success["reference_transition_matrix"].tolist() == [
+        [1j, 0j],
+        [0j, 1 + 0j],
+    ]
+
+
+@pytest.mark.parametrize("capture_ordinal", (-1, 3, True, 1.0, "1"))
+def test_d1_capture_wrapper_rejects_nonfrozen_ordinal_before_raw_leaf_call(
+    monkeypatch: pytest.MonkeyPatch,
+    capture_ordinal,
+) -> None:
+    calls = 0
+
+    def forbidden(**_kwargs):
+        nonlocal calls
+        calls += 1
+        raise AssertionError("raw leaf scheduler entered")
+
+    monkeypatch.setattr(common, "capture_normalized_transcript_from_raw_v1", forbidden)
+    with pytest.raises((TypeError, ValueError)):
+        common.capture_d1_transcript_set_v1(
+            capture_ordinal=capture_ordinal,
+            validated_corpus_fixture=_d1_wrapper_fixture(),
+        )
+    assert calls == 0

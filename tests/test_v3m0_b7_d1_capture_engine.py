@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -506,4 +507,128 @@ def test_d1_capture_rejects_noncanonical_survivor_route_domains_before_route_ent
                 ordered_capture_source_bytes=_source_bytes(),
             )
         )
+    assert route_calls == 0
+
+
+def _capture_stdout(capture_ordinal: int) -> bytes:
+    return (
+        common.canonical_json_bytes_v1(
+            {
+                "capture_ordinal": capture_ordinal,
+                "ordered_transcripts": _source_sets()[capture_ordinal],
+            }
+        )
+        + b"\n"
+    )
+
+
+def test_fresh_process_capture_outer_spawns_three_fixed_children_and_validates_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from experiments.v3m0_b7_schema_lab import compare
+
+    fixture = {
+        "environment_manifest": {"python_invocation_path": "/frozen/python"},
+        "fixture": "validated",
+    }
+    fixture_path = tmp_path / "corpus.json"
+    fixture_path.write_bytes(common.canonical_json_bytes_v1(fixture) + b"\n")
+    fixture_path.chmod(0o444)
+    observations: list[tuple[str, ...]] = []
+
+    def run(**kwargs):
+        argv = kwargs["argv"]
+        observations.append(argv)
+        ordinal = int(argv[-1])
+        assert kwargs["cwd"] == str(tmp_path)
+        assert (
+            kwargs["environment"] == compare.build_sanitized_reviewer_environment_v1()
+        )
+        assert kwargs["stdout_hard_cap_bytes"] == 8 * 1024 * 1024
+        return compare._process_observation_v1(
+            "EXITED",
+            0,
+            None,
+            _capture_stdout(ordinal),
+            b"",
+            False,
+        )
+
+    validated_domains: list[list[list[bytes]]] = []
+    monkeypatch.setattr(compare, "run_bounded_reviewer_process_v1", run)
+    monkeypatch.setattr(
+        common,
+        "_validate_d1_capture_source_bytes_v1",
+        lambda observed: observed,
+    )
+    monkeypatch.setattr(
+        compare,
+        "_prepare_d1_capture_domain_v1",
+        lambda observed_fixture, observed_sources: (
+            validated_domains.append(observed_sources)
+            or {"captures": [], "mutations": []}
+        ),
+    )
+
+    observed = compare.run_d1_fresh_capture_processes_v1(
+        python_invocation_path="/frozen/python",
+        export_root=str(tmp_path),
+        fixture_path=str(fixture_path),
+        validated_corpus_fixture=fixture,
+        python_precheck_observation={"precheck": "validated"},
+    )
+
+    assert observed == _source_bytes()
+    assert len(observations) == 3
+    assert [argv[-1] for argv in observations] == ["0", "1", "2"]
+    assert all(
+        argv[:4] == ("/frozen/python", "-s", "-B", "-c") for argv in observations
+    )
+    assert len({id(argv) for argv in observations}) == 3
+    assert validated_domains == [_source_bytes()]
+
+
+def test_fresh_process_capture_rejects_noncanonical_child_before_route_entry(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from experiments.v3m0_b7_schema_lab import compare
+
+    fixture = {
+        "environment_manifest": {"python_invocation_path": "/frozen/python"},
+        "fixture": "validated",
+    }
+    fixture_path = tmp_path / "corpus.json"
+    fixture_path.write_bytes(common.canonical_json_bytes_v1(fixture) + b"\n")
+    fixture_path.chmod(0o444)
+    process_calls = 0
+    route_calls = 0
+
+    def run(**kwargs):
+        nonlocal process_calls
+        process_calls += 1
+        ordinal = int(kwargs["argv"][-1])
+        stdout = _capture_stdout(ordinal) if ordinal == 0 else b'{"not":"canonical"} \n'
+        return compare._process_observation_v1("EXITED", 0, None, stdout, b"", False)
+
+    def forbidden(**_kwargs):
+        nonlocal route_calls
+        route_calls += 1
+        raise AssertionError("route entered after invalid child output")
+
+    monkeypatch.setattr(compare, "run_bounded_reviewer_process_v1", run)
+    monkeypatch.setattr(compare, "build_d1_route_inputs_from_capture_v1", forbidden)
+
+    with pytest.raises(ValueError, match="canonical"):
+        compare.build_d1_route_inputs_from_fresh_processes_v1(
+            d0_comparison={},
+            ordered_d0_route_inputs=[],
+            python_invocation_path="/frozen/python",
+            export_root=str(tmp_path),
+            fixture_path=str(fixture_path),
+            validated_corpus_fixture=fixture,
+            python_precheck_observation={"precheck": "validated"},
+        )
+    assert process_calls == 2
     assert route_calls == 0

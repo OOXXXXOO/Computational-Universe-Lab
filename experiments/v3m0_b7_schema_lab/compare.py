@@ -14,6 +14,7 @@ REVIEWER_PROCESS_IO_CHUNK_BYTES_V1 = 65536
 REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1 = 5
 REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1 = 5
+D1_CAPTURE_PROCESS_STDOUT_HARD_CAP_BYTES_V1 = 8 * 1024 * 1024
 _SANITIZED_REVIEWER_ENVIRONMENT_V1 = (
     ("PYTHONHASHSEED", "0"),
     ("PYTHONNOUSERSITE", "1"),
@@ -90,6 +91,19 @@ _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2 = (
 )
 
 _D0_CAPTURE_ROUTE_ORDER_V1 = ("A_FLAT", "B_PROGRESS", "C_UNION")
+_D1_CAPTURE_CHILD_PROGRAM_UTF8_V1 = (
+    "import sys;"
+    "from experiments.v3m0_b7_schema_lab import common;"
+    "raw=open(sys.argv[1],'rb').read();"
+    "payload=raw[:-1] if raw.endswith(b'\\n') and b'\\n' not in raw[:-1] else (_ for _ in ()).throw(ValueError('fixture framing drifted'));"
+    "fixture=common.strict_json_loads_v1(payload);"
+    "common.canonical_json_bytes_v1(fixture)==payload or (_ for _ in ()).throw(ValueError('fixture is not canonical'));"
+    "ordinal=int(sys.argv[2]);"
+    "str(ordinal)==sys.argv[2] or (_ for _ in ()).throw(ValueError('capture ordinal drifted'));"
+    "transcripts=common.capture_d1_transcript_set_v1(capture_ordinal=ordinal,validated_corpus_fixture=fixture);"
+    "out=common.canonical_json_bytes_v1({'capture_ordinal':ordinal,'ordered_transcripts':transcripts})+b'\\n';"
+    "sys.stdout.buffer.write(out)"
+)
 
 
 def _returned_route_call_v1(result):
@@ -693,6 +707,222 @@ def build_d1_route_inputs_from_capture_v1(
     except StopIteration:
         return route_inputs
     raise ValueError("D1 capture emitted a non-survivor route")
+
+
+def _read_immutable_d1_capture_fixture_v1(
+    export_root,
+    fixture_path,
+    validated_corpus_fixture,
+):
+    import os
+    import stat
+
+    root = _require_normalized_absolute_path_v2(export_root, "D1 export root")
+    path = _require_normalized_absolute_path_v2(fixture_path, "D1 fixture path")
+    try:
+        if (
+            os.path.realpath(root) != root
+            or os.path.realpath(path) != path
+            or os.path.commonpath((root, path)) != root
+            or path == root
+        ):
+            raise ValueError("D1 fixture is not inside one resolved export root")
+    except (OSError, ValueError):
+        raise ValueError("D1 fixture export path identity drifted") from None
+
+    descriptor = None
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK,
+        )
+        before = os.fstat(descriptor)
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_mode,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        if not stat.S_ISREG(before.st_mode) or before.st_mode & 0o222:
+            raise ValueError("D1 fixture must be an immutable regular file")
+        remaining = before.st_size
+        chunks = []
+        while remaining:
+            chunk = os.read(descriptor, min(1048576, remaining))
+            if not chunk:
+                raise ValueError("D1 fixture read ended before its frozen size")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError("D1 fixture grew during its identity read")
+        after = os.fstat(descriptor)
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_mode,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if after_identity != before_identity:
+            raise ValueError("D1 fixture identity changed during its read")
+    except OSError:
+        raise ValueError(
+            "D1 fixture could not be read without following links"
+        ) from None
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+    raw_bytes = b"".join(chunks)
+    expected = _common.canonical_json_bytes_v1(validated_corpus_fixture) + b"\n"
+    if raw_bytes != expected:
+        raise ValueError("D1 child fixture bytes differ from the validated fixture")
+    return root, path
+
+
+def _parse_d1_capture_child_stdout_v1(capture_ordinal, stdout_bytes):
+    if type(stdout_bytes) is not bytes:
+        raise TypeError("D1 capture child stdout must be exact bytes")
+    if (
+        not stdout_bytes.endswith(b"\n")
+        or not stdout_bytes[:-1]
+        or b"\n" in stdout_bytes[:-1]
+    ):
+        raise ValueError("D1 capture child stdout framing is not canonical")
+    payload_bytes = stdout_bytes[:-1]
+    payload = _common.strict_json_loads_v1(payload_bytes)
+    if _common.canonical_json_bytes_v1(payload) != payload_bytes:
+        raise ValueError("D1 capture child stdout is not canonical JSON")
+    if type(payload) is not dict or tuple(payload) != (
+        "capture_ordinal",
+        "ordered_transcripts",
+    ):
+        raise ValueError("D1 capture child stdout fields drifted")
+    if (
+        type(payload["capture_ordinal"]) is not int
+        or payload["capture_ordinal"] != capture_ordinal
+    ):
+        raise ValueError("D1 capture child ordinal differs from its process")
+    transcripts = payload["ordered_transcripts"]
+    if (
+        type(transcripts) is not list
+        or len(transcripts) != 7
+        or any(type(transcript) is not dict for transcript in transcripts)
+    ):
+        raise TypeError("D1 capture child must emit exactly seven transcripts")
+    return [_common.canonical_json_bytes_v1(transcript) for transcript in transcripts]
+
+
+def run_d1_fresh_capture_processes_v1(
+    *,
+    python_invocation_path,
+    export_root,
+    fixture_path,
+    validated_corpus_fixture,
+    python_precheck_observation,
+):
+    """Run exactly three fresh common-harness children and return canonical bytes."""
+
+    invocation = _require_normalized_absolute_path_v2(
+        python_invocation_path,
+        "D1 Python invocation",
+    )
+    if type(validated_corpus_fixture) is not dict:
+        raise TypeError("D1 validated corpus fixture must be an exact dict")
+    fixture_environment = validated_corpus_fixture.get("environment_manifest")
+    if (
+        type(fixture_environment) is not dict
+        or fixture_environment.get("python_invocation_path") != invocation
+    ):
+        raise ValueError("D1 capture Python invocation differs from its fixture")
+    root, path = _read_immutable_d1_capture_fixture_v1(
+        export_root,
+        fixture_path,
+        validated_corpus_fixture,
+    )
+    environment = build_sanitized_reviewer_environment_v1()
+    ordered_capture_source_bytes = []
+    for capture_ordinal in (0, 1, 2):
+        argv = (
+            invocation,
+            "-s",
+            "-B",
+            "-c",
+            _D1_CAPTURE_CHILD_PROGRAM_UTF8_V1,
+            path,
+            str(capture_ordinal),
+        )
+        observation = run_bounded_reviewer_process_v1(
+            argv=argv,
+            cwd=root,
+            environment=environment,
+            timeout_seconds=REVIEWER_PROCESS_TIMEOUT_SECONDS_V1,
+            stdout_hard_cap_bytes=D1_CAPTURE_PROCESS_STDOUT_HARD_CAP_BYTES_V1,
+            stderr_hard_cap_bytes=REVIEWER_PROCESS_STDERR_HARD_CAP_BYTES_V1,
+            io_chunk_bytes=REVIEWER_PROCESS_IO_CHUNK_BYTES_V1,
+            term_grace_seconds=REVIEWER_PROCESS_TERM_GRACE_SECONDS_V1,
+            kill_grace_seconds=REVIEWER_PROCESS_KILL_GRACE_SECONDS_V1,
+            final_pipe_close_deadline_seconds=(
+                REVIEWER_PROCESS_FINAL_PIPE_CLOSE_DEADLINE_SECONDS_V1
+            ),
+            python_precheck_observation=python_precheck_observation,
+        )
+        if not (
+            observation["replay_termination_kind"] == "EXITED"
+            and observation["replay_exit_code"] == 0
+            and observation["replay_signal_number"] is None
+            and observation["replay_stderr_bytes"] == b""
+            and observation["process_cleanup_deadline_exceeded"] is False
+        ):
+            raise ValueError(
+                f"D1 fresh capture process {capture_ordinal} did not exit cleanly"
+            )
+        ordered_capture_source_bytes.append(
+            _parse_d1_capture_child_stdout_v1(
+                capture_ordinal,
+                observation["replay_stdout_bytes"],
+            )
+        )
+    _read_immutable_d1_capture_fixture_v1(
+        export_root,
+        fixture_path,
+        validated_corpus_fixture,
+    )
+    _common._validate_d1_capture_source_bytes_v1(ordered_capture_source_bytes)
+    _prepare_d1_capture_domain_v1(
+        validated_corpus_fixture,
+        ordered_capture_source_bytes,
+    )
+    return ordered_capture_source_bytes
+
+
+def build_d1_route_inputs_from_fresh_processes_v1(
+    *,
+    d0_comparison,
+    ordered_d0_route_inputs,
+    python_invocation_path,
+    export_root,
+    fixture_path,
+    validated_corpus_fixture,
+    python_precheck_observation,
+):
+    """Capture first; only then expose completed transcript bytes to routes."""
+
+    source_bytes = run_d1_fresh_capture_processes_v1(
+        python_invocation_path=python_invocation_path,
+        export_root=export_root,
+        fixture_path=fixture_path,
+        validated_corpus_fixture=validated_corpus_fixture,
+        python_precheck_observation=python_precheck_observation,
+    )
+    return build_d1_route_inputs_from_capture_v1(
+        d0_comparison=d0_comparison,
+        ordered_d0_route_inputs=ordered_d0_route_inputs,
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_capture_source_bytes=source_bytes,
+    )
 
 
 def _require_lower_hex_v1(value, width, field):
