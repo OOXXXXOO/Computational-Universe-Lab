@@ -7,8 +7,10 @@ an authority, execute a route, or issue a scientific status.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 
@@ -20,6 +22,15 @@ REGISTRY_PATH = REPO_ROOT / "docsv3" / "v3-机器合同-B7-v9.1-registry.json"
 REGISTRY_RAW_SHA256 = "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72"
 PURE_REPLAY_PROJECTION_SHA256 = (
     "bafbaeb75e890715464c1fff6e6e0cbf1d4f56bb53a3817a9b2d12d2a3c27ff9"
+)
+GIT_HANDOFF_MECHANICAL_SHA256 = (
+    "1fec7f8cdc26e7fef95706fb495d6b659ec32bad0d029ed0db6b9362d2a66845"
+)
+HALT_ARTIFACT_MATRIX_SHA256 = (
+    "fd9872ddd1fe3ce91eedc5d93bc78805bef35bfa4a9857bbe9bb43fccc68da56"
+)
+REPLAY_REPORT_MECHANICAL_SHA256 = (
+    "99064f0f2122e9e3a2499464fa084178aeef15caa503f175f9bad30fe2a4ecd1"
 )
 
 BASE_CONTRACTS = {
@@ -241,6 +252,13 @@ def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]
     return result
 
 
+def _parse_finite_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f"non-finite JSON number: {value}")
+    return parsed
+
+
 def _strict_json_loads(raw: bytes) -> dict[str, object]:
     value = json.loads(
         raw.decode("utf-8"),
@@ -248,6 +266,7 @@ def _strict_json_loads(raw: bytes) -> dict[str, object]:
         parse_constant=lambda value: (_ for _ in ()).throw(
             ValueError(f"non-finite JSON constant: {value}")
         ),
+        parse_float=_parse_finite_float,
     )
     assert type(value) is dict
     return value
@@ -261,9 +280,9 @@ def _load_frozen_registry() -> dict[str, object]:
 
 
 def _load_embedded_registry(
-    path: Path, begin_marker: str, end_marker: str
+    verified_raw: bytes, begin_marker: str, end_marker: str
 ) -> dict[str, object]:
-    text = path.read_text(encoding="utf-8")
+    text = verified_raw.decode("utf-8")
     assert text.count(begin_marker) == 1
     assert text.count(end_marker) == 1
     block = text.split(begin_marker, 1)[1].split(end_marker, 1)[0].strip()
@@ -314,6 +333,41 @@ def _json_pointer(document: object, pointer: str) -> object:
     return current
 
 
+def _json_pointer_parent(
+    document: object, pointer: str
+) -> tuple[dict[str, object] | list[object], str | int]:
+    assert pointer.startswith("/")
+    tokens = [
+        token.replace("~1", "/").replace("~0", "~")
+        for token in pointer.removeprefix("/").split("/")
+    ]
+    assert tokens
+    parent = document
+    for token in tokens[:-1]:
+        if type(parent) is dict:
+            parent = parent[token]
+        else:
+            assert type(parent) is list
+            parent = parent[int(token)]
+    assert type(parent) in {dict, list}
+    leaf: str | int = tokens[-1]
+    if type(parent) is list:
+        leaf = int(leaf)
+    return parent, leaf
+
+
+def _replace_pointer(document: object, pointer: str, replacement: object) -> None:
+    parent, leaf = _json_pointer_parent(document, pointer)
+    parent[leaf] = copy.deepcopy(replacement)
+
+
+def _add_absent_pointer(document: object, pointer: str, replacement: object) -> None:
+    parent, leaf = _json_pointer_parent(document, pointer)
+    assert type(parent) is dict and type(leaf) is str
+    assert leaf not in parent
+    parent[leaf] = copy.deepcopy(replacement)
+
+
 def _field_names(record: dict[str, object]) -> tuple[str, ...]:
     return tuple(field["name"] for field in record["field_specs"])
 
@@ -337,6 +391,312 @@ def _record_body(record_delta: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in record_delta.items() if key != "operation"}
 
 
+def _load_verified_base_registries(
+    registry: dict[str, object],
+) -> dict[str, dict[str, object]]:
+    loaded: dict[str, dict[str, object]] = {}
+    for version, expected in BASE_CONTRACTS.items():
+        assert registry["base_contracts"][version] == expected
+        raw = (REPO_ROOT / expected["path"]).read_bytes()
+        # This exact object is decoded and parsed below; the path is not read twice.
+        assert hashlib.sha256(raw).hexdigest() == expected["raw_sha256"]
+        if version not in EMBEDDED_REGISTRY_MARKERS:
+            assert raw.decode("utf-8")
+            continue
+        begin, end = EMBEDDED_REGISTRY_MARKERS[version]
+        base = _load_embedded_registry(raw, begin, end)
+        assert base["registry_schema_version"] == expected["registry_schema_version"]
+        assert _ordered_digest(base) == expected["ordered_registry_sha256"]
+        loaded[version] = base
+    assert tuple(loaded) == ("v6", "v7", "v8")
+    return loaded
+
+
+def _escape_pointer_token(token: str) -> str:
+    return token.replace("~", "~0").replace("/", "~1")
+
+
+def _diff_leaf_pointers(left: object, right: object, pointer: str = "") -> set[str]:
+    if type(left) is not type(right):
+        return {pointer or "/"}
+    if type(left) is dict:
+        differences: set[str] = set()
+        for key in sorted(set(left) | set(right)):
+            child = f"{pointer}/{_escape_pointer_token(key)}"
+            if key not in left or key not in right:
+                differences.add(child)
+            else:
+                differences.update(_diff_leaf_pointers(left[key], right[key], child))
+        return differences
+    if type(left) is list:
+        if len(left) != len(right):
+            return {pointer or "/"}
+        differences = set()
+        for index, (left_item, right_item) in enumerate(zip(left, right)):
+            differences.update(
+                _diff_leaf_pointers(left_item, right_item, f"{pointer}/{index}")
+            )
+        return differences
+    return set() if left == right else {pointer or "/"}
+
+
+def _assert_mutation_closure(
+    prior: dict[str, object],
+    effective: dict[str, object],
+    declared_roots: list[str],
+) -> None:
+    differences = _diff_leaf_pointers(prior, effective)
+    assert differences
+    assert len(declared_roots) == len(set(declared_roots))
+    for difference in differences:
+        assert any(
+            difference == root or difference.startswith(f"{root}/")
+            for root in declared_roots
+        ), difference
+    for root in declared_roots:
+        assert any(
+            difference == root or difference.startswith(f"{root}/")
+            for difference in differences
+        ), root
+
+
+def _materialize_effective_v7(
+    v6: dict[str, object], v7: dict[str, object]
+) -> dict[str, object]:
+    effective = copy.deepcopy(v6)
+    merge = v7["effective_merge"]
+    assert merge["algorithm"] == (
+        "COPY_V6_THEN_APPLY_EXACT_JSON_POINTER_REPLACEMENTS_THEN_ADD_V7_DELTA"
+    )
+    assert merge["unlisted_v6_mutation_allowed"] is False
+    assert merge["v7_delta_additions_apply_after_overrides"] is True
+    declared_roots: list[str] = []
+
+    for override in merge["json_pointer_overrides"]:
+        assert set(override) == {
+            "json_pointer",
+            "operation",
+            "expected_v6_value",
+            "replacement_value",
+        }
+        assert override["operation"] == "REPLACE_EXACT"
+        pointer = override["json_pointer"]
+        assert _json_pointer(effective, pointer) == override["expected_v6_value"]
+        _replace_pointer(effective, pointer, override["replacement_value"])
+        declared_roots.append(pointer)
+
+    for name, delta in v7["record_catalog_delta"].items():
+        pointer = f"/record_catalog/{_escape_pointer_token(name)}"
+        operation = delta["operation"]
+        if operation == "ADD_V7_RECORD":
+            _add_absent_pointer(effective, pointer, _record_body(delta))
+        else:
+            assert operation == "REPLACE_V6_RECORD"
+            assert _json_pointer(effective, pointer)
+            _replace_pointer(effective, pointer, _record_body(delta))
+        declared_roots.append(pointer)
+
+    field_replacement = v7["dynamics_certificate_v3_field_replacement"]
+    assert field_replacement["operation"] == "REPLACE_V6_FIELD_TYPE"
+    record = effective["record_catalog"][field_replacement["record"]]
+    field_index, field = next(
+        (index, field)
+        for index, field in enumerate(record["field_specs"])
+        if field["name"] == field_replacement["field"]
+    )
+    assert field["wire_type"] == field_replacement["old_wire_type"]
+    assert field["nested_record"] == field_replacement["old_nested_record"]
+    assert field["presence"] == field_replacement["presence"]
+    field["wire_type"] = field_replacement["new_wire_type"]
+    field["nested_record"] = field_replacement["new_nested_record"]
+    field["constraints"] = copy.deepcopy(field_replacement["constraints"])
+    declared_roots.append(
+        f"/record_catalog/{field_replacement['record']}/field_specs/{field_index}"
+    )
+
+    assert len(merge["json_pointer_overrides"]) == 2
+    assert len(v7["record_catalog_delta"]) == 2
+    assert len(declared_roots) == 5
+    _assert_mutation_closure(v6, effective, declared_roots)
+    return effective
+
+
+def _apply_relative_patches(
+    prior: object, repair: dict[str, object]
+) -> dict[str, object]:
+    assert type(prior) is dict
+    repaired = copy.deepcopy(prior)
+    assert repair["operation"] == "RESTORE_EXACT_PRODUCTION_SOURCE"
+    assert repair["legacy_byte_and_sha_compatibility_required"] is True
+    for patch in repair["record_patch"]:
+        assert set(patch) == {
+            "relative_pointer",
+            "expected_prior_value",
+            "replacement_value",
+        }
+        parent, leaf = _json_pointer_parent(repaired, patch["relative_pointer"])
+        assert parent[leaf] == patch["expected_prior_value"]
+        parent[leaf] = copy.deepcopy(patch["replacement_value"])
+    assert repaired["schema_id"] == repair["schema_id"]
+    assert repaired["canonical_owner"] == repair["canonical_owner"]
+    assert [field["name"] for field in repaired["field_specs"]] == [
+        field["name"] for field in repair["source_field_annotations"]
+    ]
+    return repaired
+
+
+def _resolve_v8_replacement(
+    v8: dict[str, object], replacement_ref: str, prior: object
+) -> object:
+    replacement = _json_pointer(v8, replacement_ref)
+    if replacement_ref.startswith("/legacy_record_repairs/"):
+        assert type(replacement) is dict
+        return _apply_relative_patches(prior, replacement)
+    if type(replacement) is dict and "operation" in replacement:
+        return _record_body(replacement)
+    return copy.deepcopy(replacement)
+
+
+def _materialize_effective_v8(
+    effective_v7: dict[str, object], v8: dict[str, object]
+) -> dict[str, object]:
+    effective = copy.deepcopy(effective_v7)
+    merge = v8["effective_merge"]
+    assert merge["algorithm"] == (
+        "VERIFY_V6_AND_V7_THEN_MATERIALIZE_EFFECTIVE_V7_AND_APPLY_ORDERED_V8"
+    )
+    assert merge["unlisted_prior_mutation_allowed"] is False
+    assert merge["replacement_ref_resolution"] == (
+        "task_delta and record_catalog_delta refs replace with the referenced object "
+        "after stripping operation; legacy_record_repairs refs apply their ordered "
+        "record_patch to the prior record and then require exact "
+        "source_field_annotations"
+    )
+    replacements = merge["replace_exact_sha256"]
+    additions = merge["add_absent"]
+    assert len(replacements) == 26
+    assert len(additions) == 40
+    declared_roots: list[str] = []
+    used_refs: list[str] = []
+
+    for operation in replacements:
+        assert set(operation) == {
+            "json_pointer",
+            "operation",
+            "expected_prior_value_sha256",
+            "replacement_ref",
+        }
+        assert operation["operation"] == "REPLACE_EXACT_SHA256"
+        pointer = operation["json_pointer"]
+        prior = _json_pointer(effective, pointer)
+        assert _ordered_digest(prior) == operation["expected_prior_value_sha256"]
+        replacement = _resolve_v8_replacement(v8, operation["replacement_ref"], prior)
+        _replace_pointer(effective, pointer, replacement)
+        declared_roots.append(pointer)
+        used_refs.append(operation["replacement_ref"])
+
+    for operation in additions:
+        assert set(operation) == {"json_pointer", "operation", "replacement_ref"}
+        assert operation["operation"] == "ADD_ABSENT"
+        pointer = operation["json_pointer"]
+        replacement = _resolve_v8_replacement(v8, operation["replacement_ref"], {})
+        _add_absent_pointer(effective, pointer, replacement)
+        declared_roots.append(pointer)
+        used_refs.append(operation["replacement_ref"])
+
+    assert {ref for ref in used_refs if ref.startswith("/task_delta/")} == {
+        f"/task_delta/{task}" for task in v8["task_delta"]
+    }
+    assert {ref for ref in used_refs if ref.startswith("/record_catalog_delta/")} == {
+        f"/record_catalog_delta/{name}" for name in v8["record_catalog_delta"]
+    }
+    assert {ref for ref in used_refs if ref.startswith("/legacy_record_repairs/")} == {
+        f"/legacy_record_repairs/{name}" for name in v8["legacy_record_repairs"]
+    }
+    assert len(used_refs) == len(set(used_refs)) == 66
+    _assert_mutation_closure(effective_v7, effective, declared_roots)
+    return effective
+
+
+def _materialize_effective_v91(
+    registry: dict[str, object], bases: dict[str, dict[str, object]]
+) -> dict[str, object]:
+    effective_v7 = _materialize_effective_v7(bases["v6"], bases["v7"])
+    effective_v8 = _materialize_effective_v8(effective_v7, bases["v8"])
+    effective = copy.deepcopy(effective_v8)
+    merge = registry["p0_effective_merge"]
+    assert merge["unlisted_prior_mutation_allowed"] is False
+    assert merge["replacement_ref_resolution"] == (
+        "strip operation before installing the replacement record body"
+    )
+    replacements = merge["replace_exact_sha256"]
+    additions = merge["add_absent"]
+    assert len(replacements) == len(additions) == 2
+    declared_roots: list[str] = []
+    used_refs: list[str] = []
+
+    for operation in replacements:
+        assert set(operation) in (
+            {
+                "json_pointer",
+                "operation",
+                "expected_prior_value_sha256",
+                "replacement_ref",
+            },
+            {
+                "json_pointer",
+                "operation",
+                "expected_prior_value_sha256",
+                "invalid_digest_with_v8_add_absent_metadata",
+                "replacement_ref",
+            },
+        )
+        assert operation["operation"] == "REPLACE_EXACT_SHA256"
+        pointer = operation["json_pointer"]
+        prior = _json_pointer(effective, pointer)
+        assert _ordered_digest(prior) == operation["expected_prior_value_sha256"]
+        source = _json_pointer(registry, operation["replacement_ref"])
+        assert type(source) is dict and source["operation"] == operation["operation"]
+        if "invalid_digest_with_v8_add_absent_metadata" in operation:
+            name = operation["replacement_ref"].rsplit("/", 1)[1]
+            assert (
+                _ordered_digest(bases["v8"]["record_catalog_delta"][name])
+                == (operation["invalid_digest_with_v8_add_absent_metadata"])
+            )
+        _replace_pointer(effective, pointer, _record_body(source))
+        declared_roots.append(pointer)
+        used_refs.append(operation["replacement_ref"])
+
+    for operation in additions:
+        assert set(operation) == {"json_pointer", "operation", "replacement_ref"}
+        assert operation["operation"] == "ADD_ABSENT"
+        source = _json_pointer(registry, operation["replacement_ref"])
+        assert type(source) is dict and source["operation"] == operation["operation"]
+        _add_absent_pointer(effective, operation["json_pointer"], _record_body(source))
+        declared_roots.append(operation["json_pointer"])
+        used_refs.append(operation["replacement_ref"])
+
+    assert set(used_refs) == {
+        f"/p0_record_catalog_delta/{name}"
+        for name in registry["p0_record_catalog_delta"]
+    }
+    assert declared_roots == [
+        "/record_catalog/CurrentScenarioResponseContractV3",
+        "/record_catalog/ResponseRunSpecV3",
+        "/record_catalog/CurrentCurvatureNormalizerProtocolV1",
+        "/record_catalog/CurrentReadoutCalibrationSpecV3",
+    ]
+    assert [item["operation"] for item in merge["private_operations"]] == [
+        "PRIVATE_VIEW_EXTEND",
+        "PRIVATE_REFACTOR",
+        "PURE_MODULE_ADD",
+        "PRIVATE_DELEGATION_TO_PURE_CORE",
+        "LAZY_EXPORT_IMPORT_PURITY_REFACTOR",
+    ]
+    _assert_mutation_closure(effective_v8, effective, declared_roots)
+    return effective
+
+
 def test_frozen_registry_is_loaded_only_after_raw_sha_verification() -> None:
     registry = _load_frozen_registry()
 
@@ -354,6 +714,10 @@ def test_frozen_registry_is_loaded_only_after_raw_sha_verification() -> None:
         _strict_json_loads(b'{"key":1,"key":2}')
     with pytest.raises(ValueError, match="non-finite JSON constant"):
         _strict_json_loads(b'{"key":NaN}')
+    with pytest.raises(ValueError, match="non-finite JSON number"):
+        _strict_json_loads(b'{"key":1e999}')
+    with pytest.raises(ValueError, match="non-finite JSON number"):
+        _strict_json_loads(b'{"key":-1e999}')
     with pytest.raises(UnicodeDecodeError):
         _strict_json_loads(b'{"key":"\xff"}')
 
@@ -367,79 +731,9 @@ def test_base_v6_through_v9_hashes_and_p0_overlay_are_exact() -> None:
         ),
     }
 
-    loaded: dict[str, dict[str, object]] = {}
-    for version, expected in BASE_CONTRACTS.items():
-        path = REPO_ROOT / expected["path"]
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == expected["raw_sha256"]
-        if version in EMBEDDED_REGISTRY_MARKERS:
-            begin, end = EMBEDDED_REGISTRY_MARKERS[version]
-            base = _load_embedded_registry(path, begin, end)
-            loaded[version] = base
-            assert (
-                base["registry_schema_version"] == expected["registry_schema_version"]
-            )
-            assert _ordered_digest(base) == expected["ordered_registry_sha256"]
-
-    catalog = dict(loaded["v6"]["record_catalog"])
-    for name, delta in loaded["v7"]["record_catalog_delta"].items():
-        if delta["operation"] == "ADD_V7_RECORD":
-            assert name not in catalog
-        else:
-            assert delta["operation"] == "REPLACE_V6_RECORD"
-            assert name in catalog
-        catalog[name] = _record_body(delta)
-
-    v8 = loaded["v8"]
-    v8_replacements = {
-        item["json_pointer"]: item
-        for item in v8["effective_merge"]["replace_exact_sha256"]
-        if item["json_pointer"].startswith("/record_catalog/")
-    }
-    for name, delta in v8["record_catalog_delta"].items():
-        pointer = f"/record_catalog/{name}"
-        if delta["operation"] == "ADD_ABSENT":
-            assert name not in catalog
-        else:
-            assert delta["operation"] == "REPLACE_EXACT_SHA256"
-            assert (
-                _ordered_digest(catalog[name])
-                == v8_replacements[pointer]["expected_prior_value_sha256"]
-            )
-        catalog[name] = _record_body(delta)
-
-    merge = registry["p0_effective_merge"]
-    assert merge["unlisted_prior_mutation_allowed"] is False
-    assert merge["replacement_ref_resolution"] == (
-        "strip operation before installing the replacement record body"
-    )
-    assert [item["json_pointer"] for item in merge["replace_exact_sha256"]] == [
-        "/record_catalog/CurrentScenarioResponseContractV3",
-        "/record_catalog/ResponseRunSpecV3",
-    ]
-    assert [item["json_pointer"] for item in merge["add_absent"]] == [
-        "/record_catalog/CurrentCurvatureNormalizerProtocolV1",
-        "/record_catalog/CurrentReadoutCalibrationSpecV3",
-    ]
-
+    bases = _load_verified_base_registries(registry)
+    effective = _materialize_effective_v91(registry, bases)
     delta_catalog = registry["p0_record_catalog_delta"]
-    for item in merge["replace_exact_sha256"]:
-        name = item["json_pointer"].rsplit("/", 1)[1]
-        assert item["operation"] == "REPLACE_EXACT_SHA256"
-        assert _ordered_digest(catalog[name]) == item["expected_prior_value_sha256"]
-        assert _json_pointer(registry, item["replacement_ref"]) == delta_catalog[name]
-        if "invalid_digest_with_v8_add_absent_metadata" in item:
-            assert (
-                _ordered_digest(v8["record_catalog_delta"][name])
-                == item["invalid_digest_with_v8_add_absent_metadata"]
-            )
-        catalog[name] = _record_body(delta_catalog[name])
-    for item in merge["add_absent"]:
-        name = item["json_pointer"].rsplit("/", 1)[1]
-        assert item["operation"] == "ADD_ABSENT"
-        assert name not in catalog
-        assert _json_pointer(registry, item["replacement_ref"]) == delta_catalog[name]
-        catalog[name] = _record_body(delta_catalog[name])
-
     assert list(delta_catalog) == [
         "CurrentScenarioResponseContractV3",
         "CurrentCurvatureNormalizerProtocolV1",
@@ -457,7 +751,27 @@ def test_base_v6_through_v9_hashes_and_p0_overlay_are_exact() -> None:
         for field in delta["field_specs"]:
             assert set(field) == {"name", "wire_type", "presence", "nested_record"}
             nested = field["nested_record"]
-            assert nested is None or nested in catalog, (name, field["name"], nested)
+            assert nested is None or nested in effective["record_catalog"], (
+                name,
+                field["name"],
+                nested,
+            )
+
+
+def test_complete_effective_registry_rejects_every_unlisted_mutation() -> None:
+    registry = _load_frozen_registry()
+    bases = _load_verified_base_registries(registry)
+    effective = _materialize_effective_v91(registry, bases)
+    assert effective["record_catalog"]["ResponseRunSpecV3"] == _record_body(
+        registry["p0_record_catalog_delta"]["ResponseRunSpecV3"]
+    )
+
+    hostile_bases = copy.deepcopy(bases)
+    hostile_bases["v8"]["record_catalog_delta"]["UnlistedRecord"] = copy.deepcopy(
+        hostile_bases["v8"]["record_catalog_delta"]["ResponseRunSpecV3"]
+    )
+    with pytest.raises(AssertionError):
+        _materialize_effective_v91(registry, hostile_bases)
 
 
 def test_all_29_exact_records_are_typed_unique_and_reference_closed() -> None:
@@ -813,21 +1127,17 @@ def test_terminal_git_guards_cover_selection_lab_halt_and_review_halt() -> None:
         "direct-to-E-retains-all-common-and-route-ancestor-objects"
     )
 
-    tag_expectations = {
-        "tag_contract": ("S", "v3m0-b7-schema-selection-v1"),
-        "lab_halt_tag_contract": ("E", "v3m0-b7-schema-lab-halt-v1"),
-        "review_halt_tag_contract": ("H", "v3m0-b7-schema-review-halt-v1"),
-    }
-    for name, (target, tag_name) in tag_expectations.items():
-        tag = git_contract[name]
-        assert tag["ref_object_type"] == "tag"
-        assert tag["tag_header_object"] == target
-        assert tag["tag_header_type"] == "commit"
-        assert tag["tag_header_tag"] == tag_name
-        assert tag["peeled_target"] == target
-        assert tag["lightweight_tag_allowed"] is False
-
-    assert git_contract["terminal_repository_guard_inheritance"] == {
+    expected_common_guards = [
+        "objects-info-alternates-path-must-be-absent",
+        "info-grafts-path-must-be-absent",
+        "replace-ref-namespace-is-ignored-by-global-option",
+        "E-cat-file-type-equals-commit",
+        "common-and-all-three-route-oids-cat-file-type-equals-commit-and-"
+        "satisfy-evidence_commit_reachability",
+        "all-object-reads-use-trusted_git_executable_protocol-sanitized_environment-"
+        "and-git_global_argv_prefix",
+    ]
+    expected_inheritance = {
         "UNIQUE_SELECTION": "common_repository_guards-plus-repository_guards",
         "D0_OR_D1_TYPED_LAB_HALT": (
             "common_repository_guards-plus-lab_halt_repository_guards"
@@ -836,35 +1146,202 @@ def test_terminal_git_guards_cover_selection_lab_halt_and_review_halt() -> None:
             "common_repository_guards-plus-review_halt_repository_guards"
         ),
     }
-    assert any(
-        "evidence_commit_reachability" in guard
-        for guard in git_contract["common_repository_guards"]
+    expected_selection_guards = [
+        "all-common_repository_guards-pass-with-S-required",
+        "S-cat-file-type-equals-commit",
+        "tag-ref-resolves-to-full-tag-object-oid",
+        "tag-object-cat-file-type-equals-tag",
+        "raw-S-commit-has-exactly-one-parent-line-equal-E",
+        "diff-tree-raw-z-no-renames-E-S-equals-S_tree_delta_exact",
+    ]
+    expected_lab_halt_guards = [
+        "all-common_repository_guards-pass-with-S-absent-and-E-"
+        "evidence_commit_reachability-recomputed",
+        "E-cat-file-type-equals-commit-and-satisfies-evidence_commit_reachability-"
+        "using-D0-as-the-always-present-root-source",
+        "E-colon-d0-path-is-mode-100644-blob-and-raw-SHA-strict-body-self-hash-"
+        "decision-projection-and-D0-state-recompute",
+        "if-D0-has-no-survivor-then-E-colon-d1-path-is-absent",
+        "if-D0-has-survivors-then-E-colon-d1-path-is-mode-100644-valid-blob-with-"
+        "no-survivor-or-metric-tie-and-all-D0-D1-joins-recompute",
+        "E-colon-selection-and-review-halt-paths-are-absent-and-production-handoff-"
+        "report-is-absent",
+        "lab-halt-tag-ref-resolves-to-full-tag-object-oid-with-type-tag-header-"
+        "object-E-header-type-commit-exact-tag-name-and-peeled-target-E",
+        "selection-and-review-halt-tag-refs-are-absent-for-this-E-terminal",
+    ]
+    expected_review_halt_guards = [
+        "all-common_repository_guards-pass-with-S-absent-and-E-"
+        "evidence_commit_reachability-recomputed",
+        "E-and-H-cat-file-type-equals-commit",
+        "raw-H-commit-has-exactly-one-parent-line-equal-E",
+        "diff-tree-raw-z-no-renames-E-H-equals-H_tree_delta_exact",
+        "halt-tag-ref-resolves-to-full-tag-object-oid",
+        "halt-tag-object-cat-file-type-equals-tag-and-peeled-target-equals-H",
+        "H-colon-review_halt-path-is-mode-100644-blob-and-strict-body-validates-"
+        "validate_review_halt_v1",
+        "S-selection-tag-and-production-handoff-are-absent-for-this-E-terminal",
+    ]
+    assert git_contract["common_repository_guards"] == expected_common_guards
+    assert git_contract["terminal_repository_guard_inheritance"] == (
+        expected_inheritance
     )
-    assert any(
-        "evidence_commit_reachability" in guard
-        for guard in git_contract["lab_halt_repository_guards"]
+    assert git_contract["repository_guards"] == expected_selection_guards
+    assert git_contract["lab_halt_repository_guards"] == expected_lab_halt_guards
+    assert git_contract["review_halt_repository_guards"] == (
+        expected_review_halt_guards
     )
-    assert any(
-        "evidence_commit_reachability" in guard
-        for guard in git_contract["review_halt_repository_guards"]
+
+    expected_blob_read_protocol = {
+        "tree_entry_command": "ls-tree-z-commit-double-dash-literal-path",
+        "allowed_mode": "100644",
+        "allowed_type": "blob",
+        "blob_command": "cat-file-blob-commit-colon-literal-path",
+        "raw_sha_before_parse": True,
+        "strict_parse_after_raw_sha": True,
+        "d0_and_d1_commit": "E",
+        "selection_commit": "S",
+        "review_halt_commit": "H",
+        "worktree_or_caller_path_allowed": False,
+    }
+    expected_handoff_container = {
+        "begin_marker": "<!-- BEGIN V3M0_B7_PRODUCTION_HANDOFF_V1 -->",
+        "end_marker": "<!-- END V3M0_B7_PRODUCTION_HANDOFF_V1 -->",
+        "machine_block_count": 1,
+        "machine_block_language": "json",
+        "strict_utf8_no_bom": True,
+        "handoff_sha_domain": ("parsed-machine-record-after-removing-only-handoff_sha"),
+        "markdown_blob_or-carrier-path-in-handoff_sha": False,
+    }
+    expected_self_hash_exclusions = {
+        "d0_comparison.json": ["d0_result_sha"],
+        "d1_comparison.json": ["d1_result_sha"],
+        "selection_review.json": ["selection_review_sha"],
+        "review_halt.json": ["review_halt_sha"],
+        "production_handoff_review": ["handoff_sha"],
+    }
+    assert git_contract["blob_read_protocol"] == expected_blob_read_protocol
+    assert git_contract["handoff_report_container"] == expected_handoff_container
+    assert git_contract["self_hash_exclusions"] == expected_self_hash_exclusions
+    assert git_contract["handoff_tag_target"] == "S"
+    git_projection_fields = (
+        "handoff_report_container",
+        "blob_read_protocol",
+        "self_hash_exclusions",
+        "handoff_tag_target",
+        "common_repository_guards",
+        "terminal_repository_guard_inheritance",
+        "repository_guards",
+        "lab_halt_repository_guards",
+        "review_halt_repository_guards",
     )
-    assert git_contract["commit_partition"][
-        "terminal_children_mutually_exclusive"
-    ].startswith("exactly-one-of-S-or-H")
+    git_projection = {field: git_contract[field] for field in git_projection_fields}
+    assert _ordered_digest(git_projection) == GIT_HANDOFF_MECHANICAL_SHA256
 
     halt = lab["halt_emission_contract"]
-    assert list(halt) == [
+    expected_halt = {
+        "D0_NO_SURVIVOR": {
+            "d0_comparison": "required",
+            "d1_comparison": "absent",
+            "selection_review": "absent",
+            "review_halt": "absent",
+            "production_handoff": "absent",
+            "terminal_tag": "annotated-v3m0-b7-schema-lab-halt-v1-to-E",
+        },
+        "D1_NO_SURVIVOR_OR_METRIC_TIE": {
+            "d0_comparison": "required",
+            "d1_comparison": "required",
+            "selection_review": "absent",
+            "review_halt": "absent",
+            "production_handoff": "absent",
+            "terminal_tag": "annotated-v3m0-b7-schema-lab-halt-v1-to-E",
+        },
+        "REPLAY_OR_REVIEW_FAILURE": {
+            "d0_comparison": "required",
+            "d1_comparison": "required",
+            "selection_review": "absent",
+            "review_halt": (
+                "required-in-H-single-parent-terminal-commit-and-annotated-halt-tag"
+            ),
+            "production_handoff": "absent",
+            "terminal_tag": "annotated-v3m0-b7-schema-review-halt-v1-to-H",
+        },
+        "UNIQUE_SELECTION": {
+            "d0_comparison": "required",
+            "d1_comparison": "required",
+            "selection_review": (
+                "required-in-S-single-parent-release-commit-and-annotated-selection-tag"
+            ),
+            "review_halt": "absent",
+            "production_handoff": "required-before-production-implementation",
+            "terminal_tag": "annotated-v3m0-b7-schema-selection-v1-to-S",
+        },
+        "tracing_report_authority": (
+            "optional-human-report-outside-result_paths-with-no-production-release-"
+            "effect"
+        ),
+    }
+    assert halt == expected_halt
+    terminal_states = (
         "D0_NO_SURVIVOR",
         "D1_NO_SURVIVOR_OR_METRIC_TIE",
         "REPLAY_OR_REVIEW_FAILURE",
         "UNIQUE_SELECTION",
-        "tracing_report_authority",
-    ]
-    assert halt["D0_NO_SURVIVOR"]["terminal_tag"].endswith("lab-halt-v1-to-E")
-    assert halt["D1_NO_SURVIVOR_OR_METRIC_TIE"]["terminal_tag"].endswith(
-        "lab-halt-v1-to-E"
     )
-    assert halt["REPLAY_OR_REVIEW_FAILURE"]["terminal_tag"].endswith(
-        "review-halt-v1-to-H"
+    artifact_matrix = {state: halt[state] for state in terminal_states}
+    assert _ordered_digest(artifact_matrix) == HALT_ARTIFACT_MATRIX_SHA256
+
+
+def test_replay_report_output_root_self_hash_and_stdout_are_mechanically_frozen() -> (
+    None
+):
+    lab = _load_frozen_registry()["lab_contract"]
+    report = lab["exact_records"]["B7LabReplayReportV1"]
+    expected_invariant = (
+        "replay_output_root_sha equals canonical_sha of fields through "
+        "observed_provisional_winner_route_id; replay_report_sha removes only itself; "
+        "stdout is canonical JSON bytes plus one LF and contains no receipt fields"
     )
-    assert halt["UNIQUE_SELECTION"]["terminal_tag"].endswith("selection-v1-to-S")
+    expected_output_presence_rule = (
+        "if-and-only-if-stdout-strict-decodes-as-valid-B7LabReplayReportV1-then-all-"
+        "nine-optional-observed-report-fields-are-nonnull-and-exactly-equal-that-"
+        "report;otherwise-all-nine-are-null"
+    )
+    expected_stdout_write_rule = (
+        "exactly-one-terminal-sys.stdout.buffer.write-of-canonical-"
+        "B7LabReplayReportV1-bytes-plus-one-LF-is-allowed-after-all-computation;"
+        "all-other-print-or-stdout-stderr-write-calls-in-child-closure-reject"
+    )
+    expected_stream_hash_rule = (
+        "for-normal-completion-hash-exact-complete-captured-stream;for-overflow-hash-"
+        "exact-first-cap-bytes;for-timeout-or-signal-hash-exact-bounded-prefix-read-"
+        "before-parent-fd-close;for-precheck-or-spawn-failure-hash-empty-bytes"
+    )
+    assert report["record_invariants"] == [expected_invariant]
+    assert _field_names(report)[-3:] == (
+        "observed_provisional_winner_route_id",
+        "replay_output_root_sha",
+        "replay_report_sha",
+    )
+    assert lab["reviewer_receipt_failure_contract"]["output_presence_rule"] == (
+        expected_output_presence_rule
+    )
+    assert lab["reviewer_child_static_scan_contract"]["stdout_write_rule"] == (
+        expected_stdout_write_rule
+    )
+    assert lab["reviewer_process_totalization_contract"]["stream_hash_rule"] == (
+        expected_stream_hash_rule
+    )
+    receipt_validator = next(
+        validator
+        for validator in lab["validator_contracts"]["validators"]
+        if validator["validator_id"] == "validate_reviewer_receipt_v1"
+    )
+    replay_projection = {
+        "replay_report_record": report,
+        "output_presence_rule": expected_output_presence_rule,
+        "stdout_write_rule": expected_stdout_write_rule,
+        "stream_hash_rule": expected_stream_hash_rule,
+        "reviewer_receipt_exact_conditions": receipt_validator["exact_conditions"],
+    }
+    assert _ordered_digest(replay_projection) == REPLAY_REPORT_MECHANICAL_SHA256
