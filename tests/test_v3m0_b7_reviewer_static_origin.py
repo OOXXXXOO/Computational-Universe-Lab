@@ -338,7 +338,9 @@ def test_reviewer_static_surface_rejects_closure_and_import_attacks(
             1,
         )
     elif attack_id == "unlisted-import":
-        compare = compare.replace(b"import hashlib\n", b"import hashlib\nimport antigravity\n")
+        compare = compare.replace(
+            b"import hashlib\n", b"import hashlib\nimport antigravity\n"
+        )
     else:
         compare = compare.replace(
             b"import hashlib\n",
@@ -572,9 +574,10 @@ def test_source_origin_accepts_identical_e_and_declared_origins() -> None:
     result = common.validate_reviewer_executable_source_origin_v1(**_origin_inputs())
 
     assert result["executable_source_origin_precheck_passed"] is True
-    assert result["observed_executable_source_closure_sha"] == result[
-        "reviewed_executable_source_closure_sha"
-    ]
+    assert (
+        result["observed_executable_source_closure_sha"]
+        == result["reviewed_executable_source_closure_sha"]
+    )
     assert len(result["reviewed_executable_source_closure_sha"]) == 64
 
 
@@ -640,9 +643,10 @@ def test_source_origin_totalizes_candidate_attacks(attack_id: str) -> None:
     assert result["executable_source_origin_precheck_passed"] is False
     if attack_id == "wrong-bytes":
         assert result["observed_executable_source_closure_sha"] is not None
-        assert result["observed_executable_source_closure_sha"] != result[
-            "reviewed_executable_source_closure_sha"
-        ]
+        assert (
+            result["observed_executable_source_closure_sha"]
+            != result["reviewed_executable_source_closure_sha"]
+        )
     else:
         assert result["observed_executable_source_closure_sha"] is None
 

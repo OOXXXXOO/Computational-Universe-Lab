@@ -339,6 +339,7 @@ def _require_exact_object_fields_v1(raw_body, fields, field):
         raise ValueError(f"reviewer {field} fields drifted")
     return raw_body
 
+
 _D0_CAPTURE_ROUTE_ORDER_V1 = ("A_FLAT", "B_PROGRESS", "C_UNION")
 _D1_CAPTURE_CHILD_PROGRAM_UTF8_V1 = (
     "import sys;"
@@ -374,7 +375,9 @@ def _not_called_route_call_v1():
 
 
 def _call_a_flat_encode_v1(raw_bytes):
-    from .a_flat import encode_normalized_transcript as route_call
+    from experiments.v3m0_b7_schema_lab.a_flat import (
+        encode_normalized_transcript as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -386,7 +389,9 @@ def _call_a_flat_encode_v1(raw_bytes):
 
 
 def _call_a_flat_decode_v1(raw_bytes):
-    from .a_flat import verify_and_decode_route_wire as route_call
+    from experiments.v3m0_b7_schema_lab.a_flat import (
+        verify_and_decode_route_wire as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -398,7 +403,9 @@ def _call_a_flat_decode_v1(raw_bytes):
 
 
 def _call_b_progress_encode_v1(raw_bytes):
-    from .b_progress import encode_normalized_transcript as route_call
+    from experiments.v3m0_b7_schema_lab.b_progress import (
+        encode_normalized_transcript as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -410,7 +417,9 @@ def _call_b_progress_encode_v1(raw_bytes):
 
 
 def _call_b_progress_decode_v1(raw_bytes):
-    from .b_progress import verify_and_decode_route_wire as route_call
+    from experiments.v3m0_b7_schema_lab.b_progress import (
+        verify_and_decode_route_wire as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -422,7 +431,9 @@ def _call_b_progress_decode_v1(raw_bytes):
 
 
 def _call_c_union_encode_v1(raw_bytes):
-    from .c_union import encode_normalized_transcript as route_call
+    from experiments.v3m0_b7_schema_lab.c_union import (
+        encode_normalized_transcript as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -434,7 +445,9 @@ def _call_c_union_encode_v1(raw_bytes):
 
 
 def _call_c_union_decode_v1(raw_bytes):
-    from .c_union import verify_and_decode_route_wire as route_call
+    from experiments.v3m0_b7_schema_lab.c_union import (
+        verify_and_decode_route_wire as route_call,
+    )
 
     try:
         result = route_call(raw_bytes)
@@ -1215,11 +1228,7 @@ def validate_replay_report_v1(raw_body):
     if report["replay_output_root_sha"] != _canonical_sha_v1(output_projection):
         raise ValueError("replay report output root mismatch")
     expected_report_sha = _canonical_sha_v1(
-        {
-            name: value
-            for name, value in report.items()
-            if name != "replay_report_sha"
-        }
+        {name: value for name, value in report.items() if name != "replay_report_sha"}
     )
     if report["replay_report_sha"] != expected_report_sha:
         raise ValueError("replay report self root mismatch")
@@ -1349,9 +1358,7 @@ def _parse_reviewer_ls_tree_v1(raw_bytes, evidence_commit_sha, included_paths):
         if separator != b"\t" or len(fields) != 3:
             raise ValueError("trusted Git ls-tree record is malformed")
         try:
-            mode, object_type, object_oid = (
-                field.decode("ascii") for field in fields
-            )
+            mode, object_type, object_oid = (field.decode("ascii") for field in fields)
             path = raw_path.decode("utf-8")
         except UnicodeError as error:
             raise ValueError("trusted Git ls-tree encoding drifted") from error
@@ -1374,9 +1381,7 @@ def _parse_reviewer_ls_tree_v1(raw_bytes, evidence_commit_sha, included_paths):
             raise ValueError("trusted Git tree path escapes or overlaps export scope")
         matched[owners[0]] = True
         observed_paths.add(path)
-        records.append(
-            (evidence_commit_sha, path, mode, object_type, object_oid)
-        )
+        records.append((evidence_commit_sha, path, mode, object_type, object_oid))
     if not records or not all(matched.values()):
         raise ValueError("trusted Git tree omits an included export path")
     if records != sorted(records, key=lambda record: record[1].encode("utf-8")):
@@ -1444,9 +1449,7 @@ def _validate_reviewer_tar_members_v1(members, *, expected_file_paths):
     if type(members) is not list or type(expected_file_paths) is not tuple:
         raise TypeError("reviewer tar observations must be exact containers")
     expected_files = set(expected_file_paths)
-    expected_directories = _expected_reviewer_export_directories_v1(
-        expected_file_paths
-    )
+    expected_directories = _expected_reviewer_export_directories_v1(expected_file_paths)
     observed = set()
     observed_files = set()
     validated = []
@@ -1595,9 +1598,7 @@ def materialize_immutable_reviewer_export_v1(
     root_identity = (root_stat.st_dev, root_stat.st_ino)
     _OWNED_REVIEWER_EXPORT_ROOTS_V1[export_root] = root_identity
     partial = {
-        "export_schema_version": (
-            "experimental.v3m0.b7.immutable-reviewer-export.v1"
-        ),
+        "export_schema_version": ("experimental.v3m0.b7.immutable-reviewer-export.v1"),
         "export_root": export_root,
         "root_identity": root_identity,
     }
@@ -1771,8 +1772,7 @@ def _validate_record_self_hash_v1(raw_body, hash_field, field):
 
 def _validate_reviewer_comparison_joins_v1(d0, d1, d0_raw_bytes):
     if (
-        d1["d0_result_raw_sha256"]
-        != hashlib.sha256(d0_raw_bytes).hexdigest()
+        d1["d0_result_raw_sha256"] != hashlib.sha256(d0_raw_bytes).hexdigest()
         or d1["d0_result_sha"] != d0["d0_result_sha"]
         or d1["d0_decision_payload_sha"] != d0["decision_payload_sha"]
     ):
@@ -1788,9 +1788,9 @@ def _validate_reviewer_comparison_joins_v1(d0, d1, d0_raw_bytes):
     )
     if any(d1[name] != d0[name] for name in shared):
         raise ValueError("reviewer D0/D1 shared roots drifted")
-    if _canonical_json_bytes_v1(
-        d1["environment_manifest"]
-    ) != _canonical_json_bytes_v1(d0["environment_manifest"]):
+    if _canonical_json_bytes_v1(d1["environment_manifest"]) != _canonical_json_bytes_v1(
+        d0["environment_manifest"]
+    ):
         raise ValueError("reviewer D0/D1 environment body drifted")
 
 
@@ -1834,8 +1834,7 @@ def _validate_reviewer_d1_outcome_v1(d0, d1, metric_spec):
         raise ValueError("reviewer D1 survivors drifted")
     metric_order = metric_spec["metric_order"]
     minimum_tuple = min(
-        tuple(vector[name] for name in metric_order)
-        for _route_id, vector in survivors
+        tuple(vector[name] for name in metric_order) for _route_id, vector in survivors
     )
     minima = [
         (route_id, vector)
@@ -1923,11 +1922,7 @@ def _build_reviewer_replay_report_v1(
         {name: report[name] for name in _REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1}
     )
     report["replay_report_sha"] = _canonical_sha_v1(
-        {
-            name: value
-            for name, value in report.items()
-            if name != "replay_report_sha"
-        }
+        {name: value for name, value in report.items() if name != "replay_report_sha"}
     )
     return validate_replay_report_v1(report)
 
@@ -1963,10 +1958,8 @@ def _execute_reviewer_replay_v1(
         "D1 comparison",
     )
     if (
-        d0["d0_result_schema_version"]
-        != "experimental.v3m0.b7.d0-comparison.v1"
-        or d1["d1_result_schema_version"]
-        != "experimental.v3m0.b7.d1-comparison.v1"
+        d0["d0_result_schema_version"] != "experimental.v3m0.b7.d0-comparison.v1"
+        or d1["d1_result_schema_version"] != "experimental.v3m0.b7.d1-comparison.v1"
     ):
         raise ValueError("reviewer comparison schema drifted")
     _validate_record_self_hash_v1(d0, "d0_result_sha", "D0 comparison")
@@ -2021,8 +2014,7 @@ def _execute_reviewer_replay_v1(
     ):
         raise ValueError("reviewer corpus fixture joins drifted")
     if (
-        hashlib.sha256(raw_inputs["common"]).hexdigest()
-        != d0["common_source_sha256"]
+        hashlib.sha256(raw_inputs["common"]).hexdigest() != d0["common_source_sha256"]
         or hashlib.sha256(raw_inputs["compare"]).hexdigest()
         != d0["compare_source_sha256"]
     ):
@@ -2117,16 +2109,12 @@ def main(argv=None):
     if arguments.subcommand == "review-corpus":
         _review_corpus_replay_cli(
             evidence_commit_sha=arguments.evidence_commit,
-            source_closure_sha=(
-                arguments.reviewed_executable_source_closure_sha
-            ),
+            source_closure_sha=(arguments.reviewed_executable_source_closure_sha),
         )
     elif arguments.subcommand == "review-metric":
         _review_metric_replay_cli(
             evidence_commit_sha=arguments.evidence_commit,
-            source_closure_sha=(
-                arguments.reviewed_executable_source_closure_sha
-            ),
+            source_closure_sha=(arguments.reviewed_executable_source_closure_sha),
         )
     else:
         raise ValueError("reviewer subcommand escaped parser choices")
@@ -3282,9 +3270,7 @@ def _observe_reviewer_environment_v1(environment_manifest):
             recorded_raw_sha256=manifest["python_executable_raw_sha256"],
             recorded_venv_prefix=manifest["python_venv_prefix"],
             recorded_pyvenv_cfg_path=manifest["python_pyvenv_cfg_path"],
-            recorded_pyvenv_cfg_raw_sha256=(
-                manifest["python_pyvenv_cfg_raw_sha256"]
-            ),
+            recorded_pyvenv_cfg_raw_sha256=(manifest["python_pyvenv_cfg_raw_sha256"]),
         )
         probe = run_python_environment_import_probe_v2(
             python_invocation_path=manifest["python_invocation_path"],
@@ -3298,9 +3284,7 @@ def _observe_reviewer_environment_v1(environment_manifest):
         passed = (
             identity["precheck_passed"] is True
             and probe["probe_passed"] is True
-            and recheck_python_invocation_identity_v2(
-                precheck_observation=identity
-            )
+            and recheck_python_invocation_identity_v2(precheck_observation=identity)
             and validated["environment_sha"] == expected_sha
         )
         return {
@@ -3320,8 +3304,7 @@ def _reviewer_source_origin_from_git_v1(
     validated_d0_result,
 ):
     manifests = tuple(
-        row["route_manifest"]
-        for row in validated_d0_result["ordered_route_results"]
+        row["route_manifest"] for row in validated_d0_result["ordered_route_results"]
     )
     if len(manifests) != 3:
         raise ValueError("reviewer source origin requires three route manifests")
@@ -3414,15 +3397,11 @@ def _run_bounded_reviewer_export_cleanup_v1(
 
     export_root = export_observation["export_root"]
     root_identity = export_observation["root_identity"]
-    if (
-        _OWNED_REVIEWER_EXPORT_ROOTS_V1.get(export_root) != root_identity
-    ):
+    if _OWNED_REVIEWER_EXPORT_ROOTS_V1.get(export_root) != root_identity:
         return False
     v2_identity = type(python_identity_observation) is dict
     if v2_identity:
-        cleanup_python = python_identity_observation.get(
-            "python_invocation_path"
-        )
+        cleanup_python = python_identity_observation.get("python_invocation_path")
         legacy_identity = None
     else:
         cleanup_python = os.path.realpath(sys.executable)
@@ -3441,11 +3420,9 @@ def _run_bounded_reviewer_export_cleanup_v1(
             precheck_observation=python_identity_observation
         )
     else:
-        identity_passed = (
-            recheck_frozen_python_executable_identity_v1(
-                recorded_realpath=cleanup_python,
-                precheck_observation=legacy_identity,
-            )
+        identity_passed = recheck_frozen_python_executable_identity_v1(
+            recorded_realpath=cleanup_python,
+            precheck_observation=legacy_identity,
         )
     argv = (
         cleanup_python,
@@ -3550,17 +3527,13 @@ def build_reviewer_receipt_v1(
     replay_input_root = _canonical_sha_v1(projection)
     command = materialize_reviewer_command_v1(
         reviewer_role=reviewer_role,
-        frozen_python_executable=d1["environment_manifest"][
-            "python_invocation_path"
-        ],
+        frozen_python_executable=d1["environment_manifest"]["python_invocation_path"],
         evidence_commit_sha=evidence_commit_sha,
         reviewed_executable_source_closure_sha=projection[
             "reviewed_executable_source_closure_sha"
         ],
     )
-    report = _decode_optional_reviewer_report_v1(
-        process_observation["stdout_bytes"]
-    )
+    report = _decode_optional_reviewer_report_v1(process_observation["stdout_bytes"])
     source_matches = (
         source_commit == evidence_commit_sha
         and source_path == "experiments/v3m0_b7_schema_lab/compare.py"
@@ -3580,15 +3553,11 @@ def build_reviewer_receipt_v1(
                 and report["replay_input_root_sha"] != replay_input_root
             )
         ),
-        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation[
-            "termination_kind"
-        ]
+        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation["termination_kind"]
         == "PRECHECK_FAILED",
         "REPLAY_PROCESS_SPAWN_FAILED": process_observation["termination_kind"]
         == "SPAWN_FAILED",
-        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation[
-            "termination_kind"
-        ]
+        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation["termination_kind"]
         == "OUTPUT_LIMIT_EXCEEDED",
         "REPLAY_PROCESS_TIMED_OUT": process_observation["termination_kind"]
         == "TIMED_OUT",
@@ -3612,11 +3581,9 @@ def build_reviewer_receipt_v1(
             or report["lab_evidence_commit_sha"] != evidence_commit_sha
         ),
         "REPLAY_D0_DECISION_MISMATCH": report is not None
-        and report["recomputed_d0_decision_payload_sha"]
-        != d0["decision_payload_sha"],
+        and report["recomputed_d0_decision_payload_sha"] != d0["decision_payload_sha"],
         "REPLAY_D1_DECISION_MISMATCH": report is not None
-        and report["recomputed_d1_decision_payload_sha"]
-        != d1["decision_payload_sha"],
+        and report["recomputed_d1_decision_payload_sha"] != d1["decision_payload_sha"],
         "REPLAY_SURVIVOR_MISMATCH": report is not None
         and report["observed_surviving_route_ids"] != d1["surviving_route_ids"],
         "REPLAY_WINNER_MISMATCH": report is not None
@@ -3626,9 +3593,7 @@ def build_reviewer_receipt_v1(
     reasons = [reason for reason in _REVIEWER_REASON_ORDER_V1 if predicates[reason]]
     accept = (
         environment_observation["passed"]
-        and source_origin_observation[
-            "executable_source_origin_precheck_passed"
-        ]
+        and source_origin_observation["executable_source_origin_precheck_passed"]
         and not reasons
         and process_observation["termination_kind"] == "EXITED"
         and process_observation["exit_code"] == 0
@@ -3656,9 +3621,7 @@ def build_reviewer_receipt_v1(
         "replay_source_path": source_path,
         "replay_source_sha256": replay_source_sha,
         "replay_command_argv": list(command),
-        "fresh_process_protocol_id": (
-            "fresh-python-s-immutable-E-venv-invocation-v2"
-        ),
+        "fresh_process_protocol_id": ("fresh-python-s-immutable-E-venv-invocation-v2"),
         "replay_input_root_sha": replay_input_root,
         "observed_report_reviewer_role": (
             None if report is None else report["reviewer_role"]
@@ -3685,33 +3648,23 @@ def build_reviewer_receipt_v1(
         "replay_exit_code": process_observation["exit_code"],
         "replay_signal_number": process_observation["signal_number"],
         "replayed_d0_decision_payload_sha": (
-            None
-            if report is None
-            else report["recomputed_d0_decision_payload_sha"]
+            None if report is None else report["recomputed_d0_decision_payload_sha"]
         ),
         "replayed_d1_decision_payload_sha": (
-            None
-            if report is None
-            else report["recomputed_d1_decision_payload_sha"]
+            None if report is None else report["recomputed_d1_decision_payload_sha"]
         ),
         "observed_surviving_route_ids": (
             None if report is None else report["observed_surviving_route_ids"]
         ),
         "observed_provisional_winner_route_id": (
-            None
-            if report is None
-            else report["observed_provisional_winner_route_id"]
+            None if report is None else report["observed_provisional_winner_route_id"]
         ),
         "verdict": "ACCEPT" if accept else "REJECT",
         "reason_codes": reasons,
         "receipt_sha": "",
     }
     receipt["receipt_sha"] = _canonical_sha_v1(
-        {
-            name: value
-            for name, value in receipt.items()
-            if name != "receipt_sha"
-        }
+        {name: value for name, value in receipt.items() if name != "receipt_sha"}
     )
     return _common.validate_reviewer_receipt_v1(
         receipt,
@@ -3753,22 +3706,19 @@ def run_immutable_reviewer_receipt_v1(
         parsed_d0 = _strict_json_loads_v1(d0_raw)
         parsed_d1 = _strict_json_loads_v1(d1_raw)
         _validate_reviewer_contract_inputs_v1(export["required_input_bytes"])
-        required_input_precheck_passed = (
-            _canonical_json_bytes_v1(parsed_d0)
-            == _canonical_json_bytes_v1(validated_d0_result)
-            and _canonical_json_bytes_v1(parsed_d1)
-            == _canonical_json_bytes_v1(validated_d1_result)
-        )
+        required_input_precheck_passed = _canonical_json_bytes_v1(
+            parsed_d0
+        ) == _canonical_json_bytes_v1(validated_d0_result) and _canonical_json_bytes_v1(
+            parsed_d1
+        ) == _canonical_json_bytes_v1(validated_d1_result)
         source_origin, _production_blobs = _reviewer_source_origin_from_git_v1(
             repository_root=repository_root,
             evidence_commit_sha=evidence_commit_sha,
             export_observation=export,
             validated_d0_result=validated_d0_result,
         )
-        environment_observation, python_identity = (
-            _observe_reviewer_environment_v1(
-                validated_d1_result["environment_manifest"]
-            )
+        environment_observation, python_identity = _observe_reviewer_environment_v1(
+            validated_d1_result["environment_manifest"]
         )
         prechecks_passed = (
             required_input_precheck_passed
@@ -3778,9 +3728,9 @@ def run_immutable_reviewer_receipt_v1(
         if prechecks_passed:
             command = materialize_reviewer_command_v1(
                 reviewer_role=reviewer_role,
-                frozen_python_executable=validated_d1_result[
-                    "environment_manifest"
-                ]["python_invocation_path"],
+                frozen_python_executable=validated_d1_result["environment_manifest"][
+                    "python_invocation_path"
+                ],
                 evidence_commit_sha=evidence_commit_sha,
                 reviewed_executable_source_closure_sha=source_origin[
                     "reviewed_executable_source_closure_sha"
@@ -3881,12 +3831,10 @@ def run_immutable_reviewer_pair_v1(
         "METRIC_REPLAY",
     ]:
         raise RuntimeError("reviewer pair role order drifted")
-    if len(
-        {
-            receipt["reviewed_executable_source_closure_sha"]
-            for receipt in receipts
-        }
-    ) != 1:
+    if (
+        len({receipt["reviewed_executable_source_closure_sha"] for receipt in receipts})
+        != 1
+    ):
         raise ValueError("reviewer pair source closures diverged")
     return {
         "reviewer_receipts": receipts,

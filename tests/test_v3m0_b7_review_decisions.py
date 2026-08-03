@@ -184,10 +184,15 @@ def _receipt_fixture(
         "replay_source_path": "experiments/v3m0_b7_schema_lab/compare.py",
         "replay_source_sha256": compare_sha,
         "replay_command_argv": [
-            "/frozen/venv/bin/python", "-s", "-m",
-            "experiments.v3m0_b7_schema_lab.compare", subcommand,
-            "--evidence-commit", E,
-            "--reviewed-executable-source-closure-sha", closure,
+            "/frozen/venv/bin/python",
+            "-s",
+            "-m",
+            "experiments.v3m0_b7_schema_lab.compare",
+            subcommand,
+            "--evidence-commit",
+            E,
+            "--reviewed-executable-source-closure-sha",
+            closure,
             "--emit-replay-report",
         ],
         "fresh_process_protocol_id": "fresh-python-s-immutable-E-venv-invocation-v2",
@@ -220,18 +225,29 @@ def _receipt_fixture(
         "d0_raw_bytes": d0_bytes,
         "d1_raw_bytes": d1_bytes,
         "environment_observation": {
-            "expected_sha": SHA[11], "observed_sha": SHA[11], "passed": True,
+            "expected_sha": SHA[11],
+            "observed_sha": SHA[11],
+            "passed": True,
         },
         "source_origin_observation": {
             "reviewed_executable_source_closure_sha": closure,
             "observed_executable_source_closure_sha": closure,
             "executable_source_origin_precheck_passed": True,
         },
-        "replay_source_blob": (E, "experiments/v3m0_b7_schema_lab/compare.py", "100644", replay_source),
+        "replay_source_blob": (
+            E,
+            "experiments/v3m0_b7_schema_lab/compare.py",
+            "100644",
+            replay_source,
+        ),
         "process_observation": {
-            "termination_kind": "EXITED", "exit_code": 0, "signal_number": None,
-            "stdout_bytes": stdout, "stderr_bytes": b"",
-            "cleanup_deadline_passed": True, "export_cleanup_passed": True,
+            "termination_kind": "EXITED",
+            "exit_code": 0,
+            "signal_number": None,
+            "stdout_bytes": stdout,
+            "stderr_bytes": b"",
+            "cleanup_deadline_passed": True,
+            "export_cleanup_passed": True,
             "required_input_precheck_passed": True,
         },
     }
@@ -253,7 +269,9 @@ def _make_precheck_reject(body, context):
     body = copy.deepcopy(body)
     context = copy.deepcopy(context)
     context["environment_observation"] = {
-        "expected_sha": SHA[11], "observed_sha": None, "passed": False,
+        "expected_sha": SHA[11],
+        "observed_sha": None,
+        "passed": False,
     }
     context["process_observation"] = {
         "termination_kind": "PRECHECK_FAILED",
@@ -309,9 +327,7 @@ def _terminal_review_fixture(*, halt=False):
     d1 = corpus_context["validated_d1_result"]
     d0_bytes = corpus_context["d0_raw_bytes"]
     d1_bytes = corpus_context["d1_raw_bytes"]
-    manifests = [
-        row["route_manifest"] for row in d0["ordered_route_results"]
-    ]
+    manifests = [row["route_manifest"] for row in d0["ordered_route_results"]]
     common_fields = {
         "lab_evidence_commit_sha": E,
         "d0_result_raw_sha256": _sha_bytes(d0_bytes),
@@ -369,9 +385,7 @@ def _terminal_review_fixture(*, halt=False):
             "selected_route_schema_domain": selected["route_schema_domain"],
             "selected_route_commit_sha": selected["route_commit_sha"],
             "selected_route_source_sha256": selected["route_source_sha256"],
-            "engineering_disposition": (
-                "B7_UNIQUE_SCHEMA_SELECTED_FOR_IMPLEMENTATION"
-            ),
+            "engineering_disposition": ("B7_UNIQUE_SCHEMA_SELECTED_FOR_IMPLEMENTATION"),
             "production_implementation_allowed": True,
             "selection_review_sha": "",
         }
@@ -401,11 +415,7 @@ def _handoff_fixture():
     d1_bytes = selection_context["d1_raw_bytes"]
     selection_bytes = common.canonical_json_bytes_v1(selection) + b"\n"
     selection_commit_bytes = (
-        b"tree "
-        + b"5" * 40
-        + b"\nparent "
-        + E.encode("ascii")
-        + b"\n\nselection\n"
+        b"tree " + b"5" * 40 + b"\nparent " + E.encode("ascii") + b"\n\nselection\n"
     )
     selection_commit = _git_object_oid("commit", selection_commit_bytes)
     tag_object_bytes = (
@@ -455,9 +465,7 @@ def _handoff_fixture():
         "selected_route_source_sha256",
     )
     handoff = {
-        "handoff_schema_version": (
-            "experimental.v3m0.b7.production-handoff-review.v1"
-        ),
+        "handoff_schema_version": ("experimental.v3m0.b7.production-handoff-review.v1"),
         "git_object_verifier_protocol_id": (
             "v3m0-b7-schema-selection-git-object-handoff-v1"
         ),
@@ -499,9 +507,7 @@ def _handoff_fixture():
             selection_bytes,
         ),
         "repository_observation": repository_observation,
-        "reviewer_receipt_contexts": selection_context[
-            "reviewer_receipt_contexts"
-        ],
+        "reviewer_receipt_contexts": selection_context["reviewer_receipt_contexts"],
     }
 
 
@@ -568,8 +574,7 @@ def test_review_halt_accepts_completed_reviewer_reject() -> None:
     assert common.validate_review_halt_v1(body, **context) == body
 
 
-def test_review_halt_classifies_two_nonnull_replay_observations_as_divergence(
-) -> None:
+def test_review_halt_classifies_two_nonnull_replay_observations_as_divergence() -> None:
     body, context = _terminal_review_fixture()
     metric_receipt = body["reviewer_receipts"][1]
     metric_context = context["reviewer_receipt_contexts"][1]
@@ -593,11 +598,7 @@ def test_review_halt_classifies_two_nonnull_replay_observations_as_divergence(
         }
     )
     report["replay_report_sha"] = common.canonical_sha_v1(
-        {
-            key: value
-            for key, value in report.items()
-            if key != "replay_report_sha"
-        }
+        {key: value for key, value in report.items() if key != "replay_report_sha"}
     )
     attacked_stdout = common.canonical_json_bytes_v1(report) + b"\n"
     metric_context["process_observation"]["stdout_bytes"] = attacked_stdout
@@ -607,11 +608,7 @@ def test_review_halt_classifies_two_nonnull_replay_observations_as_divergence(
     metric_receipt["reason_codes"] = ["REPLAY_WINNER_MISMATCH"]
     metric_receipt["verdict"] = "REJECT"
     metric_receipt["receipt_sha"] = common.canonical_sha_v1(
-        {
-            key: value
-            for key, value in metric_receipt.items()
-            if key != "receipt_sha"
-        }
+        {key: value for key, value in metric_receipt.items() if key != "receipt_sha"}
     )
     halt = {
         "review_halt_schema_version": "experimental.v3m0.b7.review-halt.v1",
@@ -748,10 +745,17 @@ def test_production_handoff_rejects_gpu_or_runtime_authority_field() -> None:
         common.validate_production_handoff_v1(attacked, **context)
 
 
-@pytest.mark.parametrize("field", (
-    "review_protocol_id", "replay_command_argv", "replay_stdout_sha256",
-    "observed_report_lab_evidence_commit_sha", "reason_codes", "receipt_sha",
-))
+@pytest.mark.parametrize(
+    "field",
+    (
+        "review_protocol_id",
+        "replay_command_argv",
+        "replay_stdout_sha256",
+        "observed_report_lab_evidence_commit_sha",
+        "reason_codes",
+        "receipt_sha",
+    ),
+)
 def test_reviewer_receipt_rejects_join_attacks(field: str) -> None:
     body, context = _receipt_fixture()
     attacked = copy.deepcopy(body)

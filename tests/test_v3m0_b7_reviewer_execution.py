@@ -82,12 +82,8 @@ def _synthetic_replay_inputs():
                 "route_result_sha",
             )
         )
-    common_raw = (
-        REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py"
-    ).read_bytes()
-    compare_raw = (
-        REPO_ROOT / "experiments/v3m0_b7_schema_lab/compare.py"
-    ).read_bytes()
+    common_raw = (REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py").read_bytes()
+    compare_raw = (REPO_ROOT / "experiments/v3m0_b7_schema_lab/compare.py").read_bytes()
     d0 = {
         "d0_result_schema_version": "experimental.v3m0.b7.d0-comparison.v1",
         "common_commit_sha": "a" * 40,
@@ -195,11 +191,7 @@ def _report(role="CORPUS_REPLAY"):
         {key: report[key] for key in tuple(report)[:9]}
     )
     report["replay_report_sha"] = common.canonical_sha_v1(
-        {
-            key: value
-            for key, value in report.items()
-            if key != "replay_report_sha"
-        }
+        {key: value for key, value in report.items() if key != "replay_report_sha"}
     )
     return report
 
@@ -224,16 +216,19 @@ def test_child_dispatch_emits_only_one_canonical_report_frame(
 
     monkeypatch.setattr(compare, "_execute_reviewer_replay_v1", fake_execute)
 
-    assert compare.main(
-        [
-            subcommand,
-            "--evidence-commit",
-            E,
-            "--reviewed-executable-source-closure-sha",
-            CLOSURE,
-            "--emit-replay-report",
-        ]
-    ) == 0
+    assert (
+        compare.main(
+            [
+                subcommand,
+                "--evidence-commit",
+                E,
+                "--reviewed-executable-source-closure-sha",
+                CLOSURE,
+                "--emit-replay-report",
+            ]
+        )
+        == 0
+    )
     stdout, stderr = capfd.readouterr()
     assert stdout.encode("utf-8") == common.canonical_json_bytes_v1(expected) + b"\n"
     assert stderr == ""
@@ -309,12 +304,8 @@ def test_execute_reviewer_replay_recomputes_frozen_roots(
     d0 = common.strict_json_loads_v1(inputs["d0"])
     d1 = common.strict_json_loads_v1(inputs["d1"])
     assert replayed == [{"payload": "canonical"}]
-    assert report["recomputed_d0_decision_payload_sha"] == d0[
-        "decision_payload_sha"
-    ]
-    assert report["recomputed_d1_decision_payload_sha"] == d1[
-        "decision_payload_sha"
-    ]
+    assert report["recomputed_d0_decision_payload_sha"] == d0["decision_payload_sha"]
+    assert report["recomputed_d1_decision_payload_sha"] == d1["decision_payload_sha"]
     assert report["observed_provisional_winner_route_id"] == "A_FLAT"
     assert compare.validate_replay_report_v1(report) == report
 
@@ -655,9 +646,7 @@ def _full_route_manifest(
     )
     return _seal(
         {
-            "route_manifest_schema_version": (
-                "experimental.v3m0.b7.route-manifest.v1"
-            ),
+            "route_manifest_schema_version": ("experimental.v3m0.b7.route-manifest.v1"),
             "route_id": route_id,
             "route_schema_domain": domain,
             "route_module": module,
@@ -673,9 +662,7 @@ def _full_route_manifest(
             "metric_spec_sha": metric_spec_sha,
             "encoder_symbol": "encode_normalized_transcript",
             "verifier_decoder_symbol": "verify_and_decode_route_wire",
-            "input_schema_version": (
-                "experimental.v3m0.b7.normalized-transcript.v1"
-            ),
+            "input_schema_version": ("experimental.v3m0.b7.normalized-transcript.v1"),
             "output_schema_version": wire_schema,
             **computed,
             "route_manifest_sha": "",
@@ -712,9 +699,7 @@ def _evidence_comparisons(
         "compare_source_sha256": hashlib.sha256(compare_raw).hexdigest(),
         "corpus_fixture_raw_sha256": hashlib.sha256(fixture_raw).hexdigest(),
         "corpus_spec_sha": fixture["corpus_spec"]["corpus_spec_sha"],
-        "mutation_universe_sha": fixture["mutation_universe"][
-            "mutation_universe_sha"
-        ],
+        "mutation_universe_sha": fixture["mutation_universe"]["mutation_universe_sha"],
         "metric_spec_sha": fixture["metric_spec"]["metric_spec_sha"],
         "environment_manifest": fixture["environment_manifest"],
         "ordered_route_results": d0_rows,
@@ -785,9 +770,7 @@ def _make_reviewer_evidence_repository(tmp_path: Path):
         python_invocation_path=sys.executable
     )
     corpus_spec = _seal({"corpus_spec_sha": ""}, "corpus_spec_sha")
-    mutation_universe = _seal(
-        {"mutation_universe_sha": ""}, "mutation_universe_sha"
-    )
+    mutation_universe = _seal({"mutation_universe_sha": ""}, "mutation_universe_sha")
     metric_spec = _seal(
         {"metric_order": ["failures"], "metric_spec_sha": ""},
         "metric_spec_sha",
@@ -806,12 +789,8 @@ def _make_reviewer_evidence_repository(tmp_path: Path):
         "fixture_sha",
     )
     fixture_raw = common.canonical_json_bytes_v1(fixture)
-    common_raw = (
-        REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py"
-    ).read_bytes()
-    compare_raw = (
-        REPO_ROOT / "experiments/v3m0_b7_schema_lab/compare.py"
-    ).read_bytes()
+    common_raw = (REPO_ROOT / "experiments/v3m0_b7_schema_lab/common.py").read_bytes()
+    compare_raw = (REPO_ROOT / "experiments/v3m0_b7_schema_lab/compare.py").read_bytes()
     base_bodies = {
         "docsv3/v3-机器合同-B7-v9.1-registry.json": (
             REPO_ROOT / "docsv3/v3-机器合同-B7-v9.1-registry.json"
@@ -891,9 +870,7 @@ def _make_reviewer_evidence_repository(tmp_path: Path):
                 common_source_sha=hashlib.sha256(common_raw).hexdigest(),
                 compare_source_sha=hashlib.sha256(compare_raw).hexdigest(),
                 corpus_spec_sha=corpus_spec["corpus_spec_sha"],
-                mutation_universe_sha=mutation_universe[
-                    "mutation_universe_sha"
-                ],
+                mutation_universe_sha=mutation_universe["mutation_universe_sha"],
                 metric_spec_sha=metric_spec["metric_spec_sha"],
                 production_blobs=production_blobs,
             )
@@ -938,9 +915,7 @@ def _make_reviewer_evidence_repository(tmp_path: Path):
 def test_real_E_runs_two_fresh_reviewers_and_joins_identity_and_closure(
     tmp_path: Path,
 ) -> None:
-    repository, evidence_commit, d0, d1 = _make_reviewer_evidence_repository(
-        tmp_path
-    )
+    repository, evidence_commit, d0, d1 = _make_reviewer_evidence_repository(tmp_path)
 
     pair = compare.run_immutable_reviewer_pair_v1(
         reviewer_ids=("independent-corpus", "independent-metric"),
@@ -961,12 +936,10 @@ def test_real_E_runs_two_fresh_reviewers_and_joins_identity_and_closure(
         "independent-metric",
     ]
     assert all(receipt["verdict"] == "ACCEPT" for receipt in receipts)
-    assert len(
-        {
-            receipt["reviewed_executable_source_closure_sha"]
-            for receipt in receipts
-        }
-    ) == 1
+    assert (
+        len({receipt["reviewed_executable_source_closure_sha"] for receipt in receipts})
+        == 1
+    )
     assert pair["all_exports_cleaned"] is True
     assert all(not Path(root).exists() for root in pair["export_roots"])
     for context in contexts:

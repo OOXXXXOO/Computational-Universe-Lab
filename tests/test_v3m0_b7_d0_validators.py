@@ -982,7 +982,9 @@ def test_d0_route_result_consumes_each_dynamic_domain_once_and_cannot_replay(
 
     monkeypatch.setattr(common, "_validate_legal_replay_domain_v1", legal)
     monkeypatch.setattr(common, "_validate_mutation_probe_domain_v1", mutation)
-    monkeypatch.setattr(common, "_derive_e03_domain_from_legal_v1", evidence, raising=False)
+    monkeypatch.setattr(
+        common, "_derive_e03_domain_from_legal_v1", evidence, raising=False
+    )
     monkeypatch.setattr(common, "_validate_invalid_presence_domain_v1", invalid)
     monkeypatch.setattr(
         common,
@@ -1005,7 +1007,13 @@ def test_d0_route_result_consumes_each_dynamic_domain_once_and_cannot_replay(
     }
 
     common.build_d0_route_result_v1(**arguments)
-    assert calls == {"legal": 1, "mutation": 1, "evidence": 1, "invalid": 1, "presence": 1}
+    assert calls == {
+        "legal": 1,
+        "mutation": 1,
+        "evidence": 1,
+        "invalid": 1,
+        "presence": 1,
+    }
     with pytest.raises(ValueError, match="one-shot exhausted"):
         common.build_d0_route_result_v1(**arguments)
 

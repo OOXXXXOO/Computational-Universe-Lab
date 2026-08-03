@@ -98,9 +98,7 @@ def _minimal_wire(
                 dimensions = wire_type.removeprefix("FrozenComplexTensor[")[:-1]
                 shape = [int(item) for item in dimensions.split("x")]
             nested["shape"] = shape
-            nested["values_wire"] = [
-                [0.0, 0.0] for _ in range(math.prod(shape))
-            ]
+            nested["values_wire"] = [[0.0, 0.0] for _ in range(math.prod(shape))]
             _resign_tree("FrozenComplexTensor", nested)
         return nested
     if wire_type.startswith("Literal["):
@@ -320,9 +318,7 @@ def _build_synthetic_parent_body() -> dict[str, object]:
                 "review_role": role,
                 "reviewer_id": f"b7-synthetic-reviewer-{index}",
                 "reviewer_key_id": "SHA256:"
-                + base64.b64encode(bytes([index + 1]) * 32)
-                .decode("ascii")
-                .rstrip("="),
+                + base64.b64encode(bytes([index + 1]) * 32).decode("ascii").rstrip("="),
                 "signature_algorithm": "openssh-ed25519-v1",
                 "preparation_commit_sha": parent["preparation_commit_sha"],
                 "reviewed_candidate_sha": candidate["candidate_sha"],
@@ -403,14 +399,10 @@ def _build_base_provenance() -> dict[str, object]:
     _resign_tree("DirectionManifest", direction)
     _resign_tree("ResponseKGridManifest", response_grid)
     contract["response_reference_reciprocal_index"] = [1]
-    contract["preregistered_phase_bands"] = [
-        [1.4457963267948966, 1.6957963267948966]
-    ]
+    contract["preregistered_phase_bands"] = [[1.4457963267948966, 1.6957963267948966]]
     contract["bridge_tolerance"] = 1e-12
     calibration_spec = contract["current_readout_calibration_spec"]
-    calibration_spec["spec_schema_version"] = (
-        "v3m0.current-readout-calibration-spec.v3"
-    )
+    calibration_spec["spec_schema_version"] = "v3m0.current-readout-calibration-spec.v3"
     calibration_spec["source_metric_whitener"] = _matrix_tensor(10, 10, 10)
     calibration_spec["h_metric_whitener"] = _matrix_tensor(10, 10, 10)
     calibration_spec["curvature_incidence_operator"] = _matrix_tensor(6, 10, 6)
@@ -425,13 +417,9 @@ def _build_base_provenance() -> dict[str, object]:
     normalizer["ordered_normalizer_fp64_bits"] = ["3fe2bec333018867"]
     _resign_tree("CurrentCurvatureNormalizerProtocolV1", normalizer)
     geometry = contract["geometry_bundle"]
-    geometry["source_whitener"] = _clone(
-        calibration_spec["source_metric_whitener"]
-    )
+    geometry["source_whitener"] = _clone(calibration_spec["source_metric_whitener"])
     geometry["h_whitener"] = _clone(calibration_spec["h_metric_whitener"])
-    geometry["incidence_q"] = _clone(
-        calibration_spec["curvature_incidence_operator"]
-    )
+    geometry["incidence_q"] = _clone(calibration_spec["curvature_incidence_operator"])
     geometry["curvature_whitener"] = _clone(
         calibration_spec["curvature_metric_whitener"]
     )
@@ -463,10 +451,7 @@ def _build_base_provenance() -> dict[str, object]:
         basis_body["state_schema_id"] = basis["state_schema_id"]
         basis_body["channel_order"] = channels
         basis_body["vectors_wire"] = [
-            [
-                [1.0 if row == column else 0.0, 0.0]
-                for column in range(len(channels))
-            ]
+            [[1.0 if row == column else 0.0, 0.0] for column in range(len(channels))]
             for row in range(10)
         ]
         _resign_tree("BasisManifest", basis_body)
@@ -577,18 +562,16 @@ def _build_graph(provenance: dict[str, object]) -> dict[str, object]:
         bridge_spec = certificate["full_state_bridge_spec"]
         bridge_spec["bridge_grid"] = _clone(bridge["bridge_grid"])
         bridge_spec["macro_steps"] = [2]
-        bridge_spec["bridge_tolerance"] = permit[
-            "current_scenario_response_contract"
-        ]["bridge_tolerance"]
+        bridge_spec["bridge_tolerance"] = permit["current_scenario_response_contract"][
+            "bridge_tolerance"
+        ]
         _resign_tree("FullStateBridgeSpec", bridge_spec)
         _resign_tree("DynamicsCertificateV3", certificate)
         outcome = _minimal_record("DynamicsCertificationOutcomeV3")
         attempt = outcome["attempt_audit"]
         attempt["parent_freeze_v3_sha"] = parent["parent_freeze_v3_sha"]
         attempt["materialization_sha"] = materialization["materialization_sha"]
-        attempt["transition_authority_sha"] = transition[
-            "transition_authority_sha"
-        ]
+        attempt["transition_authority_sha"] = transition["transition_authority_sha"]
         attempt["metric_attestation_sha"] = metric["attestation_sha"]
         attempt["bridge_grid_authority_sha"] = bridge["grid_authority_sha"]
         attempt["first_failure"] = None
@@ -633,9 +616,7 @@ def _build_graph(provenance: dict[str, object]) -> dict[str, object]:
     bindings = [
         _seal(
             {
-                "binding_schema_version": (
-                    "experimental.v3m0.b7.t-bearer-binding.v1"
-                ),
+                "binding_schema_version": ("experimental.v3m0.b7.t-bearer-binding.v1"),
                 "component_id": item["component_id"],
                 "body_sha": item["body_self_hash_value"],
                 "fejer_order": 256,
@@ -763,9 +744,7 @@ def _build_run_spec(
             "reference_reciprocal_index": list(
                 contract["response_reference_reciprocal_index"]
             ),
-            "preregistered_phase_bands": _clone(
-                contract["preregistered_phase_bands"]
-            ),
+            "preregistered_phase_bands": _clone(contract["preregistered_phase_bands"]),
             "expected_shell_rank": 10,
             "source_trial_vectors": _clone(basis["source_trial_vectors"]),
             "bridge_tolerance": contract["bridge_tolerance"],
@@ -792,12 +771,8 @@ def _rebind_provenance_lineage(
     permit = provenance["permit_body"]
     contract = permit["current_scenario_response_contract"]
     actual_transition = _component_body(graph, "actual_transition_outcome")
-    matched_transition = _component_body(
-        graph, "matched_ablated_transition_outcome"
-    )
-    actual_factory_sha = actual_transition["factory_binding"]["factory"][
-        "factory_sha"
-    ]
+    matched_transition = _component_body(graph, "matched_ablated_transition_outcome")
+    actual_factory_sha = actual_transition["factory_binding"]["factory"]["factory_sha"]
     matched_factory_sha = matched_transition["factory_binding"]["factory"][
         "factory_sha"
     ]
@@ -839,13 +814,9 @@ def _rebind_provenance_lineage(
             "source_readout_bridge_steps": list(
                 run_spec["source_readout_bridge_steps"]
             ),
-            "reference_reciprocal_index": list(
-                run_spec["reference_reciprocal_index"]
-            ),
+            "reference_reciprocal_index": list(run_spec["reference_reciprocal_index"]),
             "expected_shell_rank": run_spec["expected_shell_rank"],
-            "preregistered_phase_bands": _clone(
-                run_spec["preregistered_phase_bands"]
-            ),
+            "preregistered_phase_bands": _clone(run_spec["preregistered_phase_bands"]),
         }
     )
     _resign_tree("ControlWindowProtocolEntry", protocol_entry)
@@ -990,9 +961,9 @@ _CAPTURE_CASES = (
 def _capture_reference_spec(bundle: dict[str, object]) -> dict[str, object]:
     provenance = bundle["provenance"]
     run_spec = bundle["run_spec"]
-    control_entry = provenance["permit_body"]["calibration"][
-        "calibration_outcome"
-    ]["manifest"]["control_registry"]["entries"][0]
+    control_entry = provenance["permit_body"]["calibration"]["calibration_outcome"][
+        "manifest"
+    ]["control_registry"]["entries"][0]
     actual = _branch_lineage(bundle["graph"], "actual")
     return _seal(
         {
@@ -1001,16 +972,12 @@ def _capture_reference_spec(bundle: dict[str, object]) -> dict[str, object]:
             "control_registry_entry": _clone(control_entry),
             "actual_factory_sha": actual["factory_sha"],
             "actual_transition_sha": actual["transition_sha"],
-            "actual_dynamics_certificate_sha": actual[
-                "dynamics_certificate_sha"
-            ],
+            "actual_dynamics_certificate_sha": actual["dynamics_certificate_sha"],
             "candidate_fejer_order": run_spec["selected_fejer_order"],
             "reference_reciprocal_index": _clone(
                 run_spec["reference_reciprocal_index"]
             ),
-            "preregistered_phase_bands": _clone(
-                run_spec["preregistered_phase_bands"]
-            ),
+            "preregistered_phase_bands": _clone(run_spec["preregistered_phase_bands"]),
             "expected_shell_rank": run_spec["expected_shell_rank"],
             "expected_shell_rank_source_id": (
                 "parent-freeze-control-application-spec-v1"
@@ -1024,18 +991,16 @@ def _capture_reference_spec(bundle: dict[str, object]) -> dict[str, object]:
 def _capture_shell_spec_template(bundle: dict[str, object]) -> dict[str, object]:
     provenance = bundle["provenance"]
     run_spec = bundle["run_spec"]
-    control_entry = provenance["permit_body"]["calibration"][
-        "calibration_outcome"
-    ]["manifest"]["control_registry"]["entries"][0]
+    control_entry = provenance["permit_body"]["calibration"]["calibration_outcome"][
+        "manifest"
+    ]["control_registry"]["entries"][0]
     return _seal(
         {
             "shell_spec_schema_version": "v3m0.endpoint-shell-spec.v1",
             "window_protocol_sha": run_spec["window_protocol_sha"],
             "control_registry_entry": _clone(control_entry),
             "response_grid": _clone(run_spec["response_grid"]),
-            "preregistered_phase_bands": _clone(
-                run_spec["preregistered_phase_bands"]
-            ),
+            "preregistered_phase_bands": _clone(run_spec["preregistered_phase_bands"]),
             "candidate_fejer_order": run_spec["selected_fejer_order"],
             "endpoint_reference_projector": None,
             "extraction_protocol_id": "endpoint-single-node-reference-v1",
@@ -1079,9 +1044,7 @@ def _capture_leaf_inputs(
         "reference_spec": _capture_reference_spec(bundle),
         "shell_spec_template": _capture_shell_spec_template(bundle),
         "reference_transition_matrix": (
-            failure_transition
-            if case_id == "reference_failure"
-            else success_transition
+            failure_transition if case_id == "reference_failure" else success_transition
         ),
         "reference_metric_matrix": metric,
         "ordered_shell_transition_matrices": (
@@ -1188,9 +1151,12 @@ def _build_corpus_spec(metric_spec_sha: str) -> dict[str, object]:
         common.validate_corpus_case_v1(case)
         cases.append(case)
     nested_rules: list[dict[str, object]] = []
-    for pointer, body_kind, hash_field, nullable in (
-        common._NESTED_BODY_RULE_PROJECTIONS_V1
-    ):
+    for (
+        pointer,
+        body_kind,
+        hash_field,
+        nullable,
+    ) in common._NESTED_BODY_RULE_PROJECTIONS_V1:
         rule = {
             "rule_schema_version": "experimental.v3m0.b7.nested-body-rule.v1",
             "json_pointer": pointer,
@@ -1205,9 +1171,7 @@ def _build_corpus_spec(metric_spec_sha: str) -> dict[str, object]:
         nested_rules.append(rule)
     corpus = {
         "corpus_spec_schema_version": "experimental.v3m0.b7.corpus-spec.v1",
-        "transcript_schema_version": (
-            "experimental.v3m0.b7.normalized-transcript.v1"
-        ),
+        "transcript_schema_version": ("experimental.v3m0.b7.normalized-transcript.v1"),
         "canonical_json_profile_id": "canonical-json-sha256-v1",
         "scheduler_stage_order": list(common._SCHEDULER_STAGE_ORDER_V1),
         "presence_pointer_order": list(common._PRESENCE_POINTER_ORDER_V1),
@@ -1244,9 +1208,7 @@ def _build_mutation_universe(
             "experimental.v3m0.b7.mutation-universe.v1"
         ),
         "corpus_spec_sha": corpus["corpus_spec_sha"],
-        "mutation_generation_contract_sha": corpus[
-            "mutation_generation_contract_sha"
-        ],
+        "mutation_generation_contract_sha": corpus["mutation_generation_contract_sha"],
         "generator_source_sha256": hashlib.sha256(common_source_bytes).hexdigest(),
         "ordered_mutations": mutations,
         "mutation_count": len(mutations),
@@ -1277,9 +1239,7 @@ def _observe_environment_manifest(
         recorded_raw_sha256=manifest["python_executable_raw_sha256"],
         recorded_venv_prefix=manifest["python_venv_prefix"],
         recorded_pyvenv_cfg_path=manifest["python_pyvenv_cfg_path"],
-        recorded_pyvenv_cfg_raw_sha256=manifest[
-            "python_pyvenv_cfg_raw_sha256"
-        ],
+        recorded_pyvenv_cfg_raw_sha256=manifest["python_pyvenv_cfg_raw_sha256"],
     )
     probe = compare.run_python_environment_import_probe_v2(
         python_invocation_path=manifest["python_invocation_path"],
@@ -1304,9 +1264,7 @@ def build_corpus_fixture_v2(
     ).read_bytes()
     metric = _build_metric_spec(common_source_bytes, compare_source_bytes)
     corpus = _build_corpus_spec(metric["metric_spec_sha"])
-    environment, identity, probe = _observe_environment_manifest(
-        python_invocation_path
-    )
+    environment, identity, probe = _observe_environment_manifest(python_invocation_path)
     bundle = build_synthetic_graph_bundle_v1()
     transcripts = build_ordered_d0_transcripts_v1(
         bundle,

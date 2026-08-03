@@ -36,16 +36,14 @@ def test_capture_builder_materializes_one_complete_self_consistent_graph() -> No
     )
     assert run_spec["selected_fejer_order"] == 256
     assert len(run_spec["channel_order"]) == 20
-    manifest = provenance["permit_body"]["calibration"][
-        "calibration_outcome"
-    ]["manifest"]
+    manifest = provenance["permit_body"]["calibration"]["calibration_outcome"][
+        "manifest"
+    ]
     assert [
         entry["control_id"] for entry in manifest["control_registry"]["entries"]
     ] == ["full"]
     assert [
-        entry["control_id"] for entry in manifest["window_protocol"][
-            "control_entries"
-        ]
+        entry["control_id"] for entry in manifest["window_protocol"]["control_entries"]
     ] == ["full"]
 
 
@@ -70,12 +68,15 @@ def test_capture_builder_emits_all_seven_strict_transcripts_from_one_graph() -> 
         "success",
     ]
     for transcript in transcripts:
-        assert common.validate_normalized_transcript_v1(
-            transcript,
-            corpus_spec_sha=corpus_sha,
-            environment_manifest_sha=environment_sha,
-            graph_raw=bundle["graph"],
-        ) == transcript
+        assert (
+            common.validate_normalized_transcript_v1(
+                transcript,
+                corpus_spec_sha=corpus_sha,
+                environment_manifest_sha=environment_sha,
+                graph_raw=bundle["graph"],
+            )
+            == transcript
+        )
         assert all(
             leaf["input_body_sha"] != leaf["output_body_sha"]
             for leaf in transcript["ordered_leaf_digests"]
@@ -96,13 +97,16 @@ def test_capture_builder_closes_corpus_specs_mutations_environment_and_self_root
         REPOSITORY_ROOT / "experiments/v3m0_b7_schema_lab/compare.py"
     ).read_bytes()
 
-    assert common.validate_corpus_fixture_v2(
-        fixture,
-        common_bytes,
-        compare_bytes,
-        python_identity_observation=identity,
-        python_probe_result=probe,
-    ) == fixture
+    assert (
+        common.validate_corpus_fixture_v2(
+            fixture,
+            common_bytes,
+            compare_bytes,
+            python_identity_observation=identity,
+            python_probe_result=probe,
+        )
+        == fixture
+    )
     assert fixture["mutation_universe"]["mutation_count"] == 11618
     assert len(fixture["ordered_d0_transcripts"]) == 7
     assert capture.render_fixture_bytes_v1(fixture).endswith(b"\n")

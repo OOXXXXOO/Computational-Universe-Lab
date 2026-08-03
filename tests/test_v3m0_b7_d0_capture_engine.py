@@ -34,7 +34,9 @@ def _mutation(
         "target_json_pointer": None if ordinal == 4 else "/terminal_tag",
         "operation": "UPSTREAM_ZERO" if ordinal == 4 else "SET_VALUE",
         "replacement_json": None,
-        "expected_boundary": "UPSTREAM_HARNESS" if ordinal == 4 else "ROUTE_VERIFICATION",
+        "expected_boundary": "UPSTREAM_HARNESS"
+        if ordinal == 4
+        else "ROUTE_VERIFICATION",
         "mutation_sha": f"{ordinal + 1:x}" * 64,
     }
 
@@ -237,9 +239,7 @@ def test_d0_capture_keeps_mutation_and_presence_rows_lazy_one_shot(
         raising=False,
     )
 
-    _route_id, inputs = next(
-        iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
-    )
+    _route_id, inputs = next(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
     mutations = inputs["ordered_mutation_probes"]
     presence = inputs["ordered_invalid_presence_probes"]
     assert mutation_materializations == 0
@@ -282,9 +282,7 @@ def test_d0_capture_reuses_prevalidated_source_hash_snapshots(
         raising=False,
     )
 
-    _route_id, inputs = next(
-        iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
-    )
+    _route_id, inputs = next(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
     assert len(list(inputs["ordered_mutation_probes"])) == 5
     assert discovered_case_ids == list(CASE_IDS)
 
@@ -342,9 +340,7 @@ def test_rejected_encoder_prevents_decoder_and_upstream_probe_never_enters_route
 
     _install_route_stubs(monkeypatch, encode=reject, decode=forbidden_decode)
 
-    _route_id, inputs = next(
-        iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture)
-    )
+    _route_id, inputs = next(iter_d0_gate_inputs_v1(validated_corpus_fixture=fixture))
 
     assert decode_calls == 0
     for row in inputs["ordered_legal_replays"]:
@@ -389,9 +385,7 @@ def test_capture_rejects_mutation_universe_order_substitution_before_route_entry
 
 
 def test_capture_route_imports_are_static_function_local_and_callback_free() -> None:
-    source_path = (
-        REPOSITORY_ROOT / "experiments/v3m0_b7_schema_lab/compare.py"
-    )
+    source_path = REPOSITORY_ROOT / "experiments/v3m0_b7_schema_lab/compare.py"
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
     functions = {
         node.name: node
@@ -399,26 +393,37 @@ def test_capture_route_imports_are_static_function_local_and_callback_free() -> 
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
     expected = {
-        "_call_a_flat_encode_v1": (".a_flat", "encode_normalized_transcript"),
-        "_call_a_flat_decode_v1": (".a_flat", "verify_and_decode_route_wire"),
+        "_call_a_flat_encode_v1": (
+            "experiments.v3m0_b7_schema_lab.a_flat",
+            "encode_normalized_transcript",
+        ),
+        "_call_a_flat_decode_v1": (
+            "experiments.v3m0_b7_schema_lab.a_flat",
+            "verify_and_decode_route_wire",
+        ),
         "_call_b_progress_encode_v1": (
-            ".b_progress",
+            "experiments.v3m0_b7_schema_lab.b_progress",
             "encode_normalized_transcript",
         ),
         "_call_b_progress_decode_v1": (
-            ".b_progress",
+            "experiments.v3m0_b7_schema_lab.b_progress",
             "verify_and_decode_route_wire",
         ),
-        "_call_c_union_encode_v1": (".c_union", "encode_normalized_transcript"),
+        "_call_c_union_encode_v1": (
+            "experiments.v3m0_b7_schema_lab.c_union",
+            "encode_normalized_transcript",
+        ),
         "_call_c_union_decode_v1": (
-            ".c_union",
+            "experiments.v3m0_b7_schema_lab.c_union",
             "verify_and_decode_route_wire",
         ),
     }
     for symbol, (module, imported) in expected.items():
         function = functions[symbol]
         assert [argument.arg for argument in function.args.args] == ["raw_bytes"]
-        imports = [node for node in ast.walk(function) if isinstance(node, ast.ImportFrom)]
+        imports = [
+            node for node in ast.walk(function) if isinstance(node, ast.ImportFrom)
+        ]
         assert len(imports) == 1
         assert "." * imports[0].level + (imports[0].module or "") == module
         assert [(alias.name, alias.asname) for alias in imports[0].names] == [
