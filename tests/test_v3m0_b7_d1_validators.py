@@ -1087,7 +1087,7 @@ def test_d1_comparison_derives_no_survivor_unique_and_tie(
     compare_sha = hashlib.sha256(compare_source).hexdigest()
     environment = _environment_v2()
     fixture = _comparison_fixture(environment)
-    fixture_bytes = common.canonical_json_bytes_v1(fixture)
+    fixture_bytes = common.canonical_json_bytes_v1(fixture) + b"\n"
     d0 = _d0_comparison(
         fixture_raw_bytes=fixture_bytes,
         common_commit_sha="b" * 40,
@@ -1096,7 +1096,7 @@ def test_d1_comparison_derives_no_survivor_unique_and_tie(
         environment=environment,
         survivor_ids=("A_FLAT", "B_PROGRESS"),
     )
-    d0_bytes = common.canonical_json_bytes_v1(d0)
+    d0_bytes = common.canonical_json_bytes_v1(d0) + b"\n"
     route_inputs = _d1_route_inputs(d0, ("A_FLAT", "B_PROGRESS"))
     capture_inputs = [
         {
@@ -1156,18 +1156,32 @@ def test_d1_comparison_derives_no_survivor_unique_and_tie(
         leaf_source,
     )
 
-    result = common.build_d1_comparison_v1(
-        d0_result_raw_bytes=d0_bytes,
-        corpus_fixture_raw_bytes=fixture_bytes,
-        common_blob=common_blob,
-        compare_blob=compare_blob,
-        leaf_provider_blob=leaf_blob,
-        python_identity_observation={},
-        python_probe_result={},
-        ordered_capture_source_bytes=_ordered_capture_source_bytes(),
-        ordered_route_inputs=route_inputs,
-        auxiliary_benchmark=_d1_auxiliary(("A_FLAT", "B_PROGRESS")),
-    )
+    def build_comparison(
+        *,
+        d0_raw: bytes = d0_bytes,
+        fixture_raw: bytes = fixture_bytes,
+    ) -> dict[str, object]:
+        return common.build_d1_comparison_v1(
+            d0_result_raw_bytes=d0_raw,
+            corpus_fixture_raw_bytes=fixture_raw,
+            common_blob=common_blob,
+            compare_blob=compare_blob,
+            leaf_provider_blob=leaf_blob,
+            python_identity_observation={},
+            python_probe_result={},
+            ordered_capture_source_bytes=_ordered_capture_source_bytes(),
+            ordered_route_inputs=route_inputs,
+            auxiliary_benchmark=_d1_auxiliary(("A_FLAT", "B_PROGRESS")),
+        )
+
+    result = build_comparison()
+
+    for hostile_d0 in (d0_bytes[:-1], d0_bytes + b"\n"):
+        with pytest.raises(ValueError, match="D0 input.*exactly one LF"):
+            build_comparison(d0_raw=hostile_d0)
+    for hostile_fixture in (fixture_bytes[:-1], fixture_bytes + b"\n"):
+        with pytest.raises(ValueError, match="fixture.*exactly one LF"):
+            build_comparison(fixture_raw=hostile_fixture)
 
     assert len(lineage_calls) == 21
     assert result["provisional_winner_route_id"] == winner
