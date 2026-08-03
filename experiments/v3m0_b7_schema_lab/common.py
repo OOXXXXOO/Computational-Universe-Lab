@@ -5543,6 +5543,426 @@ def validate_gate_e01_v1(
     )
 
 
+_MUTATION_PROBE_OBSERVATION_FIELDS_V1 = (
+    "capture_ordinal",
+    "mutation_ordinal",
+    "mutation_id",
+    "mutation_sha",
+    "route_id",
+    "materialized_transcript_bytes",
+    "upstream_transcript_count",
+    "first_encode_result",
+    "first_decode_result",
+    "second_encode_result",
+    "second_decode_result",
+)
+_E06_SPLICE_CLASSES_V1 = (
+    "TERMINAL_TAG",
+    "OUTER_BRANCH_FAILURE_SPLICE",
+    "DELETE_SUCCESSFUL_PREFIX_BODY",
+    "INJECT_POST_FAILURE_BODY",
+    "NESTED_BODY_SHA_SPLICE",
+)
+
+
+def _require_two_stage_route_calls_v1(row, prefix, *, required):
+    encode = _validate_route_call_observation_v1(
+        row[f"{prefix}_encode_result"],
+        f"mutation {prefix} encode result",
+    )
+    decode = _validate_route_call_observation_v1(
+        row[f"{prefix}_decode_result"],
+        f"mutation {prefix} decode result",
+    )
+    if required is False:
+        if (
+            encode["termination_kind"] != "NOT_CALLED"
+            or decode["termination_kind"] != "NOT_CALLED"
+        ):
+            raise ValueError(f"mutation {prefix} route stage was unexpectedly called")
+        return encode, decode
+    if required is True and encode["termination_kind"] == "NOT_CALLED":
+        raise ValueError(f"mutation {prefix} encoder was not called")
+    if encode["termination_kind"] == "RETURNED_BYTES":
+        if decode["termination_kind"] == "NOT_CALLED":
+            raise ValueError(f"mutation {prefix} decoder was not called")
+    elif decode["termination_kind"] != "NOT_CALLED":
+        raise ValueError(f"mutation {prefix} decoder ran without encoded bytes")
+    return encode, decode
+
+
+def _mutation_final_accept_v1(encode, decode):
+    return (
+        encode["termination_kind"] == "RETURNED_BYTES"
+        and decode["termination_kind"] == "RETURNED_BYTES"
+    )
+
+
+def _mutation_exact_rejection_v1(encode, decode):
+    return encode["termination_kind"] == "B7LabMutationRejected" or (
+        encode["termination_kind"] == "RETURNED_BYTES"
+        and decode["termination_kind"] == "B7LabMutationRejected"
+    )
+
+
+def _validate_mutation_probe_domain_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_mutation_probes,
+):
+    """Validate every capture-by-mutation two-stage route observation."""
+
+    _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    capture_ordinals = _gate_capture_ordinals_v1(phase)
+    fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+        validated_corpus_fixture
+    )
+    source_set = source_sets[0]
+    universe = fixture.get("mutation_universe")
+    if type(universe) is not dict:
+        raise TypeError("validated corpus mutation universe must be an exact dict")
+    raw_mutations = universe.get("ordered_mutations")
+    mutation_count = universe.get("mutation_count")
+    if type(raw_mutations) is not list or type(mutation_count) is not int:
+        raise TypeError("validated mutation universe domain is not exact")
+    mutations = [validate_mutation_v1(raw) for raw in raw_mutations]
+    expected_mutations = generate_ordered_mutations_v1(source_set)
+    if mutation_count != len(mutations) or canonical_json_bytes_v1(
+        mutations
+    ) != canonical_json_bytes_v1(expected_mutations):
+        raise ValueError("validated mutation universe differs from its source domain")
+    if [mutation["mutation_ordinal"] for mutation in mutations] != list(
+        range(mutation_count)
+    ):
+        raise ValueError("validated mutation universe order drifted")
+    universe_sha = _require_sha256_root_v1(
+        universe.get("mutation_universe_sha"),
+        "mutation universe",
+    )
+    expected_count = mutation_count * len(capture_ordinals)
+    if (
+        type(ordered_mutation_probes) is not list
+        or len(ordered_mutation_probes) != expected_count
+    ):
+        raise TypeError("mutation probe observation cardinality drifted")
+
+    sources_by_case = {source["case_id"]: source for source in source_set}
+    if len(sources_by_case) != 7 or "success" not in sources_by_case:
+        raise ValueError("mutation source case domain drifted")
+    success = sources_by_case["success"]
+    snapshots = {
+        case_id: discover_record_self_hashes_v1(source)
+        for case_id, source in sources_by_case.items()
+    }
+
+    normalized = []
+    mutation_accept_count = 0
+    invalid_rejection_surface_count = 0
+    upstream_invalid_probe_count = 0
+    upstream_invalid_transcript_count = 0
+    all_upstream_route_entry_counts_zero = True
+    cursor = 0
+    for capture_ordinal in capture_ordinals:
+        for mutation in mutations:
+            row = _require_exact_ordered_dict_v1(
+                ordered_mutation_probes[cursor],
+                _MUTATION_PROBE_OBSERVATION_FIELDS_V1,
+                "mutation probe observation",
+            )
+            cursor += 1
+            if (
+                type(row["capture_ordinal"]) is not int
+                or row["capture_ordinal"] != capture_ordinal
+                or type(row["mutation_ordinal"]) is not int
+                or row["mutation_ordinal"] != mutation["mutation_ordinal"]
+                or row["mutation_id"] != mutation["mutation_id"]
+                or row["mutation_sha"] != mutation["mutation_sha"]
+                or row["route_id"] != route_id
+            ):
+                raise ValueError("mutation probe capture/mutation/route order drifted")
+            if (
+                type(row["upstream_transcript_count"]) is not int
+                or row["upstream_transcript_count"] < 0
+            ):
+                raise TypeError("mutation upstream transcript count is not exact")
+
+            probe_kind = mutation["probe_kind"]
+            if probe_kind == "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT":
+                expected_body = None
+                expected_upstream_count = None
+                require_first = None
+                require_second = False
+            else:
+                base_case_id = mutation["base_case_id"]
+                if base_case_id not in sources_by_case:
+                    raise ValueError("mutation base case is outside the corpus")
+                base = sources_by_case[base_case_id]
+                if probe_kind in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL"):
+                    materialized = base
+                else:
+                    materialized = apply_transcript_mutation_v1(
+                        base,
+                        mutation,
+                        success,
+                        snapshots[base_case_id],
+                    )
+                expected_body = canonical_json_bytes_v1(materialized)
+                expected_upstream_count = 1
+                require_first = True
+                require_second = probe_kind == "REPEAT_MUST_EQUAL"
+            if (
+                row["materialized_transcript_bytes"] != expected_body
+                or type(row["materialized_transcript_bytes"]) is not type(expected_body)
+                or (
+                    expected_upstream_count is not None
+                    and row["upstream_transcript_count"] != expected_upstream_count
+                )
+            ):
+                raise ValueError("mutation probe materialization drifted")
+
+            first_encode, first_decode = _require_two_stage_route_calls_v1(
+                row,
+                "first",
+                required=require_first,
+            )
+            second_encode, second_decode = _require_two_stage_route_calls_v1(
+                row,
+                "second",
+                required=require_second,
+            )
+            final_accept = _mutation_final_accept_v1(first_encode, first_decode)
+            exact_rejection = _mutation_exact_rejection_v1(
+                first_encode,
+                first_decode,
+            )
+            wrong_surface_count = sum(
+                call["termination_kind"] in ("WRONG_EXCEPTION", "RETURNED_NONBYTES")
+                for call in (
+                    first_encode,
+                    first_decode,
+                    second_encode,
+                    second_decode,
+                )
+            )
+            if probe_kind == "MUTATION_MUST_REJECT" and final_accept:
+                mutation_accept_count += 1
+            invalid_rejection_surface_count += wrong_surface_count
+            if probe_kind == "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT":
+                upstream_invalid_probe_count += 1
+                upstream_invalid_transcript_count += row["upstream_transcript_count"]
+                route_not_entered = all(
+                    call["termination_kind"] == "NOT_CALLED"
+                    for call in (
+                        first_encode,
+                        first_decode,
+                        second_encode,
+                        second_decode,
+                    )
+                )
+                all_upstream_route_entry_counts_zero = (
+                    all_upstream_route_entry_counts_zero and route_not_entered
+                )
+            roundtrip_equal = (
+                probe_kind == "ROUNDTRIP_MUST_EQUAL"
+                and final_accept
+                and first_decode["raw_bytes"] == expected_body
+            )
+            repeat_equal = (
+                probe_kind == "REPEAT_MUST_EQUAL"
+                and final_accept
+                and _mutation_final_accept_v1(second_encode, second_decode)
+                and first_encode["raw_bytes"] == second_encode["raw_bytes"]
+                and first_decode["raw_bytes"] == expected_body
+                and second_decode["raw_bytes"] == expected_body
+            )
+            normalized.append(
+                {
+                    "capture_ordinal": capture_ordinal,
+                    "mutation_ordinal": mutation["mutation_ordinal"],
+                    "mutation_id": mutation["mutation_id"],
+                    "mutation_sha": mutation["mutation_sha"],
+                    "base_case_id": mutation["base_case_id"],
+                    "probe_kind": probe_kind,
+                    "mutation_class": mutation["mutation_class"],
+                    "operation": mutation["operation"],
+                    "route_id": route_id,
+                    "materialized_transcript_raw_sha256": (
+                        _raw_bytes_sha_or_none_v1(expected_body)
+                    ),
+                    "upstream_transcript_count": row["upstream_transcript_count"],
+                    "first_encode_result": _normalize_route_call_observation_v1(
+                        first_encode
+                    ),
+                    "first_decode_result": _normalize_route_call_observation_v1(
+                        first_decode
+                    ),
+                    "second_encode_result": _normalize_route_call_observation_v1(
+                        second_encode
+                    ),
+                    "second_decode_result": _normalize_route_call_observation_v1(
+                        second_decode
+                    ),
+                    "final_accept": final_accept,
+                    "exact_rejection": exact_rejection,
+                    "wrong_exception_or_nonbytes_count": wrong_surface_count,
+                    "roundtrip_equals_source": roundtrip_equal,
+                    "repeat_calls_equal_source": repeat_equal,
+                }
+            )
+
+    domain_root = canonical_sha_v1(
+        {
+            "mutation_universe_sha": universe_sha,
+            "ordered_probe_outcomes": normalized,
+        }
+    )
+    return {
+        "domain_root_sha": domain_root,
+        "predicate_results": (
+            len(normalized) == expected_count,
+            mutation_accept_count == 0,
+            invalid_rejection_surface_count == 0,
+        ),
+        "mutation_probe_count": len(normalized),
+        "mutation_accept_count": mutation_accept_count,
+        "invalid_rejection_surface_count": invalid_rejection_surface_count,
+        "upstream_invalid_probe_count": upstream_invalid_probe_count,
+        "upstream_invalid_transcript_count": upstream_invalid_transcript_count,
+        "all_upstream_route_entry_counts_zero": (all_upstream_route_entry_counts_zero),
+        "normalized": normalized,
+    }
+
+
+def build_gate_e02_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_mutation_probes,
+):
+    """Build E02 from the exact dynamic mutation universe and outcomes."""
+
+    domain = _validate_mutation_probe_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_mutation_probes=ordered_mutation_probes,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E02",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e02_v1(
+    raw_body,
+    *,
+    validated_corpus_fixture,
+    ordered_mutation_probes,
+):
+    """Reject E02 unless every dynamic mutation outcome recomputes."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E02":
+        raise ValueError("E02 validator received another gate")
+    domain = _validate_mutation_probe_domain_v1(
+        phase=observed["phase"],
+        route_id=observed["observation"]["route_id"],
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_mutation_probes=ordered_mutation_probes,
+    )
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def _validate_e06_domain_v1(mutation_domain):
+    if type(mutation_domain) is not dict:
+        raise TypeError("E06 mutation domain must be an exact dict")
+    selected = [
+        row
+        for row in mutation_domain["normalized"]
+        if row["probe_kind"] in ("ROUNDTRIP_MUST_EQUAL", "REPEAT_MUST_EQUAL")
+        or row["mutation_class"] in _E06_SPLICE_CLASSES_V1
+    ]
+    roundtrips = [
+        row for row in selected if row["probe_kind"] == "ROUNDTRIP_MUST_EQUAL"
+    ]
+    repeats = [row for row in selected if row["probe_kind"] == "REPEAT_MUST_EQUAL"]
+    splices = [
+        row for row in selected if row["mutation_class"] in _E06_SPLICE_CLASSES_V1
+    ]
+    # The subset cardinalities derive from the normalized dynamic domain; no
+    # historical mutation-count literal participates in E06.
+    predicates = (
+        bool(roundtrips) and all(row["roundtrip_equals_source"] for row in roundtrips),
+        bool(repeats) and all(row["repeat_calls_equal_source"] for row in repeats),
+        bool(splices) and all(row["exact_rejection"] for row in splices),
+    )
+    return {
+        "domain_root_sha": canonical_sha_v1(selected),
+        "predicate_results": predicates,
+        "normalized": selected,
+    }
+
+
+def build_gate_e06_v1(
+    *,
+    phase,
+    route_id,
+    validated_corpus_fixture,
+    ordered_mutation_probes,
+):
+    """Build E06 from roundtrip, repeat, and M02--M07 probe subsets."""
+
+    mutation = _validate_mutation_probe_domain_v1(
+        phase=phase,
+        route_id=route_id,
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_mutation_probes=ordered_mutation_probes,
+    )
+    domain = _validate_e06_domain_v1(mutation)
+    return build_gate_outcome_v1(
+        gate_id="E06",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e06_v1(
+    raw_body,
+    *,
+    validated_corpus_fixture,
+    ordered_mutation_probes,
+):
+    """Reject E06 unless its exact dynamic subsets recompute."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E06":
+        raise ValueError("E06 validator received another gate")
+    mutation = _validate_mutation_probe_domain_v1(
+        phase=observed["phase"],
+        route_id=observed["observation"]["route_id"],
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_mutation_probes=ordered_mutation_probes,
+    )
+    domain = _validate_e06_domain_v1(mutation)
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
 def _canonical_value_sha_or_none_v1(value):
     if value is None:
         return None
@@ -6671,6 +7091,195 @@ def validate_route_static_surface_v1(raw_body, route_blob, production_blobs):
         if manifest[field] != expected or type(manifest[field]) is not type(expected):
             raise ValueError(f"route manifest {field} differs from static scan")
     return manifest
+
+
+def _validate_e07_static_domain_v1(route_manifest, route_blob, production_blobs):
+    manifest = validate_route_static_surface_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    entry = _route_static_registry_entry_v1(manifest["route_id"])
+    exact_api = (
+        manifest["encoder_symbol"] == "encode_normalized_transcript"
+        and manifest["verifier_decoder_symbol"] == "verify_and_decode_route_wire"
+        and manifest["input_schema_version"]
+        == "experimental.v3m0.b7.normalized-transcript.v1"
+        and manifest["output_schema_version"] == entry[4]
+    )
+    no_callback_surface = exact_api
+    no_authority_surface = (
+        manifest["authority_surface_count"] == 0
+        and manifest["wrapper_surface_count"] == 0
+    )
+    zero_surface_counts = (
+        type(manifest["authority_surface_count"]) is int
+        and type(manifest["wrapper_surface_count"]) is int
+        and manifest["authority_surface_count"] == 0
+        and manifest["wrapper_surface_count"] == 0
+    )
+    normalized = {
+        "gate_domain_id": "v3m0-b7-e07-route-api-static-surface.v1",
+        "route_id": manifest["route_id"],
+        "route_manifest_sha": manifest["route_manifest_sha"],
+        "route_commit_sha": manifest["route_commit_sha"],
+        "route_source_path": manifest["route_source_path"],
+        "route_source_sha256": manifest["route_source_sha256"],
+        "public_exports_exact": list(_ROUTE_PUBLIC_EXPORTS_V1),
+        "encoder_symbol": manifest["encoder_symbol"],
+        "verifier_decoder_symbol": manifest["verifier_decoder_symbol"],
+        "input_schema_version": manifest["input_schema_version"],
+        "output_schema_version": manifest["output_schema_version"],
+        "static_api_scan_sha": manifest["static_api_scan_sha"],
+        "static_authority_surface_scan_sha": manifest[
+            "static_authority_surface_scan_sha"
+        ],
+        "authority_surface_count": manifest["authority_surface_count"],
+        "wrapper_surface_count": manifest["wrapper_surface_count"],
+    }
+    return {
+        "domain_root_sha": canonical_sha_v1(normalized),
+        "predicate_results": (
+            exact_api,
+            no_callback_surface,
+            no_authority_surface,
+            zero_surface_counts,
+        ),
+        "normalized": normalized,
+        "validated_route_manifest": manifest,
+    }
+
+
+def build_gate_e07_v1(*, phase, route_manifest, route_blob, production_blobs):
+    """Build E07 only from the frozen route API/static-surface scan."""
+
+    domain = _validate_e07_static_domain_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E07",
+        phase=phase,
+        route_id=domain["validated_route_manifest"]["route_id"],
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e07_v1(
+    raw_body,
+    *,
+    route_manifest,
+    route_blob,
+    production_blobs,
+):
+    """Reject E07 unless the frozen static scanner reproduces its report."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E07":
+        raise ValueError("E07 validator received another gate")
+    domain = _validate_e07_static_domain_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    manifest = domain["validated_route_manifest"]
+    if (
+        observed["observation"]["route_id"] != manifest["route_id"]
+        or observed["phase"] not in _gate_contract_v1("E07")[1]
+    ):
+        raise ValueError("E07 phase or route drifted")
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def _validate_e08_static_domain_v1(route_manifest, route_blob, production_blobs):
+    manifest = validate_route_static_surface_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    route_outside_production_roots = all(
+        manifest["route_source_path"] != root
+        and not manifest["route_source_path"].startswith(root + "/")
+        for root in _ROUTE_PRODUCTION_ROOTS_V1
+    )
+    normalized = {
+        "gate_domain_id": "v3m0-b7-e08-import-source-closure.v1",
+        "route_id": manifest["route_id"],
+        "route_manifest_sha": manifest["route_manifest_sha"],
+        "route_commit_sha": manifest["route_commit_sha"],
+        "route_module": manifest["route_module"],
+        "route_source_path": manifest["route_source_path"],
+        "route_source_sha256": manifest["route_source_sha256"],
+        "production_scan_roots": list(_ROUTE_PRODUCTION_ROOTS_V1),
+        "static_import_scan_sha": manifest["static_import_scan_sha"],
+        "production_import_scan_sha": manifest["production_import_scan_sha"],
+        "production_imported_by_route": manifest["production_imported_by_route"],
+        "route_imported_by_production": manifest["route_imported_by_production"],
+        "route_outside_production_scan_roots": route_outside_production_roots,
+    }
+    return {
+        "domain_root_sha": canonical_sha_v1(normalized),
+        "predicate_results": (
+            manifest["production_imported_by_route"] is False,
+            manifest["route_imported_by_production"] is False,
+            route_outside_production_roots,
+        ),
+        "normalized": normalized,
+        "validated_route_manifest": manifest,
+    }
+
+
+def build_gate_e08_v1(*, phase, route_manifest, route_blob, production_blobs):
+    """Build E08 only from the frozen import/source-closure scan."""
+
+    domain = _validate_e08_static_domain_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E08",
+        phase=phase,
+        route_id=domain["validated_route_manifest"]["route_id"],
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e08_v1(
+    raw_body,
+    *,
+    route_manifest,
+    route_blob,
+    production_blobs,
+):
+    """Reject E08 unless the frozen import scanner reproduces its report."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E08":
+        raise ValueError("E08 validator received another gate")
+    domain = _validate_e08_static_domain_v1(
+        route_manifest,
+        route_blob,
+        production_blobs,
+    )
+    manifest = domain["validated_route_manifest"]
+    if (
+        observed["observation"]["route_id"] != manifest["route_id"]
+        or observed["phase"] not in _gate_contract_v1("E08")[1]
+    ):
+        raise ValueError("E08 phase or route drifted")
+    return validate_gate_outcome_v1(
+        observed,
+        expected_domain_root_sha=domain["domain_root_sha"],
+        expected_predicate_results=list(domain["predicate_results"]),
+    )
 
 
 _D0_GATE_INPUT_FIELDS_V1 = (
