@@ -1502,8 +1502,8 @@ def _validate_exact_lab_record_v1(record_name, raw_body):
     if type(raw_body) is not dict:
         raise TypeError(f"{record_name} must be an exact dict")
     fields = tuple(field_spec[0] for field_spec in selected[3])
-    if tuple(raw_body) != fields:
-        raise ValueError(f"{record_name} field order drifted")
+    if len(raw_body) != len(fields) or any(name not in raw_body for name in fields):
+        raise ValueError(f"{record_name} fields drifted")
     for name, wire_type, _presence, nested_record in selected[3]:
         _validate_lab_wire_semantics_v1(
             raw_body[name],
@@ -1829,8 +1829,8 @@ def render_b8_consumer_adapter_utf8(route_id, route_module, wire_schema_id):
 def _validate_decision_projection_v1(raw_body, fields, projection_fields):
     if type(raw_body) is not dict:
         raise TypeError("decision payload owner must be an exact dict")
-    if tuple(raw_body) != fields:
-        raise ValueError("decision payload owner field order drifted")
+    if len(raw_body) != len(fields) or any(name not in raw_body for name in fields):
+        raise ValueError("decision payload owner fields drifted")
     projection = {name: raw_body[name] for name in projection_fields}
     if raw_body["decision_payload_sha"] != _pure_core.canonical_sha_v1(projection):
         raise ValueError("decision payload projection hash mismatch")

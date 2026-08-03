@@ -11,7 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from rulespace_v3.b7_replay_core_v1 import canonical_sha_v1
+from rulespace_v3.b7_replay_core_v1 import (
+    canonical_json_bytes_v1,
+    canonical_sha_v1,
+    strict_json_loads_v1,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -381,6 +385,29 @@ def test_common_basic_record_validators_accept_detached_minimal_bodies(
 
 
 @pytest.mark.parametrize(
+    ("symbol", "factory"),
+    (
+        ("validate_environment_manifest_v1", _environment_manifest),
+        ("validate_corpus_case_v1", lambda: _corpus_case("success")),
+        ("validate_nested_body_rule_v1", _nested_rule),
+        ("validate_mutation_v1", _mutation),
+        ("validate_metric_vector_v1", _metric_vector),
+    ),
+)
+def test_common_basic_record_validators_accept_canonical_wire_and_are_idempotent(
+    symbol: str,
+    factory,
+) -> None:
+    validator = getattr(_common_module(), symbol)
+    decoded = strict_json_loads_v1(canonical_json_bytes_v1(factory()))
+
+    first = validator(decoded)
+    second = validator(first)
+
+    assert second == first
+
+
+@pytest.mark.parametrize(
     ("symbol", "factory", "typed_field", "bad_value"),
     (
         (
@@ -415,7 +442,7 @@ def test_common_basic_record_validators_accept_detached_minimal_bodies(
         ),
     ),
 )
-def test_common_basic_record_validators_reject_order_type_and_self_hash_attacks(
+def test_common_basic_record_validators_reject_shape_type_and_self_hash_attacks(
     symbol: str,
     factory,
     typed_field: str,
@@ -424,14 +451,15 @@ def test_common_basic_record_validators_reject_order_type_and_self_hash_attacks(
     validator = getattr(_common_module(), symbol)
     legal = factory()
     hash_field = next(reversed(legal))
-    reordered = {name: legal[name] for name in reversed(legal)}
+    extra = copy.deepcopy(legal)
+    extra["unexpected"] = None
     wrong_type = copy.deepcopy(legal)
     wrong_type[typed_field] = bad_value
     _seal(wrong_type, hash_field)
     wrong_hash = copy.deepcopy(legal)
     wrong_hash[hash_field] = "0" * 64
 
-    for hostile in (reordered, wrong_type, wrong_hash):
+    for hostile in (extra, wrong_type, wrong_hash):
         with pytest.raises((TypeError, ValueError)):
             validator(hostile)
 
@@ -590,7 +618,8 @@ def test_case_contract_accepts_detached_legal_minimal_transcripts(
 def test_case_contract_rejects_presence_trace_leaf_and_hash_attacks() -> None:
     validator = _common_module().validate_case_contract_v1
     success = _transcript("success")
-    reordered = {name: success[name] for name in reversed(success)}
+    extra_field = copy.deepcopy(success)
+    extra_field["unexpected"] = None
     half_completed = copy.deepcopy(success)
     half_completed["matched_ablated_completed_response"] = None
     _seal(half_completed, "experimental_sha")
@@ -624,7 +653,7 @@ def test_case_contract_rejects_presence_trace_leaf_and_hash_attacks() -> None:
     _seal(post_failure, "experimental_sha")
 
     for hostile in (
-        reordered,
+        extra_field,
         half_completed,
         short_trace,
         wrong_leaf,
@@ -678,6 +707,10 @@ def test_decision_projection_validators_freeze_exact_deep_projection(
         if isinstance(raw[field], dict):
             assert observed[field] is not raw[field]
 
+    decoded = strict_json_loads_v1(canonical_json_bytes_v1(raw))
+    first = validator(decoded)
+    assert validator(first) == first
+
 
 @pytest.mark.parametrize(
     ("symbol", "field_order", "projection_order"),
@@ -694,7 +727,7 @@ def test_decision_projection_validators_freeze_exact_deep_projection(
         ),
     ),
 )
-def test_decision_projection_validators_reject_order_hash_and_alias_attacks(
+def test_decision_projection_validators_reject_shape_hash_and_alias_attacks(
     symbol: str,
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],
@@ -703,13 +736,14 @@ def test_decision_projection_validators_reject_order_hash_and_alias_attacks(
     validator = getattr(common, symbol)
     legal = _decision_record(field_order, projection_order)
 
-    reordered = {name: legal[name] for name in reversed(field_order)}
+    extra = copy.deepcopy(legal)
+    extra["unexpected"] = None
     wrong_hash = copy.deepcopy(legal)
     wrong_hash["decision_payload_sha"] = "0" * 64
     missing = copy.deepcopy(legal)
     missing.pop(projection_order[0])
 
-    for hostile in (reordered, wrong_hash, missing):
+    for hostile in (extra, wrong_hash, missing):
         with pytest.raises((TypeError, ValueError)):
             validator(hostile)
 
