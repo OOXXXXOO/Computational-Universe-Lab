@@ -4128,14 +4128,14 @@ def _validate_branch_attempt_lineage_v1(attempt, branch, run_spec, lineage):
         )
 
 
-def validate_normalized_transcript_v1(
+def _validate_normalized_transcript_against_validated_graph_v1(
     raw_body,
     *,
     corpus_spec_sha,
     environment_manifest_sha,
-    graph_raw,
+    validated_graph,
 ):
-    """Strictly validate one normalized transcript and all aggregate joins."""
+    """Validate one transcript against one already validated complete graph."""
 
     expected_corpus_sha = _require_sha256_root_v1(corpus_spec_sha, "corpus spec")
     expected_environment_sha = _require_sha256_root_v1(
@@ -4148,7 +4148,9 @@ def validate_normalized_transcript_v1(
     if transcript["environment_manifest_sha"] != expected_environment_sha:
         raise ValueError("normalized transcript environment root drifted")
 
-    graph = validate_synthetic_graph_manifest_v1(graph_raw)
+    if type(validated_graph) is not dict:
+        raise TypeError("validated synthetic graph must be an exact dict")
+    graph = validated_graph
     provenance = validate_provenance_fixture_v1(transcript["provenance_fixture"])
     run_spec = validate_response_run_spec_fixture_v1(
         transcript["response_run_spec_fixture"],
@@ -4227,6 +4229,150 @@ def validate_normalized_transcript_v1(
         if response["shell_manifest_sha"] != shell["shell"]["shell_manifest_sha"]:
             raise ValueError("normalized transcript response/shell root drifted")
     return transcript
+
+
+def validate_normalized_transcript_v1(
+    raw_body,
+    *,
+    corpus_spec_sha,
+    environment_manifest_sha,
+    graph_raw,
+):
+    """Strictly validate one normalized transcript and all aggregate joins."""
+
+    graph = validate_synthetic_graph_manifest_v1(graph_raw)
+    return _validate_normalized_transcript_against_validated_graph_v1(
+        raw_body,
+        corpus_spec_sha=corpus_spec_sha,
+        environment_manifest_sha=environment_manifest_sha,
+        validated_graph=graph,
+    )
+
+
+_CORPUS_FIXTURE_V2_FIELDS = (
+    "fixture_schema_version",
+    "corpus_spec",
+    "mutation_universe",
+    "metric_spec",
+    "environment_manifest",
+    "synthetic_graph_manifest",
+    "ordered_d0_transcripts",
+    "fixture_sha",
+)
+
+
+def _validate_corpus_fixture_v2_top_level_v1(raw_body):
+    if type(raw_body) is not dict:
+        raise TypeError("B7LabCorpusFixtureV2 must be an exact dict")
+    if len(raw_body) != len(_CORPUS_FIXTURE_V2_FIELDS) or any(
+        name not in raw_body for name in _CORPUS_FIXTURE_V2_FIELDS
+    ):
+        raise ValueError("B7LabCorpusFixtureV2 fields drifted")
+    fixture = {name: raw_body[name] for name in _CORPUS_FIXTURE_V2_FIELDS}
+    if fixture["fixture_schema_version"] != ("experimental.v3m0.b7.corpus-fixture.v2"):
+        raise ValueError("B7LabCorpusFixtureV2 schema version drifted")
+    for field in (
+        "corpus_spec",
+        "mutation_universe",
+        "metric_spec",
+        "environment_manifest",
+        "synthetic_graph_manifest",
+    ):
+        if type(fixture[field]) is not dict:
+            raise TypeError(f"B7LabCorpusFixtureV2 {field} must be an exact dict")
+    transcripts = fixture["ordered_d0_transcripts"]
+    if (
+        type(transcripts) is not list
+        or len(transcripts) != 7
+        or any(type(transcript) is not dict for transcript in transcripts)
+    ):
+        raise TypeError("B7LabCorpusFixtureV2 requires exactly seven transcripts")
+    _require_sha256_root_v1(fixture["fixture_sha"], "corpus fixture")
+    canonical_json_bytes_v1(fixture)
+    return fixture
+
+
+def validate_corpus_fixture_v2(
+    raw_body,
+    common_source_bytes,
+    compare_source_bytes,
+    *,
+    python_identity_observation,
+    python_probe_result,
+):
+    """Validate one graph-bearing V2 corpus against caller-owned observations."""
+
+    fixture = _validate_corpus_fixture_v2_top_level_v1(raw_body)
+    corpus = validate_corpus_spec_v1(
+        fixture["corpus_spec"],
+        fixture["metric_spec"].get("metric_spec_sha"),
+    )
+    mutation_universe = validate_mutation_universe_v1(
+        fixture["mutation_universe"],
+        fixture["ordered_d0_transcripts"],
+        corpus["corpus_spec_sha"],
+        corpus["mutation_generation_contract_sha"],
+        common_source_bytes,
+    )
+    metric = validate_metric_spec_v1(
+        fixture["metric_spec"],
+        common_source_bytes,
+        compare_source_bytes,
+    )
+    environment = validate_environment_manifest_v2(
+        fixture["environment_manifest"],
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+    )
+    if corpus["metric_spec_sha"] != metric["metric_spec_sha"]:
+        raise ValueError("corpus fixture metric root drifted")
+    if mutation_universe["corpus_spec_sha"] != corpus["corpus_spec_sha"]:
+        raise ValueError("corpus fixture mutation/corpus root drifted")
+
+    graph = validate_synthetic_graph_manifest_v1(fixture["synthetic_graph_manifest"])
+    graph_bytes = canonical_json_bytes_v1(graph)
+    if graph_bytes != canonical_json_bytes_v1(fixture["synthetic_graph_manifest"]):
+        raise ValueError("corpus fixture validated graph body was substituted")
+
+    expected_case_ids = tuple(row[1] for row in _CASE_CONTRACTS_V1)
+    transcripts = fixture["ordered_d0_transcripts"]
+    observed_case_ids = tuple(transcript.get("case_id") for transcript in transcripts)
+    if observed_case_ids != expected_case_ids:
+        raise ValueError("corpus fixture transcript case order drifted")
+    for transcript in transcripts:
+        if transcript.get("corpus_spec_sha") != corpus["corpus_spec_sha"]:
+            raise ValueError("corpus fixture transcript corpus root drifted")
+        if transcript.get("environment_manifest_sha") != environment["environment_sha"]:
+            raise ValueError("corpus fixture transcript environment root drifted")
+        validated_transcript = (
+            _validate_normalized_transcript_against_validated_graph_v1(
+                transcript,
+                corpus_spec_sha=corpus["corpus_spec_sha"],
+                environment_manifest_sha=environment["environment_sha"],
+                validated_graph=graph,
+            )
+        )
+        if validated_transcript["case_id"] != transcript[
+            "case_id"
+        ] or canonical_json_bytes_v1(validated_transcript) != canonical_json_bytes_v1(
+            transcript
+        ):
+            raise ValueError("corpus fixture validated transcript was substituted")
+        if canonical_json_bytes_v1(graph) != graph_bytes:
+            raise ValueError(
+                "corpus fixture graph mutated during transcript validation"
+            )
+
+    expected_fixture_sha = canonical_sha_v1(
+        {
+            name: fixture[name]
+            for name in _CORPUS_FIXTURE_V2_FIELDS
+            if name != "fixture_sha"
+        }
+    )
+    if fixture["fixture_sha"] != expected_fixture_sha:
+        raise ValueError("corpus fixture self hash mismatch")
+    return _detach_json_v1(fixture)
 
 
 def _require_exact_seven_bytes_v1(raw_values, field):
