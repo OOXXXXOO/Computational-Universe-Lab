@@ -5339,6 +5339,43 @@ def _validated_d0_fixture_source_domain_v1(validated_corpus_fixture):
     return fixture, source_sets
 
 
+def _validated_gate_fixture_source_domain_v1(
+    phase,
+    validated_corpus_fixture,
+    ordered_source_transcript_sets,
+):
+    if phase == "D0":
+        if ordered_source_transcript_sets is not None:
+            raise ValueError("D0 gate source domain must come from the fixture")
+        return _validated_d0_fixture_source_domain_v1(validated_corpus_fixture)
+    if phase != "D1":
+        raise ValueError("gate phase is not frozen")
+    fixture = _validate_corpus_fixture_v2_top_level_v1(validated_corpus_fixture)
+    if fixture["fixture_sha"] != canonical_sha_v1(
+        {
+            name: fixture[name]
+            for name in _CORPUS_FIXTURE_V2_FIELDS
+            if name != "fixture_sha"
+        }
+    ):
+        raise ValueError("validated corpus fixture self root drifted")
+    corpus_root = _require_sha256_root_v1(
+        fixture["corpus_spec"].get("corpus_spec_sha"),
+        "validated corpus spec",
+    )
+    environment_root = _require_sha256_root_v1(
+        fixture["environment_manifest"].get("environment_sha"),
+        "validated corpus environment",
+    )
+    _capture_ordinals, source_sets = _validate_source_transcript_sets_v1(
+        "D1",
+        ordered_source_transcript_sets,
+        expected_corpus_spec_sha=corpus_root,
+        expected_environment_sha=environment_root,
+    )
+    return fixture, source_sets
+
+
 def _validate_route_call_observation_v1(raw_body, label):
     call = _require_exact_ordered_dict_v1(
         raw_body,
@@ -5489,14 +5526,15 @@ def build_gate_e01_v1(
     route_id,
     validated_corpus_fixture,
     ordered_legal_replays,
+    ordered_source_transcript_sets=None,
 ):
     """Build E01 only from the complete ordered legal replay byte domain."""
 
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_legal_replay_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -5517,6 +5555,7 @@ def validate_gate_e01_v1(
     *,
     validated_corpus_fixture,
     ordered_legal_replays,
+    ordered_source_transcript_sets=None,
 ):
     """Reject an E01 report unless its full byte domain recomputes exactly."""
 
@@ -5525,11 +5564,11 @@ def validate_gate_e01_v1(
         raise ValueError("E01 validator received another gate")
     route_id = observed["observation"]["route_id"]
     phase = observed["phase"]
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_legal_replay_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -5611,15 +5650,21 @@ def _validate_mutation_probe_domain_v1(
     route_id,
     validated_corpus_fixture,
     ordered_mutation_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Validate every capture-by-mutation two-stage route observation."""
 
     _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
     capture_ordinals = _gate_capture_ordinals_v1(phase)
-    fixture, source_sets = _validated_d0_fixture_source_domain_v1(
+    fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
+    )
+    _fixture_again, fixture_source_sets = _validated_d0_fixture_source_domain_v1(
         validated_corpus_fixture
     )
-    source_set = source_sets[0]
+    fixture_source_set = fixture_source_sets[0]
     universe = fixture.get("mutation_universe")
     if type(universe) is not dict:
         raise TypeError("validated corpus mutation universe must be an exact dict")
@@ -5628,7 +5673,7 @@ def _validate_mutation_probe_domain_v1(
     if type(raw_mutations) is not list or type(mutation_count) is not int:
         raise TypeError("validated mutation universe domain is not exact")
     mutations = [validate_mutation_v1(raw) for raw in raw_mutations]
-    expected_mutations = generate_ordered_mutations_v1(source_set)
+    expected_mutations = generate_ordered_mutations_v1(fixture_source_set)
     if mutation_count != len(mutations) or canonical_json_bytes_v1(
         mutations
     ) != canonical_json_bytes_v1(expected_mutations):
@@ -5648,15 +5693,6 @@ def _validate_mutation_probe_domain_v1(
     ):
         raise TypeError("mutation probe observation cardinality drifted")
 
-    sources_by_case = {source["case_id"]: source for source in source_set}
-    if len(sources_by_case) != 7 or "success" not in sources_by_case:
-        raise ValueError("mutation source case domain drifted")
-    success = sources_by_case["success"]
-    snapshots = {
-        case_id: discover_record_self_hashes_v1(source)
-        for case_id, source in sources_by_case.items()
-    }
-
     normalized = []
     mutation_accept_count = 0
     invalid_rejection_surface_count = 0
@@ -5664,7 +5700,15 @@ def _validate_mutation_probe_domain_v1(
     upstream_invalid_transcript_count = 0
     all_upstream_route_entry_counts_zero = True
     cursor = 0
-    for capture_ordinal in capture_ordinals:
+    for capture_ordinal, source_set in zip(capture_ordinals, source_sets):
+        sources_by_case = {source["case_id"]: source for source in source_set}
+        if len(sources_by_case) != 7 or "success" not in sources_by_case:
+            raise ValueError("mutation source case domain drifted")
+        success = sources_by_case["success"]
+        snapshots = {
+            case_id: discover_record_self_hashes_v1(source)
+            for case_id, source in sources_by_case.items()
+        }
         for mutation in mutations:
             row = _require_exact_ordered_dict_v1(
                 ordered_mutation_probes[cursor],
@@ -5826,6 +5870,9 @@ def _validate_mutation_probe_domain_v1(
             invalid_rejection_surface_count == 0,
         ),
         "mutation_probe_count": len(normalized),
+        "mutation_must_reject_probe_count": sum(
+            row["probe_kind"] == "MUTATION_MUST_REJECT" for row in normalized
+        ),
         "mutation_accept_count": mutation_accept_count,
         "invalid_rejection_surface_count": invalid_rejection_surface_count,
         "upstream_invalid_probe_count": upstream_invalid_probe_count,
@@ -5841,6 +5888,7 @@ def build_gate_e02_v1(
     route_id,
     validated_corpus_fixture,
     ordered_mutation_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Build E02 from the exact dynamic mutation universe and outcomes."""
 
@@ -5849,6 +5897,7 @@ def build_gate_e02_v1(
         route_id=route_id,
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     return build_gate_outcome_v1(
         gate_id="E02",
@@ -5864,6 +5913,7 @@ def validate_gate_e02_v1(
     *,
     validated_corpus_fixture,
     ordered_mutation_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Reject E02 unless every dynamic mutation outcome recomputes."""
 
@@ -5875,6 +5925,7 @@ def validate_gate_e02_v1(
         route_id=observed["observation"]["route_id"],
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     return validate_gate_outcome_v1(
         observed,
@@ -5919,6 +5970,7 @@ def build_gate_e06_v1(
     route_id,
     validated_corpus_fixture,
     ordered_mutation_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Build E06 from roundtrip, repeat, and M02--M07 probe subsets."""
 
@@ -5927,6 +5979,7 @@ def build_gate_e06_v1(
         route_id=route_id,
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     domain = _validate_e06_domain_v1(mutation)
     return build_gate_outcome_v1(
@@ -5943,6 +5996,7 @@ def validate_gate_e06_v1(
     *,
     validated_corpus_fixture,
     ordered_mutation_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Reject E06 unless its exact dynamic subsets recompute."""
 
@@ -5954,6 +6008,7 @@ def validate_gate_e06_v1(
         route_id=observed["observation"]["route_id"],
         validated_corpus_fixture=validated_corpus_fixture,
         ordered_mutation_probes=ordered_mutation_probes,
+        ordered_source_transcript_sets=ordered_source_transcript_sets,
     )
     domain = _validate_e06_domain_v1(mutation)
     return validate_gate_outcome_v1(
@@ -6046,14 +6101,15 @@ def build_gate_e03_v1(
     route_id,
     validated_corpus_fixture,
     ordered_legal_replays,
+    ordered_source_transcript_sets=None,
 ):
     """Build E03 from every non-null frozen evidence-pointer pair."""
 
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_e03_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -6074,6 +6130,7 @@ def validate_gate_e03_v1(
     *,
     validated_corpus_fixture,
     ordered_legal_replays,
+    ordered_source_transcript_sets=None,
 ):
     """Reject E03 unless its complete evidence byte-pair domain recomputes."""
 
@@ -6082,11 +6139,11 @@ def validate_gate_e03_v1(
         raise ValueError("E03 validator received another gate")
     route_id = observed["observation"]["route_id"]
     phase = observed["phase"]
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_e03_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -6332,14 +6389,15 @@ def build_gate_e04_v1(
     validated_corpus_fixture,
     ordered_legal_replays,
     ordered_invalid_presence_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Build E04 from every legal state and all 1,393 invalid pairs."""
 
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_e04_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -6362,6 +6420,7 @@ def validate_gate_e04_v1(
     validated_corpus_fixture,
     ordered_legal_replays,
     ordered_invalid_presence_probes,
+    ordered_source_transcript_sets=None,
 ):
     """Reject E04 unless both legal and invalid-state domains recompute."""
 
@@ -6370,11 +6429,11 @@ def validate_gate_e04_v1(
         raise ValueError("E04 validator received another gate")
     route_id = observed["observation"]["route_id"]
     phase = observed["phase"]
-    _fixture, source_sets = _validated_d0_fixture_source_domain_v1(
-        validated_corpus_fixture
+    _fixture, source_sets = _validated_gate_fixture_source_domain_v1(
+        phase,
+        validated_corpus_fixture,
+        ordered_source_transcript_sets,
     )
-    if phase != "D0":
-        raise ValueError("D0 corpus fixture cannot authorize another phase")
     domain = _validate_e04_domain_v1(
         phase=phase,
         route_id=route_id,
@@ -8388,6 +8447,7 @@ def _validate_d1_capture_source_bytes_v1(ordered_capture_source_bytes):
             {
                 "capture_ordinal": capture_ordinal,
                 "case_ids": case_ids,
+                "transcripts": transcripts,
                 "source_bytes": list(sources),
                 "transcript_set_sha": _ordered_bytes_root_v1(case_ids, sources),
                 "ordered_leaf_digest_set_sha": leaf_root,
@@ -8607,4 +8667,569 @@ def validate_gate_e05_v1(
     )
     if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
         raise ValueError("E05 outcome differs from fresh recomputation")
+    return observed
+
+
+_D1_GATE_ORDER_V1 = ("E01", "E02", "E03", "E04", "E05", "E06", "E07", "E08")
+
+
+def _build_d1_gate_from_domain_v1(*, gate_id, route_id, domain):
+    """Seal one D1 gate from an already-consumed dynamic-domain summary."""
+
+    if type(domain) is not dict:
+        raise TypeError("D1 gate domain summary must be an exact dict")
+    return build_gate_outcome_v1(
+        gate_id=gate_id,
+        phase="D1",
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def build_d1_route_result_v1(
+    *,
+    d0_route_result,
+    route_blob,
+    production_blobs,
+    validated_corpus_fixture,
+    ordered_capture_source_bytes,
+    gate_inputs,
+    ordered_survivor_route_ids,
+    ordered_route_capture_inputs,
+):
+    """Build one D1 route result by replaying all captures and all eight gates."""
+
+    d0_result = validate_exact_lab_record_v1(
+        "B7LabD0RouteResultV1",
+        d0_route_result,
+    )
+    if d0_result["survives_d0"] is not True:
+        raise ValueError("D1 route was not a D0 survivor")
+    manifest = validate_route_static_surface_v1(
+        d0_result["route_manifest"],
+        route_blob,
+        production_blobs,
+    )
+    if canonical_json_bytes_v1(manifest) != canonical_json_bytes_v1(
+        d0_result["route_manifest"]
+    ):
+        raise ValueError("D1 route manifest differs from D0")
+    if (
+        d0_result["route_id"] != manifest["route_id"]
+        or d0_result["route_manifest_sha"] != manifest["route_manifest_sha"]
+        or d0_result["route_commit_sha"] != manifest["route_commit_sha"]
+    ):
+        raise ValueError("D1 route/D0 manifest identity drifted")
+    route_id = manifest["route_id"]
+    if route_id not in ordered_survivor_route_ids:
+        raise ValueError("D1 route order omits its D0 survivor")
+    inputs = _validate_d0_gate_inputs_v1(gate_inputs)
+    cross = _build_d1_cross_replay_domain_v1(
+        synthetic_graph_manifest_sha=validated_corpus_fixture[
+            "synthetic_graph_manifest"
+        ]["graph_sha"],
+        ordered_survivor_route_ids=ordered_survivor_route_ids,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+        ordered_route_capture_inputs=ordered_route_capture_inputs,
+    )
+    route_ordinal = ordered_survivor_route_ids.index(route_id)
+    own_capture_input = ordered_route_capture_inputs[route_ordinal]
+    if (
+        own_capture_input["route_manifest_sha"] != manifest["route_manifest_sha"]
+        or own_capture_input["ordered_legal_replays"] != inputs["ordered_legal_replays"]
+    ):
+        raise ValueError("D1 route capture input differs from route gate input")
+    source_sets = [capture["transcripts"] for capture in cross["captures"]]
+    legal = _validate_legal_replay_domain_v1(
+        phase="D1",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+    )
+    mutation = _validate_mutation_probe_domain_v1(
+        phase="D1",
+        route_id=route_id,
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_source_transcript_sets=source_sets,
+        ordered_mutation_probes=inputs["ordered_mutation_probes"],
+    )
+    evidence = _validate_e03_domain_v1(
+        phase="D1",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+    )
+    presence = _validate_e04_domain_v1(
+        phase="D1",
+        route_id=route_id,
+        ordered_source_transcript_sets=source_sets,
+        ordered_legal_replays=inputs["ordered_legal_replays"],
+        ordered_invalid_presence_probes=inputs["ordered_invalid_presence_probes"],
+    )
+    e06 = _validate_e06_domain_v1(mutation)
+    gates = [
+        _build_d1_gate_from_domain_v1(
+            gate_id="E01",
+            route_id=route_id,
+            domain=legal,
+        ),
+        _build_d1_gate_from_domain_v1(
+            gate_id="E02",
+            route_id=route_id,
+            domain=mutation,
+        ),
+        _build_d1_gate_from_domain_v1(
+            gate_id="E03",
+            route_id=route_id,
+            domain=evidence,
+        ),
+        _build_d1_gate_from_domain_v1(
+            gate_id="E04",
+            route_id=route_id,
+            domain=presence,
+        ),
+        _build_d1_gate_from_domain_v1(
+            gate_id="E05",
+            route_id=route_id,
+            domain=cross,
+        ),
+        _build_d1_gate_from_domain_v1(
+            gate_id="E06",
+            route_id=route_id,
+            domain=e06,
+        ),
+        build_gate_e07_v1(
+            phase="D1",
+            route_manifest=manifest,
+            route_blob=route_blob,
+            production_blobs=production_blobs,
+        ),
+        build_gate_e08_v1(
+            phase="D1",
+            route_manifest=manifest,
+            route_blob=route_blob,
+            production_blobs=production_blobs,
+        ),
+    ]
+    if tuple(gate["gate_id"] for gate in gates) != _D1_GATE_ORDER_V1:
+        raise ValueError("D1 gate builder order drifted")
+
+    if legal["accepted_count"] != 21:
+        raise ValueError("D1 legal replay cardinality did not fully accept")
+    static_metrics = compute_route_static_metrics_v1(route_id, route_blob)
+    canonical_wires = [
+        row["encode_result"]["raw_bytes"] for row in inputs["ordered_legal_replays"]
+    ]
+    metric_values = {
+        "mutation_accept_count": mutation["mutation_accept_count"],
+        "evidence_loss_count": evidence["evidence_loss_count"],
+        "constructible_invalid_presence_count": presence["canonical_accept_count"],
+        "half_pair_state_count": presence["half_pair_state_count"],
+        **static_metrics,
+        "canonical_wire_bytes": compute_canonical_wire_bytes_v1(canonical_wires),
+    }
+    if tuple(metric_values) != _METRIC_ORDER_V1:
+        raise ValueError("D1 metric coordinate order drifted")
+    metric_vector = {**metric_values, "metric_vector_sha": ""}
+    _rehash_record_field_v1(metric_vector, "metric_vector_sha")
+    metric_vector = validate_metric_vector_v1(metric_vector)
+
+    cells = cross["route_cells"][route_ordinal]
+    cells_pass = all(
+        cell["exact_transcript_match"]
+        and cell["transcript_set_sha"]
+        == cross["captures"][ordinal]["transcript_set_sha"]
+        and cell["ordered_leaf_digest_set_sha"]
+        == cross["captures"][ordinal]["ordered_leaf_digest_set_sha"]
+        and cell["synthetic_graph_manifest_sha"] == cross["graph_sha"]
+        and cell["route_manifest_sha"] == manifest["route_manifest_sha"]
+        for ordinal, cell in enumerate(cells)
+    )
+    result = {
+        "route_result_schema_version": "experimental.v3m0.b7.d1-route-result.v1",
+        "route_id": route_id,
+        "route_manifest": manifest,
+        "route_manifest_sha": manifest["route_manifest_sha"],
+        "route_commit_sha": manifest["route_commit_sha"],
+        "ordered_cross_replay_cells": cells,
+        "gate_outcomes": gates,
+        "metric_vector": metric_vector,
+        "survives_d1": all(gate["passed"] for gate in gates) and cells_pass,
+        "route_result_sha": "",
+    }
+    _rehash_record_field_v1(result, "route_result_sha")
+    return validate_exact_lab_record_v1("B7LabD1RouteResultV1", result)
+
+
+def validate_d1_route_result_v1(
+    raw_body,
+    *,
+    d0_route_result,
+    route_blob,
+    production_blobs,
+    validated_corpus_fixture,
+    ordered_capture_source_bytes,
+    gate_inputs,
+    ordered_survivor_route_ids,
+    ordered_route_capture_inputs,
+):
+    """Reject a D1 route result unless all raw domains replay identically."""
+
+    observed = validate_exact_lab_record_v1("B7LabD1RouteResultV1", raw_body)
+    expected = build_d1_route_result_v1(
+        d0_route_result=d0_route_result,
+        route_blob=route_blob,
+        production_blobs=production_blobs,
+        validated_corpus_fixture=validated_corpus_fixture,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+        gate_inputs=gate_inputs,
+        ordered_survivor_route_ids=ordered_survivor_route_ids,
+        ordered_route_capture_inputs=ordered_route_capture_inputs,
+    )
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("D1 route result differs from fresh recomputation")
+    return observed
+
+
+_D1_ROUTE_INPUT_FIELDS_V1 = (
+    "route_manifest",
+    "route_blob",
+    "production_blobs",
+    "gate_inputs",
+)
+_NEUTRAL_LEAF_PROVIDER_SOURCE_PATH_V1 = "rulespace_v3/b7_replay_core_v1.py"
+
+
+def _validate_d1_route_inputs_v1(raw_inputs, d0_result):
+    survivor_ids = d0_result["surviving_route_ids"]
+    if (
+        type(survivor_ids) is not list
+        or not survivor_ids
+        or type(raw_inputs) is not list
+        or len(raw_inputs) != len(survivor_ids)
+    ):
+        raise TypeError("D1 route inputs must exactly cover D0 survivors")
+    d0_by_id = {
+        result["route_id"]: result for result in d0_result["ordered_route_results"]
+    }
+    validated = []
+    for route_id, raw_input in zip(survivor_ids, raw_inputs):
+        route_input = _require_exact_ordered_dict_v1(
+            raw_input,
+            _D1_ROUTE_INPUT_FIELDS_V1,
+            "D1 route input",
+        )
+        manifest = validate_exact_lab_record_v1(
+            "B7LabRouteManifestV1",
+            route_input["route_manifest"],
+        )
+        if route_id not in d0_by_id or manifest["route_id"] != route_id:
+            raise ValueError("D1 route input order differs from D0 survivors")
+        if canonical_json_bytes_v1(manifest) != canonical_json_bytes_v1(
+            d0_by_id[route_id]["route_manifest"]
+        ):
+            raise ValueError("D1 route manifest is not byte-identical to D0")
+        route_blob = _require_git_blob_descriptor_v1(
+            route_input["route_blob"],
+            "D1 route blob",
+        )
+        if (
+            route_blob[0] != manifest["route_commit_sha"]
+            or route_blob[1] != manifest["route_source_path"]
+            or route_blob[2] != "100644"
+        ):
+            raise ValueError("D1 route blob descriptor drifted")
+        production_blobs = route_input["production_blobs"]
+        if type(production_blobs) is not tuple or not production_blobs:
+            raise TypeError("D1 production blobs must be a nonempty exact tuple")
+        for ordinal, blob in enumerate(production_blobs):
+            checked = _require_git_blob_descriptor_v1(
+                blob,
+                f"D1 production blob {ordinal}",
+            )
+            if checked[0] != d0_result["common_commit_sha"] or checked[2] != "100644":
+                raise ValueError("D1 production blob commit or mode drifted")
+        _validate_d0_gate_inputs_v1(route_input["gate_inputs"])
+        validated.append(route_input)
+    return validated
+
+
+def _validate_d1_auxiliary_benchmark_v1(raw_benchmark, route_ids):
+    benchmark = _require_exact_ordered_dict_v1(
+        raw_benchmark,
+        _D0_AUXILIARY_BENCHMARK_FIELDS_V1,
+        "D1 auxiliary benchmark",
+    )
+    if type(benchmark["warm_up"]) is not int or benchmark["warm_up"] != 5:
+        raise ValueError("D1 auxiliary benchmark warm-up drifted")
+    if type(benchmark["repeat"]) is not int or benchmark["repeat"] != 30:
+        raise ValueError("D1 auxiliary benchmark repeat count drifted")
+    if (
+        type(benchmark["reported_statistics"]) is not list
+        or tuple(benchmark["reported_statistics"])
+        != _D0_AUXILIARY_REPORTED_STATISTICS_V1
+    ):
+        raise ValueError("D1 auxiliary reported-statistics protocol drifted")
+    statistics = benchmark["ordered_route_statistics"]
+    if type(statistics) is not list or len(statistics) != len(route_ids):
+        raise TypeError("D1 auxiliary route statistics cardinality drifted")
+    for route_id, raw_statistic in zip(route_ids, statistics):
+        statistic = _require_exact_ordered_dict_v1(
+            raw_statistic,
+            _D0_AUXILIARY_ROUTE_STATISTIC_FIELDS_V1,
+            "D1 auxiliary route statistic",
+        )
+        if statistic["route_id"] != route_id:
+            raise ValueError("D1 auxiliary route statistic order drifted")
+        for field in ("median", "p95"):
+            if type(statistic[field]) is not float or statistic[field] < 0.0:
+                raise TypeError(f"D1 auxiliary {field} must be a nonnegative float")
+        if statistic["p95"] < statistic["median"]:
+            raise ValueError("D1 auxiliary p95 is below its median")
+        if (
+            type(statistic["tracemalloc_peak"]) is not int
+            or statistic["tracemalloc_peak"] < 0
+        ):
+            raise TypeError("D1 auxiliary peak must be a nonnegative exact int")
+    canonical_json_bytes_v1(benchmark)
+    return _detach_json_v1(benchmark)
+
+
+def build_d1_comparison_v1(
+    *,
+    d0_result_raw_bytes,
+    corpus_fixture_raw_bytes,
+    common_blob,
+    compare_blob,
+    leaf_provider_blob,
+    python_identity_observation,
+    python_probe_result,
+    ordered_capture_source_bytes,
+    ordered_route_inputs,
+    auxiliary_benchmark,
+):
+    """Build D1 from canonical D0/corpus bytes and immutable source blobs."""
+
+    if type(d0_result_raw_bytes) is not bytes:
+        raise TypeError("D1 D0 input must be exact bytes")
+    parsed_d0 = strict_json_loads_v1(d0_result_raw_bytes)
+    if type(parsed_d0) is not dict or canonical_json_bytes_v1(parsed_d0) != (
+        d0_result_raw_bytes
+    ):
+        raise ValueError("D1 D0 input is not one canonical object")
+    d0_result = validate_exact_lab_record_v1("B7LabD0ComparisonV1", parsed_d0)
+    validate_d0_decision_payload_projection_v1(d0_result)
+    if not d0_result["surviving_route_ids"]:
+        raise ValueError("D1 cannot run after a D0 no-survivor halt")
+
+    common_checked, compare_checked = _validate_common_compare_blobs_v1(
+        common_blob,
+        compare_blob,
+    )
+    if (
+        common_checked[0] != d0_result["common_commit_sha"]
+        or _raw_source_sha256_v1(common_checked[3], "D1 common")
+        != d0_result["common_source_sha256"]
+        or _raw_source_sha256_v1(compare_checked[3], "D1 compare")
+        != d0_result["compare_source_sha256"]
+    ):
+        raise ValueError("D1 common/compare roots differ from D0")
+    leaf_checked = _require_git_blob_descriptor_v1(
+        leaf_provider_blob,
+        "D1 leaf provider blob",
+    )
+    if (
+        leaf_checked[0] != d0_result["common_commit_sha"]
+        or leaf_checked[1] != _NEUTRAL_LEAF_PROVIDER_SOURCE_PATH_V1
+        or leaf_checked[2] != "100644"
+    ):
+        raise ValueError("D1 neutral leaf-provider blob identity drifted")
+    leaf_source_sha = _raw_source_sha256_v1(leaf_checked[3], "D1 leaf provider")
+
+    if type(corpus_fixture_raw_bytes) is not bytes:
+        raise TypeError("D1 corpus fixture input must be exact bytes")
+    parsed_fixture = strict_json_loads_v1(corpus_fixture_raw_bytes)
+    if type(parsed_fixture) is not dict or canonical_json_bytes_v1(parsed_fixture) != (
+        corpus_fixture_raw_bytes
+    ):
+        raise ValueError("D1 corpus fixture is not one canonical object")
+    fixture = validate_corpus_fixture_v2(
+        parsed_fixture,
+        common_checked[3],
+        compare_checked[3],
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+    )
+    if canonical_json_bytes_v1(fixture) != canonical_json_bytes_v1(parsed_fixture):
+        raise ValueError("validated D1 corpus fixture body was substituted")
+    fixture_raw_sha = _pure_core.hashlib.sha256(corpus_fixture_raw_bytes).hexdigest()
+    expected_d0_joins = {
+        "corpus_fixture_raw_sha256": fixture_raw_sha,
+        "corpus_spec_sha": fixture["corpus_spec"]["corpus_spec_sha"],
+        "mutation_universe_sha": fixture["mutation_universe"]["mutation_universe_sha"],
+        "metric_spec_sha": fixture["metric_spec"]["metric_spec_sha"],
+    }
+    for field, expected in expected_d0_joins.items():
+        if d0_result[field] != expected:
+            raise ValueError(f"D1 fixture/D0 {field} join drifted")
+    if canonical_json_bytes_v1(d0_result["environment_manifest"]) != (
+        canonical_json_bytes_v1(fixture["environment_manifest"])
+    ):
+        raise ValueError("D1 environment body differs from D0 or fixture")
+
+    graph = validate_synthetic_graph_manifest_v1(fixture["synthetic_graph_manifest"])
+    if graph.get("selected_fejer_order") != 256 or canonical_json_bytes_v1(
+        graph
+    ) != canonical_json_bytes_v1(fixture["synthetic_graph_manifest"]):
+        raise ValueError("D1 graph is not the exact fixture T=256 graph")
+    captures = _validate_d1_capture_source_bytes_v1(ordered_capture_source_bytes)
+    for capture in captures:
+        for transcript in capture["transcripts"]:
+            if (
+                transcript.get("response_run_spec_fixture", {}).get(
+                    "selected_fejer_order"
+                )
+                != 256
+            ):
+                raise ValueError("D1 transcript run spec is not T=256")
+            validated = _validate_normalized_transcript_against_validated_graph_v1(
+                transcript,
+                corpus_spec_sha=fixture["corpus_spec"]["corpus_spec_sha"],
+                environment_manifest_sha=fixture["environment_manifest"][
+                    "environment_sha"
+                ],
+                validated_graph=graph,
+            )
+            if canonical_json_bytes_v1(validated) != canonical_json_bytes_v1(
+                transcript
+            ):
+                raise ValueError("D1 validated transcript body was substituted")
+
+    route_inputs = _validate_d1_route_inputs_v1(ordered_route_inputs, d0_result)
+    survivor_ids = list(d0_result["surviving_route_ids"])
+    route_capture_inputs = [
+        {
+            "route_id": route_input["route_manifest"]["route_id"],
+            "route_manifest_sha": route_input["route_manifest"]["route_manifest_sha"],
+            "ordered_legal_replays": route_input["gate_inputs"][
+                "ordered_legal_replays"
+            ],
+        }
+        for route_input in route_inputs
+    ]
+    d0_by_id = {
+        result["route_id"]: result for result in d0_result["ordered_route_results"]
+    }
+    route_results = []
+    for route_id, route_input in zip(survivor_ids, route_inputs):
+        route_results.append(
+            build_d1_route_result_v1(
+                d0_route_result=d0_by_id[route_id],
+                route_blob=route_input["route_blob"],
+                production_blobs=route_input["production_blobs"],
+                validated_corpus_fixture=fixture,
+                ordered_capture_source_bytes=ordered_capture_source_bytes,
+                gate_inputs=route_input["gate_inputs"],
+                ordered_survivor_route_ids=survivor_ids,
+                ordered_route_capture_inputs=route_capture_inputs,
+            )
+        )
+    if [result["route_id"] for result in route_results] != survivor_ids:
+        raise ValueError("D1 route result order drifted")
+    surviving_results = [result for result in route_results if result["survives_d1"]]
+    surviving_ids = [result["route_id"] for result in surviving_results]
+    if not surviving_results:
+        minimum_metric = None
+        minimum_routes = []
+    else:
+        minimum_key = min(
+            tuple(result["metric_vector"][name] for name in _METRIC_ORDER_V1)
+            for result in surviving_results
+        )
+        minimum_routes = [
+            result
+            for result in surviving_results
+            if tuple(result["metric_vector"][name] for name in _METRIC_ORDER_V1)
+            == minimum_key
+        ]
+        minimum_metric = minimum_routes[0]["metric_vector"]
+    tie_detected = len(minimum_routes) >= 2
+    winner = minimum_routes[0]["route_id"] if len(minimum_routes) == 1 else None
+    benchmark = _validate_d1_auxiliary_benchmark_v1(
+        auxiliary_benchmark,
+        survivor_ids,
+    )
+    result = {
+        "d1_result_schema_version": "experimental.v3m0.b7.d1-comparison.v1",
+        "d0_result_raw_sha256": _pure_core.hashlib.sha256(
+            d0_result_raw_bytes
+        ).hexdigest(),
+        "d0_result_sha": d0_result["d0_result_sha"],
+        "d0_decision_payload_sha": d0_result["decision_payload_sha"],
+        "common_commit_sha": d0_result["common_commit_sha"],
+        "common_source_sha256": d0_result["common_source_sha256"],
+        "compare_source_sha256": d0_result["compare_source_sha256"],
+        "leaf_provider_source_sha256": leaf_source_sha,
+        "corpus_fixture_raw_sha256": fixture_raw_sha,
+        "corpus_spec_sha": expected_d0_joins["corpus_spec_sha"],
+        "mutation_universe_sha": expected_d0_joins["mutation_universe_sha"],
+        "metric_spec_sha": expected_d0_joins["metric_spec_sha"],
+        "synthetic_graph_manifest": graph,
+        "environment_manifest": fixture["environment_manifest"],
+        "ordered_capture_transcript_set_shas": [
+            capture["transcript_set_sha"] for capture in captures
+        ],
+        "ordered_capture_leaf_digest_set_shas": [
+            capture["ordered_leaf_digest_set_sha"] for capture in captures
+        ],
+        "ordered_route_results": route_results,
+        "surviving_route_ids": surviving_ids,
+        "minimum_metric_vector": minimum_metric,
+        "provisional_winner_route_id": winner,
+        "tie_detected": tie_detected,
+        "decision_payload_sha": "",
+        "auxiliary_benchmark": benchmark,
+        "d1_result_sha": "",
+    }
+    result["decision_payload_sha"] = canonical_sha_v1(
+        {name: result[name] for name in _D1_DECISION_FIELDS}
+    )
+    _rehash_record_field_v1(result, "d1_result_sha")
+    validated = validate_exact_lab_record_v1("B7LabD1ComparisonV1", result)
+    validate_d1_decision_payload_projection_v1(validated)
+    return validated
+
+
+def validate_d1_comparison_v1(
+    raw_body,
+    *,
+    d0_result_raw_bytes,
+    corpus_fixture_raw_bytes,
+    common_blob,
+    compare_blob,
+    leaf_provider_blob,
+    python_identity_observation,
+    python_probe_result,
+    ordered_capture_source_bytes,
+    ordered_route_inputs,
+):
+    """Reject D1 unless every D0, graph, capture, route and metric join replays."""
+
+    observed = validate_exact_lab_record_v1("B7LabD1ComparisonV1", raw_body)
+    validate_d1_decision_payload_projection_v1(observed)
+    expected = build_d1_comparison_v1(
+        d0_result_raw_bytes=d0_result_raw_bytes,
+        corpus_fixture_raw_bytes=corpus_fixture_raw_bytes,
+        common_blob=common_blob,
+        compare_blob=compare_blob,
+        leaf_provider_blob=leaf_provider_blob,
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+        ordered_route_inputs=ordered_route_inputs,
+        auxiliary_benchmark=observed["auxiliary_benchmark"],
+    )
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("D1 comparison differs from fresh recomputation")
     return observed
