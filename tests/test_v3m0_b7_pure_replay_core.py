@@ -98,6 +98,16 @@ TASK3_ALL_FUNCTION_SCOPES = {
 
 TASK3_DIRECT_IMPORTS = ["__future__", "hashlib", "json"]
 
+CORE_DIRECT_IMPORT_BINDINGS = [
+    ("from", "__future__", "annotations", None),
+    ("import", "hashlib", None, None),
+    ("import", "json", None, None),
+    ("import", "math", None, None),
+    ("from", "fractions", "Fraction", None),
+    ("import", "numpy", None, "np"),
+    ("import", "scipy.linalg", None, None),
+]
+
 TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION = {
     "canonical_json_bytes_v1": {
         "ValueError",
@@ -439,6 +449,110 @@ TASK5_FUNCTION_SIGNATURES = {
         "first_failure",
     ),
 }
+
+TASK5_DEPENDENCY_BINDINGS = (
+    "np",
+    "scipy",
+    "math",
+    "Fraction",
+    "canonical_json_bytes_v1",
+    "canonical_sha_v1",
+    "strict_json_loads_v1",
+)
+
+TASK5_HELPER_FUNCTION_SIGNATURES = {
+    "_make_task5_dependency_guard_v1": (
+        "np_binding",
+        "scipy_binding",
+        "math_binding",
+        "fraction_binding",
+        "canonical_json_binding",
+        "canonical_sha_binding",
+        "strict_json_binding",
+    ),
+    "_finite_float_v1": ("value", "field"),
+    "_strict_complex_matrix_v1": ("value", "field", "square"),
+    "_freeze_complex_tensor_raw_v1": ("values",),
+    "_frozen_tensor_array_raw_v1": ("raw_body", "field"),
+    "_basis_matrix_raw_v1": ("raw_body", "field", "role"),
+    "_hermitian_sqrt_pair_raw_v1": ("metric",),
+    "_fejer_scalar_raw_v1": ("eigenvalue", "center_phase", "order"),
+    "_compute_fejer_filtered_response_raw_v1": (
+        "transition",
+        "metric",
+        "shell_phase",
+        "order",
+        "source_injection",
+        "readout",
+    ),
+    "_exact_frobenius_upper_raw_v1": ("values",),
+    "_principal_phase_raw_v1": ("value",),
+    "_phase_distance_raw_v1": ("first", "second"),
+    "_phase_bands_raw_v1": ("raw_bands", "field"),
+    "_in_phase_bands_raw_v1": ("phase", "bands"),
+    "_orthogonal_projector_raw_v1": ("matrix",),
+    "_extract_projector_candidates_raw_v1": (
+        "transition",
+        "metric",
+        "raw_phase_bands",
+        "order",
+        "source_injection",
+        "readout",
+    ),
+    "_phase_grid_collision_raw_v1": ("candidates", "order"),
+    "_projector_overlap_raw_v1": ("first", "second", "rank"),
+    "_build_branch_attempt_raw_v1": (
+        "branch",
+        "response_values",
+        "bridge_audit",
+        "failure",
+    ),
+}
+
+TASK5_NESTED_FUNCTION_SIGNATURES = {
+    ("_make_task5_dependency_guard_v1", "require_task5_dependencies"): (
+        "np_candidate",
+        "scipy_candidate",
+        "math_candidate",
+        "fraction_candidate",
+        "canonical_json_candidate",
+        "canonical_sha_candidate",
+        "strict_json_candidate",
+    ),
+}
+
+TASK5_ALL_FUNCTION_SCOPES = {
+    *TASK5_FUNCTION_SIGNATURES,
+    *TASK5_HELPER_FUNCTION_SIGNATURES,
+    *(name for _, name in TASK5_NESTED_FUNCTION_SIGNATURES),
+}
+
+TASK5_TOP_LEVEL_FUNCTION_ORDER = (
+    "_make_task5_dependency_guard_v1",
+    "_finite_float_v1",
+    "_strict_complex_matrix_v1",
+    "_freeze_complex_tensor_raw_v1",
+    "_frozen_tensor_array_raw_v1",
+    "_basis_matrix_raw_v1",
+    "_hermitian_sqrt_pair_raw_v1",
+    "_fejer_scalar_raw_v1",
+    "_compute_fejer_filtered_response_raw_v1",
+    "_exact_frobenius_upper_raw_v1",
+    "_principal_phase_raw_v1",
+    "_phase_distance_raw_v1",
+    "_phase_bands_raw_v1",
+    "_in_phase_bands_raw_v1",
+    "_orthogonal_projector_raw_v1",
+    "_extract_projector_candidates_raw_v1",
+    "_phase_grid_collision_raw_v1",
+    "_projector_overlap_raw_v1",
+    "_select_endpoint_reference_from_raw",
+    "_track_endpoint_shell_from_raw",
+    "_build_fejer_branch_response_values_from_raw",
+    "_audit_source_readout_bridge_from_raw",
+    "_build_branch_attempt_raw_v1",
+    "_assemble_atomic_paired_response_attempt_from_raw",
+)
 
 TASK4_LITERAL_ASSIGNMENTS = {
     "_B7_RECORD_SCHEMAS_JSON_V1",
@@ -1127,6 +1241,23 @@ def _assert_exact_function_shape(
     assert ast.unparse(node.returns) == expected_return
 
 
+def _assert_exact_unannotated_function_shape(
+    node: ast.FunctionDef,
+    expected_arguments: tuple[str, ...],
+) -> None:
+    assert node.decorator_list == []
+    assert node.type_comment is None
+    assert node.args.defaults == []
+    assert all(default is None for default in node.args.kw_defaults)
+    assert node.args.posonlyargs == []
+    assert node.args.vararg is None
+    assert node.args.kwonlyargs == []
+    assert node.args.kwarg is None
+    assert tuple(argument.arg for argument in node.args.args) == expected_arguments
+    assert all(argument.annotation is None for argument in node.args.args)
+    assert node.returns is None
+
+
 def test_scope_binding_extractor_covers_every_python_binding_site() -> None:
     tree = ast.parse(
         """
@@ -1232,11 +1363,12 @@ def _assert_core_source_contract(source: str) -> None:
     allowed_imports = set(contract["allowed_external_import_modules_exact"])
 
     imported_modules: list[str] = []
+    imported_bindings: list[tuple[str, str, str | None, str | None]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                assert alias.asname is None
                 imported_modules.append(alias.name)
+                imported_bindings.append(("import", alias.name, None, alias.asname))
         elif isinstance(node, ast.ImportFrom):
             assert node.level == 0, "repository-local imports are forbidden"
             assert node.module is not None
@@ -1247,7 +1379,10 @@ def _assert_core_source_contract(source: str) -> None:
                     ("annotations", None)
                 ]
             imported_modules.append(node.module)
-    assert imported_modules == TASK3_DIRECT_IMPORTS
+            imported_bindings.extend(
+                ("from", node.module, alias.name, alias.asname) for alias in node.names
+            )
+    assert imported_bindings == CORE_DIRECT_IMPORT_BINDINGS
     assert set(imported_modules).issubset(allowed_imports)
     assert not (
         {name.split(".", 1)[0] for name in imported_modules} & FORBIDDEN_MODULE_ROOTS
@@ -1267,7 +1402,23 @@ def _assert_core_source_contract(source: str) -> None:
         elif isinstance(node, ast.Assign):
             assert all(isinstance(target, ast.Name) for target in node.targets)
             top_level_assignments.update(target.id for target in node.targets)
-            ast.literal_eval(node.value)
+            target_names = tuple(target.id for target in node.targets)
+            if target_names == ("_require_task5_dependencies_v1",):
+                assert isinstance(node.value, ast.Call)
+                assert _task3_call_target(node.value) == (
+                    "_make_task5_dependency_guard_v1"
+                )
+                assert node.value.keywords == []
+                assert (
+                    tuple(
+                        argument.id
+                        for argument in node.value.args
+                        if isinstance(argument, ast.Name)
+                    )
+                    == TASK5_DEPENDENCY_BINDINGS
+                )
+            else:
+                ast.literal_eval(node.value)
         elif isinstance(node, ast.FunctionDef):
             top_level_functions.append(node.name)
             if node.name in TASK3_FUNCTION_SIGNATURES:
@@ -1275,7 +1426,13 @@ def _assert_core_source_contract(source: str) -> None:
                 expected_annotations, expected_return = TASK3_FUNCTION_ANNOTATIONS[
                     node.name
                 ]
-            else:
+                _assert_exact_function_shape(
+                    node,
+                    expected_arguments,
+                    expected_annotations,
+                    expected_return,
+                )
+            elif node.name in TASK4_FUNCTION_SIGNATURES:
                 expected_arguments = TASK4_FUNCTION_SIGNATURES[node.name]
                 expected_annotations, expected_return = TASK4_FUNCTION_ANNOTATIONS[
                     node.name
@@ -1285,20 +1442,31 @@ def _assert_core_source_contract(source: str) -> None:
                     observed_body_sha256
                     == TASK4_EXPECTED_FUNCTION_BODY_SHA256[node.name]
                 )
-            _assert_exact_function_shape(
-                node,
-                expected_arguments,
-                expected_annotations,
-                expected_return,
-            )
+                _assert_exact_function_shape(
+                    node,
+                    expected_arguments,
+                    expected_annotations,
+                    expected_return,
+                )
+            else:
+                expected_arguments = {
+                    **TASK5_HELPER_FUNCTION_SIGNATURES,
+                    **TASK5_FUNCTION_SIGNATURES,
+                }[node.name]
+                _assert_exact_unannotated_function_shape(
+                    node,
+                    expected_arguments,
+                )
 
     assert top_level_assignments == {
         "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
         *TASK4_LITERAL_ASSIGNMENTS,
+        "_require_task5_dependencies_v1",
     }
     assert top_level_functions == [
         *TASK3_FUNCTION_SIGNATURES,
         *TASK4_FUNCTION_SIGNATURES,
+        *TASK5_TOP_LEVEL_FUNCTION_ORDER,
     ]
     assert TASK4_PUBLIC_VALIDATOR_SYMBOLS <= set(top_level_functions)
     assert set(TASK4_EXPECTED_FUNCTION_BODY_SHA256) == set(TASK4_FUNCTION_SIGNATURES)
@@ -1523,6 +1691,7 @@ def _assert_core_source_contract(source: str) -> None:
     )
 
     observed_nested_functions: set[tuple[str, str]] = set()
+    observed_task5_nested_functions: set[tuple[str, str]] = set()
     observed_exact_local_bindings: set[tuple[str, str]] = set()
     observed_call_targets: Counter[tuple[str, str]] = Counter()
     expected_call_expressions = Counter(
@@ -1573,18 +1742,26 @@ def _assert_core_source_contract(source: str) -> None:
             parent_name = _enclosing_function_name(node, parents)
             assert parent_name is not None
             key = (parent_name, node.name)
-            assert key in TASK3_NESTED_FUNCTION_SIGNATURES
-            assert key not in observed_nested_functions
-            observed_nested_functions.add(key)
-            expected_annotations, expected_return = TASK3_NESTED_FUNCTION_ANNOTATIONS[
-                key
-            ]
-            _assert_exact_function_shape(
-                node,
-                TASK3_NESTED_FUNCTION_SIGNATURES[key],
-                expected_annotations,
-                expected_return,
-            )
+            if key in TASK3_NESTED_FUNCTION_SIGNATURES:
+                assert key not in observed_nested_functions
+                observed_nested_functions.add(key)
+                expected_annotations, expected_return = (
+                    TASK3_NESTED_FUNCTION_ANNOTATIONS[key]
+                )
+                _assert_exact_function_shape(
+                    node,
+                    TASK3_NESTED_FUNCTION_SIGNATURES[key],
+                    expected_annotations,
+                    expected_return,
+                )
+            else:
+                assert key in TASK5_NESTED_FUNCTION_SIGNATURES
+                assert key not in observed_task5_nested_functions
+                observed_task5_nested_functions.add(key)
+                _assert_exact_unannotated_function_shape(
+                    node,
+                    TASK5_NESTED_FUNCTION_SIGNATURES[key],
+                )
         if isinstance(node, ast.Assign):
             assert node.type_comment is None
             assert len(node.targets) == 1
@@ -1609,6 +1786,11 @@ def _assert_core_source_contract(source: str) -> None:
                     assert ast.literal_eval(node.value) == PROJECTION_SHA256
                 elif scope is None and target_node.id in TASK4_LITERAL_ASSIGNMENTS:
                     ast.literal_eval(node.value)
+                elif binding_key == (None, "_require_task5_dependencies_v1"):
+                    assert isinstance(node.value, ast.Call)
+                    assert _task3_call_target(node.value) == (
+                        "_make_task5_dependency_guard_v1"
+                    )
                 else:
                     expected_assignment_calls = {
                         ("validate_object_keys", "candidate_type"): "type",
@@ -1685,7 +1867,13 @@ def _assert_core_source_contract(source: str) -> None:
             assert node in approved_condition_nodes
         if isinstance(node, ast.Raise):
             assert isinstance(node.exc, ast.Call)
-            assert _task3_call_target(node.exc) in {"TypeError", "ValueError"}
+            scope = _enclosing_function_name(node, parents)
+            allowed_exceptions = (
+                {"TypeError", "ValueError", "AssertionError", "RuntimeError"}
+                if scope in TASK5_ALL_FUNCTION_SCOPES
+                else {"TypeError", "ValueError"}
+            )
+            assert _task3_call_target(node.exc) in allowed_exceptions
             if node.cause is not None:
                 handler = parents[node]
                 assert isinstance(handler, ast.ExceptHandler)
@@ -1697,6 +1885,7 @@ def _assert_core_source_contract(source: str) -> None:
                 assert node.id in {
                     "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
                     *TASK4_LITERAL_ASSIGNMENTS,
+                    "_require_task5_dependencies_v1",
                 }
             elif scope in TASK3_FUNCTION_SIGNATURES or scope in {
                 item[1] for item in TASK3_NESTED_FUNCTION_SIGNATURES
@@ -1715,7 +1904,9 @@ def _assert_core_source_contract(source: str) -> None:
                     )
                     observed_exact_local_bindings.add(binding_key)
             else:
-                assert scope in TASK4_FUNCTION_SIGNATURES
+                assert scope in (
+                    TASK4_FUNCTION_SIGNATURES.keys() | TASK5_ALL_FUNCTION_SCOPES
+                )
                 assert node.id not in FORBIDDEN_CALL_NAMES
                 assert node.id not in FORBIDDEN_MODULE_ROOTS
         if isinstance(node, ast.Attribute) and isinstance(
@@ -1731,14 +1922,34 @@ def _assert_core_source_contract(source: str) -> None:
                 assert isinstance(attribute_parent, ast.Call)
                 assert attribute_parent.func is node
         if isinstance(node, ast.Call):
+            scope = _enclosing_function_name(node, parents)
+            if scope in TASK5_ALL_FUNCTION_SCOPES:
+                if isinstance(node.func, ast.Name):
+                    assert node.func.id not in FORBIDDEN_CALL_NAMES
+                if isinstance(node.func, ast.Attribute):
+                    assert (
+                        _resolved_attribute_root(node.func)
+                        not in FORBIDDEN_MODULE_ROOTS
+                    )
+                continue
             target = _task3_call_target(node)
             assert target is not None, "dynamic call target is forbidden"
             if isinstance(node.func, ast.Name):
                 assert node.func.id not in FORBIDDEN_CALL_NAMES
             if isinstance(node.func, ast.Attribute):
                 assert _resolved_attribute_root(node.func) not in FORBIDDEN_MODULE_ROOTS
-            scope = _enclosing_function_name(node, parents)
-            assert scope is not None, "module-body calls are forbidden"
+            if scope is None:
+                assert target == "_make_task5_dependency_guard_v1"
+                assert node.keywords == []
+                assert (
+                    tuple(
+                        argument.id
+                        for argument in node.args
+                        if isinstance(argument, ast.Name)
+                    )
+                    == TASK5_DEPENDENCY_BINDINGS
+                )
+                continue
             if scope in TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION:
                 lowered_target = target.casefold()
                 assert not any(
@@ -1751,9 +1962,17 @@ def _assert_core_source_contract(source: str) -> None:
                 ] += 1
                 positional_count, keyword_names = TASK3_CALL_SHAPES[target]
                 shapes = ((positional_count, keyword_names),)
-            else:
+            elif scope in TASK4_FUNCTION_SIGNATURES:
                 assert scope in TASK4_FUNCTION_SIGNATURES
                 shapes = TASK4_CALL_SHAPES[target]
+            else:
+                assert scope in TASK5_ALL_FUNCTION_SCOPES
+                shapes = (
+                    (
+                        len(node.args),
+                        tuple(keyword.arg for keyword in node.keywords),
+                    ),
+                )
             observed_shape = (
                 len(node.args),
                 tuple(keyword.arg for keyword in node.keywords),
@@ -1788,6 +2007,7 @@ def _assert_core_source_contract(source: str) -> None:
             assert "callable" not in lowered
 
     assert observed_nested_functions == set(TASK3_NESTED_FUNCTION_SIGNATURES)
+    assert observed_task5_nested_functions == set(TASK5_NESTED_FUNCTION_SIGNATURES)
     assert observed_exact_local_bindings == set(TASK3_EXACT_LOCAL_CALL_BINDINGS)
     assert observed_call_targets == TASK3_EXPECTED_CALL_TARGETS
     assert observed_call_expressions == expected_call_expressions
@@ -1835,7 +2055,15 @@ def test_core_source_has_exact_task3_task4_symbols_imports_and_signatures() -> N
 
 def test_core_runtime_namespace_has_exact_task3_task4_symbols() -> None:
     core = _core_module()
-    import_symbols = {"annotations", "hashlib", "json"}
+    import_symbols = {
+        "annotations",
+        "Fraction",
+        "hashlib",
+        "json",
+        "math",
+        "np",
+        "scipy",
+    }
     observed_public = {
         name
         for name in vars(core)
@@ -1851,9 +2079,12 @@ def test_core_runtime_namespace_has_exact_task3_task4_symbols() -> None:
         for name in vars(core)
         if name.startswith("_") and not name.startswith("__")
     }
-    expected_private = TASK4_LITERAL_ASSIGNMENTS | {
-        name for name in TASK4_FUNCTION_SIGNATURES if name.startswith("_")
-    }
+    expected_private = (
+        TASK4_LITERAL_ASSIGNMENTS
+        | {name for name in TASK4_FUNCTION_SIGNATURES if name.startswith("_")}
+        | set(TASK5_TOP_LEVEL_FUNCTION_ORDER)
+        | {"_require_task5_dependencies_v1"}
+    )
     assert observed_private == expected_private
 
 
@@ -1868,34 +2099,239 @@ def test_task5_owner_neutral_leaf_signatures_are_exact() -> None:
     assert observed == TASK5_FUNCTION_SIGNATURES
 
 
-def test_task5_response_atomic_assembly_wrapper_is_one_static_delegation() -> None:
-    tree = ast.parse(RESPONSE_PATH.read_text(encoding="utf-8"))
-    matches = [
+def test_task5_dependency_guard_is_definition_time_and_dominates_every_leaf() -> None:
+    tree = ast.parse(CORE_PATH.read_text(encoding="utf-8"))
+    factories = [
         node
         for node in tree.body
         if isinstance(node, ast.FunctionDef)
-        and node.name == "_assemble_atomic_paired_response_attempt_from_raw"
+        and node.name == "_make_task5_dependency_guard_v1"
     ]
-    assert len(matches) == 1
-    function = matches[0]
-    assert tuple(argument.arg for argument in function.args.args) == (
-        TASK5_FUNCTION_SIGNATURES[
-            "_assemble_atomic_paired_response_attempt_from_raw"
-        ]
+    assert len(factories) == 1
+    factory = factories[0]
+    assert len(factory.body) == 2
+    nested = factory.body[0]
+    factory_return = factory.body[1]
+    assert isinstance(nested, ast.FunctionDef)
+    assert nested.name == "require_task5_dependencies"
+    assert isinstance(factory_return, ast.Return)
+    assert isinstance(factory_return.value, ast.Name)
+    assert factory_return.value.id == nested.name
+    assert len(nested.body) == 1
+    dependency_if = nested.body[0]
+    assert isinstance(dependency_if, ast.If)
+    assert ast.dump(dependency_if.test, include_attributes=False) == (
+        _expression_shape(
+            "np_candidate is not np_binding "
+            "or scipy_candidate is not scipy_binding "
+            "or math_candidate is not math_binding "
+            "or fraction_candidate is not fraction_binding "
+            "or canonical_json_candidate is not canonical_json_binding "
+            "or canonical_sha_candidate is not canonical_sha_binding "
+            "or strict_json_candidate is not strict_json_binding"
+        )
     )
-    assert len(function.body) == 1
-    statement = function.body[0]
-    assert isinstance(statement, ast.Return)
-    call = statement.value
-    assert isinstance(call, ast.Call)
-    assert isinstance(call.func, ast.Attribute)
-    assert isinstance(call.func.value, ast.Name)
-    assert call.func.value.id == "_b7_replay_core_v1"
-    assert call.func.attr == function.name
-    assert not call.keywords
-    assert tuple(
-        argument.id for argument in call.args if isinstance(argument, ast.Name)
-    ) == TASK5_FUNCTION_SIGNATURES[function.name]
+    assert dependency_if.orelse == []
+    assert len(dependency_if.body) == 1
+    failure = dependency_if.body[0]
+    assert isinstance(failure, ast.Raise)
+    assert isinstance(failure.exc, ast.Call)
+    assert _task3_call_target(failure.exc) == "RuntimeError"
+    assert len(failure.exc.args) == 1
+    assert isinstance(failure.exc.args[0], ast.Constant)
+    assert failure.exc.args[0].value == "B7 Task-5 dependency binding changed"
+
+    assignments = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name)
+            and target.id == "_require_task5_dependencies_v1"
+            for target in node.targets
+        )
+    ]
+    assert len(assignments) == 1
+    assignment_call = assignments[0].value
+    assert isinstance(assignment_call, ast.Call)
+    assert _task3_call_target(assignment_call) == ("_make_task5_dependency_guard_v1")
+    assert len(assignment_call.args) == len(TASK5_DEPENDENCY_BINDINGS)
+    assert (
+        tuple(
+            argument.id
+            for argument in assignment_call.args
+            if isinstance(argument, ast.Name)
+        )
+        == TASK5_DEPENDENCY_BINDINGS
+    )
+
+    leaves = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name in TASK5_FUNCTION_SIGNATURES
+    }
+    assert set(leaves) == set(TASK5_FUNCTION_SIGNATURES)
+    for leaf in leaves.values():
+        first_statement = leaf.body[0]
+        assert isinstance(first_statement, ast.Expr)
+        guard_call = first_statement.value
+        assert isinstance(guard_call, ast.Call)
+        assert _task3_call_target(guard_call) == "_require_task5_dependencies_v1"
+        assert guard_call.keywords == []
+        assert len(guard_call.args) == len(TASK5_DEPENDENCY_BINDINGS)
+        assert (
+            tuple(
+                argument.id
+                for argument in guard_call.args
+                if isinstance(argument, ast.Name)
+            )
+            == TASK5_DEPENDENCY_BINDINGS
+        )
+
+
+def test_task5_response_wrappers_are_one_guarded_static_delegation() -> None:
+    tree = ast.parse(RESPONSE_PATH.read_text(encoding="utf-8"))
+    matches = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name in TASK5_FUNCTION_SIGNATURES
+    }
+    assert set(matches) == set(TASK5_FUNCTION_SIGNATURES)
+    for function_name, function in matches.items():
+        assert (
+            tuple(argument.arg for argument in function.args.args)
+            == (TASK5_FUNCTION_SIGNATURES[function_name])
+        )
+        assert len(function.body) == 1
+        statement = function.body[0]
+        assert isinstance(statement, ast.Return)
+        call = statement.value
+        assert isinstance(call, ast.Call)
+        assert isinstance(call.func, ast.Attribute)
+        guard_call = call.func.value
+        assert isinstance(guard_call, ast.Call)
+        assert isinstance(guard_call.func, ast.Name)
+        assert guard_call.func.id == "_require_b7_replay_core_v1"
+        assert guard_call.keywords == []
+        assert len(guard_call.args) == 1
+        assert isinstance(guard_call.args[0], ast.Name)
+        assert guard_call.args[0].id == "_b7_replay_core_v1"
+        assert call.func.attr == function_name
+        assert not call.keywords
+        assert len(call.args) == len(TASK5_FUNCTION_SIGNATURES[function_name])
+        assert (
+            tuple(
+                argument.id for argument in call.args if isinstance(argument, ast.Name)
+            )
+            == TASK5_FUNCTION_SIGNATURES[function_name]
+        )
+
+
+def test_task5_response_core_guard_captures_exact_imported_module() -> None:
+    tree = ast.parse(RESPONSE_PATH.read_text(encoding="utf-8"))
+    factories = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_make_b7_replay_core_guard_v1"
+    ]
+    assert len(factories) == 1
+    factory = factories[0]
+    assert tuple(argument.arg for argument in factory.args.args) == ("core_binding",)
+    assert len(factory.body) == 2
+    nested = factory.body[0]
+    factory_return = factory.body[1]
+    assert isinstance(nested, ast.FunctionDef)
+    assert tuple(argument.arg for argument in nested.args.args) == ("candidate",)
+    assert len(nested.body) == 2
+    guard = nested.body[0]
+    assert isinstance(guard, ast.If)
+    assert ast.dump(guard.test, include_attributes=False) == _expression_shape(
+        "candidate is not core_binding"
+    )
+    failure = guard.body[0]
+    assert isinstance(failure, ast.Raise)
+    assert isinstance(failure.exc, ast.Call)
+    assert _task3_call_target(failure.exc) == "RuntimeError"
+    assert isinstance(failure.exc.args[0], ast.Constant)
+    assert failure.exc.args[0].value == "B7 replay core module binding changed"
+    nested_return = nested.body[1]
+    assert isinstance(nested_return, ast.Return)
+    assert isinstance(nested_return.value, ast.Name)
+    assert nested_return.value.id == "core_binding"
+    assert isinstance(factory_return, ast.Return)
+    assert isinstance(factory_return.value, ast.Name)
+    assert factory_return.value.id == nested.name
+
+    assignments = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "_require_b7_replay_core_v1"
+            for target in node.targets
+        )
+    ]
+    assert len(assignments) == 1
+    assignment_call = assignments[0].value
+    assert isinstance(assignment_call, ast.Call)
+    assert _task3_call_target(assignment_call) == ("_make_b7_replay_core_guard_v1")
+    assert len(assignment_call.args) == 1
+    assert isinstance(assignment_call.args[0], ast.Name)
+    assert assignment_call.args[0].id == "_b7_replay_core_v1"
+
+
+@pytest.mark.parametrize("binding_name", TASK5_DEPENDENCY_BINDINGS)
+def test_task5_core_dependency_redirect_fails_closed_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+    binding_name: str,
+) -> None:
+    core = _core_module()
+    callback_trace: list[str] = []
+
+    class HostileDependency:
+        def __call__(self, *args, **kwargs):
+            del args, kwargs
+            callback_trace.append("call")
+            raise AssertionError("caller dependency executed")
+
+        def __getattr__(self, name: str):
+            callback_trace.append(name)
+            raise AssertionError("caller dependency attribute executed")
+
+    monkeypatch.setattr(core, binding_name, HostileDependency())
+    with pytest.raises(RuntimeError, match="B7 Task-5 dependency binding changed"):
+        core._assemble_atomic_paired_response_attempt_from_raw(
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    assert callback_trace == []
+
+
+def test_task5_response_core_module_redirect_fails_closed_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = importlib.import_module("rulespace_v3.response")
+    callback_trace: list[str] = []
+
+    class HostileCore:
+        def __getattr__(self, name: str):
+            callback_trace.append(name)
+            raise AssertionError("caller core module executed")
+
+    monkeypatch.setattr(response, "_b7_replay_core_v1", HostileCore())
+    with pytest.raises(RuntimeError, match="B7 replay core module binding changed"):
+        response._assemble_atomic_paired_response_attempt_from_raw(
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    assert callback_trace == []
 
 
 def _task5_basis(role: str) -> dict[str, object]:
@@ -1974,9 +2410,7 @@ def _task5_reference_spec(
     spec["reference_reciprocal_index"] = [0]
     spec["preregistered_phase_bands"] = phase_bands
     spec["expected_shell_rank"] = 1
-    spec["expected_shell_rank_source_id"] = (
-        "parent-freeze-control-application-spec-v1"
-    )
+    spec["expected_shell_rank_source_id"] = "parent-freeze-control-application-spec-v1"
     _task4_resign_tree("EndpointReferenceSpec", spec)
     return spec
 
@@ -1988,13 +2422,9 @@ def _task5_reference_success_raw(
     reference = _task4_seal(
         {
             "reference_schema_version": "v3m0.endpoint-reference-projector.v1",
-            "control_registry_entry_sha": spec["control_registry_entry"][
-                "entry_sha"
-            ],
+            "control_registry_entry_sha": spec["control_registry_entry"]["entry_sha"],
             "actual_transition_sha": spec["actual_transition_sha"],
-            "actual_dynamics_certificate_sha": spec[
-                "actual_dynamics_certificate_sha"
-            ],
+            "actual_dynamics_certificate_sha": spec["actual_dynamics_certificate_sha"],
             "reference_reciprocal_index": spec["reference_reciprocal_index"],
             "reference_phase": math.pi / 2.0,
             "projector_coordinate_convention_id": "g-whitened-state-v1",
@@ -2199,11 +2629,7 @@ def test_task5_shell_leaf_tracks_one_path_and_freezes_complete_manifest() -> Non
         np.ones((1, 1, 1), dtype=np.complex128)
     )
     assert shell["shell_manifest_sha"] == _task4_canonical_sha(
-        {
-            key: value
-            for key, value in shell.items()
-            if key != "shell_manifest_sha"
-        }
+        {key: value for key, value in shell.items() if key != "shell_manifest_sha"}
     )
     assert observed["outcome_sha"] == _task4_canonical_sha(
         {key: value for key, value in observed.items() if key != "outcome_sha"}
@@ -2212,9 +2638,9 @@ def test_task5_shell_leaf_tracks_one_path_and_freezes_complete_manifest() -> Non
 
 def test_task5_bridge_leaf_supports_rectangular_current_curvature_readout() -> None:
     core = _core_module()
-    raw_difference = np.diag(
-        np.arange(1.0, 11.0, dtype=np.float64)
-    ).astype(np.complex128)
+    raw_difference = np.diag(np.arange(1.0, 11.0, dtype=np.float64)).astype(
+        np.complex128
+    )
     spec = _task5_current_readout_spec()
 
     observed = core._audit_source_readout_bridge_from_raw(
@@ -2231,15 +2657,14 @@ def test_task5_bridge_leaf_supports_rectangular_current_curvature_readout() -> N
     )
 
     assert observed["branch"] == "actual"
-    assert observed["source_metric_whitener_sha"] == (
-        spec["source_metric_whitener"]["tensor_sha"]
+    assert (
+        observed["source_metric_whitener_sha"]
+        == (spec["source_metric_whitener"]["tensor_sha"])
     )
     assert observed["readout_calibration_spec_sha"] == spec["spec_sha"]
     assert len(observed["matrix_audits"]) == 1
     matrix = observed["matrix_audits"][0]
-    assert matrix["raw_difference_matrix"] == _task5_tensor_from_array(
-        raw_difference
-    )
+    assert matrix["raw_difference_matrix"] == _task5_tensor_from_array(raw_difference)
     assert matrix["frame_coverage"] is None
     assert matrix["h_whitened_operator_error_upper"] >= float(
         np.linalg.norm(raw_difference, "fro")
@@ -2280,9 +2705,7 @@ def _task5_branch_attempt(
 ) -> dict[str, object]:
     return _task4_seal(
         {
-            "branch_attempt_schema_version": (
-                "experimental.v3m0.b7.branch-attempt.v1"
-            ),
+            "branch_attempt_schema_version": ("experimental.v3m0.b7.branch-attempt.v1"),
             "branch": branch,
             "response_values": response_values,
             "bridge_audit": bridge_audit,

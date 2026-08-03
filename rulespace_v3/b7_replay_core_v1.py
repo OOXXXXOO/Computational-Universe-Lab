@@ -1852,6 +1852,49 @@ def validate_branch_attempt_v1(raw_body: object) -> dict[str, object]:
     return attempt
 
 
+def _make_task5_dependency_guard_v1(
+    np_binding,
+    scipy_binding,
+    math_binding,
+    fraction_binding,
+    canonical_json_binding,
+    canonical_sha_binding,
+    strict_json_binding,
+):
+    def require_task5_dependencies(
+        np_candidate,
+        scipy_candidate,
+        math_candidate,
+        fraction_candidate,
+        canonical_json_candidate,
+        canonical_sha_candidate,
+        strict_json_candidate,
+    ):
+        if (
+            np_candidate is not np_binding
+            or scipy_candidate is not scipy_binding
+            or math_candidate is not math_binding
+            or fraction_candidate is not fraction_binding
+            or canonical_json_candidate is not canonical_json_binding
+            or canonical_sha_candidate is not canonical_sha_binding
+            or strict_json_candidate is not strict_json_binding
+        ):
+            raise RuntimeError("B7 Task-5 dependency binding changed")
+
+    return require_task5_dependencies
+
+
+_require_task5_dependencies_v1 = _make_task5_dependency_guard_v1(
+    np,
+    scipy,
+    math,
+    Fraction,
+    canonical_json_bytes_v1,
+    canonical_sha_v1,
+    strict_json_loads_v1,
+)
+
+
 def _finite_float_v1(value, field):
     if type(value) is not float:
         raise TypeError(f"{field} must be an exact float")
@@ -1860,7 +1903,7 @@ def _finite_float_v1(value, field):
     return value
 
 
-def _strict_complex_matrix_v1(value, field, square=False):
+def _strict_complex_matrix_v1(value, field, square):
     if type(value) is not np.ndarray:
         raise TypeError(f"{field} must be a NumPy ndarray")
     if value.dtype != np.dtype(np.complex128):
@@ -1938,9 +1981,7 @@ def _hermitian_sqrt_pair_raw_v1(metric):
         vectors @ np.diag(root_values.astype(np.complex128)) @ vectors.conj().T
     ).astype(np.complex128)
     inverse_sqrt = (
-        vectors
-        @ np.diag((1.0 / root_values).astype(np.complex128))
-        @ vectors.conj().T
+        vectors @ np.diag((1.0 / root_values).astype(np.complex128)) @ vectors.conj().T
     ).astype(np.complex128)
     hermitian_residual = float(np.linalg.norm(metric - metric.conj().T, 2))
     sqrt_residual = float(np.linalg.norm(sqrt_metric @ sqrt_metric - metric, 2))
@@ -1984,8 +2025,8 @@ def _compute_fejer_filtered_response_raw_v1(
 ):
     matrix = _strict_complex_matrix_v1(transition, "transition", True)
     gram = _strict_complex_matrix_v1(metric, "metric", True)
-    source = _strict_complex_matrix_v1(source_injection, "source_injection")
-    projection = _strict_complex_matrix_v1(readout, "readout")
+    source = _strict_complex_matrix_v1(source_injection, "source_injection", False)
+    projection = _strict_complex_matrix_v1(readout, "readout", False)
     state_count = matrix.shape[0]
     if gram.shape != matrix.shape:
         raise ValueError("metric and transition shapes differ")
@@ -2031,15 +2072,15 @@ def _compute_fejer_filtered_response_raw_v1(
         ],
         dtype=np.complex128,
     )
-    filtered_whitened = (
-        unitary @ np.diag(scalars) @ unitary.conj().T
-    ).astype(np.complex128)
+    filtered_whitened = (unitary @ np.diag(scalars) @ unitary.conj().T).astype(
+        np.complex128
+    )
     filtered = inverse_sqrt @ filtered_whitened @ sqrt_metric
     return np.asarray(projection @ filtered @ source, dtype=np.complex128)
 
 
 def _exact_frobenius_upper_raw_v1(values):
-    matrix = _strict_complex_matrix_v1(values, "Frobenius input")
+    matrix = _strict_complex_matrix_v1(values, "Frobenius input", False)
     total = Fraction(0, 1)
     for value in matrix.reshape(-1, order="C"):
         real = Fraction.from_float(float(value.real))
@@ -2130,8 +2171,8 @@ def _extract_projector_candidates_raw_v1(
 ):
     matrix = _strict_complex_matrix_v1(transition, "transition", True)
     gram = _strict_complex_matrix_v1(metric, "metric", True)
-    source = _strict_complex_matrix_v1(source_injection, "source_injection")
-    projection = _strict_complex_matrix_v1(readout, "readout")
+    source = _strict_complex_matrix_v1(source_injection, "source_injection", False)
+    projection = _strict_complex_matrix_v1(readout, "readout", False)
     state_count = matrix.shape[0]
     if gram.shape != matrix.shape:
         raise ValueError("metric and transition shapes differ")
@@ -2157,9 +2198,7 @@ def _extract_projector_candidates_raw_v1(
     if float(np.linalg.norm(off_diagonal, 2)) > 1.0e-10:
         raise ValueError("metric-unitary Schur form is not diagonal enough")
     raw_phases = tuple(
-        _principal_phase_raw_v1(
-            math.atan2(float(value.imag), float(value.real))
-        )
+        _principal_phase_raw_v1(math.atan2(float(value.imag), float(value.real)))
         for value in np.diag(triangular)
     )
     selected = tuple(
@@ -2174,15 +2213,12 @@ def _extract_projector_candidates_raw_v1(
     )
     if not selected:
         return ()
-    cluster_tolerance = (
-        128.0 * np.finfo(np.float64).eps * float(max(1, state_count))
-    )
+    cluster_tolerance = 128.0 * np.finfo(np.float64).eps * float(max(1, state_count))
     clusters = []
     for item in selected:
         if (
             not clusters
-            or _phase_distance_raw_v1(item[0], clusters[-1][-1][0])
-            > cluster_tolerance
+            or _phase_distance_raw_v1(item[0], clusters[-1][-1][0]) > cluster_tolerance
         ):
             clusters.append([item])
         else:
@@ -2201,10 +2237,7 @@ def _extract_projector_candidates_raw_v1(
             dtype=np.complex128,
         )
         phase_vector = sum(
-            (
-                complex(math.cos(item[0]), math.sin(item[0]))
-                for item in cluster
-            ),
+            (complex(math.cos(item[0]), math.sin(item[0])) for item in cluster),
             0.0 + 0.0j,
         )
         phase = _principal_phase_raw_v1(
@@ -2274,16 +2307,12 @@ def _extract_projector_candidates_raw_v1(
                     dtype=np.complex128,
                 ),
                 "participation": float(item["participation"]),
-                "runner_up_overlap": (
-                    None if not overlaps else float(max(overlaps))
-                ),
+                "runner_up_overlap": (None if not overlaps else float(max(overlaps))),
                 "hermitian_residual": float(item["hermitian_residual"]),
                 "idempotent_residual": float(item["idempotent_residual"]),
                 "g_invariance_residual": float(item["g_invariance_residual"]),
                 "eigenphase_residual": float(item["eigenphase_residual"]),
-                "nearest_competitor_gap": (
-                    None if not gaps else float(min(gaps))
-                ),
+                "nearest_competitor_gap": (None if not gaps else float(min(gaps))),
             }
         )
     return tuple(candidates)
@@ -2310,6 +2339,15 @@ def _select_endpoint_reference_from_raw(
     source_injection_matrix,
     readout_matrix,
 ):
+    _require_task5_dependencies_v1(
+        np,
+        scipy,
+        math,
+        Fraction,
+        canonical_json_bytes_v1,
+        canonical_sha_v1,
+        strict_json_loads_v1,
+    )
     schemas = _record_schemas_v1()
     spec = _validate_record_raw_v1(
         reference_spec,
@@ -2371,22 +2409,14 @@ def _select_endpoint_reference_from_raw(
         "candidate_ranks": [item["rank"] for item in candidates],
         "expected_shell_rank": spec["expected_shell_rank"],
         "expected_shell_rank_source_id": spec["expected_shell_rank_source_id"],
-        "candidate_participations": [
-            item["participation"] for item in candidates
-        ],
+        "candidate_participations": [item["participation"] for item in candidates],
         "runner_up_overlaps": [item["runner_up_overlap"] for item in candidates],
-        "hermitian_residuals": [
-            item["hermitian_residual"] for item in candidates
-        ],
-        "idempotent_residuals": [
-            item["idempotent_residual"] for item in candidates
-        ],
+        "hermitian_residuals": [item["hermitian_residual"] for item in candidates],
+        "idempotent_residuals": [item["idempotent_residual"] for item in candidates],
         "g_invariance_residuals": [
             item["g_invariance_residual"] for item in candidates
         ],
-        "eigenphase_residuals": [
-            item["eigenphase_residual"] for item in candidates
-        ],
+        "eigenphase_residuals": [item["eigenphase_residual"] for item in candidates],
         "observed_competitor_gaps": [
             item["nearest_competitor_gap"] for item in candidates
         ],
@@ -2399,20 +2429,14 @@ def _select_endpoint_reference_from_raw(
             raise AssertionError("successful reference lost selected projector")
         reference_payload = {
             "reference_schema_version": "v3m0.endpoint-reference-projector.v1",
-            "control_registry_entry_sha": spec["control_registry_entry"][
-                "entry_sha"
-            ],
+            "control_registry_entry_sha": spec["control_registry_entry"]["entry_sha"],
             "actual_transition_sha": spec["actual_transition_sha"],
-            "actual_dynamics_certificate_sha": spec[
-                "actual_dynamics_certificate_sha"
-            ],
+            "actual_dynamics_certificate_sha": spec["actual_dynamics_certificate_sha"],
             "reference_reciprocal_index": spec["reference_reciprocal_index"],
             "reference_phase": selected["phase"],
             "projector_coordinate_convention_id": "g-whitened-state-v1",
             "rank": selected["rank"],
-            "projector": _freeze_complex_tensor_raw_v1(
-                selected["projector"]
-            ),
+            "projector": _freeze_complex_tensor_raw_v1(selected["projector"]),
         }
         reference = dict(reference_payload)
         reference["reference_sha"] = canonical_sha_v1(reference_payload)
@@ -2448,6 +2472,15 @@ def _track_endpoint_shell_from_raw(
     actual_dynamics_certificate_sha,
     dt,
 ):
+    _require_task5_dependencies_v1(
+        np,
+        scipy,
+        math,
+        Fraction,
+        canonical_json_bytes_v1,
+        canonical_sha_v1,
+        strict_json_loads_v1,
+    )
     reference = validate_endpoint_reference_outcome_raw_v1(reference_outcome)
     schemas = _record_schemas_v1()
     spec = _validate_record_raw_v1(
@@ -2489,9 +2522,10 @@ def _track_endpoint_shell_from_raw(
         for path_id, path in zip(path_ids, paths)
         for position, reciprocal_index in enumerate(path)
     ]
-    if type(ordered_transition_matrices) is not tuple or type(
-        ordered_metric_matrices
-    ) is not tuple:
+    if (
+        type(ordered_transition_matrices) is not tuple
+        or type(ordered_metric_matrices) is not tuple
+    ):
         raise TypeError("shell matrices and metrics must be tuples")
     if len(ordered_transition_matrices) != len(point_keys) or len(
         ordered_metric_matrices
@@ -2500,12 +2534,12 @@ def _track_endpoint_shell_from_raw(
     state_count = _strict_complex_matrix_v1(
         source_injection_matrix,
         "source_injection_matrix",
+        False,
     ).shape[0]
     if len(point_keys) * state_count * state_count > 16_777_216:
         raise ValueError("shell projector entries exceed the frozen cap")
     if (
-        len(point_keys)
-        * (state_count**3 + spec["candidate_fejer_order"] * state_count)
+        len(point_keys) * (state_count**3 + spec["candidate_fejer_order"] * state_count)
         > 2_000_000_000
     ):
         raise ValueError("Fejer work exceeds the frozen cap")
@@ -2618,9 +2652,7 @@ def _track_endpoint_shell_from_raw(
         )
         selected_position = order_indices[0]
         selected_index = eligible[selected_position]
-        runner_score = (
-            None if len(order_indices) == 1 else scores[order_indices[1]]
-        )
+        runner_score = None if len(order_indices) == 1 else scores[order_indices[1]]
         selected_score = scores[selected_position]
         if runner_score is not None:
             margin = float(selected_score - runner_score)
@@ -2662,9 +2694,7 @@ def _track_endpoint_shell_from_raw(
                 "g_invariance_residual": selected["g_invariance_residual"],
                 "eigenphase_residual": selected["eigenphase_residual"],
                 "participation": selected["participation"],
-                "nearest_competitor_gap": selected[
-                    "nearest_competitor_gap"
-                ],
+                "nearest_competitor_gap": selected["nearest_competitor_gap"],
                 "reference_overlap": reference_overlaps[selected_index],
                 "runner_up_overlap": runner_score,
                 "predecessor_overlap": (
@@ -2750,9 +2780,7 @@ def _track_endpoint_shell_from_raw(
             "actual_dynamics_certificate_sha": actual_dynamics_certificate_sha,
             "shell_spec": spec,
             "dt": time_step,
-            "eigenphase_convention_id": (
-                "lambda-exp-plus-i-theta-principal-v1"
-            ),
+            "eigenphase_convention_id": ("lambda-exp-plus-i-theta-principal-v1"),
             "shell_phases": [item["shell_phase"] for item in point_audits],
             "shell_projectors": _freeze_complex_tensor_raw_v1(
                 np.stack(selected_projectors, axis=0).astype(np.complex128)
@@ -2773,15 +2801,11 @@ def _track_endpoint_shell_from_raw(
             "participation_min": float(
                 min(item["participation"] for item in point_audits)
             ),
-            "nearest_competitor_gap_min": (
-                None if not gaps else float(min(gaps))
-            ),
+            "nearest_competitor_gap_min": (None if not gaps else float(min(gaps))),
             "reference_overlap_min": float(
                 min(item["reference_overlap"] for item in point_audits)
             ),
-            "runner_up_overlap_max": (
-                None if not runners else float(max(runners))
-            ),
+            "runner_up_overlap_max": (None if not runners else float(max(runners))),
             "predecessor_overlap_min": (
                 None if not predecessors else float(min(predecessors))
             ),
@@ -2823,6 +2847,15 @@ def _build_fejer_branch_response_values_from_raw(
     ordered_transition_matrices,
     ordered_metric_matrices,
 ):
+    _require_task5_dependencies_v1(
+        np,
+        scipy,
+        math,
+        Fraction,
+        canonical_json_bytes_v1,
+        canonical_sha_v1,
+        strict_json_loads_v1,
+    )
     if type(branch) is not str or branch not in ("actual", "matched_ablated"):
         raise ValueError("response branch is not closed")
     grid = _validate_record_raw_v1(
@@ -2898,6 +2931,15 @@ def _audit_source_readout_bridge_from_raw(
     current_readout_calibration_spec,
     ordered_raw_differences,
 ):
+    _require_task5_dependencies_v1(
+        np,
+        scipy,
+        math,
+        Fraction,
+        canonical_json_bytes_v1,
+        canonical_sha_v1,
+        strict_json_loads_v1,
+    )
     if type(branch) is not str or branch not in ("actual", "matched_ablated"):
         raise ValueError("branch is not closed")
     _require_sha256_v1(factory_sha, "factory_sha")
@@ -2935,9 +2977,7 @@ def _audit_source_readout_bridge_from_raw(
         for index in reciprocal_indices
     ):
         raise ValueError("bridge reciprocal index shape mismatch")
-    if len({tuple(index) for index in reciprocal_indices}) != len(
-        reciprocal_indices
-    ):
+    if len({tuple(index) for index in reciprocal_indices}) != len(reciprocal_indices):
         raise ValueError("bridge reciprocal indices must be unique")
     if type(bridge_steps) is not list or not bridge_steps:
         raise TypeError("bridge_steps must be a non-empty exact JSON array")
@@ -3023,12 +3063,20 @@ def _audit_source_readout_bridge_from_raw(
         if type(item) is not tuple or len(item) != 3:
             raise TypeError("bridge differences entries must be triples")
         reciprocal_index, macro_steps, raw = item
-        if type(reciprocal_index) is not tuple or (
-            reciprocal_index,
-            macro_steps,
-        ) != expected_key:
+        if (
+            type(reciprocal_index) is not tuple
+            or (
+                reciprocal_index,
+                macro_steps,
+            )
+            != expected_key
+        ):
             raise ValueError("bridge differences are missing or reordered")
-        difference = _strict_complex_matrix_v1(raw, "raw_difference_matrix")
+        difference = _strict_complex_matrix_v1(
+            raw,
+            "raw_difference_matrix",
+            False,
+        )
         if difference.shape != (readout_count, source_count):
             raise ValueError("raw difference matrix shape mismatch")
         raw_frobenius = _exact_frobenius_upper_raw_v1(difference)
@@ -3044,9 +3092,7 @@ def _audit_source_readout_bridge_from_raw(
             {
                 "reciprocal_index": list(reciprocal_index),
                 "macro_steps": macro_steps,
-                "raw_difference_matrix": _freeze_complex_tensor_raw_v1(
-                    difference
-                ),
+                "raw_difference_matrix": _freeze_complex_tensor_raw_v1(difference),
                 "frame_coverage": None,
                 "raw_frobenius_upper": raw_frobenius,
                 "raw_operator_norm_upper": raw_frobenius,
@@ -3065,22 +3111,16 @@ def _audit_source_readout_bridge_from_raw(
         "transition_sha": transition_sha,
         "dynamics_certificate_sha": dynamics_certificate_sha,
         "run_spec_sha": run_spec_sha,
-        "source_metric_whitener_sha": calibration[
-            "source_metric_whitener"
-        ]["tensor_sha"],
+        "source_metric_whitener_sha": calibration["source_metric_whitener"][
+            "tensor_sha"
+        ],
         "readout_calibration_spec_sha": calibration["spec_sha"],
         "matrix_audits": matrix_audits,
         "h_operator_error_max": float(
-            max(
-                item["h_whitened_operator_error_upper"]
-                for item in matrix_audits
-            )
+            max(item["h_whitened_operator_error_upper"] for item in matrix_audits)
         ),
         "curv_operator_error_max": float(
-            max(
-                item["curv_whitened_operator_error_upper"]
-                for item in matrix_audits
-            )
+            max(item["curv_whitened_operator_error_upper"] for item in matrix_audits)
         ),
     }
     audit = dict(payload)
@@ -3101,9 +3141,7 @@ def _build_branch_attempt_raw_v1(
     failure,
 ):
     payload = {
-        "branch_attempt_schema_version": (
-            "experimental.v3m0.b7.branch-attempt.v1"
-        ),
+        "branch_attempt_schema_version": ("experimental.v3m0.b7.branch-attempt.v1"),
         "branch": branch,
         "response_values": response_values,
         "bridge_audit": bridge_audit,
@@ -3122,6 +3160,15 @@ def _assemble_atomic_paired_response_attempt_from_raw(
     matched_ablated_bridge_audit,
     first_failure,
 ):
+    _require_task5_dependencies_v1(
+        np,
+        scipy,
+        math,
+        Fraction,
+        canonical_json_bytes_v1,
+        canonical_sha_v1,
+        strict_json_loads_v1,
+    )
     if first_failure == "actual_response_failed":
         if (
             actual_response_values is not None

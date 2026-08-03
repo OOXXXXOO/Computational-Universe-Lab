@@ -206,9 +206,7 @@ class ResponseAuthorityStructuralCodecTests(unittest.TestCase):
                     helpers.append(value)
                 pending.extend(value.__defaults__ or ())
                 pending.extend((value.__kwdefaults__ or {}).values())
-                pending.extend(
-                    cell.cell_contents for cell in (value.__closure__ or ())
-                )
+                pending.extend(cell.cell_contents for cell in (value.__closure__ or ()))
             elif type(value) in (tuple, list, frozenset):
                 pending.extend(value)
             elif type(value) is dict:
@@ -222,10 +220,7 @@ class ResponseAuthorityStructuralCodecTests(unittest.TestCase):
             },
         )
         self.assertTrue(
-            all(
-                helper.__globals__ is not vars(response_module)
-                for helper in helpers
-            )
+            all(helper.__globals__ is not vars(response_module) for helper in helpers)
         )
 
     def test_module_helper_redirect_cannot_bypass_unknown_or_text_cap(
@@ -244,10 +239,7 @@ class ResponseAuthorityStructuralCodecTests(unittest.TestCase):
             if isinstance(value, type):
                 return builtin_vars(value)
             fields = getattr(type(value), "__dataclass_fields__", {})
-            return {
-                name: object.__getattribute__(value, name)
-                for name in fields
-            }
+            return {name: object.__getattribute__(value, name) for name in fields}
 
         with (
             mock.patch.object(
@@ -2425,10 +2417,7 @@ class ResponseHardeningReviewTests(unittest.TestCase):
                 )
             )
         ).astype(np.complex128)
-        matrices = tuple(
-            transition.copy()
-            for _ in matrices
-        )
+        matrices = tuple(transition.copy() for _ in matrices)
         outcome = _build_endpoint_shell_outcome_from_matrices(
             reference,
             spec,
@@ -2458,10 +2447,7 @@ class ResponseHardeningReviewTests(unittest.TestCase):
                 )
             )
         ).astype(np.complex128)
-        matrices = tuple(
-            transition.copy()
-            for _ in matrices
-        )
+        matrices = tuple(transition.copy() for _ in matrices)
         outcome = _build_endpoint_shell_outcome_from_matrices(
             reference,
             spec,

@@ -85,7 +85,7 @@ from .replay_scope import (
 )
 from .thresholds import (
     phase_grid_step,
-    phase_separation_min,
+    phase_separation_min as phase_separation_min,
     preflight_fejer_work,
     preflight_shell_projector_entries,
     preflight_source_bridge_work,
@@ -97,6 +97,18 @@ from .window import (
     _reverify_verified_window_calibration_protocol,
     window_calibration_protocol_payload,
 )
+
+
+def _make_b7_replay_core_guard_v1(core_binding):
+    def require_b7_replay_core(candidate):
+        if candidate is not core_binding:
+            raise RuntimeError("B7 replay core module binding changed")
+        return core_binding
+
+    return require_b7_replay_core
+
+
+_require_b7_replay_core_v1 = _make_b7_replay_core_guard_v1(_b7_replay_core_v1)
 
 
 RESPONSE_RUN_SPEC_SCHEMA_VERSION = "v3m0.response-run-spec.v1"
@@ -893,17 +905,13 @@ def _tensor_record(value: FrozenComplexTensor) -> dict[str, object]:
 
 
 def _frozen_tensor_from_raw_v1(raw_body: object) -> FrozenComplexTensor:
-    checked = _b7_replay_core_v1._validate_frozen_complex_tensor_raw_v1(
-        raw_body,
-        "tensor",
-    )
+    core = _require_b7_replay_core_v1(_b7_replay_core_v1)
+    checked = core._validate_frozen_complex_tensor_raw_v1(raw_body, "tensor")
     return verify_frozen_tensor(
         FrozenComplexTensor(
             tensor_schema_version=checked["tensor_schema_version"],
             shape=tuple(checked["shape"]),
-            values_wire=tuple(
-                (wire[0], wire[1]) for wire in checked["values_wire"]
-            ),
+            values_wire=tuple((wire[0], wire[1]) for wire in checked["values_wire"]),
             tensor_sha=checked["tensor_sha"],
         )
     )
@@ -919,7 +927,9 @@ def _build_fejer_branch_response_values_from_raw(
     ordered_transition_matrices,
     ordered_metric_matrices,
 ):
-    return _b7_replay_core_v1._build_fejer_branch_response_values_from_raw(
+    return _require_b7_replay_core_v1(
+        _b7_replay_core_v1
+    )._build_fejer_branch_response_values_from_raw(
         branch,
         response_grid,
         fejer_order,
@@ -938,7 +948,9 @@ def _select_endpoint_reference_from_raw(
     source_injection_matrix,
     readout_matrix,
 ):
-    return _b7_replay_core_v1._select_endpoint_reference_from_raw(
+    return _require_b7_replay_core_v1(
+        _b7_replay_core_v1
+    )._select_endpoint_reference_from_raw(
         reference_spec,
         transition_matrix,
         metric_matrix,
@@ -959,7 +971,9 @@ def _track_endpoint_shell_from_raw(
     actual_dynamics_certificate_sha,
     dt,
 ):
-    return _b7_replay_core_v1._track_endpoint_shell_from_raw(
+    return _require_b7_replay_core_v1(
+        _b7_replay_core_v1
+    )._track_endpoint_shell_from_raw(
         reference_outcome,
         shell_spec,
         ordered_transition_matrices,
@@ -980,7 +994,9 @@ def _assemble_atomic_paired_response_attempt_from_raw(
     matched_ablated_bridge_audit,
     first_failure,
 ):
-    return _b7_replay_core_v1._assemble_atomic_paired_response_attempt_from_raw(
+    return _require_b7_replay_core_v1(
+        _b7_replay_core_v1
+    )._assemble_atomic_paired_response_attempt_from_raw(
         actual_response_values,
         matched_ablated_response_values,
         actual_bridge_audit,
@@ -1001,7 +1017,9 @@ def _audit_source_readout_bridge_from_raw(
     current_readout_calibration_spec,
     ordered_raw_differences,
 ):
-    return _b7_replay_core_v1._audit_source_readout_bridge_from_raw(
+    return _require_b7_replay_core_v1(
+        _b7_replay_core_v1
+    )._audit_source_readout_bridge_from_raw(
         branch,
         factory_sha,
         transition_sha,
@@ -2036,15 +2054,14 @@ def _endpoint_reference_outcome_from_raw_v1(
     live_spec: EndpointReferenceSpec,
     expected_raw_spec: dict[str, object],
 ) -> EndpointReferenceOutcome:
-    checked = _b7_replay_core_v1.validate_endpoint_reference_outcome_raw_v1(
-        raw_body
-    )
+    core = _require_b7_replay_core_v1(_b7_replay_core_v1)
+    checked = core.validate_endpoint_reference_outcome_raw_v1(raw_body)
     for embedded in (
         checked["reference_spec"],
         checked["attempt_audit"]["reference_spec"],
     ):
-        if _b7_replay_core_v1.canonical_json_bytes_v1(embedded) != (
-            _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_spec)
+        if core.canonical_json_bytes_v1(embedded) != core.canonical_json_bytes_v1(
+            expected_raw_spec
         ):
             raise ValueError("raw reference leaf changed its live spec binding")
     raw_attempt = checked["attempt_audit"]
@@ -2054,20 +2071,14 @@ def _endpoint_reference_outcome_from_raw_v1(
         candidate_phases=tuple(raw_attempt["candidate_phases"]),
         candidate_ranks=tuple(raw_attempt["candidate_ranks"]),
         expected_shell_rank=raw_attempt["expected_shell_rank"],
-        expected_shell_rank_source_id=raw_attempt[
-            "expected_shell_rank_source_id"
-        ],
-        candidate_participations=tuple(
-            raw_attempt["candidate_participations"]
-        ),
+        expected_shell_rank_source_id=raw_attempt["expected_shell_rank_source_id"],
+        candidate_participations=tuple(raw_attempt["candidate_participations"]),
         runner_up_overlaps=tuple(raw_attempt["runner_up_overlaps"]),
         hermitian_residuals=tuple(raw_attempt["hermitian_residuals"]),
         idempotent_residuals=tuple(raw_attempt["idempotent_residuals"]),
         g_invariance_residuals=tuple(raw_attempt["g_invariance_residuals"]),
         eigenphase_residuals=tuple(raw_attempt["eigenphase_residuals"]),
-        observed_competitor_gaps=tuple(
-            raw_attempt["observed_competitor_gaps"]
-        ),
+        observed_competitor_gaps=tuple(raw_attempt["observed_competitor_gaps"]),
         attempt_sha=raw_attempt["attempt_sha"],
     )
     if attempt.attempt_sha != canonical_sha(
@@ -2078,12 +2089,8 @@ def _endpoint_reference_outcome_from_raw_v1(
     reference = None
     if raw_reference is not None:
         reference = EndpointReferenceProjector(
-            reference_schema_version=raw_reference[
-                "reference_schema_version"
-            ],
-            control_registry_entry_sha=raw_reference[
-                "control_registry_entry_sha"
-            ],
+            reference_schema_version=raw_reference["reference_schema_version"],
+            control_registry_entry_sha=raw_reference["control_registry_entry_sha"],
             actual_transition_sha=raw_reference["actual_transition_sha"],
             actual_dynamics_certificate_sha=raw_reference[
                 "actual_dynamics_certificate_sha"
@@ -2102,9 +2109,7 @@ def _endpoint_reference_outcome_from_raw_v1(
         if reference.reference_sha != canonical_sha(
             endpoint_reference_projector_payload(reference)
         ):
-            raise ValueError(
-                "raw reference leaf returned a noncanonical projector SHA"
-            )
+            raise ValueError("raw reference leaf returned a noncanonical projector SHA")
     raw_status = checked["status"]
     status = BlockStatus(
         raw_status["defined"],
@@ -2127,7 +2132,9 @@ def _endpoint_reference_outcome_from_raw_v1(
         reference=reference,
         outcome_sha=checked["outcome_sha"],
     )
-    if outcome.outcome_sha != canonical_sha(endpoint_reference_outcome_payload(outcome)):
+    if outcome.outcome_sha != canonical_sha(
+        endpoint_reference_outcome_payload(outcome)
+    ):
         raise ValueError("raw reference leaf returned a noncanonical outcome SHA")
     return outcome
 
@@ -2312,19 +2319,20 @@ def _endpoint_shell_outcome_from_raw_v1(
     expected_raw_reference: dict[str, object],
     expected_raw_shell_spec: dict[str, object],
 ) -> EndpointShellOutcome:
-    checked = _b7_replay_core_v1.validate_endpoint_shell_outcome_raw_v1(raw_body)
-    if _b7_replay_core_v1.canonical_json_bytes_v1(
+    core = _require_b7_replay_core_v1(_b7_replay_core_v1)
+    checked = core.validate_endpoint_shell_outcome_raw_v1(raw_body)
+    if core.canonical_json_bytes_v1(
         checked["reference_outcome"]
-    ) != _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_reference):
+    ) != core.canonical_json_bytes_v1(expected_raw_reference):
         raise ValueError("raw shell leaf changed its reference binding")
     raw_attempt = checked["attempt_audit"]
     for embedded in (
         raw_attempt["shell_spec"],
         None if checked["shell"] is None else checked["shell"]["shell_spec"],
     ):
-        if embedded is not None and _b7_replay_core_v1.canonical_json_bytes_v1(
+        if embedded is not None and core.canonical_json_bytes_v1(
             embedded
-        ) != _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_shell_spec):
+        ) != core.canonical_json_bytes_v1(expected_raw_shell_spec):
             raise ValueError("raw shell leaf changed its shell-spec binding")
     point_attempts = tuple(
         ShellCandidatePointAttempt(
@@ -2334,9 +2342,7 @@ def _endpoint_shell_outcome_from_raw_v1(
             candidate_phases=tuple(item["candidate_phases"]),
             candidate_ranks=tuple(item["candidate_ranks"]),
             candidate_participations=tuple(item["candidate_participations"]),
-            candidate_reference_overlaps=tuple(
-                item["candidate_reference_overlaps"]
-            ),
+            candidate_reference_overlaps=tuple(item["candidate_reference_overlaps"]),
             candidate_predecessor_overlaps=tuple(
                 item["candidate_predecessor_overlaps"]
             ),
@@ -2348,9 +2354,7 @@ def _endpoint_shell_outcome_from_raw_v1(
         shell_spec=live_shell_spec,
         point_attempts=point_attempts,
         projector_residual_max=raw_attempt["projector_residual_max"],
-        loop_residual_max_observed=raw_attempt[
-            "loop_residual_max_observed"
-        ],
+        loop_residual_max_observed=raw_attempt["loop_residual_max_observed"],
         attempt_sha=raw_attempt["attempt_sha"],
     )
     if attempt.attempt_sha != canonical_sha(
@@ -2391,20 +2395,14 @@ def _endpoint_shell_outcome_from_raw_v1(
             dt=raw_shell["dt"],
             eigenphase_convention_id=raw_shell["eigenphase_convention_id"],
             shell_phases=tuple(raw_shell["shell_phases"]),
-            shell_projectors=_frozen_tensor_from_raw_v1(
-                raw_shell["shell_projectors"]
-            ),
+            shell_projectors=_frozen_tensor_from_raw_v1(raw_shell["shell_projectors"]),
             point_audits=point_audits,
             hermitian_residual_max=raw_shell["hermitian_residual_max"],
             idempotent_residual_max=raw_shell["idempotent_residual_max"],
-            g_invariance_residual_max=raw_shell[
-                "g_invariance_residual_max"
-            ],
+            g_invariance_residual_max=raw_shell["g_invariance_residual_max"],
             eigenphase_residual_max=raw_shell["eigenphase_residual_max"],
             participation_min=raw_shell["participation_min"],
-            nearest_competitor_gap_min=raw_shell[
-                "nearest_competitor_gap_min"
-            ],
+            nearest_competitor_gap_min=raw_shell["nearest_competitor_gap_min"],
             reference_overlap_min=raw_shell["reference_overlap_min"],
             runner_up_overlap_max=raw_shell["runner_up_overlap_max"],
             predecessor_overlap_min=raw_shell["predecessor_overlap_min"],
@@ -2427,9 +2425,7 @@ def _endpoint_shell_outcome_from_raw_v1(
         ),
     )
     failure = (
-        None
-        if checked["failure"] is None
-        else EndpointShellFailure(checked["failure"])
+        None if checked["failure"] is None else EndpointShellFailure(checked["failure"])
     )
     outcome = EndpointShellOutcome(
         status=status,
@@ -3019,11 +3015,12 @@ def _source_readout_bridge_audit_record(
 def _source_readout_bridge_audit_from_raw_v1(
     raw_body: object,
 ) -> SourceReadoutBridgeAudit:
-    checked = _b7_replay_core_v1._validate_record_raw_v1(
+    core = _require_b7_replay_core_v1(_b7_replay_core_v1)
+    checked = core._validate_record_raw_v1(
         raw_body,
         "SourceReadoutBridgeAudit",
         "source_readout_bridge_audit",
-        _b7_replay_core_v1._record_schemas_v1(),
+        core._record_schemas_v1(),
     )
     matrix_audits: list[SourceReadoutBridgeMatrixAudit] = []
     for item in checked["matrix_audits"]:
@@ -3055,9 +3052,7 @@ def _source_readout_bridge_audit_from_raw_v1(
         dynamics_certificate_sha=checked["dynamics_certificate_sha"],
         run_spec_sha=checked["run_spec_sha"],
         source_metric_whitener_sha=checked["source_metric_whitener_sha"],
-        readout_calibration_spec_sha=checked[
-            "readout_calibration_spec_sha"
-        ],
+        readout_calibration_spec_sha=checked["readout_calibration_spec_sha"],
         matrix_audits=tuple(matrix_audits),
         h_operator_error_max=checked["h_operator_error_max"],
         curv_operator_error_max=checked["curv_operator_error_max"],
@@ -3255,16 +3250,15 @@ def _source_readout_branch_attempt(
 def _legacy_branch_attempt_from_neutral_raw_v1(
     raw_body: object,
 ) -> SourceReadoutBranchAttemptAudit:
-    checked = _b7_replay_core_v1.validate_branch_attempt_v1(raw_body)
+    core = _require_b7_replay_core_v1(_b7_replay_core_v1)
+    checked = core.validate_branch_attempt_v1(raw_body)
     failure_map = {
         "actual_response_failed": PairedResponseFailure.ACTUAL_RESPONSE_FAILED,
         "matched_ablated_response_failed": (
             PairedResponseFailure.ABLATED_RESPONSE_FAILED
         ),
         "actual_bridge_failed": PairedResponseFailure.ACTUAL_BRIDGE_FAILED,
-        "matched_ablated_bridge_failed": (
-            PairedResponseFailure.ABLATED_BRIDGE_FAILED
-        ),
+        "matched_ablated_bridge_failed": (PairedResponseFailure.ABLATED_BRIDGE_FAILED),
     }
     raw_failure = checked["failure"]
     failure = None if raw_failure is None else failure_map[raw_failure]
@@ -3278,9 +3272,7 @@ def _legacy_branch_attempt_from_neutral_raw_v1(
         bridge_audit=(
             None
             if checked["bridge_audit"] is None
-            else _source_readout_bridge_audit_from_raw_v1(
-                checked["bridge_audit"]
-            )
+            else _source_readout_bridge_audit_from_raw_v1(checked["bridge_audit"])
         ),
         failure=failure,
     )
@@ -3312,9 +3304,7 @@ def _legacy_atomic_assembly_from_raw_prefix_v1(
             PairedResponseFailure.ABLATED_RESPONSE_FAILED
         ),
         "actual_bridge_failed": PairedResponseFailure.ACTUAL_BRIDGE_FAILED,
-        "matched_ablated_bridge_failed": (
-            PairedResponseFailure.ABLATED_BRIDGE_FAILED
-        ),
+        "matched_ablated_bridge_failed": (PairedResponseFailure.ABLATED_BRIDGE_FAILED),
     }
     return (
         _legacy_branch_attempt_from_neutral_raw_v1(actual_raw),
@@ -3323,11 +3313,7 @@ def _legacy_atomic_assembly_from_raw_prefix_v1(
             if matched_raw is None
             else _legacy_branch_attempt_from_neutral_raw_v1(matched_raw)
         ),
-        (
-            None
-            if observed_failure is None
-            else failure_map[observed_failure]
-        ),
+        (None if observed_failure is None else failure_map[observed_failure]),
     )
 
 
@@ -6426,9 +6412,7 @@ def _freeze_response_call_graph(
 _closed_authority_preflight = _freeze_response_call_graph(
     _preflight_response_evidence_body
 )
-_closed_authority_dataclass_items = _freeze_response_call_graph(
-    _exact_dataclass_items
-)
+_closed_authority_dataclass_items = _freeze_response_call_graph(_exact_dataclass_items)
 
 
 def _make_authority_structural_codec(
@@ -6679,8 +6663,7 @@ def _response_authority_binding_digest(
             "binding_identities": [
                 {
                     "exact_type": (
-                        f"{type_fn(item).__module__}."
-                        f"{type_fn(item).__qualname__}"
+                        f"{type_fn(item).__module__}.{type_fn(item).__qualname__}"
                     ),
                     "identity": id_fn(item),
                 }
@@ -6751,22 +6734,18 @@ def _validate_cached_shell_binding(authority):
     if verified_spec != expected_spec:
         raise ValueError("cached shell specification binding changed")
     transition_record = _reverify_verified_transition(authority.transition)
-    certificate_record = _reverify_verified_dynamics_certificate(
-        authority.certificate
-    )
+    certificate_record = _reverify_verified_dynamics_certificate(authority.certificate)
     if (
         transition_record.factory is not authority.factory
         or certificate_record.factory is not authority.factory
-        or certificate_record.certificate.transition
-        != transition_record.transition
+        or certificate_record.certificate.transition != transition_record.transition
     ):
         raise ValueError("cached shell dynamics binding changed")
     shell = outcome.shell
     if shell is not None and (
         shell.shell_spec != spec
         or shell.actual_factory_sha != transition_record.transition.factory_sha
-        or shell.actual_transition_sha
-        != transition_record.transition.transition_sha
+        or shell.actual_transition_sha != transition_record.transition.transition_sha
         or shell.actual_dynamics_certificate_sha
         != certificate_record.certificate.certificate_sha
         or shell.dt != transition_record.transition.dt
@@ -6834,10 +6813,8 @@ def _validate_cached_paired_binding(authority):
     if (
         attempt.window_protocol != protocol_body
         or attempt.qualification_sha != qualification_outcome.outcome_sha
-        or attempt.actual_factory_sha
-        != actual_factory_view.factory.factory_sha
-        or attempt.ablated_factory_sha
-        != ablated_factory_view.factory.factory_sha
+        or attempt.actual_factory_sha != actual_factory_view.factory.factory_sha
+        or attempt.ablated_factory_sha != ablated_factory_view.factory.factory_sha
         or attempt.actual_transition != raw_actual_transition
         or attempt.ablated_transition != raw_ablated_transition
         or attempt.actual_dynamics_certificate != raw_actual_certificate
@@ -6919,8 +6896,7 @@ def _validate_cached_paired_binding(authority):
         if (
             shell_manifest.shell_spec.control_registry_entry != registry_entry
             or shell_manifest.shell_spec.response_grid != run_spec.response_grid
-            or shell_manifest.shell_spec.candidate_fejer_order
-            != run_spec.fejer_order
+            or shell_manifest.shell_spec.candidate_fejer_order != run_spec.fejer_order
             or shell_manifest.dt != raw_actual_transition.dt
         ):
             raise ValueError("paired shell/run binding mismatch")
@@ -7107,9 +7083,7 @@ def _make_closed_reference_authority(
                 or wrapper_seal != authority.seal
                 or wrapper_seal != expected_seal
             ):
-                raise value_error(
-                    "endpoint reference cached immutable guard mismatch"
-                )
+                raise value_error("endpoint reference cached immutable guard mismatch")
             if binding_validator(authority) is not None:
                 raise type_error("reference binding validator must return None")
 
