@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 import os
 from pathlib import Path
@@ -14,6 +15,34 @@ from tools import v3m0_b7_capture_corpus as capture
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+FROZEN_CORPUS_PATH = REPOSITORY_ROOT / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+FROZEN_CORPUS_RAW_SHA256 = (
+    "46455a47dd794bac15476a9d81cf3dc9ae9fc461d2eabbdc72857147311774f9"
+)
+
+
+def test_frozen_corpus_raw_root_is_checked_before_json_decode() -> None:
+    raw_bytes = FROZEN_CORPUS_PATH.read_bytes()
+    assert hashlib.sha256(raw_bytes).hexdigest() == FROZEN_CORPUS_RAW_SHA256
+
+    assert raw_bytes.endswith(b"\n")
+    payload = raw_bytes[:-1]
+    assert payload and b"\n" not in payload
+    fixture = common.strict_json_loads_v1(payload)
+    assert common.canonical_json_bytes_v1(fixture) == payload
+    assert tuple(fixture) == (
+        "corpus_spec",
+        "environment_manifest",
+        "fixture_schema_version",
+        "fixture_sha",
+        "metric_spec",
+        "mutation_universe",
+        "ordered_d0_transcripts",
+        "synthetic_graph_manifest",
+    )
+    assert fixture["fixture_sha"] == common.canonical_sha_v1(
+        {name: value for name, value in fixture.items() if name != "fixture_sha"}
+    )
 
 
 def test_capture_builder_materializes_one_complete_self_consistent_graph() -> None:
