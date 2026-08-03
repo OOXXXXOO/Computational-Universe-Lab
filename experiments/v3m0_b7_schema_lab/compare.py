@@ -165,6 +165,63 @@ _REVIEWER_REQUIRED_INPUT_PATHS_V1 = (
     ("corpus", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[7]),
 )
 _OWNED_REVIEWER_EXPORT_ROOTS_V1 = {}
+_REVIEWER_COMMON_ORIGIN_INCLUDED_PATHS_V1 = (
+    "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+    "docsv3/v3-机器合同-B7-v9.2.1-overlay.json",
+    "experiments/v3m0_b7_schema_lab/__init__.py",
+    "experiments/v3m0_b7_schema_lab/common.py",
+    "experiments/v3m0_b7_schema_lab/compare.py",
+    "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+    "rulespace_v3",
+)
+_REVIEWER_ROUTE_SOURCE_PATHS_V1 = (
+    "experiments/v3m0_b7_schema_lab/a_flat.py",
+    "experiments/v3m0_b7_schema_lab/b_progress.py",
+    "experiments/v3m0_b7_schema_lab/c_union.py",
+)
+_REVIEWER_REASON_ORDER_V1 = (
+    "REVIEW_ENVIRONMENT_MISMATCH",
+    "REPLAY_SOURCE_MISMATCH",
+    "REPLAY_EXECUTABLE_SOURCE_ORIGIN_MISMATCH",
+    "REPLAY_INPUT_ROOT_MISMATCH",
+    "REPLAY_PROCESS_PRECHECK_FAILED",
+    "REPLAY_PROCESS_SPAWN_FAILED",
+    "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED",
+    "REPLAY_PROCESS_TIMED_OUT",
+    "REPLAY_PROCESS_SIGNALED",
+    "REPLAY_PROCESS_NONZERO",
+    "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED",
+    "REPLAY_EXPORT_CLEANUP_FAILED",
+    "REPLAY_STDOUT_NOT_CANONICAL_REPORT",
+    "REPLAY_REPORT_IDENTITY_MISMATCH",
+    "REPLAY_D0_DECISION_MISMATCH",
+    "REPLAY_D1_DECISION_MISMATCH",
+    "REPLAY_SURVIVOR_MISMATCH",
+    "REPLAY_WINNER_MISMATCH",
+)
+_REVIEWER_EXPORT_CLEANUP_DEADLINE_SECONDS_V1 = 10
+_REVIEWER_EXPORT_CLEANUP_PROGRAM_V1 = (
+    "import os,shutil,stat,sys;"
+    "root=sys.argv[1];dev=int(sys.argv[2]);ino=int(sys.argv[3]);"
+    "norm=os.path.normpath(os.path.abspath(root));"
+    "parent=os.path.normpath(sys.argv[4]);"
+    "st=os.stat(norm,follow_symlinks=False);"
+    "valid=(root==norm and os.path.dirname(norm)==parent and "
+    "os.path.basename(norm).startswith('v3m0-b7-reviewer-') and "
+    "stat.S_ISDIR(st.st_mode) and (st.st_dev,st.st_ino)==(dev,ino));"
+    "valid or sys.exit(3);"
+    "rows=list(os.walk(norm,topdown=False,followlinks=False));"
+    "all(stat.S_ISREG(os.stat(os.path.join(base,name),follow_symlinks=False).st_mode) "
+    "for base,dirs,files in rows for name in files) or sys.exit(4);"
+    "all(stat.S_ISDIR(os.stat(os.path.join(base,name),follow_symlinks=False).st_mode) "
+    "for base,dirs,files in rows for name in dirs) or sys.exit(5);"
+    "[(os.chmod(os.path.join(base,name),0o600,follow_symlinks=False)) "
+    "for base,dirs,files in rows for name in files];"
+    "[(os.chmod(os.path.join(base,name),0o700,follow_symlinks=False)) "
+    "for base,dirs,files in rows for name in dirs];"
+    "os.chmod(norm,0o700,follow_symlinks=False);shutil.rmtree(norm)"
+)
 _REPLAY_INPUT_PROJECTION_FIELDS_V1 = (
     "reviewer_role",
     "review_protocol_id",
@@ -3201,6 +3258,646 @@ def run_frozen_reviewer_process_v2(
         ),
         python_precheck_observation=python_precheck_observation,
     )
+
+
+def _observe_reviewer_environment_v1(environment_manifest):
+    expected_sha = (
+        environment_manifest.get("environment_sha")
+        if type(environment_manifest) is dict
+        else None
+    )
+    observation = {
+        "expected_sha": expected_sha,
+        "observed_sha": None,
+        "passed": False,
+    }
+    try:
+        manifest = _common.validate_exact_lab_record_v1(
+            "B7LabEnvironmentManifestV2",
+            environment_manifest,
+        )
+        identity = precheck_python_invocation_identity_v2(
+            python_invocation_path=manifest["python_invocation_path"],
+            recorded_realpath=manifest["python_executable_realpath"],
+            recorded_raw_sha256=manifest["python_executable_raw_sha256"],
+            recorded_venv_prefix=manifest["python_venv_prefix"],
+            recorded_pyvenv_cfg_path=manifest["python_pyvenv_cfg_path"],
+            recorded_pyvenv_cfg_raw_sha256=(
+                manifest["python_pyvenv_cfg_raw_sha256"]
+            ),
+        )
+        probe = run_python_environment_import_probe_v2(
+            python_invocation_path=manifest["python_invocation_path"],
+            python_identity_observation=identity,
+        )
+        validated = _common.validate_environment_manifest_v2(
+            manifest,
+            python_identity_observation=identity,
+            python_probe_result=probe,
+        )
+        passed = (
+            identity["precheck_passed"] is True
+            and probe["probe_passed"] is True
+            and recheck_python_invocation_identity_v2(
+                precheck_observation=identity
+            )
+            and validated["environment_sha"] == expected_sha
+        )
+        return {
+            "expected_sha": expected_sha,
+            "observed_sha": validated["environment_sha"] if passed else None,
+            "passed": passed,
+        }, identity if passed else None
+    except (KeyError, OSError, TypeError, ValueError):
+        return observation, None
+
+
+def _reviewer_source_origin_from_git_v1(
+    *,
+    repository_root,
+    evidence_commit_sha,
+    export_observation,
+    validated_d0_result,
+):
+    manifests = tuple(
+        row["route_manifest"]
+        for row in validated_d0_result["ordered_route_results"]
+    )
+    if len(manifests) != 3:
+        raise ValueError("reviewer source origin requires three route manifests")
+    common_commit_sha = validated_d0_result["common_commit_sha"]
+    common_origins = read_immutable_git_tree_blobs_v1(
+        repository_root=repository_root,
+        commit_sha=common_commit_sha,
+        included_paths=_REVIEWER_COMMON_ORIGIN_INCLUDED_PATHS_V1,
+    )
+    production_tree = read_immutable_git_tree_blobs_v1(
+        repository_root=repository_root,
+        commit_sha=common_commit_sha,
+        included_paths=("rulespace_v3", "rulespace_gpu"),
+    )
+    production_by_root = {
+        root: [
+            blob
+            for blob in production_tree
+            if blob[1] == root or blob[1].startswith(root + "/")
+        ]
+        for root in ("rulespace_v3", "rulespace_gpu")
+    }
+    production_blobs = tuple(
+        (blob[0], blob[1], blob[2], blob[5])
+        for root in ("rulespace_v3", "rulespace_gpu")
+        for blob in production_by_root[root]
+    )
+    route_origins = []
+    for manifest, path in zip(manifests, _REVIEWER_ROUTE_SOURCE_PATHS_V1):
+        route_tree = read_immutable_git_tree_blobs_v1(
+            repository_root=repository_root,
+            commit_sha=manifest["route_commit_sha"],
+            included_paths=(path,),
+        )
+        if len(route_tree) != 1:
+            raise ValueError("reviewer route origin tree is not a singleton")
+        route_origins.append(route_tree[0])
+    scoped_paths = set(_REVIEWER_COMMON_ORIGIN_INCLUDED_PATHS_V1[:-1])
+    scoped_paths.update(_REVIEWER_ROUTE_SOURCE_PATHS_V1)
+    evidence = tuple(
+        blob
+        for blob in export_observation["tree_blobs"]
+        if blob[1] in scoped_paths or blob[1].startswith("rulespace_v3/")
+    )
+    source_origin = _common.validate_reviewer_executable_source_origin_v1(
+        evidence_commit_sha=evidence_commit_sha,
+        common_commit_sha=common_commit_sha,
+        route_manifests=manifests,
+        evidence_blobs=evidence,
+        common_origin_blobs=common_origins,
+        route_origin_blobs=tuple(route_origins),
+        production_blobs=production_blobs,
+        namespace_observation=export_observation["namespace_observation"],
+    )
+    return source_origin, production_blobs
+
+
+def _map_reviewer_process_observation_v1(
+    raw_process_observation,
+    *,
+    export_cleanup_passed,
+    required_input_precheck_passed,
+):
+    if type(raw_process_observation) is not dict:
+        raise TypeError("raw reviewer process observation must be an exact dict")
+    return {
+        "termination_kind": raw_process_observation["replay_termination_kind"],
+        "exit_code": raw_process_observation["replay_exit_code"],
+        "signal_number": raw_process_observation["replay_signal_number"],
+        "stdout_bytes": raw_process_observation["replay_stdout_bytes"],
+        "stderr_bytes": raw_process_observation["replay_stderr_bytes"],
+        "cleanup_deadline_passed": not raw_process_observation[
+            "process_cleanup_deadline_exceeded"
+        ],
+        "export_cleanup_passed": export_cleanup_passed,
+        "required_input_precheck_passed": required_input_precheck_passed,
+    }
+
+
+def _run_bounded_reviewer_export_cleanup_v1(
+    export_observation,
+    *,
+    python_identity_observation,
+):
+    import os
+    import signal
+    import subprocess
+    import tempfile
+    import time
+
+    export_root = export_observation["export_root"]
+    root_identity = export_observation["root_identity"]
+    if (
+        _OWNED_REVIEWER_EXPORT_ROOTS_V1.get(export_root) != root_identity
+    ):
+        return False
+    v2_identity = type(python_identity_observation) is dict
+    if v2_identity:
+        cleanup_python = python_identity_observation.get(
+            "python_invocation_path"
+        )
+        legacy_identity = None
+    else:
+        cleanup_python = os.path.realpath(sys.executable)
+        target = _stable_regular_file_observation_v2(
+            cleanup_python,
+            executable_required=True,
+        )
+        if target["stable"] is not True or target["raw_sha256"] is None:
+            return False
+        legacy_identity = precheck_frozen_python_executable_v1(
+            recorded_realpath=cleanup_python,
+            recorded_raw_sha256=target["raw_sha256"],
+        )
+    if v2_identity:
+        identity_passed = recheck_python_invocation_identity_v2(
+            precheck_observation=python_identity_observation
+        )
+    else:
+        identity_passed = (
+            recheck_frozen_python_executable_identity_v1(
+                recorded_realpath=cleanup_python,
+                precheck_observation=legacy_identity,
+            )
+        )
+    argv = (
+        cleanup_python,
+        "-s",
+        "-c",
+        _REVIEWER_EXPORT_CLEANUP_PROGRAM_V1,
+        export_root,
+        str(root_identity[0]),
+        str(root_identity[1]),
+        os.path.dirname(export_root),
+    )
+    cwd = tempfile.gettempdir()
+    environment = build_sanitized_reviewer_environment_v1()
+    if not identity_passed:
+        return False
+    try:
+        process = subprocess.Popen(
+            argv,
+            cwd=cwd,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True,
+        )
+    except OSError:
+        return False
+    deadline = time.monotonic() + _REVIEWER_EXPORT_CLEANUP_DEADLINE_SECONDS_V1
+    kill_at = deadline - 0.25
+    while process.poll() is None and time.monotonic() < kill_at:
+        time.sleep(0.01)
+    if process.poll() is None:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    while process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.01)
+    passed = process.poll() == 0 and not os.path.exists(export_root)
+    if not os.path.exists(export_root):
+        _OWNED_REVIEWER_EXPORT_ROOTS_V1.pop(export_root, None)
+    return passed
+
+
+def _decode_optional_reviewer_report_v1(stdout_bytes):
+    try:
+        return decode_replay_report_stdout_v1(stdout_bytes)
+    except (TypeError, ValueError, UnicodeError):
+        return None
+
+
+def build_reviewer_receipt_v1(
+    *,
+    reviewer_id,
+    reviewer_role,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+    d0_raw_bytes,
+    d1_raw_bytes,
+    environment_observation,
+    source_origin_observation,
+    replay_source_blob,
+    process_observation,
+):
+    """Build and independently revalidate one parent-observed receipt."""
+
+    if type(reviewer_id) is not str or not reviewer_id:
+        raise ValueError("reviewer ID must be a nonempty exact string")
+    protocol_id = _reviewer_protocol_id_v1(reviewer_role)
+    d0 = validated_d0_result
+    d1 = validated_d1_result
+    manifests = [row["route_manifest"] for row in d0["ordered_route_results"]]
+    source_commit, source_path, source_mode, source_bytes = replay_source_blob
+    replay_source_sha = hashlib.sha256(source_bytes).hexdigest()
+    environment_sha = d1["environment_manifest"]["environment_sha"]
+    projection = {
+        "reviewer_role": reviewer_role,
+        "review_protocol_id": protocol_id,
+        "reviewed_lab_evidence_commit_sha": evidence_commit_sha,
+        "review_environment_manifest_sha": environment_sha,
+        "reviewed_d0_result_raw_sha256": hashlib.sha256(d0_raw_bytes).hexdigest(),
+        "reviewed_d0_result_sha": d0["d0_result_sha"],
+        "reviewed_d0_decision_payload_sha": d0["decision_payload_sha"],
+        "reviewed_d1_result_raw_sha256": hashlib.sha256(d1_raw_bytes).hexdigest(),
+        "reviewed_d1_result_sha": d1["d1_result_sha"],
+        "reviewed_d1_decision_payload_sha": d1["decision_payload_sha"],
+        "reviewed_common_commit_sha": d0["common_commit_sha"],
+        "reviewed_route_commit_shas": [
+            manifest["route_commit_sha"] for manifest in manifests
+        ],
+        "reviewed_corpus_spec_sha": d0["corpus_spec_sha"],
+        "reviewed_mutation_universe_sha": d0["mutation_universe_sha"],
+        "reviewed_metric_spec_sha": d0["metric_spec_sha"],
+        "reviewed_compare_source_sha256": d0["compare_source_sha256"],
+        "reviewed_executable_source_closure_sha": source_origin_observation[
+            "reviewed_executable_source_closure_sha"
+        ],
+        "replay_source_sha256": replay_source_sha,
+    }
+    replay_input_root = _canonical_sha_v1(projection)
+    command = materialize_reviewer_command_v1(
+        reviewer_role=reviewer_role,
+        frozen_python_executable=d1["environment_manifest"][
+            "python_invocation_path"
+        ],
+        evidence_commit_sha=evidence_commit_sha,
+        reviewed_executable_source_closure_sha=projection[
+            "reviewed_executable_source_closure_sha"
+        ],
+    )
+    report = _decode_optional_reviewer_report_v1(
+        process_observation["stdout_bytes"]
+    )
+    source_matches = (
+        source_commit == evidence_commit_sha
+        and source_path == "experiments/v3m0_b7_schema_lab/compare.py"
+        and source_mode == "100644"
+        and replay_source_sha == d0["compare_source_sha256"]
+    )
+    predicates = {
+        "REVIEW_ENVIRONMENT_MISMATCH": not environment_observation["passed"],
+        "REPLAY_SOURCE_MISMATCH": not source_matches,
+        "REPLAY_EXECUTABLE_SOURCE_ORIGIN_MISMATCH": not source_origin_observation[
+            "executable_source_origin_precheck_passed"
+        ],
+        "REPLAY_INPUT_ROOT_MISMATCH": (
+            not process_observation["required_input_precheck_passed"]
+            or (
+                report is not None
+                and report["replay_input_root_sha"] != replay_input_root
+            )
+        ),
+        "REPLAY_PROCESS_PRECHECK_FAILED": process_observation[
+            "termination_kind"
+        ]
+        == "PRECHECK_FAILED",
+        "REPLAY_PROCESS_SPAWN_FAILED": process_observation["termination_kind"]
+        == "SPAWN_FAILED",
+        "REPLAY_PROCESS_OUTPUT_LIMIT_EXCEEDED": process_observation[
+            "termination_kind"
+        ]
+        == "OUTPUT_LIMIT_EXCEEDED",
+        "REPLAY_PROCESS_TIMED_OUT": process_observation["termination_kind"]
+        == "TIMED_OUT",
+        "REPLAY_PROCESS_SIGNALED": process_observation["termination_kind"]
+        == "SIGNALED",
+        "REPLAY_PROCESS_NONZERO": (
+            process_observation["termination_kind"] == "EXITED"
+            and process_observation["exit_code"] != 0
+        ),
+        "REPLAY_PROCESS_CLEANUP_DEADLINE_EXCEEDED": not process_observation[
+            "cleanup_deadline_passed"
+        ],
+        "REPLAY_EXPORT_CLEANUP_FAILED": not process_observation[
+            "export_cleanup_passed"
+        ],
+        "REPLAY_STDOUT_NOT_CANONICAL_REPORT": report is None,
+        "REPLAY_REPORT_IDENTITY_MISMATCH": report is not None
+        and (
+            report["reviewer_role"] != reviewer_role
+            or report["review_protocol_id"] != protocol_id
+            or report["lab_evidence_commit_sha"] != evidence_commit_sha
+        ),
+        "REPLAY_D0_DECISION_MISMATCH": report is not None
+        and report["recomputed_d0_decision_payload_sha"]
+        != d0["decision_payload_sha"],
+        "REPLAY_D1_DECISION_MISMATCH": report is not None
+        and report["recomputed_d1_decision_payload_sha"]
+        != d1["decision_payload_sha"],
+        "REPLAY_SURVIVOR_MISMATCH": report is not None
+        and report["observed_surviving_route_ids"] != d1["surviving_route_ids"],
+        "REPLAY_WINNER_MISMATCH": report is not None
+        and report["observed_provisional_winner_route_id"]
+        != d1["provisional_winner_route_id"],
+    }
+    reasons = [reason for reason in _REVIEWER_REASON_ORDER_V1 if predicates[reason]]
+    accept = (
+        environment_observation["passed"]
+        and source_origin_observation[
+            "executable_source_origin_precheck_passed"
+        ]
+        and not reasons
+        and process_observation["termination_kind"] == "EXITED"
+        and process_observation["exit_code"] == 0
+        and process_observation["signal_number"] is None
+        and report is not None
+    )
+    receipt = {
+        "receipt_schema_version": "experimental.v3m0.b7.reviewer-receipt.v1",
+        "reviewer_id": reviewer_id,
+        "reviewer_role": reviewer_role,
+        "review_protocol_id": protocol_id,
+        "reviewed_lab_evidence_commit_sha": evidence_commit_sha,
+        "review_environment_manifest_sha": environment_sha,
+        "observed_review_environment_manifest_sha": environment_observation[
+            "observed_sha"
+        ],
+        "review_environment_precheck_passed": environment_observation["passed"],
+        **{name: projection[name] for name in _REPLAY_INPUT_PROJECTION_FIELDS_V1[4:17]},
+        "observed_executable_source_closure_sha": source_origin_observation[
+            "observed_executable_source_closure_sha"
+        ],
+        "executable_source_origin_precheck_passed": source_origin_observation[
+            "executable_source_origin_precheck_passed"
+        ],
+        "replay_source_path": source_path,
+        "replay_source_sha256": replay_source_sha,
+        "replay_command_argv": list(command),
+        "fresh_process_protocol_id": (
+            "fresh-python-s-immutable-E-venv-invocation-v2"
+        ),
+        "replay_input_root_sha": replay_input_root,
+        "observed_report_reviewer_role": (
+            None if report is None else report["reviewer_role"]
+        ),
+        "observed_report_review_protocol_id": (
+            None if report is None else report["review_protocol_id"]
+        ),
+        "observed_report_lab_evidence_commit_sha": (
+            None if report is None else report["lab_evidence_commit_sha"]
+        ),
+        "observed_report_replay_input_root_sha": (
+            None if report is None else report["replay_input_root_sha"]
+        ),
+        "replay_output_root_sha": (
+            None if report is None else report["replay_output_root_sha"]
+        ),
+        "replay_stdout_sha256": hashlib.sha256(
+            process_observation["stdout_bytes"]
+        ).hexdigest(),
+        "replay_stderr_sha256": hashlib.sha256(
+            process_observation["stderr_bytes"]
+        ).hexdigest(),
+        "replay_termination_kind": process_observation["termination_kind"],
+        "replay_exit_code": process_observation["exit_code"],
+        "replay_signal_number": process_observation["signal_number"],
+        "replayed_d0_decision_payload_sha": (
+            None
+            if report is None
+            else report["recomputed_d0_decision_payload_sha"]
+        ),
+        "replayed_d1_decision_payload_sha": (
+            None
+            if report is None
+            else report["recomputed_d1_decision_payload_sha"]
+        ),
+        "observed_surviving_route_ids": (
+            None if report is None else report["observed_surviving_route_ids"]
+        ),
+        "observed_provisional_winner_route_id": (
+            None
+            if report is None
+            else report["observed_provisional_winner_route_id"]
+        ),
+        "verdict": "ACCEPT" if accept else "REJECT",
+        "reason_codes": reasons,
+        "receipt_sha": "",
+    }
+    receipt["receipt_sha"] = _canonical_sha_v1(
+        {
+            name: value
+            for name, value in receipt.items()
+            if name != "receipt_sha"
+        }
+    )
+    return _common.validate_reviewer_receipt_v1(
+        receipt,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=d0,
+        validated_d1_result=d1,
+        d0_raw_bytes=d0_raw_bytes,
+        d1_raw_bytes=d1_raw_bytes,
+        environment_observation=environment_observation,
+        source_origin_observation=source_origin_observation,
+        replay_source_blob=replay_source_blob,
+        process_observation=process_observation,
+    )
+
+
+def run_immutable_reviewer_receipt_v1(
+    *,
+    reviewer_id,
+    reviewer_role,
+    repository_root,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+):
+    """Run one fresh immutable reviewer and return its receipt plus evidence."""
+
+    export = materialize_immutable_reviewer_export_v1(
+        repository_root=repository_root,
+        evidence_commit_sha=evidence_commit_sha,
+    )
+    d0_raw = export["required_input_bytes"]["d0"]
+    d1_raw = export["required_input_bytes"]["d1"]
+    required_input_precheck_passed = False
+    source_origin = None
+    environment_observation = None
+    python_identity = None
+    raw_process = _empty_process_observation_v1("PRECHECK_FAILED")
+    try:
+        parsed_d0 = _strict_json_loads_v1(d0_raw)
+        parsed_d1 = _strict_json_loads_v1(d1_raw)
+        _validate_reviewer_contract_inputs_v1(export["required_input_bytes"])
+        required_input_precheck_passed = (
+            _canonical_json_bytes_v1(parsed_d0)
+            == _canonical_json_bytes_v1(validated_d0_result)
+            and _canonical_json_bytes_v1(parsed_d1)
+            == _canonical_json_bytes_v1(validated_d1_result)
+        )
+        source_origin, _production_blobs = _reviewer_source_origin_from_git_v1(
+            repository_root=repository_root,
+            evidence_commit_sha=evidence_commit_sha,
+            export_observation=export,
+            validated_d0_result=validated_d0_result,
+        )
+        environment_observation, python_identity = (
+            _observe_reviewer_environment_v1(
+                validated_d1_result["environment_manifest"]
+            )
+        )
+        prechecks_passed = (
+            required_input_precheck_passed
+            and source_origin["executable_source_origin_precheck_passed"] is True
+            and environment_observation["passed"] is True
+        )
+        if prechecks_passed:
+            command = materialize_reviewer_command_v1(
+                reviewer_role=reviewer_role,
+                frozen_python_executable=validated_d1_result[
+                    "environment_manifest"
+                ]["python_invocation_path"],
+                evidence_commit_sha=evidence_commit_sha,
+                reviewed_executable_source_closure_sha=source_origin[
+                    "reviewed_executable_source_closure_sha"
+                ],
+            )
+            raw_process = run_frozen_reviewer_process_v2(
+                argv=command,
+                cwd=export["export_root"],
+                environment=build_sanitized_reviewer_environment_v1(),
+                environment_manifest=validated_d1_result["environment_manifest"],
+            )
+    except (KeyError, OSError, TypeError, ValueError):
+        if source_origin is None or environment_observation is None:
+            cleanup_immutable_reviewer_export_v1(export)
+            raise
+    export_cleanup_passed = _run_bounded_reviewer_export_cleanup_v1(
+        export,
+        python_identity_observation=python_identity,
+    )
+    process_observation = _map_reviewer_process_observation_v1(
+        raw_process,
+        export_cleanup_passed=export_cleanup_passed,
+        required_input_precheck_passed=required_input_precheck_passed,
+    )
+    replay_blob = next(
+        blob
+        for blob in export["tree_blobs"]
+        if blob[1] == "experiments/v3m0_b7_schema_lab/compare.py"
+    )
+    replay_source_blob = (
+        replay_blob[0],
+        replay_blob[1],
+        replay_blob[2],
+        replay_blob[5],
+    )
+    receipt = build_reviewer_receipt_v1(
+        reviewer_id=reviewer_id,
+        reviewer_role=reviewer_role,
+        evidence_commit_sha=evidence_commit_sha,
+        validated_d0_result=validated_d0_result,
+        validated_d1_result=validated_d1_result,
+        d0_raw_bytes=d0_raw,
+        d1_raw_bytes=d1_raw,
+        environment_observation=environment_observation,
+        source_origin_observation=source_origin,
+        replay_source_blob=replay_source_blob,
+        process_observation=process_observation,
+    )
+    context = {
+        "environment_observation": environment_observation,
+        "source_origin_observation": source_origin,
+        "replay_source_blob": replay_source_blob,
+        "process_observation": process_observation,
+    }
+    return {
+        "receipt": receipt,
+        "receipt_context": context,
+        "export_root": export["export_root"],
+        "export_cleanup_passed": export_cleanup_passed,
+    }
+
+
+def run_immutable_reviewer_pair_v1(
+    *,
+    reviewer_ids,
+    repository_root,
+    evidence_commit_sha,
+    validated_d0_result,
+    validated_d1_result,
+):
+    """Run the exact corpus/metric reviewer pair as independent processes."""
+
+    if (
+        type(reviewer_ids) is not tuple
+        or len(reviewer_ids) != 2
+        or any(type(value) is not str or not value for value in reviewer_ids)
+        or reviewer_ids[0] == reviewer_ids[1]
+    ):
+        raise ValueError("reviewer pair requires two distinct exact IDs")
+    results = []
+    for reviewer_id, reviewer_role in zip(
+        reviewer_ids,
+        ("CORPUS_REPLAY", "METRIC_REPLAY"),
+    ):
+        results.append(
+            run_immutable_reviewer_receipt_v1(
+                reviewer_id=reviewer_id,
+                reviewer_role=reviewer_role,
+                repository_root=repository_root,
+                evidence_commit_sha=evidence_commit_sha,
+                validated_d0_result=validated_d0_result,
+                validated_d1_result=validated_d1_result,
+            )
+        )
+    receipts = [result["receipt"] for result in results]
+    if [receipt["reviewer_role"] for receipt in receipts] != [
+        "CORPUS_REPLAY",
+        "METRIC_REPLAY",
+    ]:
+        raise RuntimeError("reviewer pair role order drifted")
+    if len(
+        {
+            receipt["reviewed_executable_source_closure_sha"]
+            for receipt in receipts
+        }
+    ) != 1:
+        raise ValueError("reviewer pair source closures diverged")
+    return {
+        "reviewer_receipts": receipts,
+        "reviewer_receipt_contexts": tuple(
+            result["receipt_context"] for result in results
+        ),
+        "export_roots": [result["export_root"] for result in results],
+        "all_exports_cleaned": all(
+            result["export_cleanup_passed"] for result in results
+        ),
+    }
 
 
 if __name__ == "__main__":
