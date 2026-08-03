@@ -7,6 +7,7 @@ an authority, execute a route, or issue a scientific status.
 
 from __future__ import annotations
 
+import ast
 import copy
 import hashlib
 import json
@@ -31,6 +32,9 @@ HALT_ARTIFACT_MATRIX_SHA256 = (
 )
 REPLAY_REPORT_MECHANICAL_SHA256 = (
     "99064f0f2122e9e3a2499464fa084178aeef15caa503f175f9bad30fe2a4ecd1"
+)
+ROOT_HANDOFF_SEMANTIC_SHA256 = (
+    "0edc7f117b650cd163e39c9c3ca7f77acdca8a31c0d43d13cf3c854e699ff769"
 )
 
 BASE_CONTRACTS = {
@@ -372,6 +376,20 @@ def _field_names(record: dict[str, object]) -> tuple[str, ...]:
     return tuple(field["name"] for field in record["field_specs"])
 
 
+def _class_annotations(path: Path, class_name: str) -> list[dict[str, str]]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    class_node = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == class_name
+    )
+    return [
+        {"name": node.target.id, "annotation": ast.unparse(node.annotation)}
+        for node in class_node.body
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    ]
+
+
 def _walk_strings(value: object) -> list[str]:
     if type(value) is str:
         return [value]
@@ -522,7 +540,7 @@ def _materialize_effective_v7(
 
 
 def _apply_relative_patches(
-    prior: object, repair: dict[str, object]
+    prior: object, repair: dict[str, object], record_name: str
 ) -> dict[str, object]:
     assert type(prior) is dict
     repaired = copy.deepcopy(prior)
@@ -539,8 +557,12 @@ def _apply_relative_patches(
         parent[leaf] = copy.deepcopy(patch["replacement_value"])
     assert repaired["schema_id"] == repair["schema_id"]
     assert repaired["canonical_owner"] == repair["canonical_owner"]
+    source_annotations = _class_annotations(
+        REPO_ROOT / repair["source_path"], record_name
+    )
+    assert repair["source_field_annotations"] == source_annotations
     assert [field["name"] for field in repaired["field_specs"]] == [
-        field["name"] for field in repair["source_field_annotations"]
+        annotation["name"] for annotation in source_annotations
     ]
     return repaired
 
@@ -551,7 +573,9 @@ def _resolve_v8_replacement(
     replacement = _json_pointer(v8, replacement_ref)
     if replacement_ref.startswith("/legacy_record_repairs/"):
         assert type(replacement) is dict
-        return _apply_relative_patches(prior, replacement)
+        return _apply_relative_patches(
+            prior, replacement, replacement_ref.rsplit("/", 1)[1]
+        )
     if type(replacement) is dict and "operation" in replacement:
         return _record_body(replacement)
     return copy.deepcopy(replacement)
@@ -697,6 +721,178 @@ def _materialize_effective_v91(
     return effective
 
 
+def _assert_root_handoff_semantics(lab: dict[str, object]) -> None:
+    git_contract = lab["git_object_handoff_contract"]
+    assert list(git_contract) == [
+        "protocol_id",
+        "object_format",
+        "full_oid_regex",
+        "trusted_git_executable_protocol",
+        "evidence_commit_symbol",
+        "selection_commit_symbol",
+        "review_halt_commit_symbol",
+        "commit_partition",
+        "evidence_commit_reachability",
+        "tag_contract",
+        "lab_halt_tag_contract",
+        "review_halt_tag_contract",
+        "sanitized_environment",
+        "git_global_argv_prefix",
+        "common_repository_guards",
+        "terminal_repository_guard_inheritance",
+        "repository_guards",
+        "lab_halt_repository_guards",
+        "review_halt_repository_guards",
+        "blob_read_protocol",
+        "handoff_report_container",
+        "self_hash_exclusions",
+        "handoff_tag_target",
+    ]
+    assert git_contract["protocol_id"] == (
+        "v3m0-b7-schema-selection-git-object-handoff-v1"
+    )
+    assert git_contract["object_format"] == "sha1"
+    assert git_contract["full_oid_regex"] == "^[0-9a-f]{40}$"
+    assert git_contract["trusted_git_executable_protocol"] == {
+        "literal_path": "/usr/bin/git",
+        "path_lookup_or_caller_override_allowed": False,
+        "required_file_type": "regular-executable",
+        "required_owner_uid": 0,
+        "group_or_other_writable_allowed": False,
+        "subprocess_shell": False,
+    }
+    assert git_contract["sanitized_environment"] == {
+        "clear_all_caller_environment_first": True,
+        "literal_values": {
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES": "",
+            "LANG": "C",
+            "LC_ALL": "C",
+        },
+        "caller_git_environment_allowed": False,
+    }
+    assert git_contract["git_global_argv_prefix"] == [
+        "--no-replace-objects",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "diff.external=",
+        "-c",
+        "core.attributesFile=/dev/null",
+    ]
+
+    expected_partition = {
+        "E_contains_paths_always": [
+            "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json"
+        ],
+        "E_result_partition_by_state": {
+            "D0_NO_SURVIVOR": {"d1_comparison": "absent"},
+            "D1_NO_SURVIVOR_OR_METRIC_TIE": {"d1_comparison": "present"},
+            "D1_UNIQUE_REVIEW_PENDING": {"d1_comparison": "present"},
+        },
+        "E_must_not_contain_paths": [
+            "data/results/experimental/v3m0_b7_schema_lab/selection_review.json",
+            "data/results/experimental/v3m0_b7_schema_lab/review_halt.json",
+        ],
+        "S_parent_oids": ["E"],
+        "S_tree_delta_exact": [
+            {
+                "status": "A",
+                "mode": "100644",
+                "path": (
+                    "data/results/experimental/v3m0_b7_schema_lab/selection_review.json"
+                ),
+            }
+        ],
+        "selection_review_may_reference": ["E"],
+        "selection_review_must_not_reference": ["S", "H", "tag-object-oid"],
+        "H_parent_oids": ["E"],
+        "H_tree_delta_exact": [
+            {
+                "status": "A",
+                "mode": "100644",
+                "path": (
+                    "data/results/experimental/v3m0_b7_schema_lab/review_halt.json"
+                ),
+            }
+        ],
+        "review_halt_may_reference": ["E"],
+        "review_halt_must_not_reference": ["S", "H", "tag-object-oid"],
+        "terminal_children_mutually_exclusive": (
+            "exactly-one-of-S-or-H-may-exist-for-E-and-neither-tree-may-contain-"
+            "the-other-terminal-artifact"
+        ),
+    }
+    assert git_contract["commit_partition"] == expected_partition
+    assert git_contract["commit_partition"]["terminal_children_mutually_exclusive"] == (
+        "exactly-one-of-S-or-H-may-exist-for-E-and-neither-tree-may-contain-the-"
+        "other-terminal-artifact"
+    )
+
+    expected_tags = {
+        "tag_contract": {
+            "full_ref": "refs/tags/v3m0-b7-schema-selection-v1",
+            "ref_object_type": "tag",
+            "tag_header_object": "S",
+            "tag_header_type": "commit",
+            "tag_header_tag": "v3m0-b7-schema-selection-v1",
+            "peeled_target": "S",
+            "lightweight_tag_allowed": False,
+        },
+        "lab_halt_tag_contract": {
+            "full_ref": "refs/tags/v3m0-b7-schema-lab-halt-v1",
+            "ref_object_type": "tag",
+            "tag_header_object": "E",
+            "tag_header_type": "commit",
+            "tag_header_tag": "v3m0-b7-schema-lab-halt-v1",
+            "peeled_target": "E",
+            "allowed_result_state": ("D0_NO_SURVIVOR-or-D1_NO_SURVIVOR_OR_METRIC_TIE"),
+            "selection-review-halt-and-production-handoff-allowed": False,
+            "lightweight_tag_allowed": False,
+        },
+        "review_halt_tag_contract": {
+            "full_ref": "refs/tags/v3m0-b7-schema-review-halt-v1",
+            "ref_object_type": "tag",
+            "tag_header_object": "H",
+            "tag_header_type": "commit",
+            "tag_header_tag": "v3m0-b7-schema-review-halt-v1",
+            "peeled_target": "H",
+            "lightweight_tag_allowed": False,
+            "production_handoff_allowed": False,
+        },
+    }
+    for field, expected in expected_tags.items():
+        assert git_contract[field] == expected
+        assert git_contract[field]["ref_object_type"] == "tag"
+        assert git_contract[field]["lightweight_tag_allowed"] is False
+
+    handoff_validator = next(
+        validator
+        for validator in lab["validator_contracts"]["validators"]
+        if validator["validator_id"] == "validate_production_handoff_v1"
+    )
+    assert handoff_validator == {
+        "validator_id": "validate_production_handoff_v1",
+        "implementation_symbol": "validate_production_handoff_v1",
+        "exact_conditions": [
+            "all-git-objects-and-blobs-validate-git_object_handoff_contract",
+            "D0-D1-selection-raw-self-decision-roots-equal-E-and-S-blobs",
+            "selection-validates-validate_selection_review_v1",
+            "selected-route-and-receipt-roots-equal-selection",
+            "handoff_sha-equals-canonical_sha-remove-only-handoff_sha",
+        ],
+    }
+    root_projection = {
+        "git_object_handoff_contract": git_contract,
+        "validate_production_handoff_v1": handoff_validator,
+    }
+    assert _ordered_digest(root_projection) == ROOT_HANDOFF_SEMANTIC_SHA256
+
+
 def test_frozen_registry_is_loaded_only_after_raw_sha_verification() -> None:
     registry = _load_frozen_registry()
 
@@ -772,6 +968,13 @@ def test_complete_effective_registry_rejects_every_unlisted_mutation() -> None:
     )
     with pytest.raises(AssertionError):
         _materialize_effective_v91(registry, hostile_bases)
+
+    forged_annotation_bases = copy.deepcopy(bases)
+    forged_annotation_bases["v8"]["legacy_record_repairs"]["PairedFilteredResponse"][
+        "source_field_annotations"
+    ][0]["annotation"] = "ForgedType"
+    with pytest.raises(AssertionError):
+        _materialize_effective_v91(registry, forged_annotation_bases)
 
 
 def test_all_29_exact_records_are_typed_unique_and_reference_closed() -> None:
@@ -1103,8 +1306,39 @@ def test_reviewer_source_environment_argv_and_process_observations_are_total() -
         assert reason in "\n".join(process_mapping.values())
 
 
+@pytest.mark.parametrize(
+    "attack_id",
+    (
+        "lightweight-selection-tag",
+        "remove-terminal-mutual-exclusion",
+        "sha256-object-format",
+        "accept-all-handoff-validator",
+    ),
+)
+def test_root_handoff_semantic_attacks_are_rejected(attack_id: str) -> None:
+    lab = copy.deepcopy(_load_frozen_registry()["lab_contract"])
+    git_contract = lab["git_object_handoff_contract"]
+    if attack_id == "lightweight-selection-tag":
+        git_contract["tag_contract"]["lightweight_tag_allowed"] = True
+    elif attack_id == "remove-terminal-mutual-exclusion":
+        git_contract["commit_partition"].pop("terminal_children_mutually_exclusive")
+    elif attack_id == "sha256-object-format":
+        git_contract["object_format"] = "sha256"
+    else:
+        handoff_validator = next(
+            validator
+            for validator in lab["validator_contracts"]["validators"]
+            if validator["validator_id"] == "validate_production_handoff_v1"
+        )
+        handoff_validator["exact_conditions"] = ["accept-all"]
+
+    with pytest.raises(AssertionError):
+        _assert_root_handoff_semantics(lab)
+
+
 def test_terminal_git_guards_cover_selection_lab_halt_and_review_halt() -> None:
     lab = _load_frozen_registry()["lab_contract"]
+    _assert_root_handoff_semantics(lab)
     git_contract = lab["git_object_handoff_contract"]
     reachability = git_contract["evidence_commit_reachability"]
 
