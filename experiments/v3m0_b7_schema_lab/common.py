@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast as _ast
+
 import rulespace_v3.b7_replay_core_v1 as _pure_core
 
 
@@ -3685,6 +3687,31 @@ GATE_CONTRACTS_V1 = (
 )
 
 
+_ROUTE_STATIC_REGISTRY_V1 = (
+    (
+        "A_FLAT",
+        "experimental.v3m0.b7.a-flat",
+        "experiments.v3m0_b7_schema_lab.a_flat",
+        "experiments/v3m0_b7_schema_lab/a_flat.py",
+        "experimental.v3m0.b7.a-flat.wire.v1",
+    ),
+    (
+        "B_PROGRESS",
+        "experimental.v3m0.b7.b-progress",
+        "experiments.v3m0_b7_schema_lab.b_progress",
+        "experiments/v3m0_b7_schema_lab/b_progress.py",
+        "experimental.v3m0.b7.b-progress.wire.v1",
+    ),
+    (
+        "C_UNION",
+        "experimental.v3m0.b7.c-union",
+        "experiments.v3m0_b7_schema_lab.c_union",
+        "experiments/v3m0_b7_schema_lab/c_union.py",
+        "experimental.v3m0.b7.c-union.wire.v1",
+    ),
+)
+
+
 def _gate_contract_v1(gate_id):
     matches = [contract for contract in GATE_CONTRACTS_V1 if contract[0] == gate_id]
     if len(matches) != 1:
@@ -3771,3 +3798,707 @@ def validate_gate_outcome_v1(
     if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
         raise ValueError("gate outcome differs from fresh recomputation")
     return observed
+
+
+def _route_static_registry_entry_v1(route_id):
+    if type(route_id) is not str:
+        raise TypeError("route ID must be an exact str")
+    for entry in _ROUTE_STATIC_REGISTRY_V1:
+        if entry[0] == route_id:
+            return entry
+    raise ValueError("route ID is not frozen")
+
+
+def _require_git_blob_descriptor_v1(raw_blob, field):
+    if type(raw_blob) is not tuple or len(raw_blob) != 4:
+        raise TypeError(f"{field} must be an exact four-item tuple")
+    commit_sha, path, mode, source_bytes = raw_blob
+    if (
+        type(commit_sha) is not str
+        or len(commit_sha) != 40
+        or any(character not in "0123456789abcdef" for character in commit_sha)
+    ):
+        raise TypeError(f"{field} commit must be an exact lowercase Git SHA-1")
+    _require_repo_relative_posix_path_v1(path, f"{field} path")
+    if type(mode) is not str:
+        raise TypeError(f"{field} mode must be an exact str")
+    if type(source_bytes) is not bytes:
+        raise TypeError(f"{field} source must be exact bytes")
+    return raw_blob
+
+
+_ROUTE_PUBLIC_EXPORTS_V1 = (
+    "ROUTE_ID",
+    "WIRE_SCHEMA_ID",
+    "encode_normalized_transcript",
+    "verify_and_decode_route_wire",
+)
+_ROUTE_ALLOWED_IMPORTS_V1 = (
+    "__future__",
+    "base64",
+    "copy",
+    "dataclasses",
+    "enum",
+    "hashlib",
+    "json",
+    "typing",
+    ".common",
+    "experiments.v3m0_b7_schema_lab.common",
+)
+_ROUTE_FORBIDDEN_REACHABLE_NAMES_V1 = (
+    "__builtins__",
+    "__import__",
+    "breakpoint",
+    "compile",
+    "eval",
+    "exec",
+    "getattr",
+    "globals",
+    "input",
+    "locals",
+    "open",
+    "print",
+)
+_ROUTE_FORBIDDEN_ATTRIBUTE_NAMES_V1 = (
+    "ProcessPoolExecutor",
+    "exec",
+    "fork",
+    "forkpty",
+    "kill",
+    "killpg",
+    "popen",
+    "posix_spawn",
+    "setsid",
+    "pthread_kill",
+    "raise_signal",
+    "spawnl",
+    "spawnle",
+    "spawnlp",
+    "spawnlpe",
+    "spawnv",
+    "spawnve",
+    "spawnvp",
+    "spawnvpe",
+    "system",
+)
+_ROUTE_FORBIDDEN_ATTRIBUTE_PREFIXES_V1 = (
+    "exec",
+    "fork",
+    "kill",
+    "popen",
+    "posix_spawn",
+    "setsid",
+    "spawn",
+    "system",
+)
+_ROUTE_FORBIDDEN_IDENTIFIER_TOKENS_V1 = (
+    "authority",
+    "capability",
+    "issuer",
+    "verified",
+)
+_ROUTE_PRODUCTION_ROOTS_V1 = ("rulespace_v3", "rulespace_gpu")
+
+
+def _parse_python_blob_v1(source_bytes, path):
+    if type(source_bytes) is not bytes:
+        raise TypeError(f"{path} source must be exact bytes")
+    if source_bytes.startswith(b"\xef\xbb\xbf"):
+        raise ValueError(f"{path} source must not contain a UTF-8 BOM")
+    source_text = source_bytes.decode("utf-8", errors="strict")
+    return _ast.parse(
+        source_text,
+        filename=path,
+        mode="exec",
+        type_comments=True,
+    )
+
+
+def _source_location_v1(node):
+    return [
+        type(node).__name__,
+        node.lineno,
+        node.col_offset,
+        node.end_lineno or 0,
+        node.end_col_offset or 0,
+    ]
+
+
+def _normalized_import_module_v1(node):
+    if isinstance(node, _ast.Import):
+        raise TypeError("plain import has one module per alias")
+    return "." * node.level + (node.module or "")
+
+
+def _iter_import_records_v1(tree):
+    records = []
+    nodes = [
+        node
+        for node in _ast.walk(tree)
+        if isinstance(node, (_ast.Import, _ast.ImportFrom))
+    ]
+    nodes = sorted(
+        nodes,
+        key=lambda node: (
+            node.lineno,
+            node.col_offset,
+            node.end_lineno or 0,
+            node.end_col_offset or 0,
+        ),
+    )
+    for node in nodes:
+        if isinstance(node, _ast.Import):
+            for alias_ordinal, alias in enumerate(node.names):
+                records.append(
+                    {
+                        "location": _source_location_v1(node),
+                        "kind": "Import",
+                        "module": alias.name,
+                        "imported_name": None,
+                        "bound_name": alias.asname or alias.name.split(".")[0],
+                        "alias_ordinal": alias_ordinal,
+                    }
+                )
+        else:
+            module = _normalized_import_module_v1(node)
+            for alias_ordinal, alias in enumerate(node.names):
+                records.append(
+                    {
+                        "location": _source_location_v1(node),
+                        "kind": "ImportFrom",
+                        "module": module,
+                        "imported_name": alias.name,
+                        "bound_name": alias.asname or alias.name,
+                        "alias_ordinal": alias_ordinal,
+                    }
+                )
+    return records
+
+
+def _validate_route_imports_v1(tree):
+    records = _iter_import_records_v1(tree)
+    for record in records:
+        module = record["module"]
+        imported_name = record["imported_name"]
+        if module not in _ROUTE_ALLOWED_IMPORTS_V1:
+            raise ValueError(f"route import {module!r} is not frozen")
+        if imported_name == "*":
+            raise ValueError("route star import is forbidden")
+        if any(
+            module == prefix or module.startswith(prefix + ".")
+            for prefix in _ROUTE_PRODUCTION_ROOTS_V1
+        ):
+            raise ValueError("route imports a production package")
+    return records
+
+
+def _top_level_alias_resolution_v1(tree):
+    aliases = {}
+    for node in tree.body:
+        if isinstance(node, _ast.Import):
+            for alias in node.names:
+                bound = alias.asname or alias.name.split(".")[0]
+                resolved = alias.name if alias.asname else alias.name.split(".")[0]
+                if bound in aliases:
+                    raise ValueError("route has a duplicate top-level binding")
+                aliases[bound] = resolved
+        elif isinstance(node, _ast.ImportFrom):
+            module = _normalized_import_module_v1(node)
+            if module == "__future__":
+                continue
+            for alias in node.names:
+                bound = alias.asname or alias.name
+                resolved = f"{module}.{alias.name}"
+                if bound in aliases:
+                    raise ValueError("route has a duplicate top-level binding")
+                aliases[bound] = resolved
+    return aliases
+
+
+def _resolve_attribute_name_v1(node, aliases):
+    parts = []
+    cursor = node
+    while isinstance(cursor, _ast.Attribute):
+        parts.append(cursor.attr)
+        cursor = cursor.value
+    if not isinstance(cursor, _ast.Name):
+        return None
+    root = aliases.get(cursor.id, cursor.id)
+    return ".".join((root, *reversed(parts)))
+
+
+def _contains_call_or_comprehension_v1(node):
+    if node is None:
+        return False
+    forbidden = (
+        _ast.Call,
+        _ast.ListComp,
+        _ast.SetComp,
+        _ast.DictComp,
+        _ast.GeneratorExp,
+    )
+    return any(isinstance(child, forbidden) for child in _ast.walk(node))
+
+
+def _validate_function_definition_time_v1(node):
+    if node.decorator_list:
+        raise ValueError("route function decorators are forbidden")
+    expressions = [
+        *node.args.defaults,
+        *(default for default in node.args.kw_defaults if default is not None),
+        *(argument.annotation for argument in node.args.posonlyargs),
+        *(argument.annotation for argument in node.args.args),
+        *(argument.annotation for argument in node.args.kwonlyargs),
+        node.args.vararg.annotation if node.args.vararg is not None else None,
+        node.args.kwarg.annotation if node.args.kwarg is not None else None,
+        node.returns,
+    ]
+    if any(_contains_call_or_comprehension_v1(item) for item in expressions):
+        raise ValueError("route definition-time call or comprehension is forbidden")
+
+
+def _literal_definition_value_v1(node):
+    if isinstance(node, _ast.Constant):
+        return True
+    if isinstance(node, (_ast.Tuple, _ast.List, _ast.Set)):
+        return all(_literal_definition_value_v1(item) for item in node.elts)
+    if isinstance(node, _ast.Dict):
+        return all(
+            key is not None
+            and _literal_definition_value_v1(key)
+            and _literal_definition_value_v1(value)
+            for key, value in zip(node.keys, node.values)
+        )
+    return False
+
+
+def _validate_class_definition_time_v1(node, aliases):
+    if len(node.decorator_list) > 1:
+        raise ValueError("route class has multiple decorators")
+    if node.decorator_list:
+        decorator = node.decorator_list[0]
+        if not isinstance(decorator, _ast.Call):
+            raise ValueError("route class decorator must be the exact dataclass call")
+        if _resolve_attribute_name_v1(decorator.func, aliases) != (
+            "dataclasses.dataclass"
+        ):
+            raise ValueError("route class decorator is not the frozen dataclass call")
+        if decorator.args or len(decorator.keywords) != 1:
+            raise ValueError("route dataclass decorator arguments drifted")
+        keyword = decorator.keywords[0]
+        if (
+            keyword.arg != "frozen"
+            or not isinstance(keyword.value, _ast.Constant)
+            or keyword.value.value is not True
+        ):
+            raise ValueError("route dataclass decorator must be frozen=True")
+    if any(
+        _contains_call_or_comprehension_v1(expression)
+        for expression in (*node.bases, *(item.value for item in node.keywords))
+    ):
+        raise ValueError("route class base executes a call or comprehension")
+    for statement in node.body:
+        if isinstance(statement, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            _validate_function_definition_time_v1(statement)
+            continue
+        if isinstance(statement, _ast.AnnAssign):
+            if not isinstance(statement.target, _ast.Name):
+                raise ValueError("route class annotated target is not a name")
+            if _contains_call_or_comprehension_v1(statement.annotation):
+                raise ValueError("route class annotation executes a call")
+            if statement.value is not None and not _literal_definition_value_v1(
+                statement.value
+            ):
+                raise ValueError("route class field default is not literal")
+            continue
+        if isinstance(statement, _ast.Assign):
+            if (
+                len(statement.targets) != 1
+                or not isinstance(statement.targets[0], _ast.Name)
+                or not _literal_definition_value_v1(statement.value)
+            ):
+                raise ValueError("route class assignment is not a literal name binding")
+            continue
+        if isinstance(statement, _ast.Pass):
+            continue
+        raise ValueError("route class body executes a forbidden statement")
+
+
+def _function_signature_record_v1(node):
+    return {
+        "name": node.name,
+        "positional_only": [argument.arg for argument in node.args.posonlyargs],
+        "positional": [argument.arg for argument in node.args.args],
+        "keyword_only": [argument.arg for argument in node.args.kwonlyargs],
+        "has_vararg": node.args.vararg is not None,
+        "has_kwarg": node.args.kwarg is not None,
+        "default_count": len(node.args.defaults),
+        "keyword_default_count": sum(
+            default is not None for default in node.args.kw_defaults
+        ),
+    }
+
+
+def _validate_route_top_level_v1(tree, entry, aliases):
+    definitions = []
+    binding_names = set(aliases)
+    binding_index = {}
+    for node in tree.body:
+        if isinstance(node, (_ast.Import, _ast.ImportFrom)):
+            continue
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            name = node.name
+            if name in binding_names:
+                raise ValueError("route has a duplicate top-level binding")
+            binding_names.add(name)
+            binding_index[name] = node
+            definitions.append(name)
+            if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                _validate_function_definition_time_v1(node)
+            else:
+                _validate_class_definition_time_v1(node, aliases)
+            continue
+        if isinstance(node, _ast.Assign):
+            if (
+                len(node.targets) != 1
+                or not isinstance(node.targets[0], _ast.Name)
+                or node.targets[0].id not in ("ROUTE_ID", "WIRE_SCHEMA_ID")
+                or not isinstance(node.value, _ast.Constant)
+                or type(node.value.value) is not str
+            ):
+                raise ValueError("route top-level assignment is not a frozen literal")
+            name = node.targets[0].id
+            if name in binding_names:
+                raise ValueError("route has a duplicate top-level binding")
+            binding_names.add(name)
+            binding_index[name] = node
+            definitions.append(name)
+            continue
+        raise ValueError("route has forbidden top-level execution")
+    public = tuple(name for name in definitions if not name.startswith("_"))
+    if public != _ROUTE_PUBLIC_EXPORTS_V1:
+        raise ValueError("route public exports differ from the frozen API")
+    private = tuple(name for name in definitions if name.startswith("_"))
+    if any(len(name) < 2 or name.startswith("__") for name in private):
+        raise ValueError("route private definitions must use one leading underscore")
+    route_literal = binding_index["ROUTE_ID"].value.value
+    wire_literal = binding_index["WIRE_SCHEMA_ID"].value.value
+    if route_literal != entry[0] or wire_literal != entry[4]:
+        raise ValueError("route exported literals differ from the registry")
+    expected_signatures = (
+        ("encode_normalized_transcript", "canonical_transcript_utf8"),
+        ("verify_and_decode_route_wire", "canonical_route_wire_utf8"),
+    )
+    signatures = []
+    for name, argument_name in expected_signatures:
+        node = binding_index[name]
+        if not isinstance(node, _ast.FunctionDef):
+            raise ValueError("route public API must use synchronous functions")
+        record = _function_signature_record_v1(node)
+        signatures.append(record)
+        if record != {
+            "name": name,
+            "positional_only": [],
+            "positional": [argument_name],
+            "keyword_only": [],
+            "has_vararg": False,
+            "has_kwarg": False,
+            "default_count": 0,
+            "keyword_default_count": 0,
+        }:
+            raise ValueError(f"route public API signature {name} drifted")
+    return definitions, private, binding_index, signatures
+
+
+def _identifier_surface_records_v1(tree):
+    records = []
+    for node in _ast.walk(tree):
+        identifiers = []
+        if isinstance(node, _ast.Name):
+            identifiers.append(node.id)
+        elif isinstance(node, _ast.arg):
+            identifiers.append(node.arg)
+        elif isinstance(node, _ast.Attribute):
+            identifiers.append(node.attr)
+        elif isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            identifiers.append(node.name)
+        elif isinstance(node, _ast.alias):
+            identifiers.extend(
+                value for value in (node.name, node.asname) if value is not None
+            )
+        for identifier in identifiers:
+            lowered = identifier.lower()
+            tokens = [
+                token
+                for token in _ROUTE_FORBIDDEN_IDENTIFIER_TOKENS_V1
+                if token in lowered
+            ]
+            wrapper = "wrapper" in lowered
+            if tokens or wrapper:
+                records.append(
+                    {
+                        "location": _source_location_v1(node),
+                        "identifier": identifier,
+                        "forbidden_tokens": tokens,
+                        "wrapper": wrapper,
+                    }
+                )
+    records = sorted(
+        records,
+        key=lambda item: (
+            item["location"][1],
+            item["location"][2],
+            item["identifier"].encode("utf-8"),
+        ),
+    )
+    return records
+
+
+def _reachable_route_records_v1(binding_index):
+    queue = ["encode_normalized_transcript", "verify_and_decode_route_wire"]
+    visited = []
+    queued = set(queue)
+    records = []
+    while queue:
+        name = queue.pop(0)
+        node = binding_index[name]
+        visited.append(name)
+        new_edges = set()
+        for child in _ast.walk(node):
+            if (
+                isinstance(child, _ast.Name)
+                and isinstance(child.ctx, _ast.Load)
+                and child.id in binding_index
+                and child.id not in queued
+            ):
+                new_edges.add(child.id)
+            if (
+                isinstance(child, _ast.Name)
+                and isinstance(child.ctx, _ast.Load)
+                and child.id in _ROUTE_FORBIDDEN_REACHABLE_NAMES_V1
+            ):
+                raise ValueError("route reachable closure uses a forbidden name")
+            if isinstance(child, _ast.Attribute):
+                attribute = child.attr
+                if attribute in _ROUTE_FORBIDDEN_ATTRIBUTE_NAMES_V1 or any(
+                    attribute.startswith(prefix)
+                    for prefix in _ROUTE_FORBIDDEN_ATTRIBUTE_PREFIXES_V1
+                ):
+                    raise ValueError(
+                        "route reachable closure uses a forbidden process/I-O attribute"
+                    )
+        ordered_edges = sorted(new_edges, key=lambda value: value.encode("utf-8"))
+        for edge in ordered_edges:
+            queued.add(edge)
+            queue.append(edge)
+        records.append(
+            {
+                "binding": name,
+                "location": _source_location_v1(node),
+                "edges": ordered_edges,
+            }
+        )
+    return visited, records
+
+
+def _production_blob_sort_key_v1(blob):
+    path = blob[1]
+    root_index = next(
+        index
+        for index, root in enumerate(_ROUTE_PRODUCTION_ROOTS_V1)
+        if path == root or path.startswith(root + "/")
+    )
+    return root_index, path.encode("utf-8")
+
+
+def _scan_production_imports_v1(production_blobs, common_commit_sha, route_module):
+    if type(production_blobs) is not tuple or not production_blobs:
+        raise TypeError("production blobs must be a nonempty exact tuple")
+    validated = []
+    observed_paths = set()
+    observed_roots = set()
+    for ordinal, blob in enumerate(production_blobs):
+        _require_git_blob_descriptor_v1(blob, f"production blob {ordinal}")
+        commit_sha, path, mode, source_bytes = blob
+        if commit_sha != common_commit_sha:
+            raise ValueError("production blob common commit drifted")
+        if mode not in ("100644", "100755"):
+            raise ValueError("production source is not a regular Git blob")
+        matching_roots = [
+            root
+            for root in _ROUTE_PRODUCTION_ROOTS_V1
+            if path == root or path.startswith(root + "/")
+        ]
+        if len(matching_roots) != 1:
+            raise ValueError("production blob is outside the frozen scan roots")
+        if path in observed_paths:
+            raise ValueError("production blob path is duplicated")
+        observed_paths.add(path)
+        observed_roots.add(matching_roots[0])
+        validated.append(blob)
+    if tuple(validated) != tuple(sorted(validated, key=_production_blob_sort_key_v1)):
+        raise ValueError("production blobs are not in frozen root/path order")
+    if observed_roots != set(_ROUTE_PRODUCTION_ROOTS_V1):
+        raise ValueError("production scan omits a frozen root")
+    source_records = []
+    imported_by_production = []
+    for commit_sha, path, mode, source_bytes in validated:
+        imports = []
+        if path.endswith(".py"):
+            tree = _parse_python_blob_v1(source_bytes, path)
+            imports = _iter_import_records_v1(tree)
+            for record in imports:
+                module = record["module"]
+                if module == route_module or module.startswith(route_module + "."):
+                    imported_by_production.append({"path": path, "import": record})
+        source_records.append(
+            {
+                "commit_sha": commit_sha,
+                "path": path,
+                "mode": mode,
+                "raw_sha256": _raw_source_sha256_v1(source_bytes, path),
+                "imports": imports,
+            }
+        )
+    return source_records, imported_by_production
+
+
+def _compute_route_static_fields_v1(
+    route_id,
+    common_commit_sha,
+    route_blob,
+    production_blobs,
+):
+    entry = _route_static_registry_entry_v1(route_id)
+    _require_git_blob_descriptor_v1(route_blob, "route blob")
+    route_commit_sha, route_path, route_mode, route_source = route_blob
+    if route_path != entry[3] or route_mode != "100644":
+        raise ValueError("route blob path or mode drifted")
+    if (
+        type(common_commit_sha) is not str
+        or len(common_commit_sha) != 40
+        or any(character not in "0123456789abcdef" for character in common_commit_sha)
+    ):
+        raise TypeError("common commit must be an exact Git SHA-1")
+    tree = _parse_python_blob_v1(route_source, route_path)
+    import_records = _validate_route_imports_v1(tree)
+    aliases = _top_level_alias_resolution_v1(tree)
+    definitions, private, binding_index, signatures = _validate_route_top_level_v1(
+        tree,
+        entry,
+        aliases,
+    )
+    for node in _ast.walk(tree):
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            _validate_function_definition_time_v1(node)
+        elif isinstance(node, _ast.ClassDef):
+            _validate_class_definition_time_v1(node, aliases)
+    reachable_names, reachable_records = _reachable_route_records_v1(binding_index)
+    surface_records = _identifier_surface_records_v1(tree)
+    authority_records = [
+        record for record in surface_records if record["forbidden_tokens"]
+    ]
+    wrapper_records = [record for record in surface_records if record["wrapper"]]
+    production_records, imported_by_production = _scan_production_imports_v1(
+        production_blobs,
+        common_commit_sha,
+        entry[2],
+    )
+    imported_by_route = [
+        record
+        for record in import_records
+        if any(
+            record["module"] == root or record["module"].startswith(root + ".")
+            for root in _ROUTE_PRODUCTION_ROOTS_V1
+        )
+    ]
+    route_source_sha = _raw_source_sha256_v1(route_source, "route")
+    observation_base = {
+        "route_id": route_id,
+        "route_commit_sha": route_commit_sha,
+        "route_source_path": route_path,
+        "route_source_sha256": route_source_sha,
+    }
+    return {
+        "route_source_sha256": route_source_sha,
+        "static_api_scan_sha": _pure_core.canonical_sha_v1(
+            {
+                "scan_schema": "v3m0-b7-route-static-api-scan.v1",
+                **observation_base,
+                "public_exports": list(_ROUTE_PUBLIC_EXPORTS_V1),
+                "definitions_in_source_order": definitions,
+                "private_definitions_in_source_order": list(private),
+                "public_api_signatures": signatures,
+                "reachable_bindings_breadth_first": reachable_names,
+                "reachable_binding_records": reachable_records,
+            }
+        ),
+        "static_import_scan_sha": _pure_core.canonical_sha_v1(
+            {
+                "scan_schema": "v3m0-b7-route-static-import-scan.v1",
+                **observation_base,
+                "allowed_imports_exact": list(_ROUTE_ALLOWED_IMPORTS_V1),
+                "imports_in_source_order": import_records,
+                "production_import_records": imported_by_route,
+            }
+        ),
+        "static_authority_surface_scan_sha": _pure_core.canonical_sha_v1(
+            {
+                "scan_schema": "v3m0-b7-route-static-surface-scan.v1",
+                **observation_base,
+                "forbidden_identifier_tokens": list(
+                    _ROUTE_FORBIDDEN_IDENTIFIER_TOKENS_V1
+                ),
+                "authority_surface_records": authority_records,
+                "wrapper_surface_records": wrapper_records,
+            }
+        ),
+        "production_import_scan_sha": _pure_core.canonical_sha_v1(
+            {
+                "scan_schema": "v3m0-b7-production-import-scan.v1",
+                **observation_base,
+                "production_roots": list(_ROUTE_PRODUCTION_ROOTS_V1),
+                "production_source_records": production_records,
+                "route_import_records": imported_by_production,
+            }
+        ),
+        "production_imported_by_route": bool(imported_by_route),
+        "route_imported_by_production": bool(imported_by_production),
+        "authority_surface_count": len(authority_records),
+        "wrapper_surface_count": len(wrapper_records),
+    }
+
+
+def validate_route_static_surface_v1(raw_body, route_blob, production_blobs):
+    """Validate one route manifest from caller-supplied immutable Git blobs."""
+    manifest = _validate_exact_lab_record_v1("B7LabRouteManifestV1", raw_body)
+    entry = _route_static_registry_entry_v1(manifest["route_id"])
+    expected_entry_fields = (
+        ("route_id", entry[0]),
+        ("route_schema_domain", entry[1]),
+        ("route_module", entry[2]),
+        ("route_source_path", entry[3]),
+        ("wire_schema_id", entry[4]),
+        ("encoder_symbol", "encode_normalized_transcript"),
+        ("verifier_decoder_symbol", "verify_and_decode_route_wire"),
+        (
+            "input_schema_version",
+            "experimental.v3m0.b7.normalized-transcript.v1",
+        ),
+        ("output_schema_version", entry[4]),
+    )
+    for field, expected in expected_entry_fields:
+        if manifest[field] != expected:
+            raise ValueError(f"route manifest {field} drifted")
+    computed = _compute_route_static_fields_v1(
+        manifest["route_id"],
+        manifest["common_commit_sha"],
+        route_blob,
+        production_blobs,
+    )
+    if route_blob[0] != manifest["route_commit_sha"]:
+        raise ValueError("route blob commit drifted")
+    for field, expected in computed.items():
+        if manifest[field] != expected or type(manifest[field]) is not type(expected):
+            raise ValueError(f"route manifest {field} differs from static scan")
+    return manifest
