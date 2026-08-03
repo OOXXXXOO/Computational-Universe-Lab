@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import json
+import pathlib
+import sys
 
 import experiments.v3m0_b7_schema_lab.common as _common
 
@@ -89,6 +93,155 @@ _PYTHON_ENVIRONMENT_PROBE_FIELDS_V2 = (
     "scipy_version",
     "threadpool_info",
 )
+_REVIEWER_INPUT_PATHS_V1 = (
+    (
+        "d0",
+        "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+    ),
+    (
+        "d1",
+        "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+    ),
+    ("registry_base", "docsv3/v3-机器合同-B7-v9.1-registry.json"),
+    ("registry_overlay", "docsv3/v3-机器合同-B7-v9.2-overlay.json"),
+    ("registry_overlay_v921", "docsv3/v3-机器合同-B7-v9.2.1-overlay.json"),
+    ("common", "experiments/v3m0_b7_schema_lab/common.py"),
+    ("compare", "experiments/v3m0_b7_schema_lab/compare.py"),
+    ("corpus", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"),
+)
+_REVIEWER_CONTRACT_INPUTS_V1 = (
+    (
+        "registry_base",
+        "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72",
+        "experimental.v3m0.b7.v9.1-machine-contract-registry.v1",
+    ),
+    (
+        "registry_overlay",
+        "b7a0d0a1a319ccb4ee56804a8e994bcf3bb90b138284f14841c87be594705b5f",
+        "experimental.v3m0.b7.v9.2-machine-contract-overlay.v1",
+    ),
+    (
+        "registry_overlay_v921",
+        "1231ee2e6c1b6f2eef86d1906990cb425128a643f4981b3552541d2ec0c689b6",
+        "experimental.v3m0.b7.v9.2.1-machine-contract-overlay.v1",
+    ),
+)
+_REPLAY_INPUT_PROJECTION_FIELDS_V1 = (
+    "reviewer_role",
+    "review_protocol_id",
+    "reviewed_lab_evidence_commit_sha",
+    "review_environment_manifest_sha",
+    "reviewed_d0_result_raw_sha256",
+    "reviewed_d0_result_sha",
+    "reviewed_d0_decision_payload_sha",
+    "reviewed_d1_result_raw_sha256",
+    "reviewed_d1_result_sha",
+    "reviewed_d1_decision_payload_sha",
+    "reviewed_common_commit_sha",
+    "reviewed_route_commit_shas",
+    "reviewed_corpus_spec_sha",
+    "reviewed_mutation_universe_sha",
+    "reviewed_metric_spec_sha",
+    "reviewed_compare_source_sha256",
+    "reviewed_executable_source_closure_sha",
+    "replay_source_sha256",
+)
+_D0_COMPARISON_FIELDS_V1 = (
+    "d0_result_schema_version",
+    "common_commit_sha",
+    "common_source_sha256",
+    "compare_source_sha256",
+    "corpus_fixture_raw_sha256",
+    "corpus_spec_sha",
+    "mutation_universe_sha",
+    "metric_spec_sha",
+    "environment_manifest",
+    "ordered_route_results",
+    "surviving_route_ids",
+    "decision_payload_sha",
+    "auxiliary_benchmark",
+    "d0_result_sha",
+)
+_D1_COMPARISON_FIELDS_V1 = (
+    "d1_result_schema_version",
+    "d0_result_raw_sha256",
+    "d0_result_sha",
+    "d0_decision_payload_sha",
+    "common_commit_sha",
+    "common_source_sha256",
+    "compare_source_sha256",
+    "leaf_provider_source_sha256",
+    "corpus_fixture_raw_sha256",
+    "corpus_spec_sha",
+    "mutation_universe_sha",
+    "metric_spec_sha",
+    "synthetic_graph_manifest",
+    "environment_manifest",
+    "ordered_capture_transcript_set_shas",
+    "ordered_capture_leaf_digest_set_shas",
+    "ordered_route_results",
+    "surviving_route_ids",
+    "minimum_metric_vector",
+    "provisional_winner_route_id",
+    "tie_detected",
+    "decision_payload_sha",
+    "auxiliary_benchmark",
+    "d1_result_sha",
+)
+_D1_DECISION_FIELDS_V1 = (
+    _D1_COMPARISON_FIELDS_V1[0],
+    *_D1_COMPARISON_FIELDS_V1[3:21],
+)
+_REPLAY_REPORT_FIELDS_V1 = (
+    *_REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1,
+    "replay_output_root_sha",
+    "replay_report_sha",
+)
+
+
+def _canonical_json_bytes_v1(value):
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _canonical_sha_v1(value):
+    return hashlib.sha256(_canonical_json_bytes_v1(value)).hexdigest()
+
+
+def _strict_json_loads_v1(raw_bytes):
+    def reject_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("reviewer JSON has a duplicate object key")
+            result[key] = value
+        return result
+
+    def reject_constant(_constant):
+        raise ValueError("reviewer JSON contains a non-finite number")
+
+    if type(raw_bytes) is not bytes or raw_bytes.startswith(b"\xef\xbb\xbf"):
+        raise ValueError("reviewer JSON must be strict UTF-8 without BOM")
+    return json.loads(
+        raw_bytes.decode("utf-8"),
+        object_pairs_hook=reject_pairs,
+        parse_constant=reject_constant,
+    )
+
+
+def _require_exact_object_fields_v1(raw_body, fields, field):
+    if (
+        type(raw_body) is not dict
+        or len(raw_body) != len(fields)
+        or any(name not in raw_body for name in fields)
+    ):
+        raise ValueError(f"reviewer {field} fields drifted")
+    return raw_body
 
 _D0_CAPTURE_ROUTE_ORDER_V1 = ("A_FLAT", "B_PROGRESS", "C_UNION")
 _D1_CAPTURE_CHILD_PROGRAM_UTF8_V1 = (
@@ -937,19 +1090,43 @@ def _require_lower_hex_v1(value, width, field):
 def validate_replay_report_v1(raw_body):
     """Validate the exact replay-report roots and reviewer identity."""
 
-    report = _common.validate_exact_lab_record_v1("B7LabReplayReportV1", raw_body)
-    expected_protocol = None
-    for reviewer_role, review_protocol_id in _REVIEWER_PROTOCOLS_V2:
-        if report["reviewer_role"] == reviewer_role:
-            expected_protocol = review_protocol_id
-            break
+    report = _require_exact_object_fields_v1(
+        raw_body,
+        _REPLAY_REPORT_FIELDS_V1,
+        "replay report",
+    )
+    expected_protocol = _reviewer_protocol_id_v1(report["reviewer_role"])
     if report["review_protocol_id"] != expected_protocol:
         raise ValueError("replay report reviewer role/protocol mismatch")
+    _require_lower_hex_v1(report["lab_evidence_commit_sha"], 40, "report evidence")
+    for field in (
+        "replay_input_root_sha",
+        "recomputed_d0_decision_payload_sha",
+        "recomputed_d1_decision_payload_sha",
+        "replay_output_root_sha",
+        "replay_report_sha",
+    ):
+        _require_lower_hex_v1(report[field], 64, field)
+    if (
+        type(report["observed_surviving_route_ids"]) is not list
+        or report["observed_provisional_winner_route_id"]
+        not in report["observed_surviving_route_ids"]
+    ):
+        raise ValueError("replay report winner is not a survivor")
     output_projection = {
         name: report[name] for name in _REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1
     }
-    if report["replay_output_root_sha"] != _common.canonical_sha_v1(output_projection):
+    if report["replay_output_root_sha"] != _canonical_sha_v1(output_projection):
         raise ValueError("replay report output root mismatch")
+    expected_report_sha = _canonical_sha_v1(
+        {
+            name: value
+            for name, value in report.items()
+            if name != "replay_report_sha"
+        }
+    )
+    if report["replay_report_sha"] != expected_report_sha:
+        raise ValueError("replay report self root mismatch")
     return report
 
 
@@ -957,7 +1134,7 @@ def encode_replay_report_stdout_v1(raw_body):
     """Encode one validated report as canonical JSON plus exactly one LF."""
 
     report = validate_replay_report_v1(raw_body)
-    return _common.canonical_json_bytes_v1(report) + b"\n"
+    return _canonical_json_bytes_v1(report) + b"\n"
 
 
 def decode_replay_report_stdout_v1(stdout_bytes):
@@ -970,8 +1147,8 @@ def decode_replay_report_stdout_v1(stdout_bytes):
     ):
         raise ValueError("replay report stdout must end in exactly one LF")
     payload = stdout_bytes[:-1]
-    parsed = _common.strict_json_loads_v1(payload)
-    if _common.canonical_json_bytes_v1(parsed) != payload:
+    parsed = _strict_json_loads_v1(payload)
+    if _canonical_json_bytes_v1(parsed) != payload:
         raise ValueError("replay report stdout JSON is not canonical")
     return validate_replay_report_v1(parsed)
 
@@ -1025,6 +1202,417 @@ def materialize_reviewer_command_v1(
         reviewed_executable_source_closure_sha,
         "--emit-replay-report",
     )
+
+
+def _reviewer_protocol_id_v1(reviewer_role):
+    for frozen_role, protocol_id in _REVIEWER_PROTOCOLS_V2:
+        if reviewer_role == frozen_role and type(reviewer_role) is str:
+            return protocol_id
+    raise ValueError("reviewer role is not frozen")
+
+
+def _validate_reviewer_contract_inputs_v1(raw_inputs):
+    if type(raw_inputs) is not dict:
+        raise TypeError("reviewer raw inputs must be an exact dict")
+    parsed = {}
+    for role, expected_sha, expected_schema in _REVIEWER_CONTRACT_INPUTS_V1:
+        raw_bytes = raw_inputs[role]
+        if (
+            type(raw_bytes) is not bytes
+            or hashlib.sha256(raw_bytes).hexdigest() != expected_sha
+        ):
+            raise ValueError(f"reviewer {role} raw root drifted")
+        body = _strict_json_loads_v1(raw_bytes)
+        if (
+            type(body) is not dict
+            or body.get("registry_schema_version") != expected_schema
+        ):
+            raise ValueError(f"reviewer {role} schema drifted")
+        parsed[role] = body
+    materialization = parsed["registry_overlay_v921"].get(
+        "ordered_materialization_contract"
+    )
+    if (
+        type(materialization) is not dict
+        or materialization.get("input_role_order")
+        != ["BASE_V91", "OVERLAY_V92", "OVERLAY_V921"]
+        or materialization.get("algorithm")
+        != "VERIFY_EXACT_RAW_SHA_IN_INPUT_ROLE_ORDER_AND_APPLY_OVERLAYS_SEQUENTIALLY"
+    ):
+        raise ValueError("reviewer ordered contract materialization drifted")
+    return parsed
+
+
+def _validate_record_self_hash_v1(raw_body, hash_field, field):
+    expected = _canonical_sha_v1(
+        {name: value for name, value in raw_body.items() if name != hash_field}
+    )
+    if raw_body[hash_field] != expected:
+        raise ValueError(f"reviewer {field} self root drifted")
+
+
+def _validate_reviewer_comparison_joins_v1(d0, d1, d0_raw_bytes):
+    if (
+        d1["d0_result_raw_sha256"]
+        != hashlib.sha256(d0_raw_bytes).hexdigest()
+        or d1["d0_result_sha"] != d0["d0_result_sha"]
+        or d1["d0_decision_payload_sha"] != d0["decision_payload_sha"]
+    ):
+        raise ValueError("reviewer D1 embedded D0 roots drifted")
+    shared = (
+        "common_commit_sha",
+        "common_source_sha256",
+        "compare_source_sha256",
+        "corpus_fixture_raw_sha256",
+        "corpus_spec_sha",
+        "mutation_universe_sha",
+        "metric_spec_sha",
+    )
+    if any(d1[name] != d0[name] for name in shared):
+        raise ValueError("reviewer D0/D1 shared roots drifted")
+    if _canonical_json_bytes_v1(
+        d1["environment_manifest"]
+    ) != _canonical_json_bytes_v1(d0["environment_manifest"]):
+        raise ValueError("reviewer D0/D1 environment body drifted")
+
+
+def _validate_reviewer_d0_outcome_v1(d0):
+    rows = d0["ordered_route_results"]
+    survivors = []
+    for row in rows:
+        checked = row
+        if type(checked) is not dict:
+            raise TypeError("reviewer D0 route result must be an exact object")
+        _validate_record_self_hash_v1(checked, "route_result_sha", "D0 route")
+        manifest = checked["route_manifest"]
+        _validate_record_self_hash_v1(
+            manifest,
+            "route_manifest_sha",
+            "D0 route manifest",
+        )
+        if checked["survives_d0"] is True:
+            survivors.append(checked["route_id"])
+    if survivors != d0["surviving_route_ids"]:
+        raise ValueError("reviewer D0 survivors drifted")
+    return rows
+
+
+def _validate_reviewer_d1_outcome_v1(d0, d1, metric_spec):
+    rows = d1["ordered_route_results"]
+    if [row["route_id"] for row in rows] != d0["surviving_route_ids"]:
+        raise ValueError("reviewer D1 route order drifted")
+    survivors = []
+    for row in rows:
+        checked = row
+        if type(checked) is not dict:
+            raise TypeError("reviewer D1 route result must be an exact object")
+        _validate_record_self_hash_v1(checked, "route_result_sha", "D1 route")
+        vector = checked["metric_vector"]
+        _validate_record_self_hash_v1(vector, "metric_vector_sha", "metric vector")
+        if checked["survives_d1"] is True:
+            survivors.append((checked["route_id"], vector))
+    survivor_ids = [route_id for route_id, _vector in survivors]
+    if survivor_ids != d1["surviving_route_ids"] or not survivors:
+        raise ValueError("reviewer D1 survivors drifted")
+    metric_order = metric_spec["metric_order"]
+    minimum_tuple = min(
+        tuple(vector[name] for name in metric_order)
+        for _route_id, vector in survivors
+    )
+    minima = [
+        (route_id, vector)
+        for route_id, vector in survivors
+        if tuple(vector[name] for name in metric_order) == minimum_tuple
+    ]
+    tie_detected = len(minima) > 1
+    winner = None if tie_detected else minima[0][0]
+    minimum_vector = minima[0][1]
+    if (
+        d1["minimum_metric_vector"] != minimum_vector
+        or d1["tie_detected"] is not tie_detected
+        or d1["provisional_winner_route_id"] != winner
+        or winner is None
+    ):
+        raise ValueError("reviewer D1 metric selection drifted")
+    return survivor_ids, winner
+
+
+def _replay_all_routes_v1(ordered_transcripts):
+    from experiments.v3m0_b7_schema_lab.a_flat import (
+        encode_normalized_transcript as encode_a,
+        verify_and_decode_route_wire as decode_a,
+    )
+    from experiments.v3m0_b7_schema_lab.b_progress import (
+        encode_normalized_transcript as encode_b,
+        verify_and_decode_route_wire as decode_b,
+    )
+    from experiments.v3m0_b7_schema_lab.c_union import (
+        encode_normalized_transcript as encode_c,
+        verify_and_decode_route_wire as decode_c,
+    )
+
+    for transcript in ordered_transcripts:
+        source = _canonical_json_bytes_v1(transcript)
+        wire_a = encode_a(source)
+        wire_b = encode_b(source)
+        wire_c = encode_c(source)
+        if (
+            decode_a(wire_a) != source
+            or decode_b(wire_b) != source
+            or decode_c(wire_c) != source
+        ):
+            raise ValueError("reviewer route roundtrip differs from corpus bytes")
+
+
+def _build_reviewer_replay_report_v1(
+    *,
+    reviewer_role,
+    evidence_commit_sha,
+    replay_input_root_sha,
+    d0_decision_payload_sha,
+    d1_decision_payload_sha,
+    surviving_route_ids,
+    provisional_winner_route_id,
+):
+    protocol_id = _reviewer_protocol_id_v1(reviewer_role)
+    _require_lower_hex_v1(evidence_commit_sha, 40, "reviewed evidence commit")
+    for value, field in (
+        (replay_input_root_sha, "reviewer replay input root"),
+        (d0_decision_payload_sha, "reviewer D0 decision root"),
+        (d1_decision_payload_sha, "reviewer D1 decision root"),
+    ):
+        _require_lower_hex_v1(value, 64, field)
+    if (
+        type(surviving_route_ids) is not list
+        or type(provisional_winner_route_id) is not str
+        or provisional_winner_route_id not in surviving_route_ids
+    ):
+        raise ValueError("reviewer report requires a unique surviving winner")
+    report = {
+        "replay_report_schema_version": "experimental.v3m0.b7.replay-report.v1",
+        "reviewer_role": reviewer_role,
+        "review_protocol_id": protocol_id,
+        "lab_evidence_commit_sha": evidence_commit_sha,
+        "replay_input_root_sha": replay_input_root_sha,
+        "recomputed_d0_decision_payload_sha": d0_decision_payload_sha,
+        "recomputed_d1_decision_payload_sha": d1_decision_payload_sha,
+        "observed_surviving_route_ids": surviving_route_ids,
+        "observed_provisional_winner_route_id": provisional_winner_route_id,
+        "replay_output_root_sha": "",
+        "replay_report_sha": "",
+    }
+    report["replay_output_root_sha"] = _canonical_sha_v1(
+        {name: report[name] for name in _REPLAY_REPORT_OUTPUT_PROJECTION_FIELDS_V1}
+    )
+    report["replay_report_sha"] = _canonical_sha_v1(
+        {
+            name: value
+            for name, value in report.items()
+            if name != "replay_report_sha"
+        }
+    )
+    return validate_replay_report_v1(report)
+
+
+def _read_reviewer_inputs_v1():
+    return {
+        role: pathlib.Path.read_bytes(pathlib.Path(path))
+        for role, path in _REVIEWER_INPUT_PATHS_V1
+    }
+
+
+def _execute_reviewer_replay_v1(
+    *,
+    reviewer_role,
+    evidence_commit_sha,
+    source_closure_sha,
+):
+    _require_lower_hex_v1(evidence_commit_sha, 40, "reviewed evidence commit")
+    _require_lower_hex_v1(source_closure_sha, 64, "reviewed source closure")
+    protocol_id = _reviewer_protocol_id_v1(reviewer_role)
+    raw_inputs = _read_reviewer_inputs_v1()
+    _validate_reviewer_contract_inputs_v1(raw_inputs)
+    d0_raw = raw_inputs["d0"]
+    d1_raw = raw_inputs["d1"]
+    d0 = _require_exact_object_fields_v1(
+        _strict_json_loads_v1(d0_raw),
+        _D0_COMPARISON_FIELDS_V1,
+        "D0 comparison",
+    )
+    d1 = _require_exact_object_fields_v1(
+        _strict_json_loads_v1(d1_raw),
+        _D1_COMPARISON_FIELDS_V1,
+        "D1 comparison",
+    )
+    if (
+        d0["d0_result_schema_version"]
+        != "experimental.v3m0.b7.d0-comparison.v1"
+        or d1["d1_result_schema_version"]
+        != "experimental.v3m0.b7.d1-comparison.v1"
+    ):
+        raise ValueError("reviewer comparison schema drifted")
+    _validate_record_self_hash_v1(d0, "d0_result_sha", "D0 comparison")
+    _validate_record_self_hash_v1(d1, "d1_result_sha", "D1 comparison")
+    if d0["decision_payload_sha"] != _canonical_sha_v1(
+        {name: d0[name] for name in _D0_COMPARISON_FIELDS_V1[:11]}
+    ):
+        raise ValueError("reviewer D0 decision root drifted")
+    if d1["decision_payload_sha"] != _canonical_sha_v1(
+        {name: d1[name] for name in _D1_DECISION_FIELDS_V1}
+    ):
+        raise ValueError("reviewer D1 decision root drifted")
+    _validate_reviewer_comparison_joins_v1(d0, d1, d0_raw)
+    fixture_raw = raw_inputs["corpus"]
+    if hashlib.sha256(fixture_raw).hexdigest() != d0["corpus_fixture_raw_sha256"]:
+        raise ValueError("reviewer corpus raw root drifted")
+    fixture = _require_exact_object_fields_v1(
+        _strict_json_loads_v1(fixture_raw),
+        (
+            "fixture_schema_version",
+            "corpus_spec",
+            "mutation_universe",
+            "metric_spec",
+            "environment_manifest",
+            "synthetic_graph_manifest",
+            "ordered_d0_transcripts",
+            "fixture_sha",
+        ),
+        "corpus fixture",
+    )
+    if fixture["fixture_schema_version"] != "experimental.v3m0.b7.corpus-fixture.v2":
+        raise ValueError("reviewer corpus fixture schema drifted")
+    _validate_record_self_hash_v1(fixture, "fixture_sha", "corpus fixture")
+    for body, hash_field, field in (
+        (fixture["corpus_spec"], "corpus_spec_sha", "corpus spec"),
+        (
+            fixture["mutation_universe"],
+            "mutation_universe_sha",
+            "mutation universe",
+        ),
+        (fixture["metric_spec"], "metric_spec_sha", "metric spec"),
+        (fixture["environment_manifest"], "environment_sha", "environment"),
+    ):
+        _validate_record_self_hash_v1(body, hash_field, field)
+    if (
+        fixture["corpus_spec"]["corpus_spec_sha"] != d0["corpus_spec_sha"]
+        or fixture["mutation_universe"]["mutation_universe_sha"]
+        != d0["mutation_universe_sha"]
+        or fixture["metric_spec"]["metric_spec_sha"] != d0["metric_spec_sha"]
+        or _canonical_json_bytes_v1(fixture["environment_manifest"])
+        != _canonical_json_bytes_v1(d0["environment_manifest"])
+    ):
+        raise ValueError("reviewer corpus fixture joins drifted")
+    if (
+        hashlib.sha256(raw_inputs["common"]).hexdigest()
+        != d0["common_source_sha256"]
+        or hashlib.sha256(raw_inputs["compare"]).hexdigest()
+        != d0["compare_source_sha256"]
+    ):
+        raise ValueError("reviewer common/compare source root drifted")
+    d0_rows = _validate_reviewer_d0_outcome_v1(d0)
+    survivor_ids, winner = _validate_reviewer_d1_outcome_v1(
+        d0,
+        d1,
+        fixture["metric_spec"],
+    )
+    if reviewer_role == "CORPUS_REPLAY":
+        if [row["route_id"] for row in d0_rows] != [
+            "A_FLAT",
+            "B_PROGRESS",
+            "C_UNION",
+        ]:
+            raise ValueError("reviewer D0 corpus route order drifted")
+    elif reviewer_role != "METRIC_REPLAY":
+        raise ValueError("reviewer role drifted after validation")
+    _replay_all_routes_v1(fixture["ordered_d0_transcripts"])
+    manifests = [row["route_manifest"] for row in d0_rows]
+    projection = {
+        "reviewer_role": reviewer_role,
+        "review_protocol_id": protocol_id,
+        "reviewed_lab_evidence_commit_sha": evidence_commit_sha,
+        "review_environment_manifest_sha": d0["environment_manifest"][
+            "environment_sha"
+        ],
+        "reviewed_d0_result_raw_sha256": hashlib.sha256(d0_raw).hexdigest(),
+        "reviewed_d0_result_sha": d0["d0_result_sha"],
+        "reviewed_d0_decision_payload_sha": d0["decision_payload_sha"],
+        "reviewed_d1_result_raw_sha256": hashlib.sha256(d1_raw).hexdigest(),
+        "reviewed_d1_result_sha": d1["d1_result_sha"],
+        "reviewed_d1_decision_payload_sha": d1["decision_payload_sha"],
+        "reviewed_common_commit_sha": d0["common_commit_sha"],
+        "reviewed_route_commit_shas": [
+            manifest["route_commit_sha"] for manifest in manifests
+        ],
+        "reviewed_corpus_spec_sha": d0["corpus_spec_sha"],
+        "reviewed_mutation_universe_sha": d0["mutation_universe_sha"],
+        "reviewed_metric_spec_sha": d0["metric_spec_sha"],
+        "reviewed_compare_source_sha256": d0["compare_source_sha256"],
+        "reviewed_executable_source_closure_sha": source_closure_sha,
+        "replay_source_sha256": hashlib.sha256(raw_inputs["compare"]).hexdigest(),
+    }
+    if tuple(projection) != _REPLAY_INPUT_PROJECTION_FIELDS_V1:
+        raise RuntimeError("reviewer replay input projection order drifted")
+    return _build_reviewer_replay_report_v1(
+        reviewer_role=reviewer_role,
+        evidence_commit_sha=evidence_commit_sha,
+        replay_input_root_sha=_canonical_sha_v1(projection),
+        d0_decision_payload_sha=d0["decision_payload_sha"],
+        d1_decision_payload_sha=d1["decision_payload_sha"],
+        surviving_route_ids=survivor_ids,
+        provisional_winner_route_id=winner,
+    )
+
+
+def _emit_reviewer_replay_report_v1(report):
+    payload = _canonical_json_bytes_v1(validate_replay_report_v1(report))
+    return sys.stdout.buffer.write(payload + b"\n")
+
+
+def _review_corpus_replay_cli(*, evidence_commit_sha, source_closure_sha):
+    report = _execute_reviewer_replay_v1(
+        reviewer_role="CORPUS_REPLAY",
+        evidence_commit_sha=evidence_commit_sha,
+        source_closure_sha=source_closure_sha,
+    )
+    return _emit_reviewer_replay_report_v1(report)
+
+
+def _review_metric_replay_cli(*, evidence_commit_sha, source_closure_sha):
+    report = _execute_reviewer_replay_v1(
+        reviewer_role="METRIC_REPLAY",
+        evidence_commit_sha=evidence_commit_sha,
+        source_closure_sha=source_closure_sha,
+    )
+    return _emit_reviewer_replay_report_v1(report)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog="v3m0-b7-reviewer")
+    parser.add_argument("subcommand", choices=("review-corpus", "review-metric"))
+    parser.add_argument("--evidence-commit", required=True)
+    parser.add_argument(
+        "--reviewed-executable-source-closure-sha",
+        required=True,
+    )
+    parser.add_argument("--emit-replay-report", action="store_true", required=True)
+    arguments = parser.parse_args(argv)
+    if arguments.subcommand == "review-corpus":
+        _review_corpus_replay_cli(
+            evidence_commit_sha=arguments.evidence_commit,
+            source_closure_sha=(
+                arguments.reviewed_executable_source_closure_sha
+            ),
+        )
+    elif arguments.subcommand == "review-metric":
+        _review_metric_replay_cli(
+            evidence_commit_sha=arguments.evidence_commit,
+            source_closure_sha=(
+                arguments.reviewed_executable_source_closure_sha
+            ),
+        )
+    else:
+        raise ValueError("reviewer subcommand escaped parser choices")
+    return 0
 
 
 def precheck_frozen_python_executable_v1(
@@ -2152,3 +2740,7 @@ def run_frozen_reviewer_process_v2(
         ),
         python_precheck_observation=python_precheck_observation,
     )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
