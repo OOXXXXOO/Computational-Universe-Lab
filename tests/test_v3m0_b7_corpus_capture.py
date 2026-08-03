@@ -17,7 +17,7 @@ from tools import v3m0_b7_capture_corpus as capture
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FROZEN_CORPUS_PATH = REPOSITORY_ROOT / "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
 FROZEN_CORPUS_RAW_SHA256 = (
-    "46455a47dd794bac15476a9d81cf3dc9ae9fc461d2eabbdc72857147311774f9"
+    "0b9b3863acec01ec4f8eb898df036e24bdb490f51ca0cb71a8bb9559066fe156"
 )
 
 

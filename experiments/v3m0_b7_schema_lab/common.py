@@ -11607,10 +11607,10 @@ def build_d1_comparison_v1(
     if type(d0_result_raw_bytes) is not bytes:
         raise TypeError("D1 D0 input must be exact bytes")
     parsed_d0 = strict_json_loads_v1(d0_result_raw_bytes)
-    if type(parsed_d0) is not dict or canonical_json_bytes_v1(parsed_d0) != (
+    if type(parsed_d0) is not dict or canonical_json_bytes_v1(parsed_d0) + b"\n" != (
         d0_result_raw_bytes
     ):
-        raise ValueError("D1 D0 input is not one canonical object")
+        raise ValueError("D1 D0 input is not one canonical object plus exactly one LF")
     d0_result = validate_exact_lab_record_v1("B7LabD0ComparisonV1", parsed_d0)
     validate_d0_decision_payload_projection_v1(d0_result)
     if not d0_result["surviving_route_ids"]:
@@ -11643,10 +11643,12 @@ def build_d1_comparison_v1(
     if type(corpus_fixture_raw_bytes) is not bytes:
         raise TypeError("D1 corpus fixture input must be exact bytes")
     parsed_fixture = strict_json_loads_v1(corpus_fixture_raw_bytes)
-    if type(parsed_fixture) is not dict or canonical_json_bytes_v1(parsed_fixture) != (
-        corpus_fixture_raw_bytes
-    ):
-        raise ValueError("D1 corpus fixture is not one canonical object")
+    if type(parsed_fixture) is not dict or canonical_json_bytes_v1(parsed_fixture) + (
+        b"\n"
+    ) != corpus_fixture_raw_bytes:
+        raise ValueError(
+            "D1 corpus fixture is not one canonical object plus exactly one LF"
+        )
     fixture = validate_corpus_fixture_v2(
         parsed_fixture,
         common_checked[3],
