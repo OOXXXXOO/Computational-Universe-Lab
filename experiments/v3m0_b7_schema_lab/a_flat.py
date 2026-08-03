@@ -157,46 +157,33 @@ def _schema_self_hash(
         "primitive_schema_version",
         "target_schema_version",
     ),
-    _validated_body_shas={},
 ):
     if type(value) is not dict:
         return
-    body_sha = _sha(value)
-    cached = _validated_body_shas.get(body_sha)
-    if cached is True:
-        return
-    if type(cached) is str:
-        _reject(cached)
     schema_names = [name for name in value if name.endswith("_schema_version")]
-    try:
-        if len(schema_names) > 1:
-            _reject("SCHEMA_MISMATCH")
-        if schema_names:
-            schema_name = schema_names[0]
-            if schema_name not in _lineage_only_fields:
-                declared = None
-                for candidate_name, candidate_fields in _declared_fields:
-                    if schema_name == candidate_name:
-                        declared = candidate_fields
-                        break
-                if declared is None:
-                    _reject("SCHEMA_MISMATCH")
-                present = [name for name in declared if name in value]
-                if len(present) != 1:
-                    _reject("HASH_MISMATCH")
-                _require_self_hash(value, present[0])
-        for member in value.values():
-            if type(member) is dict:
-                _schema_self_hash(member)
-            elif type(member) is list:
-                for item in member:
-                    if type(item) is dict:
-                        _schema_self_hash(item)
-    except B7LabMutationRejected as error:
-        reason = error.args[0] if len(error.args) == 1 else "HASH_MISMATCH"
-        _validated_body_shas[body_sha] = reason
-        raise
-    _validated_body_shas[body_sha] = True
+    if len(schema_names) > 1:
+        _reject("SCHEMA_MISMATCH")
+    if schema_names:
+        schema_name = schema_names[0]
+        if schema_name not in _lineage_only_fields:
+            declared = None
+            for candidate_name, candidate_fields in _declared_fields:
+                if schema_name == candidate_name:
+                    declared = candidate_fields
+                    break
+            if declared is None:
+                _reject("SCHEMA_MISMATCH")
+            present = [name for name in declared if name in value]
+            if len(present) != 1:
+                _reject("HASH_MISMATCH")
+            _require_self_hash(value, present[0])
+    for member in value.values():
+        if type(member) is dict:
+            _schema_self_hash(member)
+        elif type(member) is list:
+            for item in member:
+                if type(item) is dict:
+                    _schema_self_hash(item)
 
 
 def _validate_provenance(value):
