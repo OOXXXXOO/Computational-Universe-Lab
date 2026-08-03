@@ -561,6 +561,50 @@ def test_b_progress_rejects_every_self_hash_layer_drift(attack: str) -> None:
     )
 
 
+def test_b_progress_distinguishes_lineage_shas_from_declared_self_hashes() -> None:
+    route = _route_module()
+    transcript = _transcript("success")
+    provenance = transcript["provenance_fixture"]
+    provenance["parent_freeze_v3_body"] = {
+        "target_schema_version": "b7-synthetic-capture",
+        "target_spec_sha": "1" * 64,
+        "seed_sha": "2" * 64,
+        "runtime_operator_sha": "3" * 64,
+        "primitive": {
+            "primitive_schema_version": "b7-synthetic-capture",
+            "coefficient_digest": "4" * 64,
+        },
+    }
+    _seal(provenance, "provenance_fixture_sha")
+    _seal(transcript, "experimental_sha")
+    source = _canonical(transcript)
+
+    wire = route.encode_normalized_transcript(source)
+    assert route.verify_and_decode_route_wire(wire) == source
+
+    renamed = copy.deepcopy(transcript)
+    renamed_target = renamed["provenance_fixture"]["parent_freeze_v3_body"]
+    renamed_target["renamed_schema_version"] = renamed_target.pop(
+        "target_schema_version"
+    )
+    _seal(renamed["provenance_fixture"], "provenance_fixture_sha")
+    _seal(renamed, "experimental_sha")
+    _assert_rejected(
+        route.encode_normalized_transcript,
+        _canonical(renamed),
+        "SCHEMA_MISMATCH",
+    )
+
+    transcript["actual_branch_attempt"]["response_values"]["tensor_sha"] = "0" * 64
+    _seal(transcript["actual_branch_attempt"], "attempt_sha")
+    _seal(transcript, "experimental_sha")
+    _assert_rejected(
+        route.encode_normalized_transcript,
+        _canonical(transcript),
+        "HASH_MISMATCH",
+    )
+
+
 @pytest.mark.parametrize("case_id", [row[0] for row in CASE_ROWS])
 def test_b_progress_rejects_presence_terminal_and_branch_failure_mutations(
     case_id: str,
