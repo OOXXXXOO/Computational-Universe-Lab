@@ -1999,6 +1999,109 @@ def test_canonical_wire_bytes_metric_rejects_noncanonical_wires(
         _common_module().compute_canonical_wire_bytes_v1(hostile)
 
 
+def test_gate_contract_literals_match_all_eight_registry_entries() -> None:
+    common = _common_module()
+    expected = [
+        (
+            entry["gate_id"],
+            tuple(entry["phase_order"]),
+            entry["validator_id"],
+            tuple(entry["predicate_id_order"]),
+            tuple(entry["reason_code_order"]),
+        )
+        for entry in _lab_registry()["gate_registry"]
+    ]
+
+    assert list(common.GATE_CONTRACTS_V1) == expected
+
+
+def test_gate_outcome_builder_derives_bits_reasons_pass_and_both_hashes() -> None:
+    common = _common_module()
+
+    outcome = common.build_gate_outcome_v1(
+        gate_id="E01",
+        phase="D0",
+        route_id="A_FLAT",
+        domain_root_sha="8" * 64,
+        predicate_results=[True, False, True],
+    )
+
+    assert outcome["gate_validator_id"] == "validate_gate_e01_v1"
+    assert outcome["passed"] is False
+    assert outcome["reason_codes"] == ["E01_LEGAL_ENCODE_FAILURE"]
+    assert outcome["observation"]["predicate_result_bits"] == "101"
+    assert outcome["observation"]["failure_reason_codes"] == [
+        "E01_LEGAL_ENCODE_FAILURE"
+    ]
+    assert outcome["observation_sha"] == outcome["observation"]["observation_sha"]
+    _assert_self_hash(outcome["observation"], "observation_sha")
+    _assert_self_hash(outcome, "gate_outcome_sha")
+    assert (
+        common.validate_gate_outcome_v1(
+            outcome,
+            expected_domain_root_sha="8" * 64,
+            expected_predicate_results=[True, False, True],
+        )
+        == outcome
+    )
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda raw: raw.update(passed=True),
+        lambda raw: raw.update(reason_codes=[]),
+        lambda raw: raw["observation"].update(predicate_result_bits="111"),
+        lambda raw: raw["observation"].update(domain_root_sha="0" * 64),
+        lambda raw: raw.update(gate_validator_id="validate_gate_e02_v1"),
+    ),
+)
+def test_gate_outcome_validator_rejects_self_report_and_join_attacks(
+    mutator,
+) -> None:
+    common = _common_module()
+    outcome = common.build_gate_outcome_v1(
+        gate_id="E07",
+        phase="D1",
+        route_id="C_UNION",
+        domain_root_sha="8" * 64,
+        predicate_results=[True, False, True, True],
+    )
+    mutator(outcome)
+    _seal(outcome["observation"], "observation_sha")
+    outcome["observation_sha"] = outcome["observation"]["observation_sha"]
+    _seal(outcome, "gate_outcome_sha")
+
+    with pytest.raises((TypeError, ValueError)):
+        common.validate_gate_outcome_v1(
+            outcome,
+            expected_domain_root_sha="8" * 64,
+            expected_predicate_results=[True, False, True, True],
+        )
+
+
+def test_gate_outcome_builder_rejects_wrong_phase_or_predicate_cardinality() -> None:
+    common = _common_module()
+    for arguments in (
+        {
+            "gate_id": "E05",
+            "phase": "D0",
+            "route_id": "A_FLAT",
+            "domain_root_sha": "8" * 64,
+            "predicate_results": [True] * 6,
+        },
+        {
+            "gate_id": "E01",
+            "phase": "D0",
+            "route_id": "A_FLAT",
+            "domain_root_sha": "8" * 64,
+            "predicate_results": [True],
+        },
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            common.build_gate_outcome_v1(**arguments)
+
+
 def _decision_record(
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],

@@ -3559,3 +3559,215 @@ def compute_canonical_wire_bytes_v1(ordered_wire_bytes):
             raise ValueError("route wire is not project-canonical JSON")
         total += len(raw_bytes)
     return total
+
+
+GATE_CONTRACTS_V1 = (
+    (
+        "E01",
+        ("D0", "D1"),
+        "validate_gate_e01_v1",
+        (
+            "legal-case-count-is-7",
+            "every-case-encode-returns-canonical-bytes",
+            "every-case-verify-decode-returns-source-bytes",
+        ),
+        (
+            "E01_LEGAL_CASE_COUNT_MISMATCH",
+            "E01_LEGAL_ENCODE_FAILURE",
+            "E01_LEGAL_DECODE_MISMATCH",
+        ),
+    ),
+    (
+        "E02",
+        ("D0", "D1"),
+        "validate_gate_e02_v1",
+        (
+            "mutation-probe-count-equals-universe-domain",
+            "mutation-accept-count-is-zero",
+            "wrong-exception-or-nonbytes-count-is-zero",
+        ),
+        (
+            "E02_MUTATION_DOMAIN_MISMATCH",
+            "E02_MUTATION_ACCEPTED",
+            "E02_INVALID_REJECTION_SURFACE",
+        ),
+    ),
+    (
+        "E03",
+        ("D0", "D1"),
+        "validate_gate_e03_v1",
+        ("evidence-domain-complete", "evidence-loss-count-is-zero"),
+        ("E03_EVIDENCE_DOMAIN_MISMATCH", "E03_EVIDENCE_LOSS"),
+    ),
+    (
+        "E04",
+        ("D0", "D1"),
+        "validate_gate_e04_v1",
+        (
+            "all-seven-case-contracts-validate",
+            "outer-tag-branch-failure-attempt-failure-presence-map-is-one-to-one",
+            "no-unlisted-legal-tag-presence-pair",
+        ),
+        (
+            "E04_CASE_CONTRACT_MISMATCH",
+            "E04_FAILURE_PRESENCE_NONUNIQUE",
+            "E04_UNLISTED_LEGAL_STATE",
+        ),
+    ),
+    (
+        "E05",
+        ("D1",),
+        "validate_gate_e05_v1",
+        (
+            "capture-ordinals-are-0-1-2",
+            "each-cell-has-seven-cases",
+            "each-decoded-byte-exactly-equals-broadcast-source-byte",
+            "each-decoded-set-root-equals-capture-transcript-set-root",
+            "each-leaf-set-root-equals-capture-leaf-set-root",
+            "all-survivor-routes-observe-identical-source-and-leaf-roots",
+        ),
+        (
+            "E05_CAPTURE_ORDINAL_MISMATCH",
+            "E05_CASE_CARDINALITY_MISMATCH",
+            "E05_TRANSCRIPT_BYTE_MISMATCH",
+            "E05_TRANSCRIPT_ROOT_MISMATCH",
+            "E05_LEAF_ROOT_MISMATCH",
+            "E05_CROSS_ROUTE_IDENTITY_MISMATCH",
+        ),
+    ),
+    (
+        "E06",
+        ("D0", "D1"),
+        "validate_gate_e06_v1",
+        (
+            "all-roundtrip-probes-return-source-bytes",
+            "all-repeat-probes-return-identical-bytes",
+            "all-tag-failure-delete-inject-sha-and-cross-case-splices-reject",
+        ),
+        (
+            "E06_ROUNDTRIP_NONDETERMINISTIC",
+            "E06_REPEAT_NONDETERMINISTIC",
+            "E06_SPLICE_ACCEPTED",
+        ),
+    ),
+    (
+        "E07",
+        ("D0", "D1"),
+        "validate_gate_e07_v1",
+        (
+            "bytes-only-api-exact",
+            "no-leaf-provider-or-callback-argument",
+            "no-raw-hydrator-wrapper-issuer-registry-capability-or-caller-profile",
+            "authority-and-wrapper-surface-counts-are-zero",
+        ),
+        (
+            "E07_API_SURFACE_MISMATCH",
+            "E07_CALLBACK_SURFACE_PRESENT",
+            "E07_AUTHORITY_SURFACE_PRESENT",
+            "E07_NONZERO_SURFACE_COUNT",
+        ),
+    ),
+    (
+        "E08",
+        ("D0", "D1"),
+        "validate_gate_e08_v1",
+        (
+            "route-does-not-import-production",
+            "production-does-not-import-route",
+            "route-source-paths-are-absent-from-production-source-closures",
+        ),
+        (
+            "E08_ROUTE_IMPORTS_PRODUCTION",
+            "E08_PRODUCTION_IMPORTS_ROUTE",
+            "E08_ROUTE_IN_PRODUCTION_SOURCE_CLOSURE",
+        ),
+    ),
+)
+
+
+def _gate_contract_v1(gate_id):
+    matches = [contract for contract in GATE_CONTRACTS_V1 if contract[0] == gate_id]
+    if len(matches) != 1:
+        raise ValueError("gate ID is not frozen")
+    return matches[0]
+
+
+def build_gate_outcome_v1(
+    *,
+    gate_id,
+    phase,
+    route_id,
+    domain_root_sha,
+    predicate_results,
+):
+    """Build one mechanical gate observation and its outcome wrapper."""
+
+    _, phase_order, validator_id, predicate_ids, reason_codes = _gate_contract_v1(
+        gate_id
+    )
+    if type(phase) is not str or phase not in phase_order:
+        raise ValueError("gate phase is not frozen")
+    _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    domain_sha = _require_sha256_root_v1(domain_root_sha, "gate domain")
+    if (
+        type(predicate_results) is not list
+        or len(predicate_results) != len(predicate_ids)
+        or any(type(result) is not bool for result in predicate_results)
+    ):
+        raise TypeError("gate predicate results differ from the frozen domain")
+    bits = "".join("1" if result else "0" for result in predicate_results)
+    failures = [
+        reason_code
+        for result, reason_code in zip(predicate_results, reason_codes)
+        if not result
+    ]
+    observation = {
+        "gate_observation_schema_version": ("experimental.v3m0.b7.gate-observation.v1"),
+        "gate_id": gate_id,
+        "phase": phase,
+        "route_id": route_id,
+        "domain_root_sha": domain_sha,
+        "predicate_ids": list(predicate_ids),
+        "predicate_result_bits": bits,
+        "failure_reason_codes": failures,
+        "observation_sha": "",
+    }
+    _rehash_record_field_v1(observation, "observation_sha")
+    observation = validate_exact_lab_record_v1(
+        "B7LabGateObservationV1",
+        observation,
+    )
+    outcome = {
+        "gate_outcome_schema_version": "experimental.v3m0.b7.gate-outcome.v1",
+        "gate_id": gate_id,
+        "gate_validator_id": validator_id,
+        "phase": phase,
+        "observation": observation,
+        "passed": all(predicate_results) and not failures,
+        "observation_sha": observation["observation_sha"],
+        "reason_codes": failures,
+        "gate_outcome_sha": "",
+    }
+    _rehash_record_field_v1(outcome, "gate_outcome_sha")
+    return validate_exact_lab_record_v1("B7LabGateOutcomeV1", outcome)
+
+
+def validate_gate_outcome_v1(
+    raw_body,
+    *,
+    expected_domain_root_sha,
+    expected_predicate_results,
+):
+    """Reject any gate self-report that differs from fresh expected predicates."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    expected = build_gate_outcome_v1(
+        gate_id=observed["gate_id"],
+        phase=observed["phase"],
+        route_id=observed["observation"]["route_id"],
+        domain_root_sha=expected_domain_root_sha,
+        predicate_results=expected_predicate_results,
+    )
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("gate outcome differs from fresh recomputation")
+    return observed
