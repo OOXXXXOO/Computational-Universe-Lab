@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import base64
 from collections import Counter
 import hashlib
 import importlib
@@ -214,6 +215,7 @@ TASK4_FUNCTION_SIGNATURES = {
     "_component_by_id_v1": ("graph_raw", "component_id"),
     "validate_endpoint_reference_outcome_raw_v1": ("raw_body",),
     "validate_endpoint_shell_outcome_raw_v1": ("raw_body",),
+    "_validate_parent_review_receipt_structure_v1": ("receipt",),
     "validate_synthetic_parent_freeze_v3_body_v1": ("raw_body",),
     "validate_provenance_fixture_v1": ("raw_body",),
     "_resolve_json_pointer_v1": ("raw_body", "pointer", "field"),
@@ -263,6 +265,10 @@ TASK4_FUNCTION_ANNOTATIONS = {
         ("object",),
         "dict[str, object]",
     ),
+    "_validate_parent_review_receipt_structure_v1": (
+        ("dict[str, object]",),
+        "None",
+    ),
     "validate_synthetic_parent_freeze_v3_body_v1": (
         ("object",),
         "dict[str, object]",
@@ -301,6 +307,75 @@ TASK4_FUNCTION_ANNOTATIONS = {
     "validate_branch_attempt_v1": (("object",), "dict[str, object]"),
 }
 
+TASK4_EXPECTED_FUNCTION_BODY_SHA256 = {
+    "_split_wire_top_level_v1": (
+        "4d4bcc54cc9df01d07639ce22a0f2ea814799d673913d48e1bca34a432e5e299"
+    ),
+    "_literal_wire_value_v1": (
+        "0ecade7d2b67087982d86227df62c7bfe54f4471fd31265effd0b398e8257ef9"
+    ),
+    "_validate_wire_value_v1": (
+        "5c5366062f0d53b66ae674cf2e30c9bfd8b1401e6d33852e5529432c8e817826"
+    ),
+    "_validate_record_raw_v1": (
+        "cf32ecc644c364265dfb7fe55912e06a38691fa98c1c454299bd4748e58970f7"
+    ),
+    "_record_schemas_v1": (
+        "6cb3161440f1bf932029024aa61ad7964fb868652ad547ab26deef2b69e4f1a0"
+    ),
+    "_canonical_equal_v1": (
+        "6b6a0179c5ed9bb3f44e622ea972f7c894b8cac0f8d6f447d362179e08ed25f4"
+    ),
+    "_component_by_id_v1": (
+        "8ae04de17547777e6eedc3051fb959b6ea7f9904544998daa63555f2b83e305b"
+    ),
+    "validate_endpoint_reference_outcome_raw_v1": (
+        "6e8dbca1265337917e2218d1d0835108f251082385a0d4ffe53617d6700a112f"
+    ),
+    "validate_endpoint_shell_outcome_raw_v1": (
+        "841ead5ec4d5703f6cd20399b3b954c3b3093b3a62e79914589bfb733692dd4d"
+    ),
+    "_validate_parent_review_receipt_structure_v1": (
+        "dadfa06a5571e91e07a917020f0b65c2d2fd7568d26e28b13ae174b01e7ae7af"
+    ),
+    "validate_synthetic_parent_freeze_v3_body_v1": (
+        "2dcad45499fb16b50aa01e2c3a3a15f3683eb12d4e275eaf6ed765b861ae7006"
+    ),
+    "validate_provenance_fixture_v1": (
+        "50a91f489ec455282c6d80d7fb15191871bf603bef07acf94a7cc54694f592e6"
+    ),
+    "_resolve_json_pointer_v1": (
+        "96ba0ff5e097448226a14232f45aa612a94b40e42d287bb1f6d17a99264acab8"
+    ),
+    "validate_synthetic_component_body_v1": (
+        "6982828c023e1a8165e82847e56f8debf333edd3a932a2a5bcdbadf8a909521c"
+    ),
+    "_validate_synthetic_graph_raw_v1": (
+        "adeb8f59dd615ce12e05345d3cc104d6f407ecb87a59f255c13768a998a12cb6"
+    ),
+    "validate_response_run_spec_fixture_v1": (
+        "f40eb82d7d3bd0656bfca1026b925912756f6ec3f47168e546d368edc9a9ca3e"
+    ),
+    "validate_source_readout_response_raw_v1": (
+        "80a68cfdfd9a8d4313fdc57edb515d14af60c8248cf64db74098f6acf388bfbc"
+    ),
+    "_require_exact_dict_fields_v1": (
+        "6d46773205767f216f32a318e2d841d9e25c21f12ac8d76ded27e565d8ef35c9"
+    ),
+    "_require_sha256_v1": (
+        "7a09097db28fcfadeb19113c4c1ee90950eb8277a55751edf022783ffe8be043"
+    ),
+    "_require_self_hash_v1": (
+        "1dda605a7cdaa6defe5f39885d05605e2d406b85d0b3797b6ffc2a0ee065a9d2"
+    ),
+    "_validate_frozen_complex_tensor_raw_v1": (
+        "0aa69734427f7427cfa08f23054c74bb6484a45eb68b869193b13386b6441466"
+    ),
+    "validate_branch_attempt_v1": (
+        "8767ac162d6a5eb980baaa6622fac4fffe82442914c012267898dbbc9ed12653"
+    ),
+}
+
 TASK4_PUBLIC_VALIDATOR_SYMBOLS = {
     "validate_response_run_spec_fixture_v1",
     "validate_endpoint_reference_outcome_raw_v1",
@@ -330,10 +405,12 @@ TASK4_CALL_SHAPES = {
     "_resolve_json_pointer_v1": ((3, ()),),
     "_split_wire_top_level_v1": ((2, ()),),
     "_validate_frozen_complex_tensor_raw_v1": ((2, ()),),
+    "_validate_parent_review_receipt_structure_v1": ((1, ()),),
     "_validate_record_raw_v1": ((4, ()),),
     "_validate_synthetic_graph_raw_v1": ((2, ()),),
     "_validate_wire_value_v1": ((5, ()),),
     "any": ((1, ()),),
+    "armor.split": ((1, ()),),
     "canonical_json_bytes_v1": ((1, ()),),
     "canonical_sha_v1": ((1, ()),),
     "dimensions.split": ((1, ()),),
@@ -351,6 +428,7 @@ TASK4_CALL_SHAPES = {
     "raw_body.items": ((0, ()),),
     "raw_token.replace": ((2, ()),),
     "raw_token.replace().replace": ((2, ()),),
+    "reviewer_id.strip": ((0, ()),),
     "result.append": ((1, ()),),
     "root_entries.append": ((1, ()),),
     "schemas.get": ((1, ()),),
@@ -1149,6 +1227,11 @@ def _assert_core_source_contract(source: str) -> None:
                 expected_annotations, expected_return = TASK4_FUNCTION_ANNOTATIONS[
                     node.name
                 ]
+                observed_body_sha256 = _normalized_function_body_sha256(node)
+                assert (
+                    observed_body_sha256
+                    == TASK4_EXPECTED_FUNCTION_BODY_SHA256[node.name]
+                )
             _assert_exact_function_shape(
                 node,
                 expected_arguments,
@@ -1165,6 +1248,7 @@ def _assert_core_source_contract(source: str) -> None:
         *TASK4_FUNCTION_SIGNATURES,
     ]
     assert TASK4_PUBLIC_VALIDATOR_SYMBOLS <= set(top_level_functions)
+    assert set(TASK4_EXPECTED_FUNCTION_BODY_SHA256) == set(TASK4_FUNCTION_SIGNATURES)
 
     expected_return_shapes = Counter(
         (
@@ -1702,14 +1786,17 @@ def test_core_runtime_namespace_has_exact_task3_task4_symbols() -> None:
     observed_public = {
         name
         for name in vars(core)
-        if not name.startswith("__") and name not in import_symbols
+        if not name.startswith("__")
+        and name not in import_symbols
         and not name.startswith("_")
     }
     expected_public = TASK3_PUBLIC_SYMBOLS | TASK4_PUBLIC_VALIDATOR_SYMBOLS
     assert observed_public == expected_public
 
     observed_private = {
-        name for name in vars(core) if name.startswith("_") and not name.startswith("__")
+        name
+        for name in vars(core)
+        if name.startswith("_") and not name.startswith("__")
     }
     expected_private = TASK4_LITERAL_ASSIGNMENTS | {
         name for name in TASK4_FUNCTION_SIGNATURES if name.startswith("_")
@@ -1760,6 +1847,19 @@ def test_static_contract_rejects_extra_helper_callback_and_capability_imports() 
     for attacked_source in attacks:
         with pytest.raises((AssertionError, KeyError)):
             _assert_core_source_contract(attacked_source)
+
+
+def test_task4_static_contract_rejects_allowlisted_call_target_substitution() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    attacked_source = source.replace(
+        "canonical_json_bytes_v1(left)",
+        "canonical_sha_v1(left)",
+        1,
+    )
+
+    assert attacked_source != source
+    with pytest.raises((AssertionError, KeyError)):
+        _assert_core_source_contract(attacked_source)
 
 
 def test_static_contract_rejects_definition_use_capability_escapes() -> None:
@@ -2198,17 +2298,21 @@ def test_annotation_and_delayed_guard_attacks_dispatch_only_without_static_gate(
     None
 ):
     source = CORE_PATH.read_text(encoding="utf-8")
-    annotation_attack = source.replace(
-        "from __future__ import annotations",
-        "from __future__ import generator_stop",
-        1,
-    ).replace(
-        "def canonical_json_bytes_v1(value: object)",
-        "def canonical_json_bytes_v1(value: probe[0])",
-        1,
-    ).replace(
-        "str | None",
-        "object",
+    annotation_attack = (
+        source.replace(
+            "from __future__ import annotations",
+            "from __future__ import generator_stop",
+            1,
+        )
+        .replace(
+            "def canonical_json_bytes_v1(value: object)",
+            "def canonical_json_bytes_v1(value: probe[0])",
+            1,
+        )
+        .replace(
+            "str | None",
+            "object",
+        )
     )
     annotation_trace: list[object] = []
 
@@ -2308,9 +2412,7 @@ def _task4_branch_attempt(
 ) -> dict[str, object]:
     return _task4_seal(
         {
-            "branch_attempt_schema_version": (
-                "experimental.v3m0.b7.branch-attempt.v1"
-            ),
+            "branch_attempt_schema_version": ("experimental.v3m0.b7.branch-attempt.v1"),
             "branch": branch,
             "response_values": _task4_tensor([1, 1]),
             "bridge_audit": None,
@@ -2325,10 +2427,198 @@ def test_task4_branch_attempt_accepts_fixture_independent_legal_raw_body() -> No
     core = _core_module()
     raw_body = _task4_branch_attempt()
 
-    assert core.validate_branch_attempt_v1(raw_body) is raw_body
+    assert core.validate_branch_attempt_v1(raw_body) == raw_body
     assert raw_body["attempt_sha"] == _task4_canonical_sha(
         {key: value for key, value in raw_body.items() if key != "attempt_sha"}
     )
+
+
+def test_task4_canonical_roundtrip_projects_catalog_field_order() -> None:
+    core = _core_module()
+    raw_body = _task4_branch_attempt()
+    roundtripped = core.strict_json_loads_v1(core.canonical_json_bytes_v1(raw_body))
+    assert type(roundtripped) is dict
+    assert tuple(roundtripped) != tuple(raw_body)
+
+    projected = core.validate_branch_attempt_v1(roundtripped)
+
+    assert projected == raw_body
+    assert tuple(projected) == tuple(raw_body)
+
+
+def test_task4_hex64_accepts_exact_fp64_bits_and_rejects_sha256_width() -> None:
+    core = _core_module()
+    normalizer = _task4_minimal_record("CurrentCurvatureNormalizerProtocolV1")
+    normalizer["ordered_reciprocal_indices"] = [[1]]
+    normalizer["ordered_momentum_values"] = [[math.pi / 4.0]]
+    normalizer["ordered_momentum_fp64_bits"] = [["3fe921fb54442d18"]]
+    normalizer["ordered_normalizer_values"] = [0.5857864376269049]
+    normalizer["ordered_normalizer_fp64_bits"] = ["3fe2bec333018867"]
+    _task4_resign_tree("CurrentCurvatureNormalizerProtocolV1", normalizer)
+
+    assert (
+        core._validate_record_raw_v1(
+            normalizer,
+            "CurrentCurvatureNormalizerProtocolV1",
+            "normalizer",
+            core._record_schemas_v1(),
+        )
+        == normalizer
+    )
+    for hostile_bits in (True, "A" * 16, "a" * 15, "a" * 17, "a" * 64):
+        hostile = _task4_clone(normalizer)
+        hostile["ordered_normalizer_fp64_bits"] = [hostile_bits]
+        _task4_resign_tree("CurrentCurvatureNormalizerProtocolV1", hostile)
+        with pytest.raises((TypeError, ValueError)):
+            core._validate_record_raw_v1(
+                hostile,
+                "CurrentCurvatureNormalizerProtocolV1",
+                "normalizer",
+                core._record_schemas_v1(),
+            )
+
+
+@pytest.mark.parametrize(
+    ("record_name", "legal_failure"),
+    (
+        ("DynamicsCertificationOutcomeV3", "transition_invalid"),
+        ("EndpointReferenceOutcome", "phase_band_empty"),
+        ("EndpointShellOutcome", "gap_failed"),
+        ("PairedResponseOutcome", "actual_response_failed"),
+        ("ControlCandidateOutcome", "reference_failed"),
+    ),
+)
+def test_task4_named_failure_enums_reject_bool_and_unknown(
+    record_name: str,
+    legal_failure: str,
+) -> None:
+    core = _core_module()
+    legal = _task4_minimal_record(record_name)
+    legal["failure"] = legal_failure
+    _task4_resign_tree(record_name, legal)
+    assert (
+        core._validate_record_raw_v1(
+            legal,
+            record_name,
+            "named_failure",
+            core._record_schemas_v1(),
+        )
+        == legal
+    )
+    for hostile_value in (True, "caller-defined-failure"):
+        hostile = _task4_clone(legal)
+        hostile["failure"] = hostile_value
+        _task4_resign_tree(record_name, hostile)
+        with pytest.raises((TypeError, ValueError)):
+            core._validate_record_raw_v1(
+                hostile,
+                record_name,
+                "named_failure",
+                core._record_schemas_v1(),
+            )
+
+
+def test_task4_named_failure_enums_accept_exact_frozen_catalogs_only() -> None:
+    core = _core_module()
+    expected_catalogs = {
+        "DynamicsCertificationFailure": (
+            "prestructure_invalid",
+            "transition_invalid",
+            "reality_invalid",
+            "laurent_resource_exceeded",
+            "structure_raw_unresolved",
+            "metric_raw_unresolved",
+            "spectral_coverage_unresolved",
+            "normalized_metric_unresolved",
+            "full_state_bridge_failed",
+            "power_drift_unresolved",
+            "certified_instability_counterwitness",
+        ),
+        "EndpointReferenceFailure": (
+            "phase_band_empty",
+            "phase_band_nonunique",
+            "rank_mismatch",
+            "participation_failed",
+            "runner_up_margin_failed",
+            "projector_invalid",
+        ),
+        "EndpointShellFailure": (
+            "phase_band_empty",
+            "phase_separation_failed",
+            "gap_failed",
+            "participation_failed",
+            "reference_ambiguous",
+            "runner_up_margin",
+            "loop_inconsistent",
+            "projector_invalid",
+        ),
+        "PairedResponseFailure": (
+            "qualification_invalid",
+            "input_binding_invalid",
+            "actual_response_failed",
+            "ablated_response_failed",
+            "actual_bridge_failed",
+            "ablated_bridge_failed",
+        ),
+        "ControlCandidateFailure": (
+            "reference_failed",
+            "shell_failed",
+            "response_failed",
+            "bridge_failed",
+        ),
+    }
+    schemas = core._record_schemas_v1()
+    for wire_type, expected_values in expected_catalogs.items():
+        for value in expected_values:
+            core._validate_wire_value_v1(
+                value,
+                wire_type,
+                None,
+                f"failure.{wire_type}",
+                schemas,
+            )
+        for hostile_value in (False, "caller-defined-failure"):
+            with pytest.raises((TypeError, ValueError)):
+                core._validate_wire_value_v1(
+                    hostile_value,
+                    wire_type,
+                    None,
+                    f"failure.{wire_type}",
+                    schemas,
+                )
+
+
+def test_task4_normalizer_symbolic_grid_columns_are_nonempty_and_aligned() -> None:
+    core = _core_module()
+    normalizer = _task4_provenance_fixture()[
+        "current_scenario_response_contract_v3_body"
+    ]["current_readout_calibration_spec"]["curvature_normalizer_protocol"]
+    assert (
+        core._validate_record_raw_v1(
+            normalizer,
+            "CurrentCurvatureNormalizerProtocolV1",
+            "normalizer",
+            core._record_schemas_v1(),
+        )
+        == normalizer
+    )
+    for field in (
+        "ordered_reciprocal_indices",
+        "ordered_momentum_values",
+        "ordered_momentum_fp64_bits",
+        "ordered_normalizer_values",
+        "ordered_normalizer_fp64_bits",
+    ):
+        hostile = _task4_clone(normalizer)
+        hostile[field] = []
+        _task4_resign_tree("CurrentCurvatureNormalizerProtocolV1", hostile)
+        with pytest.raises((TypeError, ValueError)):
+            core._validate_record_raw_v1(
+                hostile,
+                "CurrentCurvatureNormalizerProtocolV1",
+                "normalizer",
+                core._record_schemas_v1(),
+            )
 
 
 @pytest.mark.parametrize(
@@ -2357,10 +2647,7 @@ def test_task4_branch_attempt_rejects_schema_hash_and_branch_attacks(
     elif attack == "missing":
         del raw_body["failure"]
     elif attack == "field_order":
-        raw_body = {
-            key: raw_body[key]
-            for key in reversed(tuple(raw_body))
-        }
+        raw_body = {key: raw_body[key] for key in reversed(tuple(raw_body))}
     elif attack == "type":
         raw_body["branch"] = 1
     elif attack == "nullability":
@@ -2385,6 +2672,9 @@ def test_task4_branch_attempt_rejects_schema_hash_and_branch_attacks(
         raw_body["response_values"] = None
         raw_body = _task4_seal(raw_body, "attempt_sha")
 
+    if attack == "field_order":
+        assert core.validate_branch_attempt_v1(raw_body) == _task4_branch_attempt()
+        return
     with pytest.raises((TypeError, ValueError)):
         core.validate_branch_attempt_v1(raw_body)
 
@@ -2516,10 +2806,7 @@ def _task4_minimal_wire(
                 count = int(modifier[6:])
             elif modifier == "nonempty":
                 count = max(count, 1)
-        return [
-            _task4_minimal_record(nested_record, active)
-            for _ in range(count)
-        ]
+        return [_task4_minimal_record(nested_record, active) for _ in range(count)]
     if nested_record is not None:
         nested = _task4_minimal_record(nested_record, active)
         if nested_record == "FrozenComplexTensor":
@@ -2532,11 +2819,11 @@ def _task4_minimal_wire(
             nested = _task4_resign_record("FrozenComplexTensor", nested)
         return nested
     if wire_type.startswith("Literal["):
-        return _task4_literal(
-            _task4_split_top_level(wire_type[8:-1], ",")[0]
-        )
-    if wire_type in {"sha256", "hex64"}:
+        return _task4_literal(_task4_split_top_level(wire_type[8:-1], ",")[0])
+    if wire_type == "sha256":
         return "a" * 64
+    if wire_type == "hex64":
+        return "0" * 16
     if wire_type == "git-sha1":
         return "a" * 40
     if wire_type in {"str", "base64-be-f64-column"}:
@@ -2564,6 +2851,8 @@ def _task4_minimal_wire(
         for modifier in modifiers:
             if modifier.startswith("exact=") and modifier[6:].isdigit():
                 count = int(modifier[6:])
+            elif modifier == "exact=response-grid-size":
+                count = 1
             elif modifier == "nonempty":
                 count = max(count or 0, 1)
         items = _task4_split_top_level(item_expression, ",")
@@ -2576,8 +2865,7 @@ def _task4_minimal_wire(
         else:
             item_types = items
         result = [
-            _task4_minimal_wire(item_type, None, active)
-            for item_type in item_types
+            _task4_minimal_wire(item_type, None, active) for item_type in item_types
         ]
         for modifier in modifiers:
             if modifier.startswith("value="):
@@ -2690,7 +2978,9 @@ def _task4_endpoint_reference_outcome() -> dict[str, object]:
     attempt["eigenphase_residuals"] = [0.0]
     attempt["observed_competitor_gaps"] = [None]
     _task4_resign_tree("EndpointReferenceAttemptAudit", attempt)
-    reference["control_registry_entry_sha"] = spec["control_registry_entry"]["entry_sha"]
+    reference["control_registry_entry_sha"] = spec["control_registry_entry"][
+        "entry_sha"
+    ]
     reference["actual_transition_sha"] = spec["actual_transition_sha"]
     reference["actual_dynamics_certificate_sha"] = spec[
         "actual_dynamics_certificate_sha"
@@ -2800,6 +3090,16 @@ def _task4_parent_body() -> dict[str, object]:
         }
     )
     receipts: list[dict[str, object]] = []
+    signature_wire = b"SSHSIG" + bytes(range(64))
+    signature_text = base64.b64encode(signature_wire).decode("ascii")
+    signature_armor = (
+        "-----BEGIN SSH SIGNATURE-----\n"
+        + "\n".join(
+            signature_text[index : index + 70]
+            for index in range(0, len(signature_text), 70)
+        )
+        + "\n-----END SSH SIGNATURE-----\n"
+    )
     for index, role in enumerate(
         (
             "MATHEMATICS_AND_EVIDENCE_CONTRACT_REVIEW",
@@ -2812,17 +3112,15 @@ def _task4_parent_body() -> dict[str, object]:
                 "receipt_schema_version": "v3m0.parent-review-receipt.v1",
                 "review_role": role,
                 "reviewer_id": f"fixture-reviewer-{index}",
-                "reviewer_key_id": "SHA256:" + "A" * 43,
+                "reviewer_key_id": "SHA256:"
+                + base64.b64encode(bytes([index]) * 32).decode("ascii").rstrip("="),
                 "signature_algorithm": "openssh-ed25519-v1",
                 "preparation_commit_sha": parent["preparation_commit_sha"],
                 "reviewed_candidate_sha": candidate["candidate_sha"],
                 "reviewed_path_closure": _task4_clone(closure),
                 "reviewed_path_closure_sha": closure_root,
                 "verdict": "PASS",
-                "signature_armor": (
-                    "-----BEGIN SSH SIGNATURE-----\nfixture\n"
-                    "-----END SSH SIGNATURE-----"
-                ),
+                "signature_armor": signature_armor,
             }
         )
         statement = {
@@ -2851,15 +3149,40 @@ def _task4_parent_body() -> dict[str, object]:
     audit["review_receipt_shas"] = [item["receipt_sha"] for item in receipts]
     audit["signed_source_refs_root_sha"] = _task4_canonical_sha(
         {
-            "signed_source_refs_schema_version": (
-                "v3m0.signed-source-ref-tuple.v1"
-            ),
+            "signed_source_refs_schema_version": ("v3m0.signed-source-ref-tuple.v1"),
             "entries": references,
         }
     )
     audit["reviewed_candidate_sha"] = candidate["candidate_sha"]
     audit["reviewed_path_closure_sha"] = closure_root
     audit["source_closure_sha"] = candidate["source_closure_sha"]
+    _task4_resign_tree("ParentSigningAuditV1", audit)
+    _task4_resign_tree("ParentFreezeV3Manifest", parent)
+    return parent
+
+
+def _task4_resign_parent_receipts(parent: dict[str, object]) -> dict[str, object]:
+    statement_fields = (
+        "receipt_schema_version",
+        "review_role",
+        "reviewer_id",
+        "reviewer_key_id",
+        "signature_algorithm",
+        "preparation_commit_sha",
+        "reviewed_candidate_sha",
+        "reviewed_path_closure",
+        "reviewed_path_closure_sha",
+        "verdict",
+    )
+    for receipt in parent["review_receipts"]:
+        receipt["signed_statement_sha"] = _task4_canonical_sha(
+            {field: receipt[field] for field in statement_fields}
+        )
+        _task4_resign_tree("ParentReviewReceiptV1", receipt)
+    audit = parent["signing_audit"]
+    audit["review_receipt_shas"] = [
+        receipt["receipt_sha"] for receipt in parent["review_receipts"]
+    ]
     _task4_resign_tree("ParentSigningAuditV1", audit)
     _task4_resign_tree("ParentFreezeV3Manifest", parent)
     return parent
@@ -2886,16 +3209,41 @@ def _task4_provenance_fixture() -> dict[str, object]:
     assert type(response_grid) is dict
     response_grid["spatial_ndim"] = 1
     response_grid["torus_denominators"] = [8]
-    response_grid["reciprocal_indices"] = [[0]]
+    response_grid["reciprocal_indices"] = [[1]]
     _task4_resign_tree("ResponseKGridManifest", response_grid)
-    contract["response_reference_reciprocal_index"] = [0]
-    contract["preregistered_phase_bands"] = [[0.1, 0.2]]
+    contract["response_reference_reciprocal_index"] = [1]
+    contract["preregistered_phase_bands"] = [[1.4457963267948966, 1.6957963267948966]]
+    contract["bridge_tolerance"] = 1e-12
     calibration_spec = contract["current_readout_calibration_spec"]
     assert type(calibration_spec) is dict
     calibration_spec["source_metric_whitener"] = _task4_tensor([10, 10])
     calibration_spec["h_metric_whitener"] = _task4_tensor([10, 10])
     calibration_spec["curvature_incidence_operator"] = _task4_tensor([6, 10])
     calibration_spec["curvature_metric_whitener"] = _task4_tensor([6, 6])
+    normalizer = calibration_spec["curvature_normalizer_protocol"]
+    assert type(normalizer) is dict
+    normalizer["spatial_shape"] = [8]
+    normalizer["response_grid_sha"] = response_grid["response_grid_sha"]
+    normalizer["ordered_reciprocal_indices"] = [[1]]
+    normalizer["ordered_momentum_values"] = [[math.pi / 4.0]]
+    normalizer["ordered_momentum_fp64_bits"] = [["3fe921fb54442d18"]]
+    normalizer["ordered_normalizer_values"] = [0.5857864376269049]
+    normalizer["ordered_normalizer_fp64_bits"] = ["3fe2bec333018867"]
+    _task4_resign_tree("CurrentCurvatureNormalizerProtocolV1", normalizer)
+    geometry = contract["geometry_bundle"]
+    assert type(geometry) is dict
+    geometry["source_whitener"] = _task4_clone(
+        calibration_spec["source_metric_whitener"]
+    )
+    geometry["h_whitener"] = _task4_clone(calibration_spec["h_metric_whitener"])
+    geometry["incidence_q"] = _task4_clone(
+        calibration_spec["curvature_incidence_operator"]
+    )
+    geometry["curvature_whitener"] = _task4_clone(
+        calibration_spec["curvature_metric_whitener"]
+    )
+    _task4_resign_tree("C19ObserverGeometryBundleV1", geometry)
+    calibration_spec["geometry_bundle_sha"] = geometry["geometry_bundle_sha"]
     _task4_resign_tree("CurrentReadoutCalibrationSpecV3", calibration_spec)
     _task4_resign_tree("CurrentScenarioResponseContractV3", contract)
     _task4_resign_tree("CalibrationApplicationPermitV3", permit)
@@ -2925,9 +3273,7 @@ def _task4_provenance_fixture() -> dict[str, object]:
         basis_body["role"] = role
         basis_body["state_schema_id"] = basis["state_schema_id"]
         basis_body["channel_order"] = channels
-        basis_body["vectors_wire"] = [
-            [[0.0, 0.0] for _ in channels] for _ in range(10)
-        ]
+        basis_body["vectors_wire"] = [[[0.0, 0.0] for _ in channels] for _ in range(10)]
         _task4_resign_tree("BasisManifest", basis_body)
     basis["source_injection"] = _task4_tensor([20, 10])
     basis["readout_coisometry"] = _task4_tensor([10, 20])
@@ -2973,6 +3319,38 @@ def _task4_provenance_fixture() -> dict[str, object]:
         "matched_ablated_bridge_grid_authority_body": matched_bridge,
         "provenance_fixture_sha": "0" * 64,
     }
+    return _task4_seal(fixture, "provenance_fixture_sha")
+
+
+def _task4_rebind_provenance_contract(
+    fixture: dict[str, object],
+    contract: dict[str, object],
+) -> dict[str, object]:
+    permit = fixture["permit_body"]
+    permit["current_scenario_response_contract"] = _task4_clone(contract)
+    permit["current_scenario_authority"]["response_contract"] = _task4_clone(contract)
+    _task4_resign_tree(
+        "CurrentScenarioAuthorityV3",
+        permit["current_scenario_authority"],
+    )
+    _task4_resign_tree("CalibrationApplicationPermitV3", permit)
+    materialization = fixture["materialization_body"]
+    materialization["permit"] = _task4_clone(permit)
+    materialization["current_application_authority"] = _task4_clone(
+        permit["current_application_authority"]
+    )
+    materialization["current_scenario_authority"] = _task4_clone(
+        permit["current_scenario_authority"]
+    )
+    materialization["current_scenario_response_contract"] = _task4_clone(contract)
+    _task4_resign_tree("ApplicationScenarioMaterializationV3", materialization)
+    fixture["current_scenario_response_contract_v3_body"] = _task4_clone(contract)
+    for field in (
+        "actual_bridge_grid_authority_body",
+        "matched_ablated_bridge_grid_authority_body",
+    ):
+        fixture[field]["materialization"] = _task4_clone(materialization)
+        _task4_resign_tree("BridgeGridAuthorityV3", fixture[field])
     return _task4_seal(fixture, "provenance_fixture_sha")
 
 
@@ -3059,9 +3437,9 @@ def _task4_graph_manifest(
         assert type(bridge_spec) is dict
         bridge_spec["bridge_grid"] = _task4_clone(bridge["bridge_grid"])
         bridge_spec["macro_steps"] = [1]
-        bridge_spec["bridge_tolerance"] = permit[
-            "current_scenario_response_contract"
-        ]["bridge_tolerance"]
+        bridge_spec["bridge_tolerance"] = permit["current_scenario_response_contract"][
+            "bridge_tolerance"
+        ]
         _task4_resign_tree("FullStateBridgeSpec", bridge_spec)
         _task4_resign_tree("DynamicsCertificateV3", certificate)
         outcome = _task4_minimal_record("DynamicsCertificationOutcomeV3")
@@ -3069,9 +3447,7 @@ def _task4_graph_manifest(
         assert type(attempt) is dict
         attempt["parent_freeze_v3_sha"] = parent["parent_freeze_v3_sha"]
         attempt["materialization_sha"] = materialization["materialization_sha"]
-        attempt["transition_authority_sha"] = transition[
-            "transition_authority_sha"
-        ]
+        attempt["transition_authority_sha"] = transition["transition_authority_sha"]
         attempt["metric_attestation_sha"] = metric["attestation_sha"]
         attempt["bridge_grid_authority_sha"] = bridge["grid_authority_sha"]
         attempt["first_failure"] = None
@@ -3118,9 +3494,7 @@ def _task4_graph_manifest(
     bindings = [
         _task4_seal(
             {
-                "binding_schema_version": (
-                    "experimental.v3m0.b7.t-bearer-binding.v1"
-                ),
+                "binding_schema_version": ("experimental.v3m0.b7.t-bearer-binding.v1"),
                 "component_id": component["component_id"],
                 "body_sha": component["body_self_hash_value"],
                 "fejer_order": 256,
@@ -3135,9 +3509,7 @@ def _task4_graph_manifest(
         "graph_manifest_schema_version": (
             "experimental.v3m0.b7.synthetic-graph-manifest.v1"
         ),
-        "graph_profile_id": (
-            "v3m0-b7-d1-nonauthority-synthetic-private-graph-v1"
-        ),
+        "graph_profile_id": ("v3m0-b7-d1-nonauthority-synthetic-private-graph-v1"),
         "authority_state": "NON_AUTHORITY_SYNTHETIC",
         "parent_freeze_v3_body": _task4_clone(parent),
         "parent_freeze_v3_sha": parent["parent_freeze_v3_sha"],
@@ -3162,9 +3534,9 @@ def _task4_graph_manifest(
         "matched_ablated_metric_authority_sha": by_id[
             "matched_ablated_metric_authority"
         ]["body_self_hash_value"],
-        "actual_bridge_grid_authority_sha": by_id[
-            "actual_bridge_grid_authority"
-        ]["body_self_hash_value"],
+        "actual_bridge_grid_authority_sha": by_id["actual_bridge_grid_authority"][
+            "body_self_hash_value"
+        ],
         "matched_ablated_bridge_grid_authority_sha": by_id[
             "matched_ablated_bridge_grid_authority"
         ]["body_self_hash_value"],
@@ -3228,9 +3600,7 @@ def _task4_response_run_spec(
             "source_injection_isometry": _task4_clone(basis["source_injection"]),
             "readout_coisometry": _task4_clone(basis["readout_coisometry"]),
             "response_grid": _task4_clone(contract["response_grid"]),
-            "source_readout_bridge_grid": _task4_clone(
-                actual_bridge["bridge_grid"]
-            ),
+            "source_readout_bridge_grid": _task4_clone(actual_bridge["bridge_grid"]),
             "source_readout_bridge_steps": [1],
             "reference_reciprocal_index": list(
                 contract["response_reference_reciprocal_index"]
@@ -3260,28 +3630,11 @@ def _task4_response_run_spec(
         basis_body["role"] = role
         basis_body["state_schema_id"] = spec["state_schema_id"]
         basis_body["channel_order"] = channels
-        basis_body["vectors_wire"] = [
-            [[0.0, 0.0] for _ in channels] for _ in range(10)
-        ]
+        basis_body["vectors_wire"] = [[[0.0, 0.0] for _ in channels] for _ in range(10)]
         _task4_resign_tree("BasisManifest", basis_body)
     spec["source_injection_isometry"] = _task4_tensor([20, 10])
     spec["readout_coisometry"] = _task4_tensor([10, 20])
     spec["source_trial_vectors"] = _task4_tensor([10, 10])
-    response_grid = spec["response_grid"]
-    assert type(response_grid) is dict
-    response_grid["spatial_ndim"] = 1
-    response_grid["torus_denominators"] = [8]
-    response_grid["reciprocal_indices"] = [[0]]
-    _task4_resign_tree("ResponseKGridManifest", response_grid)
-    spec["reference_reciprocal_index"] = [0]
-    spec["preregistered_phase_bands"] = [[0.1, 0.2]]
-    calibration_spec = spec["current_readout_calibration_spec"]
-    assert type(calibration_spec) is dict
-    calibration_spec["source_metric_whitener"] = _task4_tensor([10, 10])
-    calibration_spec["h_metric_whitener"] = _task4_tensor([10, 10])
-    calibration_spec["curvature_incidence_operator"] = _task4_tensor([6, 10])
-    calibration_spec["curvature_metric_whitener"] = _task4_tensor([6, 6])
-    _task4_resign_tree("CurrentReadoutCalibrationSpecV3", calibration_spec)
     _task4_resign_tree("ResponseRunSpecV3", spec)
     return spec
 
@@ -3338,9 +3691,9 @@ def _task4_source_response(
             "transition_sha": transition_sha,
             "dynamics_certificate_sha": certificate_sha,
             "run_spec_sha": run_spec["run_spec_sha"],
-            "source_metric_whitener_sha": run_spec[
-                "current_readout_calibration_spec"
-            ]["source_metric_whitener"]["tensor_sha"],
+            "source_metric_whitener_sha": run_spec["current_readout_calibration_spec"][
+                "source_metric_whitener"
+            ]["tensor_sha"],
             "readout_calibration_spec_sha": run_spec[
                 "current_readout_calibration_spec"
             ]["spec_sha"],
@@ -3428,7 +3781,7 @@ def test_task4_branch_attempt_strictly_validates_present_bridge_raw_tree() -> No
     _task4_resign_tree("SourceReadoutBridgeAudit", bridge)
     raw["bridge_audit"] = bridge
     raw = _task4_seal(raw, "attempt_sha")
-    assert core.validate_branch_attempt_v1(raw) is raw
+    assert core.validate_branch_attempt_v1(raw) == raw
 
     hostile = _task4_clone(raw)
     assert type(hostile) is dict
@@ -3438,10 +3791,12 @@ def test_task4_branch_attempt_strictly_validates_present_bridge_raw_tree() -> No
         core.validate_branch_attempt_v1(hostile)
 
 
-def test_task4_endpoint_reference_validator_covers_legal_and_hostile_raw_trees() -> None:
+def test_task4_endpoint_reference_validator_covers_legal_and_hostile_raw_trees() -> (
+    None
+):
     core = _core_module()
     legal = _task4_endpoint_reference_outcome()
-    assert core.validate_endpoint_reference_outcome_raw_v1(legal) is legal
+    assert core.validate_endpoint_reference_outcome_raw_v1(legal) == legal
 
     for attack in (
         "unknown",
@@ -3480,6 +3835,9 @@ def test_task4_endpoint_reference_validator_covers_legal_and_hostile_raw_trees()
             raw["reference"]["actual_transition_sha"] = "f" * 64
             _task4_resign_tree("EndpointReferenceProjector", raw["reference"])
             raw = _task4_seal(raw, "outcome_sha")
+        if attack == "field_order":
+            assert core.validate_endpoint_reference_outcome_raw_v1(raw) == legal
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_endpoint_reference_outcome_raw_v1(raw)
 
@@ -3487,7 +3845,7 @@ def test_task4_endpoint_reference_validator_covers_legal_and_hostile_raw_trees()
 def test_task4_endpoint_shell_validator_covers_legal_and_hostile_raw_trees() -> None:
     core = _core_module()
     legal = _task4_endpoint_shell_outcome()
-    assert core.validate_endpoint_shell_outcome_raw_v1(legal) is legal
+    assert core.validate_endpoint_shell_outcome_raw_v1(legal) == legal
 
     for attack in (
         "unknown",
@@ -3525,6 +3883,9 @@ def test_task4_endpoint_shell_validator_covers_legal_and_hostile_raw_trees() -> 
             ] = "f" * 64
             _task4_resign_tree("EndpointShellManifest", raw["shell"])
             raw = _task4_seal(raw, "outcome_sha")
+        if attack == "field_order":
+            assert core.validate_endpoint_shell_outcome_raw_v1(raw) == legal
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_endpoint_shell_outcome_raw_v1(raw)
 
@@ -3532,7 +3893,7 @@ def test_task4_endpoint_shell_validator_covers_legal_and_hostile_raw_trees() -> 
 def test_task4_synthetic_parent_validator_covers_recursive_and_join_attacks() -> None:
     core = _core_module()
     legal = _task4_parent_body()
-    assert core.validate_synthetic_parent_freeze_v3_body_v1(legal) is legal
+    assert core.validate_synthetic_parent_freeze_v3_body_v1(legal) == legal
 
     for attack in (
         "unknown",
@@ -3587,19 +3948,59 @@ def test_task4_synthetic_parent_validator_covers_recursive_and_join_attacks() ->
             receipt = raw["review_receipts"][0]
             receipt["signed_statement_sha"] = "f" * 64
             _task4_resign_tree("ParentReviewReceiptV1", receipt)
-            raw["signing_audit"]["review_receipt_shas"][0] = receipt[
-                "receipt_sha"
-            ]
+            raw["signing_audit"]["review_receipt_shas"][0] = receipt["receipt_sha"]
             _task4_resign_tree("ParentSigningAuditV1", raw["signing_audit"])
             raw = _task4_seal(raw, "parent_freeze_v3_sha")
+        if attack == "field_order":
+            assert core.validate_synthetic_parent_freeze_v3_body_v1(raw) == legal
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_synthetic_parent_freeze_v3_body_v1(raw)
+
+
+@pytest.mark.parametrize(
+    "attack",
+    (
+        "fingerprint",
+        "signature_armor",
+        "short_signature",
+        "empty_reviewer",
+        "duplicate_reviewer",
+        "duplicate_key",
+    ),
+)
+def test_task4_parent_receipts_match_production_structural_contract(
+    attack: str,
+) -> None:
+    core = _core_module()
+    hostile = _task4_parent_body()
+    receipts = hostile["review_receipts"]
+    if attack == "fingerprint":
+        receipts[0]["reviewer_key_id"] = "SHA256:" + "!" * 43
+    elif attack == "signature_armor":
+        receipts[0]["signature_armor"] = (
+            "-----BEGIN SSH SIGNATURE-----\nfixture\n-----END SSH SIGNATURE-----"
+        )
+    elif attack == "short_signature":
+        receipts[0]["signature_armor"] = (
+            "-----BEGIN SSH SIGNATURE-----\nU1NIU0lH\n-----END SSH SIGNATURE-----\n"
+        )
+    elif attack == "empty_reviewer":
+        receipts[0]["reviewer_id"] = ""
+    elif attack == "duplicate_reviewer":
+        receipts[1]["reviewer_id"] = receipts[0]["reviewer_id"]
+    elif attack == "duplicate_key":
+        receipts[1]["reviewer_key_id"] = receipts[0]["reviewer_key_id"]
+    hostile = _task4_resign_parent_receipts(hostile)
+
+    with pytest.raises((TypeError, ValueError)):
+        core.validate_synthetic_parent_freeze_v3_body_v1(hostile)
 
 
 def test_task4_provenance_validator_covers_recursive_and_lineage_attacks() -> None:
     core = _core_module()
     legal = _task4_provenance_fixture()
-    assert core.validate_provenance_fixture_v1(legal) is legal
+    assert core.validate_provenance_fixture_v1(legal) == legal
 
     for attack in (
         "unknown",
@@ -3660,8 +4061,71 @@ def test_task4_provenance_validator_covers_recursive_and_lineage_attacks() -> No
                 raw["matched_ablated_bridge_grid_authority_body"],
             )
             raw = _task4_seal(raw, "provenance_fixture_sha")
+        if attack == "field_order":
+            assert core.validate_provenance_fixture_v1(raw) == legal
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_provenance_fixture_v1(raw)
+
+
+def test_task4_provenance_rejects_resigned_b5_branch_role_swap() -> None:
+    core = _core_module()
+    hostile = _task4_provenance_fixture()
+    actual = hostile["actual_bridge_grid_authority_body"]
+    matched = hostile["matched_ablated_bridge_grid_authority_body"]
+    actual["factory_binding"]["branch"] = "matched_ablated"
+    matched["factory_binding"]["branch"] = "actual"
+    _task4_resign_tree("BridgeGridAuthorityV3", actual)
+    _task4_resign_tree("BridgeGridAuthorityV3", matched)
+    hostile = _task4_seal(hostile, "provenance_fixture_sha")
+
+    with pytest.raises((TypeError, ValueError)):
+        core.validate_provenance_fixture_v1(hostile)
+
+
+def test_task4_provenance_positive_matches_frozen_p0_oracle() -> None:
+    core = _core_module()
+    fixture = _task4_provenance_fixture()
+
+    assert core.validate_provenance_fixture_v1(fixture) == fixture
+    contract = fixture["current_scenario_response_contract_v3_body"]
+    response_grid = contract["response_grid"]
+    normalizer = contract["current_readout_calibration_spec"][
+        "curvature_normalizer_protocol"
+    ]
+    geometry = contract["geometry_bundle"]
+    geometry_fields = tuple(
+        field["name"]
+        for field in _task4_effective_catalog()["C19ObserverGeometryBundleV1"][
+            "field_specs"
+        ]
+    )
+
+    assert response_grid["torus_denominators"] == [8]
+    assert response_grid["reciprocal_indices"] == [[1]]
+    assert contract["response_reference_reciprocal_index"] == [1]
+    assert contract["preregistered_phase_bands"] == [
+        [1.4457963267948966, 1.6957963267948966]
+    ]
+    assert contract["bridge_tolerance"] == 1e-12
+    assert normalizer["ordered_momentum_fp64_bits"] == [["3fe921fb54442d18"]]
+    assert normalizer["ordered_normalizer_fp64_bits"] == ["3fe2bec333018867"]
+    assert len(geometry_fields) == 50
+    assert tuple(geometry) == geometry_fields
+
+
+def test_task4_provenance_binds_normalizer_cardinality_to_response_grid() -> None:
+    core = _core_module()
+    hostile = _task4_provenance_fixture()
+    contract = hostile["current_scenario_response_contract_v3_body"]
+    response_grid = contract["response_grid"]
+    response_grid["reciprocal_indices"] = [[1], [2]]
+    _task4_resign_tree("ResponseKGridManifest", response_grid)
+    _task4_resign_tree("CurrentScenarioResponseContractV3", contract)
+    hostile = _task4_rebind_provenance_contract(hostile, contract)
+
+    with pytest.raises((TypeError, ValueError)):
+        core.validate_provenance_fixture_v1(hostile)
 
 
 def test_task4_synthetic_component_validator_covers_metadata_body_and_t() -> None:
@@ -3672,7 +4136,7 @@ def test_task4_synthetic_component_validator_covers_metadata_body_and_t() -> Non
     _task4_resign_tree("WindowThresholdSelection", selection)
     legal = _task4_component_wrapper("calibration_selection", selection)
     ordered = [legal]
-    assert core.validate_synthetic_component_body_v1(legal, ordered, parent) is legal
+    assert core.validate_synthetic_component_body_v1(legal, ordered, parent) == legal
 
     for attack in (
         "unknown",
@@ -3721,7 +4185,19 @@ def test_task4_synthetic_component_validator_covers_metadata_body_and_t() -> Non
             raw = _task4_seal(raw, "component_sha")
         elif attack == "duplicate_order":
             pass
-        ordered_attack = [raw, _task4_clone(raw)] if attack == "duplicate_order" else [raw]
+        ordered_attack = (
+            [raw, _task4_clone(raw)] if attack == "duplicate_order" else [raw]
+        )
+        if attack == "field_order":
+            assert (
+                core.validate_synthetic_component_body_v1(
+                    raw,
+                    ordered_attack,
+                    parent,
+                )
+                == legal
+            )
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_synthetic_component_body_v1(raw, ordered_attack, parent)
 
@@ -3739,7 +4215,26 @@ def test_task4_all_eleven_synthetic_components_validate_in_frozen_order() -> Non
     for component in ordered:
         assert (
             core.validate_synthetic_component_body_v1(component, ordered, parent)
-            is component
+            == component
+        )
+
+
+def test_task4_standalone_component_recursively_validates_lineage_wrappers() -> None:
+    core = _core_module()
+    provenance = _task4_provenance_fixture()
+    graph = _task4_graph_manifest(provenance)
+    hostile_order = _task4_clone(graph["ordered_component_bodies"])
+    child = next(
+        item for item in hostile_order if item["component_id"] == "materialization"
+    )
+    permit = next(item for item in hostile_order if item["component_id"] == "permit")
+    permit["component_sha"] = "f" * 64
+
+    with pytest.raises((TypeError, ValueError)):
+        core.validate_synthetic_component_body_v1(
+            child,
+            hostile_order,
+            provenance["parent_freeze_v3_body"],
         )
 
 
@@ -3748,10 +4243,7 @@ def test_task4_response_run_spec_validator_covers_external_join_attacks() -> Non
     provenance = _task4_provenance_fixture()
     graph = _task4_graph_manifest(provenance)
     legal = _task4_response_run_spec(provenance, graph)
-    assert (
-        core.validate_response_run_spec_fixture_v1(legal, provenance, graph)
-        is legal
-    )
+    assert core.validate_response_run_spec_fixture_v1(legal, provenance, graph) == legal
 
     for attack in (
         "unknown",
@@ -3797,9 +4289,9 @@ def test_task4_response_run_spec_validator_covers_external_join_attacks() -> Non
             raw["selected_fejer_order"] = 128
             raw = _task4_seal(raw, "run_spec_sha")
         elif attack == "basis_rank":
-            raw["source_basis"]["vectors_wire"] = raw["source_basis"][
-                "vectors_wire"
-            ][:-1]
+            raw["source_basis"]["vectors_wire"] = raw["source_basis"]["vectors_wire"][
+                :-1
+            ]
             _task4_resign_tree("BasisManifest", raw["source_basis"])
             raw = _task4_seal(raw, "run_spec_sha")
         elif attack == "bridge_grid_join":
@@ -3812,6 +4304,12 @@ def test_task4_response_run_spec_validator_covers_external_join_attacks() -> Non
         elif attack == "bridge_authority_join":
             raw["actual_bridge_grid_authority_sha"] = "f" * 64
             raw = _task4_seal(raw, "run_spec_sha")
+        if attack == "field_order":
+            assert (
+                core.validate_response_run_spec_fixture_v1(raw, provenance, graph)
+                == legal
+            )
+            continue
         with pytest.raises((TypeError, ValueError)):
             core.validate_response_run_spec_fixture_v1(raw, provenance, graph)
 
@@ -3865,7 +4363,9 @@ def test_task4_response_run_spec_validator_covers_external_join_attacks() -> Non
         core.validate_response_run_spec_fixture_v1(legal, provenance, hostile_graph)
 
 
-def test_task4_source_response_validator_covers_branch_shape_and_lineage_attacks() -> None:
+def test_task4_source_response_validator_covers_branch_shape_and_lineage_attacks() -> (
+    None
+):
     core = _core_module()
     provenance = _task4_provenance_fixture()
     graph = _task4_graph_manifest(provenance)
@@ -3879,7 +4379,7 @@ def test_task4_source_response_validator_covers_branch_shape_and_lineage_attacks
                 provenance,
                 graph,
             )
-            is legal
+            == legal
         )
         for attack in (
             "unknown",
@@ -3946,6 +4446,17 @@ def test_task4_source_response_validator_covers_branch_shape_and_lineage_attacks
             elif attack == "values_shape":
                 raw["values"] = _task4_tensor([2, 10, 10])
                 raw = _task4_seal(raw, "response_sha")
+            if attack == "field_order":
+                assert (
+                    core.validate_source_readout_response_raw_v1(
+                        raw,
+                        run_spec,
+                        provenance,
+                        graph,
+                    )
+                    == legal
+                )
+                continue
             with pytest.raises((TypeError, ValueError)):
                 core.validate_source_readout_response_raw_v1(
                     raw,
@@ -3955,15 +4466,34 @@ def test_task4_source_response_validator_covers_branch_shape_and_lineage_attacks
                 )
 
 
+def test_task4_source_response_defers_shell_join_to_task7_route_verification() -> None:
+    core = _core_module()
+    provenance = _task4_provenance_fixture()
+    graph = _task4_graph_manifest(provenance)
+    run_spec = _task4_response_run_spec(provenance, graph)
+    raw = _task4_source_response("actual", run_spec, graph)
+    raw["shell_manifest_sha"] = "f" * 64
+    raw = _task4_seal(raw, "response_sha")
+
+    assert (
+        core.validate_source_readout_response_raw_v1(
+            raw,
+            run_spec,
+            provenance,
+            graph,
+        )
+        == raw
+    )
+
+
 def test_task4_all_seven_legacy_endpoint_payloads_match_production_golden() -> None:
     fixture_path = (
-        REPOSITORY_ROOT
-        / "tests"
-        / "fixtures"
-        / "v3m0_b7_legacy_response_18b0d43.json"
+        REPOSITORY_ROOT / "tests" / "fixtures" / "v3m0_b7_legacy_response_18b0d43.json"
     )
     if not fixture_path.is_file():
-        pytest.skip("Task-2 legacy golden is integrated after this isolated Task-4 branch")
+        pytest.skip(
+            "Task-2 legacy golden is integrated after this isolated Task-4 branch"
+        )
     core = _core_module()
     fixture_bytes = fixture_path.read_bytes()
     fixture = json.loads(fixture_bytes)
@@ -3981,21 +4511,13 @@ def test_task4_all_seven_legacy_endpoint_payloads_match_production_golden() -> N
         reference = shell["reference_outcome"]
         before_shell = core.canonical_json_bytes_v1(shell)
         before_reference = core.canonical_json_bytes_v1(reference)
-        assert core.validate_endpoint_reference_outcome_raw_v1(reference) is reference
-        assert core.validate_endpoint_shell_outcome_raw_v1(shell) is shell
+        assert core.validate_endpoint_reference_outcome_raw_v1(reference) == reference
+        assert core.validate_endpoint_shell_outcome_raw_v1(shell) == shell
         assert core.canonical_json_bytes_v1(reference) == before_reference
         assert core.canonical_json_bytes_v1(shell) == before_shell
         assert reference["outcome_sha"] == core.canonical_sha_v1(
-            {
-                key: value
-                for key, value in reference.items()
-                if key != "outcome_sha"
-            }
+            {key: value for key, value in reference.items() if key != "outcome_sha"}
         )
         assert shell["outcome_sha"] == core.canonical_sha_v1(
-            {
-                key: value
-                for key, value in shell.items()
-                if key != "outcome_sha"
-            }
+            {key: value for key, value in shell.items() if key != "outcome_sha"}
         )
