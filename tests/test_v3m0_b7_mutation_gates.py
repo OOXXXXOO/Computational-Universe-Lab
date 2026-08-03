@@ -227,7 +227,9 @@ def test_e02_uses_dynamic_fixture_count_and_recomputes_all_probe_outcomes(
         ordered_mutation_probes=probes,
     )
 
-    assert domain["mutation_probe_count"] == 5
+    assert domain["total_observation_count"] == 5
+    assert domain["mutation_probe_count"] == 2
+    assert domain["mutation_must_reject_count"] == 2
     assert domain["mutation_accept_count"] == 0
     assert domain["upstream_invalid_probe_count"] == 1
     assert domain["upstream_invalid_transcript_count"] == 0
@@ -243,6 +245,56 @@ def test_e02_uses_dynamic_fixture_count_and_recomputes_all_probe_outcomes(
         )
         == outcome
     )
+
+
+def test_mutation_domain_consumes_one_shot_exactly_once_and_drops_raw_bodies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _install_domain_spies(monkeypatch)
+    fixture = _fixture()
+    one_shot = iter(_probes(fixture))
+
+    domain = common._validate_mutation_probe_domain_v1(
+        phase="D0",
+        route_id="A_FLAT",
+        validated_corpus_fixture=fixture,
+        ordered_mutation_probes=one_shot,
+    )
+
+    assert domain["total_observation_count"] == 5
+    assert domain["mutation_probe_count"] == 2
+    assert all(
+        "materialized_transcript_bytes" not in normalized
+        for normalized in domain["normalized"]
+    )
+    with pytest.raises((TypeError, ValueError), match="cardinality|exhaust"):
+        common._validate_mutation_probe_domain_v1(
+            phase="D0",
+            route_id="A_FLAT",
+            validated_corpus_fixture=fixture,
+            ordered_mutation_probes=one_shot,
+        )
+
+
+@pytest.mark.parametrize("delta", (-1, 1))
+def test_mutation_domain_rejects_one_shot_underflow_and_overflow(
+    monkeypatch: pytest.MonkeyPatch,
+    delta: int,
+) -> None:
+    common = _common()
+    _install_domain_spies(monkeypatch)
+    fixture = _fixture()
+    probes = _probes(fixture)
+    hostile = probes[:-1] if delta < 0 else [*probes, copy.deepcopy(probes[-1])]
+
+    with pytest.raises((TypeError, ValueError), match="cardinality|exhaust"):
+        common._validate_mutation_probe_domain_v1(
+            phase="D0",
+            route_id="A_FLAT",
+            validated_corpus_fixture=fixture,
+            ordered_mutation_probes=iter(hostile),
+        )
 
 
 def test_e02_records_acceptance_wrong_exception_and_nonbytes(
@@ -401,7 +453,9 @@ def test_mutation_domain_repeats_exact_dynamic_universe_for_d1_captures(
         validated_corpus_fixture=fixture,
         ordered_mutation_probes=[{**row, "route_id": "B_PROGRESS"} for row in probes],
     )
-    assert domain["mutation_probe_count"] == 15
+    assert domain["total_observation_count"] == 15
+    assert domain["mutation_probe_count"] == 6
+    assert domain["mutation_must_reject_count"] == 6
     assert domain["upstream_invalid_probe_count"] == 3
 
 

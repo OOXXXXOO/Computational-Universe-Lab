@@ -357,6 +357,12 @@ def _patch_invalid_presence_generator(monkeypatch: pytest.MonkeyPatch) -> None:
         "generate_constructible_invalid_presence_candidates_v1",
         lambda _success: copy.deepcopy(candidates),
     )
+    monkeypatch.setattr(
+        _common(),
+        "iter_constructible_invalid_presence_candidates_v1",
+        lambda _success: (copy.deepcopy(candidate) for candidate in candidates),
+        raising=False,
+    )
 
 
 def _invalid_presence_probes(
@@ -455,6 +461,53 @@ def test_invalid_presence_metric_counts_only_canonical_encoder_accepts(
 
     assert domain["canonical_accept_count"] == 1
     assert domain["all_exact_rejections"] is False
+
+
+def test_invalid_presence_domain_consumes_one_shot_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _patch_simple_case_validation(monkeypatch)
+    _patch_invalid_presence_generator(monkeypatch)
+    fixture = _validated_fixture()
+    one_shot = iter(_invalid_presence_probes())
+
+    domain = common._validate_invalid_presence_domain_v1(
+        phase="D0",
+        route_id="A_FLAT",
+        ordered_source_transcript_sets=[fixture["ordered_d0_transcripts"]],
+        ordered_invalid_presence_probes=one_shot,
+    )
+
+    assert len(domain["normalized"]) == 1393
+    assert all(
+        "candidate_transcript_bytes" not in normalized
+        for normalized in domain["normalized"]
+    )
+    with pytest.raises((TypeError, ValueError), match="cardinality|exhaust"):
+        common._validate_invalid_presence_domain_v1(
+            phase="D0",
+            route_id="A_FLAT",
+            ordered_source_transcript_sets=[fixture["ordered_d0_transcripts"]],
+            ordered_invalid_presence_probes=one_shot,
+        )
+
+
+def test_invalid_presence_candidate_iterator_is_lazy_and_list_api_is_compatible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _patch_simple_case_validation(monkeypatch)
+    success = _source_transcripts()[-1]
+
+    one_shot = common.iter_constructible_invalid_presence_candidates_v1(success)
+    assert iter(one_shot) is one_shot
+    first = next(one_shot)
+    remainder = list(one_shot)
+    eager = common.generate_constructible_invalid_presence_candidates_v1(success)
+
+    assert len(remainder) == 1392
+    assert eager == [first, *remainder]
 
 
 @pytest.mark.parametrize(

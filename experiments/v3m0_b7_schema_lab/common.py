@@ -3221,14 +3221,14 @@ def _attempt_governed_members_changed_v1(candidate_attempt, success_attempt):
     )
 
 
-def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw):
-    """Generate the exact 1,393 constructible non-case tag/presence states."""
+def iter_constructible_invalid_presence_candidates_v1(success_transcript_raw):
+    """Yield the exact 1,393 constructible non-case states without retaining them."""
 
     success = validate_case_contract_v1(success_transcript_raw)
     if success["case_id"] != "success":
         raise ValueError("invalid-presence generation requires the success case")
     legal_pairs = {(row[2], row[4]) for row in _CASE_CONTRACTS_V1}
-    candidates = []
+    candidate_count = 0
     for bit_integer in range(512):
         bits = f"{bit_integer:09b}"
         if not (
@@ -3305,18 +3305,24 @@ def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw
                 ):
                     _rehash_record_field_v1(attempt, "attempt_sha")
             _rehash_record_field_v1(transcript, "experimental_sha")
-            candidates.append(
-                {
-                    "terminal_tag": terminal_tag,
-                    "bit_integer": bit_integer,
-                    "presence_bits": bits,
-                    "half_pair": (bits[5] != bits[6] or bits[7] != bits[8]),
-                    "transcript": transcript,
-                }
-            )
-    if len(candidates) != 1393:
+            candidate_count += 1
+            yield {
+                "terminal_tag": terminal_tag,
+                "bit_integer": bit_integer,
+                "presence_bits": bits,
+                "half_pair": (bits[5] != bits[6] or bits[7] != bits[8]),
+                "transcript": transcript,
+            }
+    if candidate_count != 1393:
         raise AssertionError("invalid-presence domain cardinality drifted")
-    return candidates
+
+
+def generate_constructible_invalid_presence_candidates_v1(success_transcript_raw):
+    """Materialize the compatibility list for callers that require eager JSON."""
+
+    return list(
+        iter_constructible_invalid_presence_candidates_v1(success_transcript_raw)
+    )
 
 
 _D0_COMPARISON_FIELDS = (
@@ -5218,6 +5224,35 @@ _LEGAL_REPLAY_OBSERVATION_FIELDS_V1 = (
 )
 
 
+def _ordered_observation_iterator_v1(raw_body, expected_count, label):
+    if type(raw_body) is list:
+        if len(raw_body) != expected_count:
+            raise TypeError(f"{label} cardinality drifted")
+        return iter(raw_body)
+    try:
+        iterator = iter(raw_body)
+    except TypeError:
+        raise TypeError(f"{label} must be an exact list or one-shot iterator") from None
+    if iterator is not raw_body:
+        raise TypeError(f"{label} iterable must be one-shot")
+    return iterator
+
+
+def _next_ordered_observation_v1(iterator, label):
+    try:
+        return next(iterator)
+    except StopIteration:
+        raise TypeError(f"{label} cardinality underflow") from None
+
+
+def _require_ordered_observation_exhausted_v1(iterator, label):
+    try:
+        next(iterator)
+    except StopIteration:
+        return
+    raise TypeError(f"{label} cardinality overflow")
+
+
 def _require_exact_ordered_dict_v1(raw_body, fields, label):
     if type(raw_body) is not dict:
         raise TypeError(f"{label} must be an exact dict")
@@ -5687,19 +5722,19 @@ def _validate_mutation_probe_domain_v1(
         "mutation universe",
     )
     expected_count = mutation_count * len(capture_ordinals)
-    if (
-        type(ordered_mutation_probes) is not list
-        or len(ordered_mutation_probes) != expected_count
-    ):
-        raise TypeError("mutation probe observation cardinality drifted")
+    observation_iterator = _ordered_observation_iterator_v1(
+        ordered_mutation_probes,
+        expected_count,
+        "mutation probe observation",
+    )
 
     normalized = []
     mutation_accept_count = 0
     invalid_rejection_surface_count = 0
     upstream_invalid_probe_count = 0
+    mutation_must_reject_count = 0
     upstream_invalid_transcript_count = 0
     all_upstream_route_entry_counts_zero = True
-    cursor = 0
     for capture_ordinal, source_set in zip(capture_ordinals, source_sets):
         sources_by_case = {source["case_id"]: source for source in source_set}
         if len(sources_by_case) != 7 or "success" not in sources_by_case:
@@ -5711,11 +5746,13 @@ def _validate_mutation_probe_domain_v1(
         }
         for mutation in mutations:
             row = _require_exact_ordered_dict_v1(
-                ordered_mutation_probes[cursor],
+                _next_ordered_observation_v1(
+                    observation_iterator,
+                    "mutation probe observation",
+                ),
                 _MUTATION_PROBE_OBSERVATION_FIELDS_V1,
                 "mutation probe observation",
             )
-            cursor += 1
             if (
                 type(row["capture_ordinal"]) is not int
                 or row["capture_ordinal"] != capture_ordinal
@@ -5733,6 +5770,8 @@ def _validate_mutation_probe_domain_v1(
                 raise TypeError("mutation upstream transcript count is not exact")
 
             probe_kind = mutation["probe_kind"]
+            if probe_kind == "MUTATION_MUST_REJECT":
+                mutation_must_reject_count += 1
             if probe_kind == "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT":
                 expected_body = None
                 expected_upstream_count = None
@@ -5856,6 +5895,11 @@ def _validate_mutation_probe_domain_v1(
                 }
             )
 
+    _require_ordered_observation_exhausted_v1(
+        observation_iterator,
+        "mutation probe observation",
+    )
+
     domain_root = canonical_sha_v1(
         {
             "mutation_universe_sha": universe_sha,
@@ -5869,10 +5913,10 @@ def _validate_mutation_probe_domain_v1(
             mutation_accept_count == 0,
             invalid_rejection_surface_count == 0,
         ),
-        "mutation_probe_count": len(normalized),
-        "mutation_must_reject_probe_count": sum(
-            row["probe_kind"] == "MUTATION_MUST_REJECT" for row in normalized
-        ),
+        "total_observation_count": len(normalized),
+        "mutation_probe_count": mutation_must_reject_count,
+        "mutation_must_reject_count": mutation_must_reject_count,
+        "mutation_must_reject_probe_count": mutation_must_reject_count,
         "mutation_accept_count": mutation_accept_count,
         "invalid_rejection_surface_count": invalid_rejection_surface_count,
         "upstream_invalid_probe_count": upstream_invalid_probe_count,
@@ -6206,37 +6250,28 @@ def _validate_invalid_presence_domain_v1(
         phase,
         ordered_source_transcript_sets,
     )
-    expected_by_capture = []
-    for source_set in source_sets:
-        candidates = generate_constructible_invalid_presence_candidates_v1(
-            source_set[6]
-        )
-        if len(candidates) != 1393:
-            raise ValueError("invalid-presence generator cardinality drifted")
-        expected_by_capture.append(candidates)
     expected_count = 1393 * len(capture_ordinals)
-    if (
-        type(ordered_invalid_presence_probes) is not list
-        or len(ordered_invalid_presence_probes) != expected_count
-    ):
-        raise TypeError("invalid-presence observation cardinality drifted")
+    observation_iterator = _ordered_observation_iterator_v1(
+        ordered_invalid_presence_probes,
+        expected_count,
+        "invalid-presence observation",
+    )
 
     normalized = []
     canonical_accept_count = 0
     half_pair_state_count = 0
     exact_rejections = True
-    cursor = 0
-    for capture_ordinal, candidates in zip(
-        capture_ordinals,
-        expected_by_capture,
-    ):
+    for capture_ordinal, source_set in zip(capture_ordinals, source_sets):
+        candidates = iter_constructible_invalid_presence_candidates_v1(source_set[6])
         for candidate in candidates:
             row = _require_exact_ordered_dict_v1(
-                ordered_invalid_presence_probes[cursor],
+                _next_ordered_observation_v1(
+                    observation_iterator,
+                    "invalid-presence observation",
+                ),
                 _INVALID_PRESENCE_OBSERVATION_FIELDS_V1,
                 "invalid-presence observation",
             )
-            cursor += 1
             expected_bytes = canonical_json_bytes_v1(candidate["transcript"])
             if (
                 type(row["capture_ordinal"]) is not int
@@ -6283,6 +6318,10 @@ def _validate_invalid_presence_domain_v1(
                     "encode_result": _normalize_route_call_observation_v1(encode),
                 }
             )
+    _require_ordered_observation_exhausted_v1(
+        observation_iterator,
+        "invalid-presence observation",
+    )
     return {
         "normalized": normalized,
         "canonical_accept_count": canonical_accept_count,
