@@ -115,3 +115,8 @@ V3-M0 的最高可签发状态是 `READY-V3-M1-ANCHOR-CERTIFICATION`，但当前
 - [`v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md`](v3-设计勘误-B7三路线并行对照与production收敛-v9-2026-08-03.md)：
   修复 v8 B7 prefix 与 provenance 缺口；允许 A/B/C 在非 authority 实验域中以同一 transcript
   并行对照，并冻结在 B8/issuer/artifact 之前收敛为唯一 production schema 的硬门。
+- [`v3-设计勘误-B7-v9.1机器合同闭合-2026-08-03.md`](v3-设计勘误-B7-v9.1机器合同闭合-2026-08-03.md)
+  与 [`v3-机器合同-B7-v9.1-registry.json`](v3-机器合同-B7-v9.1-registry.json)：
+  保留 v9 原文与 SHA，只补齐 P0 catalog overlay、schema-lab exact records、D0 淘汰/D1 决胜、
+  双复核 receipt、typed review halt 与 selection-to-production Git-object handoff；不改变物理、阈值
+  或状态上限。
