@@ -2392,33 +2392,23 @@ class ResponseHardeningReviewTests(unittest.TestCase):
 
     def test_reference_runner_up_margin_is_reachable_with_two_candidates(self):
         template = self._raw_reference_outcome()
-        first = self._candidate(
-            0.0,
-            np.diag((1.0, 0.0)).astype(np.complex128),
-            participation=0.9,
-            gap=0.1,
-            runner_up=0.8,
-        )
-        second = self._candidate(
-            0.1,
-            np.diag((0.0, 1.0)).astype(np.complex128),
-            participation=0.8,
-            gap=0.1,
-            runner_up=0.9,
-        )
         identity = np.eye(2, dtype=np.complex128)
-        with mock.patch.object(
-            response_module,
-            "_extract_projector_candidates",
-            return_value=(first, second),
-        ):
-            outcome = _build_endpoint_reference_outcome_from_matrices(
-                template.reference_spec,
-                identity,
-                identity,
-                identity,
-                identity,
+        gap = 2.0 * phase_grid_step(256)
+        transition = np.diag(
+            np.exp(
+                1.0j
+                * np.asarray(
+                    (math.pi / 2.0, math.pi / 2.0 + gap),
+                )
             )
+        ).astype(np.complex128)
+        outcome = _build_endpoint_reference_outcome_from_matrices(
+            template.reference_spec,
+            transition,
+            identity,
+            identity,
+            identity,
+        )
         self.assertEqual(
             outcome.failure,
             EndpointReferenceFailure.RUNNER_UP_MARGIN_FAILED,
@@ -2427,37 +2417,30 @@ class ResponseHardeningReviewTests(unittest.TestCase):
     def test_shell_phase_grid_collision_has_distinct_typed_failure(self):
         reference, spec, matrices, metrics = self._shell_inputs()
         grid_step = phase_grid_step(spec.candidate_fejer_order)
-        first = self._candidate(
-            0.0,
-            np.diag((1.0, 0.0)).astype(np.complex128),
-            participation=1.0,
-            gap=0.5 * grid_step,
-            runner_up=0.0,
-        )
-        second = self._candidate(
-            0.5 * grid_step,
-            np.diag((0.0, 1.0)).astype(np.complex128),
-            participation=1.0,
-            gap=0.5 * grid_step,
-            runner_up=1.0,
-        )
-        with mock.patch.object(
-            response_module,
-            "_extract_projector_candidates",
-            return_value=(first, second),
-        ):
-            outcome = _build_endpoint_shell_outcome_from_matrices(
-                reference,
-                spec,
-                matrices,
-                metrics,
-                np.eye(2, dtype=np.complex128),
-                np.eye(2, dtype=np.complex128),
-                actual_factory_sha=spec.control_registry_entry.factory_sha,
-                actual_transition_sha="a" * 64,
-                actual_dynamics_certificate_sha="b" * 64,
-                dt=0.25,
+        transition = np.diag(
+            np.exp(
+                1.0j
+                * np.asarray(
+                    (math.pi / 2.0 + 0.5 * grid_step, math.pi / 2.0),
+                )
             )
+        ).astype(np.complex128)
+        matrices = tuple(
+            transition.copy()
+            for _ in matrices
+        )
+        outcome = _build_endpoint_shell_outcome_from_matrices(
+            reference,
+            spec,
+            matrices,
+            metrics,
+            np.eye(2, dtype=np.complex128),
+            np.eye(2, dtype=np.complex128),
+            actual_factory_sha=spec.control_registry_entry.factory_sha,
+            actual_transition_sha="a" * 64,
+            actual_dynamics_certificate_sha="b" * 64,
+            dt=0.25,
+        )
         self.assertEqual(
             outcome.failure,
             EndpointShellFailure.PHASE_SEPARATION_FAILED,
@@ -2467,37 +2450,30 @@ class ResponseHardeningReviewTests(unittest.TestCase):
         reference, spec, matrices, metrics = self._shell_inputs()
         gap = 2.0 * phase_grid_step(spec.candidate_fejer_order)
         self.assertLess(gap, phase_separation_min(spec.candidate_fejer_order))
-        first = self._candidate(
-            0.0,
-            np.diag((1.0, 0.0)).astype(np.complex128),
-            participation=1.0,
-            gap=gap,
-            runner_up=0.0,
-        )
-        second = self._candidate(
-            gap,
-            np.diag((0.0, 1.0)).astype(np.complex128),
-            participation=1.0,
-            gap=gap,
-            runner_up=1.0,
-        )
-        with mock.patch.object(
-            response_module,
-            "_extract_projector_candidates",
-            return_value=(first, second),
-        ):
-            outcome = _build_endpoint_shell_outcome_from_matrices(
-                reference,
-                spec,
-                matrices,
-                metrics,
-                np.eye(2, dtype=np.complex128),
-                np.eye(2, dtype=np.complex128),
-                actual_factory_sha=spec.control_registry_entry.factory_sha,
-                actual_transition_sha="a" * 64,
-                actual_dynamics_certificate_sha="b" * 64,
-                dt=0.25,
+        transition = np.diag(
+            np.exp(
+                1.0j
+                * np.asarray(
+                    (math.pi / 2.0 + gap, math.pi / 2.0),
+                )
             )
+        ).astype(np.complex128)
+        matrices = tuple(
+            transition.copy()
+            for _ in matrices
+        )
+        outcome = _build_endpoint_shell_outcome_from_matrices(
+            reference,
+            spec,
+            matrices,
+            metrics,
+            np.eye(2, dtype=np.complex128),
+            np.eye(2, dtype=np.complex128),
+            actual_factory_sha=spec.control_registry_entry.factory_sha,
+            actual_transition_sha="a" * 64,
+            actual_dynamics_certificate_sha="b" * 64,
+            dt=0.25,
+        )
         self.assertEqual(
             outcome.failure,
             EndpointShellFailure.GAP_FAILED,

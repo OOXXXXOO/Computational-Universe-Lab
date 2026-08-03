@@ -24,6 +24,7 @@ from typing import Callable, Literal, Optional
 
 import numpy as np
 
+from . import b7_replay_core_v1 as _b7_replay_core_v1
 from .certificate import (
     DynamicsCertificate,
     VerifiedDynamicsCertificate,
@@ -889,6 +890,129 @@ def _tensor_record(value: FrozenComplexTensor) -> dict[str, object]:
         **frozen_tensor_payload(verified),
         "tensor_sha": verified.tensor_sha,
     }
+
+
+def _frozen_tensor_from_raw_v1(raw_body: object) -> FrozenComplexTensor:
+    checked = _b7_replay_core_v1._validate_frozen_complex_tensor_raw_v1(
+        raw_body,
+        "tensor",
+    )
+    return verify_frozen_tensor(
+        FrozenComplexTensor(
+            tensor_schema_version=checked["tensor_schema_version"],
+            shape=tuple(checked["shape"]),
+            values_wire=tuple(
+                (wire[0], wire[1]) for wire in checked["values_wire"]
+            ),
+            tensor_sha=checked["tensor_sha"],
+        )
+    )
+
+
+def _build_fejer_branch_response_values_from_raw(
+    branch,
+    response_grid,
+    fejer_order,
+    source_basis,
+    readout_basis,
+    shell_phases,
+    ordered_transition_matrices,
+    ordered_metric_matrices,
+):
+    return _b7_replay_core_v1._build_fejer_branch_response_values_from_raw(
+        branch,
+        response_grid,
+        fejer_order,
+        source_basis,
+        readout_basis,
+        shell_phases,
+        ordered_transition_matrices,
+        ordered_metric_matrices,
+    )
+
+
+def _select_endpoint_reference_from_raw(
+    reference_spec,
+    transition_matrix,
+    metric_matrix,
+    source_injection_matrix,
+    readout_matrix,
+):
+    return _b7_replay_core_v1._select_endpoint_reference_from_raw(
+        reference_spec,
+        transition_matrix,
+        metric_matrix,
+        source_injection_matrix,
+        readout_matrix,
+    )
+
+
+def _track_endpoint_shell_from_raw(
+    reference_outcome,
+    shell_spec,
+    ordered_transition_matrices,
+    ordered_metric_matrices,
+    source_injection_matrix,
+    readout_matrix,
+    actual_factory_sha,
+    actual_transition_sha,
+    actual_dynamics_certificate_sha,
+    dt,
+):
+    return _b7_replay_core_v1._track_endpoint_shell_from_raw(
+        reference_outcome,
+        shell_spec,
+        ordered_transition_matrices,
+        ordered_metric_matrices,
+        source_injection_matrix,
+        readout_matrix,
+        actual_factory_sha,
+        actual_transition_sha,
+        actual_dynamics_certificate_sha,
+        dt,
+    )
+
+
+def _assemble_atomic_paired_response_attempt_from_raw(
+    actual_response_values,
+    matched_ablated_response_values,
+    actual_bridge_audit,
+    matched_ablated_bridge_audit,
+    first_failure,
+):
+    return _b7_replay_core_v1._assemble_atomic_paired_response_attempt_from_raw(
+        actual_response_values,
+        matched_ablated_response_values,
+        actual_bridge_audit,
+        matched_ablated_bridge_audit,
+        first_failure,
+    )
+
+
+def _audit_source_readout_bridge_from_raw(
+    branch,
+    factory_sha,
+    transition_sha,
+    dynamics_certificate_sha,
+    run_spec_sha,
+    bridge_grid,
+    bridge_steps,
+    source_trial_vectors,
+    current_readout_calibration_spec,
+    ordered_raw_differences,
+):
+    return _b7_replay_core_v1._audit_source_readout_bridge_from_raw(
+        branch,
+        factory_sha,
+        transition_sha,
+        dynamics_certificate_sha,
+        run_spec_sha,
+        bridge_grid,
+        bridge_steps,
+        source_trial_vectors,
+        current_readout_calibration_spec,
+        ordered_raw_differences,
+    )
 
 
 def _response_grid_record(value: ResponseKGridManifest) -> dict[str, object]:
@@ -1907,6 +2031,107 @@ def _endpoint_reference_outcome_record(
     }
 
 
+def _endpoint_reference_outcome_from_raw_v1(
+    raw_body: object,
+    live_spec: EndpointReferenceSpec,
+    expected_raw_spec: dict[str, object],
+) -> EndpointReferenceOutcome:
+    checked = _b7_replay_core_v1.validate_endpoint_reference_outcome_raw_v1(
+        raw_body
+    )
+    for embedded in (
+        checked["reference_spec"],
+        checked["attempt_audit"]["reference_spec"],
+    ):
+        if _b7_replay_core_v1.canonical_json_bytes_v1(embedded) != (
+            _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_spec)
+        ):
+            raise ValueError("raw reference leaf changed its live spec binding")
+    raw_attempt = checked["attempt_audit"]
+    attempt = EndpointReferenceAttemptAudit(
+        attempt_schema_version=raw_attempt["attempt_schema_version"],
+        reference_spec=live_spec,
+        candidate_phases=tuple(raw_attempt["candidate_phases"]),
+        candidate_ranks=tuple(raw_attempt["candidate_ranks"]),
+        expected_shell_rank=raw_attempt["expected_shell_rank"],
+        expected_shell_rank_source_id=raw_attempt[
+            "expected_shell_rank_source_id"
+        ],
+        candidate_participations=tuple(
+            raw_attempt["candidate_participations"]
+        ),
+        runner_up_overlaps=tuple(raw_attempt["runner_up_overlaps"]),
+        hermitian_residuals=tuple(raw_attempt["hermitian_residuals"]),
+        idempotent_residuals=tuple(raw_attempt["idempotent_residuals"]),
+        g_invariance_residuals=tuple(raw_attempt["g_invariance_residuals"]),
+        eigenphase_residuals=tuple(raw_attempt["eigenphase_residuals"]),
+        observed_competitor_gaps=tuple(
+            raw_attempt["observed_competitor_gaps"]
+        ),
+        attempt_sha=raw_attempt["attempt_sha"],
+    )
+    if attempt.attempt_sha != canonical_sha(
+        endpoint_reference_attempt_audit_payload(attempt)
+    ):
+        raise ValueError("raw reference leaf returned a noncanonical attempt SHA")
+    raw_reference = checked["reference"]
+    reference = None
+    if raw_reference is not None:
+        reference = EndpointReferenceProjector(
+            reference_schema_version=raw_reference[
+                "reference_schema_version"
+            ],
+            control_registry_entry_sha=raw_reference[
+                "control_registry_entry_sha"
+            ],
+            actual_transition_sha=raw_reference["actual_transition_sha"],
+            actual_dynamics_certificate_sha=raw_reference[
+                "actual_dynamics_certificate_sha"
+            ],
+            reference_reciprocal_index=tuple(
+                raw_reference["reference_reciprocal_index"]
+            ),
+            reference_phase=raw_reference["reference_phase"],
+            projector_coordinate_convention_id=raw_reference[
+                "projector_coordinate_convention_id"
+            ],
+            rank=raw_reference["rank"],
+            projector=_frozen_tensor_from_raw_v1(raw_reference["projector"]),
+            reference_sha=raw_reference["reference_sha"],
+        )
+        if reference.reference_sha != canonical_sha(
+            endpoint_reference_projector_payload(reference)
+        ):
+            raise ValueError(
+                "raw reference leaf returned a noncanonical projector SHA"
+            )
+    raw_status = checked["status"]
+    status = BlockStatus(
+        raw_status["defined"],
+        (
+            None
+            if raw_status["reason"] is None
+            else UndefinedReason(raw_status["reason"])
+        ),
+    )
+    failure = (
+        None
+        if checked["failure"] is None
+        else EndpointReferenceFailure(checked["failure"])
+    )
+    outcome = EndpointReferenceOutcome(
+        status=status,
+        failure=failure,
+        reference_spec=live_spec,
+        attempt_audit=attempt,
+        reference=reference,
+        outcome_sha=checked["outcome_sha"],
+    )
+    if outcome.outcome_sha != canonical_sha(endpoint_reference_outcome_payload(outcome)):
+        raise ValueError("raw reference leaf returned a noncanonical outcome SHA")
+    return outcome
+
+
 def endpoint_shell_spec_payload(
     spec: EndpointShellSpec,
 ) -> dict[str, object]:
@@ -2078,6 +2303,145 @@ def _endpoint_shell_outcome_record(
         **endpoint_shell_outcome_payload(outcome),
         "outcome_sha": outcome.outcome_sha,
     }
+
+
+def _endpoint_shell_outcome_from_raw_v1(
+    raw_body: object,
+    live_reference_outcome: EndpointReferenceOutcome,
+    live_shell_spec: EndpointShellSpec,
+    expected_raw_reference: dict[str, object],
+    expected_raw_shell_spec: dict[str, object],
+) -> EndpointShellOutcome:
+    checked = _b7_replay_core_v1.validate_endpoint_shell_outcome_raw_v1(raw_body)
+    if _b7_replay_core_v1.canonical_json_bytes_v1(
+        checked["reference_outcome"]
+    ) != _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_reference):
+        raise ValueError("raw shell leaf changed its reference binding")
+    raw_attempt = checked["attempt_audit"]
+    for embedded in (
+        raw_attempt["shell_spec"],
+        None if checked["shell"] is None else checked["shell"]["shell_spec"],
+    ):
+        if embedded is not None and _b7_replay_core_v1.canonical_json_bytes_v1(
+            embedded
+        ) != _b7_replay_core_v1.canonical_json_bytes_v1(expected_raw_shell_spec):
+            raise ValueError("raw shell leaf changed its shell-spec binding")
+    point_attempts = tuple(
+        ShellCandidatePointAttempt(
+            reciprocal_index=tuple(item["reciprocal_index"]),
+            momentum_path_id=item["momentum_path_id"],
+            momentum_path_position=item["momentum_path_position"],
+            candidate_phases=tuple(item["candidate_phases"]),
+            candidate_ranks=tuple(item["candidate_ranks"]),
+            candidate_participations=tuple(item["candidate_participations"]),
+            candidate_reference_overlaps=tuple(
+                item["candidate_reference_overlaps"]
+            ),
+            candidate_predecessor_overlaps=tuple(
+                item["candidate_predecessor_overlaps"]
+            ),
+        )
+        for item in raw_attempt["point_attempts"]
+    )
+    attempt = EndpointShellAttemptAudit(
+        attempt_schema_version=raw_attempt["attempt_schema_version"],
+        shell_spec=live_shell_spec,
+        point_attempts=point_attempts,
+        projector_residual_max=raw_attempt["projector_residual_max"],
+        loop_residual_max_observed=raw_attempt[
+            "loop_residual_max_observed"
+        ],
+        attempt_sha=raw_attempt["attempt_sha"],
+    )
+    if attempt.attempt_sha != canonical_sha(
+        endpoint_shell_attempt_audit_payload(attempt)
+    ):
+        raise ValueError("raw shell leaf returned a noncanonical attempt SHA")
+    raw_shell = checked["shell"]
+    shell = None
+    if raw_shell is not None:
+        point_audits = tuple(
+            ShellPointAudit(
+                reciprocal_index=tuple(item["reciprocal_index"]),
+                momentum_path_id=item["momentum_path_id"],
+                momentum_path_position=item["momentum_path_position"],
+                shell_phase=item["shell_phase"],
+                rank=item["rank"],
+                hermitian_residual=item["hermitian_residual"],
+                idempotent_residual=item["idempotent_residual"],
+                g_invariance_residual=item["g_invariance_residual"],
+                eigenphase_residual=item["eigenphase_residual"],
+                participation=item["participation"],
+                nearest_competitor_gap=item["nearest_competitor_gap"],
+                reference_overlap=item["reference_overlap"],
+                runner_up_overlap=item["runner_up_overlap"],
+                predecessor_overlap=item["predecessor_overlap"],
+                loop_residual=item["loop_residual"],
+            )
+            for item in raw_shell["point_audits"]
+        )
+        shell = EndpointShellManifest(
+            shell_schema_version=raw_shell["shell_schema_version"],
+            actual_factory_sha=raw_shell["actual_factory_sha"],
+            actual_transition_sha=raw_shell["actual_transition_sha"],
+            actual_dynamics_certificate_sha=raw_shell[
+                "actual_dynamics_certificate_sha"
+            ],
+            shell_spec=live_shell_spec,
+            dt=raw_shell["dt"],
+            eigenphase_convention_id=raw_shell["eigenphase_convention_id"],
+            shell_phases=tuple(raw_shell["shell_phases"]),
+            shell_projectors=_frozen_tensor_from_raw_v1(
+                raw_shell["shell_projectors"]
+            ),
+            point_audits=point_audits,
+            hermitian_residual_max=raw_shell["hermitian_residual_max"],
+            idempotent_residual_max=raw_shell["idempotent_residual_max"],
+            g_invariance_residual_max=raw_shell[
+                "g_invariance_residual_max"
+            ],
+            eigenphase_residual_max=raw_shell["eigenphase_residual_max"],
+            participation_min=raw_shell["participation_min"],
+            nearest_competitor_gap_min=raw_shell[
+                "nearest_competitor_gap_min"
+            ],
+            reference_overlap_min=raw_shell["reference_overlap_min"],
+            runner_up_overlap_max=raw_shell["runner_up_overlap_max"],
+            predecessor_overlap_min=raw_shell["predecessor_overlap_min"],
+            overlap_margin_min=raw_shell["overlap_margin_min"],
+            loop_residual_max=raw_shell["loop_residual_max"],
+            ambiguous=raw_shell["ambiguous"],
+            shell_manifest_sha=raw_shell["shell_manifest_sha"],
+        )
+        if shell.shell_manifest_sha != canonical_sha(
+            endpoint_shell_manifest_payload(shell)
+        ):
+            raise ValueError("raw shell leaf returned a noncanonical manifest SHA")
+    raw_status = checked["status"]
+    status = BlockStatus(
+        raw_status["defined"],
+        (
+            None
+            if raw_status["reason"] is None
+            else UndefinedReason(raw_status["reason"])
+        ),
+    )
+    failure = (
+        None
+        if checked["failure"] is None
+        else EndpointShellFailure(checked["failure"])
+    )
+    outcome = EndpointShellOutcome(
+        status=status,
+        failure=failure,
+        reference_outcome=live_reference_outcome,
+        attempt_audit=attempt,
+        shell=shell,
+        outcome_sha=checked["outcome_sha"],
+    )
+    if outcome.outcome_sha != canonical_sha(endpoint_shell_outcome_payload(outcome)):
+        raise ValueError("raw shell leaf returned a noncanonical outcome SHA")
+    return outcome
 
 
 def source_frame_coverage_payload(
@@ -2420,74 +2784,20 @@ def _build_source_readout_bridge_audit_from_differences(
             raise TypeError("raw_difference_matrix dtype must be complex128")
         if raw.ndim != 2 or raw.shape != (readout_count, source_count):
             raise ValueError("raw difference matrix shape mismatch")
-    spec = registry_entry.readout_calibration_spec
-    source_whitener = frozen_tensor_array(spec.source_metric_whitener)
-    h_whitener = frozen_tensor_array(spec.h_metric_whitener)
-    incidence = frozen_tensor_array(spec.curvature_incidence_operator)
-    curv_whitener = frozen_tensor_array(spec.curvature_metric_whitener)
-    if source_whitener.shape != (source_count, source_count):
-        raise ValueError("source whitener shape mismatch")
-    if h_whitener.shape != (readout_count, readout_count):
-        raise ValueError("h whitener shape mismatch")
-    if incidence.shape != (readout_count, readout_count):
-        raise ValueError("curvature incidence shape mismatch")
-    if curv_whitener.shape != (readout_count, readout_count):
-        raise ValueError("curvature whitener shape mismatch")
-    source_inverse = np.linalg.inv(source_whitener)
-    matrix_audits: list[SourceReadoutBridgeMatrixAudit] = []
-    for expected_key, item in zip(expected_keys, differences):
-        reciprocal_index, steps, raw = item
-        difference = _strict_complex_matrix(
-            raw,
-            "raw_difference_matrix",
-        )
-        if difference.shape != (readout_count, source_count):
-            raise ValueError("raw difference matrix shape mismatch")
-        raw_frobenius = _exact_frobenius_upper(difference)
-        # The Frobenius containment is also a rigorous operator-norm upper.
-        raw_operator = raw_frobenius
-        h_error = np.asarray(
-            h_whitener @ difference @ source_inverse,
-            dtype=np.complex128,
-        )
-        curv_error = np.asarray(
-            curv_whitener @ incidence @ difference @ source_inverse,
-            dtype=np.complex128,
-        )
-        matrix_audits.append(
-            SourceReadoutBridgeMatrixAudit(
-                reciprocal_index=reciprocal_index,
-                macro_steps=steps,
-                raw_difference_matrix=freeze_complex_tensor(difference),
-                frame_coverage=None,
-                raw_frobenius_upper=raw_frobenius,
-                raw_operator_norm_upper=raw_operator,
-                h_whitened_operator_error_upper=(_exact_frobenius_upper(h_error)),
-                curv_whitened_operator_error_upper=(_exact_frobenius_upper(curv_error)),
-            )
-        )
-    provisional = SourceReadoutBridgeAudit(
-        bridge_schema_version=SOURCE_READOUT_BRIDGE_SCHEMA_VERSION,
-        branch=branch,
-        factory_sha=factory_sha,
-        transition_sha=transition_sha,
-        dynamics_certificate_sha=dynamics_certificate_sha,
-        run_spec_sha=run_spec.spec_sha,
-        source_metric_whitener_sha=(spec.source_metric_whitener.tensor_sha),
-        readout_calibration_spec_sha=spec.spec_sha,
-        matrix_audits=tuple(matrix_audits),
-        h_operator_error_max=float(
-            max(item.h_whitened_operator_error_upper for item in matrix_audits)
-        ),
-        curv_operator_error_max=float(
-            max(item.curv_whitened_operator_error_upper for item in matrix_audits)
-        ),
-        bridge_sha=_ZERO_SHA,
+    raw_entry = _registry_entry_record(registry_entry)
+    raw_audit = _audit_source_readout_bridge_from_raw(
+        branch,
+        factory_sha,
+        transition_sha,
+        dynamics_certificate_sha,
+        run_spec.spec_sha,
+        _bridge_grid_record(run_spec.source_readout_bridge_grid),
+        list(run_spec.source_readout_bridge_steps),
+        _tensor_record(run_spec.source_trial_vectors),
+        raw_entry["readout_calibration_spec"],
+        differences,
     )
-    return replace(
-        provisional,
-        bridge_sha=canonical_sha(source_readout_bridge_audit_payload(provisional)),
-    )
+    return _source_readout_bridge_audit_from_raw_v1(raw_audit)
 
 
 def _preflight_source_readout_bridge_audit_body(
@@ -2706,6 +3016,58 @@ def _source_readout_bridge_audit_record(
     }
 
 
+def _source_readout_bridge_audit_from_raw_v1(
+    raw_body: object,
+) -> SourceReadoutBridgeAudit:
+    checked = _b7_replay_core_v1._validate_record_raw_v1(
+        raw_body,
+        "SourceReadoutBridgeAudit",
+        "source_readout_bridge_audit",
+        _b7_replay_core_v1._record_schemas_v1(),
+    )
+    matrix_audits: list[SourceReadoutBridgeMatrixAudit] = []
+    for item in checked["matrix_audits"]:
+        if item["frame_coverage"] is not None:
+            raise ValueError("raw bridge leaf returned unexpected frame coverage")
+        matrix_audits.append(
+            SourceReadoutBridgeMatrixAudit(
+                reciprocal_index=tuple(item["reciprocal_index"]),
+                macro_steps=item["macro_steps"],
+                raw_difference_matrix=_frozen_tensor_from_raw_v1(
+                    item["raw_difference_matrix"]
+                ),
+                frame_coverage=None,
+                raw_frobenius_upper=item["raw_frobenius_upper"],
+                raw_operator_norm_upper=item["raw_operator_norm_upper"],
+                h_whitened_operator_error_upper=(
+                    item["h_whitened_operator_error_upper"]
+                ),
+                curv_whitened_operator_error_upper=(
+                    item["curv_whitened_operator_error_upper"]
+                ),
+            )
+        )
+    audit = SourceReadoutBridgeAudit(
+        bridge_schema_version=checked["bridge_schema_version"],
+        branch=checked["branch"],
+        factory_sha=checked["factory_sha"],
+        transition_sha=checked["transition_sha"],
+        dynamics_certificate_sha=checked["dynamics_certificate_sha"],
+        run_spec_sha=checked["run_spec_sha"],
+        source_metric_whitener_sha=checked["source_metric_whitener_sha"],
+        readout_calibration_spec_sha=checked[
+            "readout_calibration_spec_sha"
+        ],
+        matrix_audits=tuple(matrix_audits),
+        h_operator_error_max=checked["h_operator_error_max"],
+        curv_operator_error_max=checked["curv_operator_error_max"],
+        bridge_sha=checked["bridge_sha"],
+    )
+    if audit.bridge_sha != canonical_sha(source_readout_bridge_audit_payload(audit)):
+        raise ValueError("raw bridge leaf returned a noncanonical audit SHA")
+    return audit
+
+
 def source_readout_response_payload(
     response: SourceReadoutResponse,
 ) -> dict[str, object]:
@@ -2890,6 +3252,85 @@ def _source_readout_branch_attempt(
     )
 
 
+def _legacy_branch_attempt_from_neutral_raw_v1(
+    raw_body: object,
+) -> SourceReadoutBranchAttemptAudit:
+    checked = _b7_replay_core_v1.validate_branch_attempt_v1(raw_body)
+    failure_map = {
+        "actual_response_failed": PairedResponseFailure.ACTUAL_RESPONSE_FAILED,
+        "matched_ablated_response_failed": (
+            PairedResponseFailure.ABLATED_RESPONSE_FAILED
+        ),
+        "actual_bridge_failed": PairedResponseFailure.ACTUAL_BRIDGE_FAILED,
+        "matched_ablated_bridge_failed": (
+            PairedResponseFailure.ABLATED_BRIDGE_FAILED
+        ),
+    }
+    raw_failure = checked["failure"]
+    failure = None if raw_failure is None else failure_map[raw_failure]
+    return _source_readout_branch_attempt(
+        branch=checked["branch"],
+        response_values=(
+            None
+            if checked["response_values"] is None
+            else _frozen_tensor_from_raw_v1(checked["response_values"])
+        ),
+        bridge_audit=(
+            None
+            if checked["bridge_audit"] is None
+            else _source_readout_bridge_audit_from_raw_v1(
+                checked["bridge_audit"]
+            )
+        ),
+        failure=failure,
+    )
+
+
+def _legacy_atomic_assembly_from_raw_prefix_v1(
+    actual_response_values: object,
+    matched_ablated_response_values: object,
+    actual_bridge_audit: object,
+    matched_ablated_bridge_audit: object,
+    first_failure: Optional[str],
+) -> tuple[
+    SourceReadoutBranchAttemptAudit,
+    Optional[SourceReadoutBranchAttemptAudit],
+    Optional[PairedResponseFailure],
+]:
+    actual_raw, matched_raw, observed_failure = (
+        _assemble_atomic_paired_response_attempt_from_raw(
+            actual_response_values,
+            matched_ablated_response_values,
+            actual_bridge_audit,
+            matched_ablated_bridge_audit,
+            first_failure,
+        )
+    )
+    failure_map = {
+        "actual_response_failed": PairedResponseFailure.ACTUAL_RESPONSE_FAILED,
+        "matched_ablated_response_failed": (
+            PairedResponseFailure.ABLATED_RESPONSE_FAILED
+        ),
+        "actual_bridge_failed": PairedResponseFailure.ACTUAL_BRIDGE_FAILED,
+        "matched_ablated_bridge_failed": (
+            PairedResponseFailure.ABLATED_BRIDGE_FAILED
+        ),
+    }
+    return (
+        _legacy_branch_attempt_from_neutral_raw_v1(actual_raw),
+        (
+            None
+            if matched_raw is None
+            else _legacy_branch_attempt_from_neutral_raw_v1(matched_raw)
+        ),
+        (
+            None
+            if observed_failure is None
+            else failure_map[observed_failure]
+        ),
+    )
+
+
 def _run_atomic_paired_branch_attempts(
     *,
     actual_values_call: Callable[[], FrozenComplexTensor],
@@ -2911,17 +3352,14 @@ def _run_atomic_paired_branch_attempts(
             FrozenComplexTensor,
             "actual_response_values",
         )
+        actual_values_raw = _tensor_record(actual_values)
     except stage_errors:
-        failure = PairedResponseFailure.ACTUAL_RESPONSE_FAILED
-        return (
-            _source_readout_branch_attempt(
-                branch="actual",
-                response_values=None,
-                bridge_audit=None,
-                failure=failure,
-            ),
+        return _legacy_atomic_assembly_from_raw_prefix_v1(
             None,
-            failure,
+            None,
+            None,
+            None,
+            "actual_response_failed",
         )
     try:
         ablated_values = ablated_values_call()
@@ -2930,30 +3368,15 @@ def _run_atomic_paired_branch_attempts(
             FrozenComplexTensor,
             "ablated_response_values",
         )
+        ablated_values_raw = _tensor_record(ablated_values)
     except stage_errors:
-        failure = PairedResponseFailure.ABLATED_RESPONSE_FAILED
-        return (
-            _source_readout_branch_attempt(
-                branch="actual",
-                response_values=actual_values,
-                bridge_audit=None,
-                failure=None,
-            ),
-            _source_readout_branch_attempt(
-                branch="matched_ablated",
-                response_values=None,
-                bridge_audit=None,
-                failure=failure,
-            ),
-            failure,
+        return _legacy_atomic_assembly_from_raw_prefix_v1(
+            actual_values_raw,
+            None,
+            None,
+            None,
+            "matched_ablated_response_failed",
         )
-
-    ablated_response_attempt = _source_readout_branch_attempt(
-        branch="matched_ablated",
-        response_values=ablated_values,
-        bridge_audit=None,
-        failure=None,
-    )
     try:
         actual_bridge = actual_bridge_call()
         _exact_record(
@@ -2963,25 +3386,15 @@ def _run_atomic_paired_branch_attempts(
         )
         if actual_bridge.branch != "actual":
             raise ValueError("actual bridge has the wrong branch")
+        actual_bridge_raw = _source_readout_bridge_audit_record(actual_bridge)
     except stage_errors:
-        failure = PairedResponseFailure.ACTUAL_BRIDGE_FAILED
-        return (
-            _source_readout_branch_attempt(
-                branch="actual",
-                response_values=actual_values,
-                bridge_audit=None,
-                failure=failure,
-            ),
-            ablated_response_attempt,
-            failure,
+        return _legacy_atomic_assembly_from_raw_prefix_v1(
+            actual_values_raw,
+            ablated_values_raw,
+            None,
+            None,
+            "actual_bridge_failed",
         )
-
-    actual_attempt = _source_readout_branch_attempt(
-        branch="actual",
-        response_values=actual_values,
-        bridge_audit=actual_bridge,
-        failure=None,
-    )
     try:
         ablated_bridge = ablated_bridge_call()
         _exact_record(
@@ -2991,26 +3404,20 @@ def _run_atomic_paired_branch_attempts(
         )
         if ablated_bridge.branch != "matched_ablated":
             raise ValueError("ablated bridge has the wrong branch")
+        ablated_bridge_raw = _source_readout_bridge_audit_record(ablated_bridge)
     except stage_errors:
-        failure = PairedResponseFailure.ABLATED_BRIDGE_FAILED
-        return (
-            actual_attempt,
-            _source_readout_branch_attempt(
-                branch="matched_ablated",
-                response_values=ablated_values,
-                bridge_audit=None,
-                failure=failure,
-            ),
-            failure,
+        return _legacy_atomic_assembly_from_raw_prefix_v1(
+            actual_values_raw,
+            ablated_values_raw,
+            actual_bridge_raw,
+            None,
+            "matched_ablated_bridge_failed",
         )
-    return (
-        actual_attempt,
-        _source_readout_branch_attempt(
-            branch="matched_ablated",
-            response_values=ablated_values,
-            bridge_audit=ablated_bridge,
-            failure=None,
-        ),
+    return _legacy_atomic_assembly_from_raw_prefix_v1(
+        actual_values_raw,
+        ablated_values_raw,
+        actual_bridge_raw,
+        ablated_bridge_raw,
         None,
     )
 
@@ -3807,117 +4214,18 @@ def _build_endpoint_reference_outcome_from_matrices(
         raise ValueError("unexpected endpoint reference spec schema")
     if spec.reference_spec_sha != canonical_sha(endpoint_reference_spec_payload(spec)):
         raise ValueError("reference_spec_sha does not match complete body")
-    candidates = _extract_projector_candidates(
+    raw_spec = _endpoint_reference_spec_record(spec)
+    raw_outcome = _select_endpoint_reference_from_raw(
+        raw_spec,
         transition,
         metric,
-        spec.preregistered_phase_bands,
-        spec.candidate_fejer_order,
         source_injection,
         readout,
     )
-    phases = tuple(item.phase for item in candidates)
-    ranks = tuple(item.rank for item in candidates)
-    participations = tuple(item.participation for item in candidates)
-    runner_ups = tuple(item.runner_up_overlap for item in candidates)
-    hermitian = tuple(item.hermitian_residual for item in candidates)
-    idempotent = tuple(item.idempotent_residual for item in candidates)
-    invariance = tuple(item.g_invariance_residual for item in candidates)
-    eigenphase = tuple(item.eigenphase_residual for item in candidates)
-    gaps = tuple(item.nearest_competitor_gap for item in candidates)
-    failure: Optional[EndpointReferenceFailure]
-    selected: Optional[_ProjectorCandidate]
-    if not candidates:
-        failure = EndpointReferenceFailure.PHASE_BAND_EMPTY
-        selected = None
-    elif _phase_grid_collision(candidates, spec.candidate_fejer_order):
-        failure = EndpointReferenceFailure.PHASE_BAND_NONUNIQUE
-        selected = None
-    else:
-        selected = min(
-            candidates,
-            key=lambda item: (-item.participation, item.phase),
-        )
-        if selected.rank != spec.expected_shell_rank:
-            failure = EndpointReferenceFailure.RANK_MISMATCH
-        elif selected.participation < _PARTICIPATION_GATE:
-            failure = EndpointReferenceFailure.PARTICIPATION_FAILED
-        elif (
-            selected.runner_up_overlap is not None
-            and selected.participation - selected.runner_up_overlap
-            < _OVERLAP_MARGIN_GATE
-        ):
-            failure = EndpointReferenceFailure.RUNNER_UP_MARGIN_FAILED
-        elif (
-            max(
-                selected.hermitian_residual,
-                selected.idempotent_residual,
-                selected.g_invariance_residual,
-                selected.eigenphase_residual,
-            )
-            > _PROJECTOR_GATE
-        ):
-            failure = EndpointReferenceFailure.PROJECTOR_INVALID
-        else:
-            failure = None
-    provisional_attempt = EndpointReferenceAttemptAudit(
-        attempt_schema_version=ENDPOINT_REFERENCE_ATTEMPT_SCHEMA_VERSION,
-        reference_spec=spec,
-        candidate_phases=phases,
-        candidate_ranks=ranks,
-        expected_shell_rank=spec.expected_shell_rank,
-        expected_shell_rank_source_id=spec.expected_shell_rank_source_id,
-        candidate_participations=participations,
-        runner_up_overlaps=runner_ups,
-        hermitian_residuals=hermitian,
-        idempotent_residuals=idempotent,
-        g_invariance_residuals=invariance,
-        eigenphase_residuals=eigenphase,
-        observed_competitor_gaps=gaps,
-        attempt_sha=_ZERO_SHA,
-    )
-    attempt = replace(
-        provisional_attempt,
-        attempt_sha=canonical_sha(
-            endpoint_reference_attempt_audit_payload(provisional_attempt)
-        ),
-    )
-    reference: Optional[EndpointReferenceProjector] = None
-    if failure is None:
-        if selected is None:
-            raise AssertionError("successful reference lost selected projector")
-        provisional_reference = EndpointReferenceProjector(
-            reference_schema_version=ENDPOINT_REFERENCE_SCHEMA_VERSION,
-            control_registry_entry_sha=(spec.control_registry_entry.entry_sha),
-            actual_transition_sha=spec.actual_transition_sha,
-            actual_dynamics_certificate_sha=(spec.actual_dynamics_certificate_sha),
-            reference_reciprocal_index=(spec.reference_reciprocal_index),
-            reference_phase=selected.phase,
-            projector_coordinate_convention_id=(PROJECTOR_COORDINATE_CONVENTION_ID),
-            rank=selected.rank,
-            projector=freeze_complex_tensor(selected.projector),
-            reference_sha=_ZERO_SHA,
-        )
-        reference = replace(
-            provisional_reference,
-            reference_sha=canonical_sha(
-                endpoint_reference_projector_payload(provisional_reference)
-            ),
-        )
-    provisional_outcome = EndpointReferenceOutcome(
-        status=(
-            BlockStatus(True, None) if failure is None else _endpoint_undefined_status()
-        ),
-        failure=failure,
-        reference_spec=spec,
-        attempt_audit=attempt,
-        reference=reference,
-        outcome_sha=_ZERO_SHA,
-    )
-    return replace(
-        provisional_outcome,
-        outcome_sha=canonical_sha(
-            endpoint_reference_outcome_payload(provisional_outcome)
-        ),
+    return _endpoint_reference_outcome_from_raw_v1(
+        raw_outcome,
+        spec,
+        raw_spec,
     )
 
 
@@ -4457,317 +4765,26 @@ def _build_endpoint_shell_outcome_from_matrices(
     time_step = _finite_float(dt, "dt")
     if time_step <= 0.0:
         raise ValueError("dt must be positive")
-    paths = shell_spec.response_grid.direction_manifest.ordered_paths
-    path_ids = shell_spec.response_grid.direction_manifest.path_ids
-    point_keys = tuple(
-        (path_id, position, reciprocal_index)
-        for path_id, path in zip(path_ids, paths)
-        for position, reciprocal_index in enumerate(path)
+    raw_reference = _endpoint_reference_outcome_record(reference_outcome)
+    raw_shell_spec = _endpoint_shell_spec_record(shell_spec)
+    raw_outcome = _track_endpoint_shell_from_raw(
+        raw_reference,
+        raw_shell_spec,
+        matrices,
+        metrics,
+        source_injection,
+        readout,
+        actual_factory_sha,
+        actual_transition_sha,
+        actual_dynamics_certificate_sha,
+        time_step,
     )
-    if type(matrices) is not tuple or type(metrics) is not tuple:
-        raise TypeError("shell matrices and metrics must be tuples")
-    if len(matrices) != len(point_keys) or len(metrics) != len(point_keys):
-        raise ValueError("shell matrix bodies do not align with path points")
-    state_count = len(shell_spec.control_registry_entry.source_basis.channel_order)
-    preflight_shell_projector_entries(
-        n_k=len(point_keys),
-        n_state=state_count,
-    )
-    preflight_fejer_work(
-        n_k=len(point_keys),
-        n_state=state_count,
-        order=shell_spec.candidate_fejer_order,
-    )
-    reference_projector = frozen_tensor_array(reference_outcome.reference.projector)
-    expected_rank = reference_outcome.reference.rank
-    point_attempts: list[ShellCandidatePointAttempt] = []
-    point_audits: list[ShellPointAudit] = []
-    selected_projectors: list[np.ndarray] = []
-    selected_by_key: dict[tuple[str, int], np.ndarray] = {}
-    predecessor_by_path: dict[str, np.ndarray] = {}
-    overlap_margins: list[float] = []
-    failure: Optional[EndpointShellFailure] = None
-    projector_residual_max = 0.0
-
-    for key, matrix, metric in zip(point_keys, matrices, metrics):
-        path_id, position, reciprocal_index = key
-        candidates = _extract_projector_candidates(
-            matrix,
-            metric,
-            shell_spec.preregistered_phase_bands,
-            shell_spec.candidate_fejer_order,
-            source_injection,
-            readout,
-        )
-        predecessor = predecessor_by_path.get(path_id)
-        reference_overlaps = tuple(
-            _projector_overlap(
-                item.projector,
-                reference_projector,
-                max(item.rank, expected_rank),
-            )
-            for item in candidates
-        )
-        predecessor_overlaps = tuple(
-            (
-                None
-                if predecessor is None
-                else _projector_overlap(
-                    item.projector,
-                    predecessor,
-                    max(item.rank, expected_rank),
-                )
-            )
-            for item in candidates
-        )
-        point_attempts.append(
-            ShellCandidatePointAttempt(
-                reciprocal_index=reciprocal_index,
-                momentum_path_id=path_id,
-                momentum_path_position=position,
-                candidate_phases=tuple(item.phase for item in candidates),
-                candidate_ranks=tuple(item.rank for item in candidates),
-                candidate_participations=tuple(
-                    item.participation for item in candidates
-                ),
-                candidate_reference_overlaps=reference_overlaps,
-                candidate_predecessor_overlaps=predecessor_overlaps,
-            )
-        )
-        if candidates:
-            projector_residual_max = max(
-                projector_residual_max,
-                *(
-                    max(
-                        item.hermitian_residual,
-                        item.idempotent_residual,
-                        item.g_invariance_residual,
-                        item.eigenphase_residual,
-                    )
-                    for item in candidates
-                ),
-            )
-        if not candidates:
-            failure = EndpointShellFailure.PHASE_BAND_EMPTY
-            break
-        if _phase_grid_collision(
-            candidates,
-            shell_spec.candidate_fejer_order,
-        ):
-            failure = EndpointShellFailure.PHASE_SEPARATION_FAILED
-            break
-        eligible = tuple(
-            index for index, item in enumerate(candidates) if item.rank == expected_rank
-        )
-        if not eligible:
-            failure = EndpointShellFailure.REFERENCE_AMBIGUOUS
-            break
-        scores = tuple(
-            (
-                reference_overlaps[index]
-                if predecessor is None
-                else float(predecessor_overlaps[index])
-            )
-            for index in eligible
-        )
-        order_indices = tuple(
-            sorted(
-                range(len(eligible)),
-                key=lambda item: (-scores[item], eligible[item]),
-            )
-        )
-        selected_position = order_indices[0]
-        selected_index = eligible[selected_position]
-        runner_score = None if len(order_indices) == 1 else scores[order_indices[1]]
-        selected_score = scores[selected_position]
-        if runner_score is not None:
-            margin = float(selected_score - runner_score)
-            overlap_margins.append(margin)
-            if margin < _OVERLAP_MARGIN_GATE:
-                failure = EndpointShellFailure.RUNNER_UP_MARGIN
-                break
-        selected = candidates[selected_index]
-        if (
-            selected.nearest_competitor_gap is not None
-            and selected.nearest_competitor_gap
-            < phase_separation_min(shell_spec.candidate_fejer_order)
-        ):
-            failure = EndpointShellFailure.GAP_FAILED
-            break
-        if selected.participation < _PARTICIPATION_GATE:
-            failure = EndpointShellFailure.PARTICIPATION_FAILED
-            break
-        if (
-            max(
-                selected.hermitian_residual,
-                selected.idempotent_residual,
-                selected.g_invariance_residual,
-                selected.eigenphase_residual,
-            )
-            > _PROJECTOR_GATE
-        ):
-            failure = EndpointShellFailure.PROJECTOR_INVALID
-            break
-        point_audits.append(
-            ShellPointAudit(
-                reciprocal_index=reciprocal_index,
-                momentum_path_id=path_id,
-                momentum_path_position=position,
-                shell_phase=selected.phase,
-                rank=selected.rank,
-                hermitian_residual=selected.hermitian_residual,
-                idempotent_residual=selected.idempotent_residual,
-                g_invariance_residual=selected.g_invariance_residual,
-                eigenphase_residual=selected.eigenphase_residual,
-                participation=selected.participation,
-                nearest_competitor_gap=(selected.nearest_competitor_gap),
-                reference_overlap=reference_overlaps[selected_index],
-                runner_up_overlap=runner_score,
-                predecessor_overlap=(
-                    None
-                    if predecessor is None
-                    else predecessor_overlaps[selected_index]
-                ),
-                loop_residual=None,
-            )
-        )
-        selected_projectors.append(selected.projector)
-        selected_by_key[(path_id, position)] = selected.projector
-        predecessor_by_path[path_id] = selected.projector
-
-    loop_residuals: list[float] = []
-    if failure is None:
-        audit_positions = {
-            (item.momentum_path_id, item.momentum_path_position): index
-            for index, item in enumerate(point_audits)
-        }
-        occupied: set[tuple[str, int]] = set()
-        for closure in shell_spec.response_grid.direction_manifest.closure_path_pairs:
-            first_key = (
-                closure.first_path_id,
-                closure.first_path_position,
-            )
-            second_key = (
-                closure.second_path_id,
-                closure.second_path_position,
-            )
-            if first_key not in selected_by_key or second_key not in selected_by_key:
-                raise ValueError("closure references an unreplayed shell point")
-            if second_key in occupied:
-                raise ValueError(
-                    "multiple closure residuals cannot occupy one point wire"
-                )
-            occupied.add(second_key)
-            residual = float(
-                np.linalg.norm(
-                    selected_by_key[first_key] - selected_by_key[second_key],
-                    2,
-                )
-            )
-            loop_residuals.append(residual)
-            audit_index = audit_positions[second_key]
-            point_audits[audit_index] = replace(
-                point_audits[audit_index],
-                loop_residual=residual,
-            )
-            if residual > _LOOP_GATE:
-                failure = EndpointShellFailure.LOOP_INCONSISTENT
-                break
-
-    loop_observed = None if not loop_residuals else float(max(loop_residuals))
-    provisional_attempt = EndpointShellAttemptAudit(
-        attempt_schema_version=ENDPOINT_SHELL_ATTEMPT_SCHEMA_VERSION,
-        shell_spec=shell_spec,
-        point_attempts=tuple(point_attempts),
-        projector_residual_max=float(projector_residual_max),
-        loop_residual_max_observed=loop_observed,
-        attempt_sha=_ZERO_SHA,
-    )
-    attempt = replace(
-        provisional_attempt,
-        attempt_sha=canonical_sha(
-            endpoint_shell_attempt_audit_payload(provisional_attempt)
-        ),
-    )
-    shell: Optional[EndpointShellManifest] = None
-    if failure is None:
-        if len(point_audits) != len(point_keys):
-            raise AssertionError("successful shell did not audit every point")
-        gaps = tuple(
-            item.nearest_competitor_gap
-            for item in point_audits
-            if item.nearest_competitor_gap is not None
-        )
-        runners = tuple(
-            item.runner_up_overlap
-            for item in point_audits
-            if item.runner_up_overlap is not None
-        )
-        predecessors = tuple(
-            item.predecessor_overlap
-            for item in point_audits
-            if item.predecessor_overlap is not None
-        )
-        provisional_shell = EndpointShellManifest(
-            shell_schema_version=ENDPOINT_SHELL_SCHEMA_VERSION,
-            actual_factory_sha=actual_factory_sha,
-            actual_transition_sha=actual_transition_sha,
-            actual_dynamics_certificate_sha=(actual_dynamics_certificate_sha),
-            shell_spec=shell_spec,
-            dt=time_step,
-            eigenphase_convention_id=EIGENPHASE_CONVENTION_ID,
-            shell_phases=tuple(item.shell_phase for item in point_audits),
-            shell_projectors=freeze_complex_tensor(
-                np.stack(selected_projectors, axis=0).astype(np.complex128)
-            ),
-            point_audits=tuple(point_audits),
-            hermitian_residual_max=float(
-                max(item.hermitian_residual for item in point_audits)
-            ),
-            idempotent_residual_max=float(
-                max(item.idempotent_residual for item in point_audits)
-            ),
-            g_invariance_residual_max=float(
-                max(item.g_invariance_residual for item in point_audits)
-            ),
-            eigenphase_residual_max=float(
-                max(item.eigenphase_residual for item in point_audits)
-            ),
-            participation_min=float(min(item.participation for item in point_audits)),
-            nearest_competitor_gap_min=(None if not gaps else float(min(gaps))),
-            reference_overlap_min=float(
-                min(item.reference_overlap for item in point_audits)
-            ),
-            runner_up_overlap_max=(None if not runners else float(max(runners))),
-            predecessor_overlap_min=(
-                None if not predecessors else float(min(predecessors))
-            ),
-            overlap_margin_min=(
-                None if not overlap_margins else float(min(overlap_margins))
-            ),
-            loop_residual_max=loop_observed,
-            ambiguous=False,
-            shell_manifest_sha=_ZERO_SHA,
-        )
-        shell = replace(
-            provisional_shell,
-            shell_manifest_sha=canonical_sha(
-                endpoint_shell_manifest_payload(provisional_shell)
-            ),
-        )
-    provisional_outcome = EndpointShellOutcome(
-        status=(
-            BlockStatus(True, None) if failure is None else _endpoint_undefined_status()
-        ),
-        failure=failure,
-        reference_outcome=reference_outcome,
-        attempt_audit=attempt,
-        shell=shell,
-        outcome_sha=_ZERO_SHA,
-    )
-    return replace(
-        provisional_outcome,
-        outcome_sha=canonical_sha(endpoint_shell_outcome_payload(provisional_outcome)),
+    return _endpoint_shell_outcome_from_raw_v1(
+        raw_outcome,
+        reference_outcome,
+        shell_spec,
+        raw_reference,
+        raw_shell_spec,
     )
 
 
@@ -5470,16 +5487,10 @@ def _compute_source_readout_response_values(
     if shell.dt != raw_transition.dt:
         raise ValueError("response shell/transition dt mismatch")
     phases = _shell_phase_map(shell, run_spec.response_grid)
-    source = basis_manifest_array(run_spec.source_basis).T.copy()
-    readout = basis_manifest_array(run_spec.readout_basis).conj().copy()
-    k_count, readout_count, source_count = expected_shape
-    values = np.empty(
-        (k_count, readout_count, source_count),
-        dtype=np.complex128,
-    )
-    for position, reciprocal_index in enumerate(
-        run_spec.response_grid.reciprocal_indices
-    ):
+    ordered_matrices: list[np.ndarray] = []
+    ordered_metrics: list[np.ndarray] = []
+    ordered_phases: list[float] = []
+    for reciprocal_index in run_spec.response_grid.reciprocal_indices:
         momentum = np.asarray(
             tuple(
                 2.0 * math.pi * float(index) / float(denominator)
@@ -5495,15 +5506,23 @@ def _compute_source_readout_response_values(
             raw_certificate.stability_metric,
             momentum,
         )
-        values[position] = compute_fejer_filtered_response(
-            matrix,
-            metric,
-            phases[reciprocal_index],
-            run_spec.fejer_order,
-            source,
-            readout,
-        )
-    return freeze_complex_tensor(values)
+        ordered_matrices.append(matrix)
+        ordered_metrics.append(metric)
+        ordered_phases.append(phases[reciprocal_index])
+    raw_values = _build_fejer_branch_response_values_from_raw(
+        branch,
+        _response_grid_record(run_spec.response_grid),
+        run_spec.fejer_order,
+        _basis_record(run_spec.source_basis),
+        _basis_record(run_spec.readout_basis),
+        ordered_phases,
+        tuple(ordered_matrices),
+        tuple(ordered_metrics),
+    )
+    tensor = _frozen_tensor_from_raw_v1(raw_values)
+    if tensor.shape != expected_shape:
+        raise ValueError("raw Fejer leaf returned the wrong tensor shape")
+    return tensor
 
 
 def _paired_attempt_audit(

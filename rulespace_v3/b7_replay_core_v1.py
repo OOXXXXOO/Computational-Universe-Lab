@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+from fractions import Fraction
+
+import numpy as np
+import scipy.linalg
 
 
 B7_V91_PURE_REPLAY_PROJECTION_SHA256 = (
@@ -1845,3 +1850,1386 @@ def validate_branch_attempt_v1(raw_body: object) -> dict[str, object]:
         raise ValueError("null failure requires present response values")
     _require_self_hash_v1(attempt, "attempt_sha", "branch_attempt")
     return attempt
+
+
+def _finite_float_v1(value, field):
+    if type(value) is not float:
+        raise TypeError(f"{field} must be an exact float")
+    if not math.isfinite(value):
+        raise ValueError(f"{field} must be finite")
+    return value
+
+
+def _strict_complex_matrix_v1(value, field, square=False):
+    if type(value) is not np.ndarray:
+        raise TypeError(f"{field} must be a NumPy ndarray")
+    if value.dtype != np.dtype(np.complex128):
+        raise TypeError(f"{field} dtype must be complex128")
+    if value.ndim != 2 or any(length <= 0 for length in value.shape):
+        raise ValueError(f"{field} must be a non-empty matrix")
+    if square and value.shape[0] != value.shape[1]:
+        raise ValueError(f"{field} must be square")
+    if not np.isfinite(value.real).all() or not np.isfinite(value.imag).all():
+        raise ValueError(f"{field} must be finite")
+    return value
+
+
+def _freeze_complex_tensor_raw_v1(values):
+    if type(values) is not np.ndarray:
+        raise TypeError("values must be a NumPy ndarray")
+    if values.dtype != np.dtype(np.complex128):
+        raise TypeError("values dtype must be complex128")
+    if values.ndim <= 0 or any(length <= 0 for length in values.shape):
+        raise ValueError("tensor shape must have non-empty positive dimensions")
+    if not np.isfinite(values.real).all() or not np.isfinite(values.imag).all():
+        raise ValueError("tensor values must be finite")
+    payload = {
+        "tensor_schema_version": "v3m0.frozen-complex-tensor.v1",
+        "shape": [int(length) for length in values.shape],
+        "values_wire": [
+            [float(value.real), float(value.imag)]
+            for value in values.reshape(-1, order="C")
+        ],
+    }
+    tensor = dict(payload)
+    tensor["tensor_sha"] = canonical_sha_v1(payload)
+    _validate_frozen_complex_tensor_raw_v1(tensor, "tensor")
+    return tensor
+
+
+def _frozen_tensor_array_raw_v1(raw_body, field):
+    tensor = _validate_frozen_complex_tensor_raw_v1(raw_body, field)
+    values = np.asarray(
+        [complex(real, imag) for real, imag in tensor["values_wire"]],
+        dtype=np.complex128,
+    )
+    return values.reshape(tuple(tensor["shape"]), order="C").copy()
+
+
+def _basis_matrix_raw_v1(raw_body, field, role):
+    basis = _validate_record_raw_v1(
+        raw_body,
+        "BasisManifest",
+        field,
+        _record_schemas_v1(),
+    )
+    if basis["role"] != role:
+        raise ValueError(f"{field} role differs from its leaf position")
+    rows = basis["vectors_wire"]
+    channels = basis["channel_order"]
+    if not rows or not channels:
+        raise ValueError(f"{field} must be non-empty")
+    if any(len(row) != len(channels) for row in rows):
+        raise ValueError(f"{field} vector/channel shape mismatch")
+    return np.asarray(
+        [[complex(real, imag) for real, imag in row] for row in rows],
+        dtype=np.complex128,
+    )
+
+
+def _hermitian_sqrt_pair_raw_v1(metric):
+    values, vectors = np.linalg.eigh(metric)
+    if not np.isfinite(values).all():
+        raise ValueError("metric eigendecomposition is non-finite")
+    if float(values[0]) <= 0.0:
+        raise ValueError("metric must be positive definite")
+    root_values = np.sqrt(values)
+    sqrt_metric = (
+        vectors @ np.diag(root_values.astype(np.complex128)) @ vectors.conj().T
+    ).astype(np.complex128)
+    inverse_sqrt = (
+        vectors
+        @ np.diag((1.0 / root_values).astype(np.complex128))
+        @ vectors.conj().T
+    ).astype(np.complex128)
+    hermitian_residual = float(np.linalg.norm(metric - metric.conj().T, 2))
+    sqrt_residual = float(np.linalg.norm(sqrt_metric @ sqrt_metric - metric, 2))
+    inverse_residual = float(
+        np.linalg.norm(sqrt_metric @ inverse_sqrt - np.eye(metric.shape[0]), 2)
+    )
+    if max(hermitian_residual, sqrt_residual, inverse_residual) > 1.0e-10:
+        raise ValueError("deterministic Hermitian square-root residual failed")
+    return sqrt_metric, inverse_sqrt
+
+
+def _fejer_scalar_raw_v1(eigenvalue, center_phase, order):
+    phase = complex(
+        math.cos(-center_phase),
+        math.sin(-center_phase),
+    )
+    ratio = complex(eigenvalue) * phase
+    power = 1.0 + 0.0j
+    real_terms = []
+    imag_terms = []
+    for step in range(order):
+        weight = 1.0 - float(step) / float(order)
+        term = weight * power
+        real_terms.append(float(term.real))
+        imag_terms.append(float(term.imag))
+        power *= ratio
+    normalization = (float(order) + 1.0) / 2.0
+    return complex(
+        math.fsum(real_terms) / normalization,
+        math.fsum(imag_terms) / normalization,
+    )
+
+
+def _compute_fejer_filtered_response_raw_v1(
+    transition,
+    metric,
+    shell_phase,
+    order,
+    source_injection,
+    readout,
+):
+    matrix = _strict_complex_matrix_v1(transition, "transition", True)
+    gram = _strict_complex_matrix_v1(metric, "metric", True)
+    source = _strict_complex_matrix_v1(source_injection, "source_injection")
+    projection = _strict_complex_matrix_v1(readout, "readout")
+    state_count = matrix.shape[0]
+    if gram.shape != matrix.shape:
+        raise ValueError("metric and transition shapes differ")
+    if source.shape[0] != state_count:
+        raise ValueError("source injection state axis mismatch")
+    if projection.shape[1] != state_count:
+        raise ValueError("readout state axis mismatch")
+    theta = _finite_float_v1(shell_phase, "shell_phase")
+    if not -math.pi <= theta <= math.pi:
+        raise ValueError("shell_phase is outside the principal interval")
+    if type(order) is not int:
+        raise TypeError("fejer_order must be an exact int")
+    if order not in (256, 512, 1024, 2048, 4096, 8192, 16384):
+        raise ValueError("fejer_order is not frozen")
+    if state_count**3 + order * state_count > 2_000_000_000:
+        raise ValueError("Fejer work exceeds the frozen cap")
+    sqrt_metric, inverse_sqrt = _hermitian_sqrt_pair_raw_v1(gram)
+    whitened = sqrt_metric @ matrix @ inverse_sqrt
+    triangular, unitary = scipy.linalg.schur(whitened, output="complex")
+    triangular = np.asarray(triangular, dtype=np.complex128)
+    unitary = np.asarray(unitary, dtype=np.complex128)
+    off_diagonal = triangular - np.diag(np.diag(triangular))
+    if float(np.linalg.norm(off_diagonal, 2)) > 1.0e-10:
+        raise ValueError("metric-unitary Schur form is not diagonal enough")
+    unitary_residual = float(
+        np.linalg.norm(
+            unitary.conj().T @ unitary - np.eye(state_count),
+            2,
+        )
+    )
+    reconstruction_residual = float(
+        np.linalg.norm(
+            unitary @ triangular @ unitary.conj().T - whitened,
+            2,
+        )
+    )
+    if max(unitary_residual, reconstruction_residual) > 1.0e-10:
+        raise ValueError("Schur functional-calculus residual failed")
+    scalars = np.asarray(
+        [
+            _fejer_scalar_raw_v1(complex(value), theta, order)
+            for value in np.diag(triangular)
+        ],
+        dtype=np.complex128,
+    )
+    filtered_whitened = (
+        unitary @ np.diag(scalars) @ unitary.conj().T
+    ).astype(np.complex128)
+    filtered = inverse_sqrt @ filtered_whitened @ sqrt_metric
+    return np.asarray(projection @ filtered @ source, dtype=np.complex128)
+
+
+def _exact_frobenius_upper_raw_v1(values):
+    matrix = _strict_complex_matrix_v1(values, "Frobenius input")
+    total = Fraction(0, 1)
+    for value in matrix.reshape(-1, order="C"):
+        real = Fraction.from_float(float(value.real))
+        imaginary = Fraction.from_float(float(value.imag))
+        total += real * real + imaginary * imaginary
+    if total == 0:
+        return +0.0
+    maximum = Fraction.from_float(1.7976931348623157e308)
+    if maximum * maximum < total:
+        raise ValueError("Frobenius square root exceeds finite fp64 range")
+    minimum_normal = 2.2250738585072014e-308
+    minimum_fraction = Fraction.from_float(minimum_normal)
+    if minimum_fraction * minimum_fraction >= total:
+        return minimum_normal
+    candidate = math.sqrt(float(total))
+    if not math.isfinite(candidate):
+        raise ValueError("Frobenius square root exceeds finite fp64 range")
+    if candidate < minimum_normal:
+        candidate = minimum_normal
+    while Fraction.from_float(candidate) ** 2 < total:
+        candidate = math.nextafter(candidate, math.inf)
+    while candidate > minimum_normal:
+        previous = math.nextafter(candidate, -math.inf)
+        if previous < minimum_normal or Fraction.from_float(previous) ** 2 < total:
+            break
+        candidate = previous
+    return candidate
+
+
+def _principal_phase_raw_v1(value):
+    result = math.atan2(math.sin(value), math.cos(value))
+    if result == -math.pi:
+        return math.pi
+    return result
+
+
+def _phase_distance_raw_v1(first, second):
+    return abs(_principal_phase_raw_v1(first - second))
+
+
+def _phase_bands_raw_v1(raw_bands, field):
+    if type(raw_bands) is not list or not raw_bands:
+        raise TypeError(f"{field} must be a non-empty exact JSON array")
+    bands = []
+    for index, band in enumerate(raw_bands):
+        if type(band) is not list or len(band) != 2:
+            raise TypeError(f"{field}[{index}] must be a pair")
+        lower = _finite_float_v1(band[0], f"{field}[{index}][0]")
+        upper = _finite_float_v1(band[1], f"{field}[{index}][1]")
+        if not -math.pi <= lower < upper <= math.pi:
+            raise ValueError(f"{field}[{index}] is not a principal phase band")
+        bands.append((lower, upper))
+    answer = tuple(bands)
+    if answer != tuple(sorted(set(answer))):
+        raise ValueError(f"{field} must be unique and canonical")
+    return answer
+
+
+def _in_phase_bands_raw_v1(phase, bands):
+    return any(lower <= phase <= upper for lower, upper in bands)
+
+
+def _orthogonal_projector_raw_v1(matrix):
+    if matrix.ndim != 2 or matrix.shape[1] <= 0:
+        raise ValueError("projector basis must contain columns")
+    gram = matrix.conj().T @ matrix
+    values, vectors = np.linalg.eigh(gram)
+    largest = float(values[-1])
+    if largest <= 0.0:
+        raise ValueError("projector basis has zero rank")
+    tolerance = 64.0 * np.finfo(np.float64).eps * float(max(matrix.shape)) * largest
+    active = values > tolerance
+    if not bool(np.any(active)):
+        raise ValueError("projector basis is numerically rank deficient")
+    basis = matrix @ vectors[:, active]
+    normalizers = 1.0 / np.sqrt(values[active])
+    orthonormal = basis * normalizers.reshape((1, -1))
+    return np.asarray(orthonormal @ orthonormal.conj().T, dtype=np.complex128)
+
+
+def _extract_projector_candidates_raw_v1(
+    transition,
+    metric,
+    raw_phase_bands,
+    order,
+    source_injection,
+    readout,
+):
+    matrix = _strict_complex_matrix_v1(transition, "transition", True)
+    gram = _strict_complex_matrix_v1(metric, "metric", True)
+    source = _strict_complex_matrix_v1(source_injection, "source_injection")
+    projection = _strict_complex_matrix_v1(readout, "readout")
+    state_count = matrix.shape[0]
+    if gram.shape != matrix.shape:
+        raise ValueError("metric and transition shapes differ")
+    if source.shape[0] != state_count:
+        raise ValueError("source injection state axis mismatch")
+    if projection.shape[1] != state_count:
+        raise ValueError("readout state axis mismatch")
+    bands = _phase_bands_raw_v1(raw_phase_bands, "phase_bands")
+    if type(order) is not int:
+        raise TypeError("fejer_order must be an exact int")
+    if order not in (256, 512, 1024, 2048, 4096, 8192, 16384):
+        raise ValueError("fejer_order is not frozen")
+    if state_count * state_count > 16_777_216:
+        raise ValueError("shell projector entries exceed the frozen cap")
+    if state_count**3 + order * state_count > 2_000_000_000:
+        raise ValueError("Fejer work exceeds the frozen cap")
+    sqrt_metric, inverse_sqrt = _hermitian_sqrt_pair_raw_v1(gram)
+    whitened = sqrt_metric @ matrix @ inverse_sqrt
+    triangular, unitary = scipy.linalg.schur(whitened, output="complex")
+    triangular = np.asarray(triangular, dtype=np.complex128)
+    unitary = np.asarray(unitary, dtype=np.complex128)
+    off_diagonal = triangular - np.diag(np.diag(triangular))
+    if float(np.linalg.norm(off_diagonal, 2)) > 1.0e-10:
+        raise ValueError("metric-unitary Schur form is not diagonal enough")
+    raw_phases = tuple(
+        _principal_phase_raw_v1(
+            math.atan2(float(value.imag), float(value.real))
+        )
+        for value in np.diag(triangular)
+    )
+    selected = tuple(
+        sorted(
+            (
+                (phase, index)
+                for index, phase in enumerate(raw_phases)
+                if _in_phase_bands_raw_v1(phase, bands)
+            ),
+            key=lambda item: (item[0], item[1]),
+        )
+    )
+    if not selected:
+        return ()
+    cluster_tolerance = (
+        128.0 * np.finfo(np.float64).eps * float(max(1, state_count))
+    )
+    clusters = []
+    for item in selected:
+        if (
+            not clusters
+            or _phase_distance_raw_v1(item[0], clusters[-1][-1][0])
+            > cluster_tolerance
+        ):
+            clusters.append([item])
+        else:
+            clusters[-1].append(item)
+    source_projector = _orthogonal_projector_raw_v1(sqrt_metric @ source)
+    readout_projector = _orthogonal_projector_raw_v1(
+        (projection @ inverse_sqrt).conj().T
+    )
+    identity = np.eye(state_count, dtype=np.complex128)
+    preliminaries = []
+    for cluster in clusters:
+        indices = tuple(item[1] for item in cluster)
+        columns = unitary[:, indices]
+        projector = np.asarray(
+            columns @ columns.conj().T,
+            dtype=np.complex128,
+        )
+        phase_vector = sum(
+            (
+                complex(math.cos(item[0]), math.sin(item[0]))
+                for item in cluster
+            ),
+            0.0 + 0.0j,
+        )
+        phase = _principal_phase_raw_v1(
+            math.atan2(float(phase_vector.imag), float(phase_vector.real))
+        )
+        rank = len(indices)
+        injection_participation = float(
+            np.trace(projector @ source_projector).real / rank
+        )
+        readout_participation = float(
+            np.trace(projector @ readout_projector).real / rank
+        )
+        participation = float(
+            max(
+                0.0,
+                min(1.0, injection_participation, readout_participation),
+            )
+        )
+        preliminaries.append(
+            {
+                "phase": phase,
+                "rank": rank,
+                "projector": projector,
+                "participation": participation,
+                "hermitian_residual": float(
+                    np.linalg.norm(projector - projector.conj().T, 2)
+                ),
+                "idempotent_residual": float(
+                    np.linalg.norm(projector @ projector - projector, 2)
+                ),
+                "g_invariance_residual": float(
+                    np.linalg.norm(
+                        (identity - projector) @ whitened @ projector,
+                        2,
+                    )
+                ),
+                "eigenphase_residual": float(
+                    np.linalg.norm(
+                        whitened @ projector
+                        - complex(math.cos(phase), math.sin(phase)) * projector,
+                        2,
+                    )
+                ),
+            }
+        )
+    candidates = []
+    for index, item in enumerate(preliminaries):
+        competitors = tuple(
+            other
+            for other_index, other in enumerate(preliminaries)
+            if other_index != index
+        )
+        gaps = tuple(
+            _phase_distance_raw_v1(
+                float(item["phase"]),
+                float(other["phase"]),
+            )
+            for other in competitors
+        )
+        overlaps = tuple(float(other["participation"]) for other in competitors)
+        candidates.append(
+            {
+                "phase": float(item["phase"]),
+                "rank": int(item["rank"]),
+                "projector": np.asarray(
+                    item["projector"],
+                    dtype=np.complex128,
+                ),
+                "participation": float(item["participation"]),
+                "runner_up_overlap": (
+                    None if not overlaps else float(max(overlaps))
+                ),
+                "hermitian_residual": float(item["hermitian_residual"]),
+                "idempotent_residual": float(item["idempotent_residual"]),
+                "g_invariance_residual": float(item["g_invariance_residual"]),
+                "eigenphase_residual": float(item["eigenphase_residual"]),
+                "nearest_competitor_gap": (
+                    None if not gaps else float(min(gaps))
+                ),
+            }
+        )
+    return tuple(candidates)
+
+
+def _phase_grid_collision_raw_v1(candidates, order):
+    step = 2.0 * math.pi / (16 * order)
+    return any(
+        _phase_distance_raw_v1(first["phase"], second["phase"]) < step
+        for index, first in enumerate(candidates)
+        for second in candidates[index + 1 :]
+    )
+
+
+def _projector_overlap_raw_v1(first, second, rank):
+    value = float(np.trace(first @ second).real / rank)
+    return float(max(0.0, min(1.0, value)))
+
+
+def _select_endpoint_reference_from_raw(
+    reference_spec,
+    transition_matrix,
+    metric_matrix,
+    source_injection_matrix,
+    readout_matrix,
+):
+    schemas = _record_schemas_v1()
+    spec = _validate_record_raw_v1(
+        reference_spec,
+        "EndpointReferenceSpec",
+        "reference_spec",
+        schemas,
+    )
+    if spec["reference_spec_schema_version"] != "v3m0.endpoint-reference-spec.v1":
+        raise ValueError("unexpected endpoint reference spec schema")
+    if spec["expected_shell_rank_source_id"] != (
+        "parent-freeze-control-application-spec-v1"
+    ):
+        raise ValueError("expected shell rank source is not frozen")
+    candidates = _extract_projector_candidates_raw_v1(
+        transition_matrix,
+        metric_matrix,
+        spec["preregistered_phase_bands"],
+        spec["candidate_fejer_order"],
+        source_injection_matrix,
+        readout_matrix,
+    )
+    failure = None
+    selected = None
+    if not candidates:
+        failure = "phase_band_empty"
+    elif _phase_grid_collision_raw_v1(
+        candidates,
+        spec["candidate_fejer_order"],
+    ):
+        failure = "phase_band_nonunique"
+    else:
+        selected = min(
+            candidates,
+            key=lambda item: (-item["participation"], item["phase"]),
+        )
+        if selected["rank"] != spec["expected_shell_rank"]:
+            failure = "rank_mismatch"
+        elif selected["participation"] < 0.25:
+            failure = "participation_failed"
+        elif (
+            selected["runner_up_overlap"] is not None
+            and selected["participation"] - selected["runner_up_overlap"] < 0.2
+        ):
+            failure = "runner_up_margin_failed"
+        elif (
+            max(
+                selected["hermitian_residual"],
+                selected["idempotent_residual"],
+                selected["g_invariance_residual"],
+                selected["eigenphase_residual"],
+            )
+            > 1.0e-12
+        ):
+            failure = "projector_invalid"
+    attempt_payload = {
+        "attempt_schema_version": "v3m0.endpoint-reference-attempt.v1",
+        "reference_spec": spec,
+        "candidate_phases": [item["phase"] for item in candidates],
+        "candidate_ranks": [item["rank"] for item in candidates],
+        "expected_shell_rank": spec["expected_shell_rank"],
+        "expected_shell_rank_source_id": spec["expected_shell_rank_source_id"],
+        "candidate_participations": [
+            item["participation"] for item in candidates
+        ],
+        "runner_up_overlaps": [item["runner_up_overlap"] for item in candidates],
+        "hermitian_residuals": [
+            item["hermitian_residual"] for item in candidates
+        ],
+        "idempotent_residuals": [
+            item["idempotent_residual"] for item in candidates
+        ],
+        "g_invariance_residuals": [
+            item["g_invariance_residual"] for item in candidates
+        ],
+        "eigenphase_residuals": [
+            item["eigenphase_residual"] for item in candidates
+        ],
+        "observed_competitor_gaps": [
+            item["nearest_competitor_gap"] for item in candidates
+        ],
+    }
+    attempt = dict(attempt_payload)
+    attempt["attempt_sha"] = canonical_sha_v1(attempt_payload)
+    reference = None
+    if failure is None:
+        if selected is None:
+            raise AssertionError("successful reference lost selected projector")
+        reference_payload = {
+            "reference_schema_version": "v3m0.endpoint-reference-projector.v1",
+            "control_registry_entry_sha": spec["control_registry_entry"][
+                "entry_sha"
+            ],
+            "actual_transition_sha": spec["actual_transition_sha"],
+            "actual_dynamics_certificate_sha": spec[
+                "actual_dynamics_certificate_sha"
+            ],
+            "reference_reciprocal_index": spec["reference_reciprocal_index"],
+            "reference_phase": selected["phase"],
+            "projector_coordinate_convention_id": "g-whitened-state-v1",
+            "rank": selected["rank"],
+            "projector": _freeze_complex_tensor_raw_v1(
+                selected["projector"]
+            ),
+        }
+        reference = dict(reference_payload)
+        reference["reference_sha"] = canonical_sha_v1(reference_payload)
+    outcome_payload = {
+        "status": (
+            {"defined": True, "reason": None}
+            if failure is None
+            else {
+                "defined": False,
+                "reason": "endpoint_shell_ambiguous",
+            }
+        ),
+        "failure": failure,
+        "reference_spec": spec,
+        "attempt_audit": attempt,
+        "reference": reference,
+    }
+    outcome = dict(outcome_payload)
+    outcome["outcome_sha"] = canonical_sha_v1(outcome_payload)
+    validate_endpoint_reference_outcome_raw_v1(outcome)
+    return outcome
+
+
+def _track_endpoint_shell_from_raw(
+    reference_outcome,
+    shell_spec,
+    ordered_transition_matrices,
+    ordered_metric_matrices,
+    source_injection_matrix,
+    readout_matrix,
+    actual_factory_sha,
+    actual_transition_sha,
+    actual_dynamics_certificate_sha,
+    dt,
+):
+    reference = validate_endpoint_reference_outcome_raw_v1(reference_outcome)
+    schemas = _record_schemas_v1()
+    spec = _validate_record_raw_v1(
+        shell_spec,
+        "EndpointShellSpec",
+        "shell_spec",
+        schemas,
+    )
+    if not reference["status"]["defined"] or reference["reference"] is None:
+        raise ValueError("shell requires a successful reference outcome")
+    if canonical_json_bytes_v1(spec["endpoint_reference_projector"]) != (
+        canonical_json_bytes_v1(reference["reference"])
+    ):
+        raise ValueError("shell spec reference differs from upstream outcome")
+    if spec["shell_spec_schema_version"] != "v3m0.endpoint-shell-spec.v1":
+        raise ValueError("unexpected endpoint shell spec schema")
+    if spec["extraction_protocol_id"] != "endpoint-single-node-reference-v1":
+        raise ValueError("shell extraction protocol is not frozen")
+    _require_sha256_v1(actual_factory_sha, "actual_factory_sha")
+    _require_sha256_v1(actual_transition_sha, "actual_transition_sha")
+    _require_sha256_v1(
+        actual_dynamics_certificate_sha,
+        "actual_dynamics_certificate_sha",
+    )
+    time_step = _finite_float_v1(dt, "dt")
+    if time_step <= 0.0:
+        raise ValueError("dt must be positive")
+    direction = spec["response_grid"]["direction_manifest"]
+    paths = direction["ordered_paths"]
+    path_ids = direction["path_ids"]
+    if (
+        not paths
+        or len(path_ids) != len(paths)
+        or any(type(path) is not list or not path for path in paths)
+    ):
+        raise ValueError("shell direction paths are not closed")
+    point_keys = [
+        (path_id, position, reciprocal_index)
+        for path_id, path in zip(path_ids, paths)
+        for position, reciprocal_index in enumerate(path)
+    ]
+    if type(ordered_transition_matrices) is not tuple or type(
+        ordered_metric_matrices
+    ) is not tuple:
+        raise TypeError("shell matrices and metrics must be tuples")
+    if len(ordered_transition_matrices) != len(point_keys) or len(
+        ordered_metric_matrices
+    ) != len(point_keys):
+        raise ValueError("shell matrix bodies do not align with path points")
+    state_count = _strict_complex_matrix_v1(
+        source_injection_matrix,
+        "source_injection_matrix",
+    ).shape[0]
+    if len(point_keys) * state_count * state_count > 16_777_216:
+        raise ValueError("shell projector entries exceed the frozen cap")
+    if (
+        len(point_keys)
+        * (state_count**3 + spec["candidate_fejer_order"] * state_count)
+        > 2_000_000_000
+    ):
+        raise ValueError("Fejer work exceeds the frozen cap")
+    reference_projector = _frozen_tensor_array_raw_v1(
+        reference["reference"]["projector"],
+        "reference_outcome.reference.projector",
+    )
+    expected_rank = reference["reference"]["rank"]
+    point_attempts = []
+    point_audits = []
+    selected_projectors = []
+    selected_by_key = {}
+    predecessor_by_path = {}
+    overlap_margins = []
+    failure = None
+    projector_residual_max = 0.0
+
+    for key, matrix, metric in zip(
+        point_keys,
+        ordered_transition_matrices,
+        ordered_metric_matrices,
+    ):
+        path_id, position, reciprocal_index = key
+        candidates = _extract_projector_candidates_raw_v1(
+            matrix,
+            metric,
+            spec["preregistered_phase_bands"],
+            spec["candidate_fejer_order"],
+            source_injection_matrix,
+            readout_matrix,
+        )
+        predecessor = predecessor_by_path.get(path_id)
+        reference_overlaps = tuple(
+            _projector_overlap_raw_v1(
+                item["projector"],
+                reference_projector,
+                max(item["rank"], expected_rank),
+            )
+            for item in candidates
+        )
+        predecessor_overlaps = tuple(
+            (
+                None
+                if predecessor is None
+                else _projector_overlap_raw_v1(
+                    item["projector"],
+                    predecessor,
+                    max(item["rank"], expected_rank),
+                )
+            )
+            for item in candidates
+        )
+        point_attempts.append(
+            {
+                "reciprocal_index": reciprocal_index,
+                "momentum_path_id": path_id,
+                "momentum_path_position": position,
+                "candidate_phases": [item["phase"] for item in candidates],
+                "candidate_ranks": [item["rank"] for item in candidates],
+                "candidate_participations": [
+                    item["participation"] for item in candidates
+                ],
+                "candidate_reference_overlaps": list(reference_overlaps),
+                "candidate_predecessor_overlaps": list(predecessor_overlaps),
+            }
+        )
+        if candidates:
+            projector_residual_max = max(
+                projector_residual_max,
+                *(
+                    max(
+                        item["hermitian_residual"],
+                        item["idempotent_residual"],
+                        item["g_invariance_residual"],
+                        item["eigenphase_residual"],
+                    )
+                    for item in candidates
+                ),
+            )
+        if not candidates:
+            failure = "phase_band_empty"
+            break
+        if _phase_grid_collision_raw_v1(
+            candidates,
+            spec["candidate_fejer_order"],
+        ):
+            failure = "phase_separation_failed"
+            break
+        eligible = tuple(
+            index
+            for index, item in enumerate(candidates)
+            if item["rank"] == expected_rank
+        )
+        if not eligible:
+            failure = "reference_ambiguous"
+            break
+        scores = tuple(
+            (
+                reference_overlaps[index]
+                if predecessor is None
+                else float(predecessor_overlaps[index])
+            )
+            for index in eligible
+        )
+        order_indices = tuple(
+            sorted(
+                range(len(eligible)),
+                key=lambda item: (-scores[item], eligible[item]),
+            )
+        )
+        selected_position = order_indices[0]
+        selected_index = eligible[selected_position]
+        runner_score = (
+            None if len(order_indices) == 1 else scores[order_indices[1]]
+        )
+        selected_score = scores[selected_position]
+        if runner_score is not None:
+            margin = float(selected_score - runner_score)
+            overlap_margins.append(margin)
+            if margin < 0.2:
+                failure = "runner_up_margin"
+                break
+        selected = candidates[selected_index]
+        if (
+            selected["nearest_competitor_gap"] is not None
+            and selected["nearest_competitor_gap"]
+            < 8.0 * math.pi / spec["candidate_fejer_order"]
+        ):
+            failure = "gap_failed"
+            break
+        if selected["participation"] < 0.25:
+            failure = "participation_failed"
+            break
+        if (
+            max(
+                selected["hermitian_residual"],
+                selected["idempotent_residual"],
+                selected["g_invariance_residual"],
+                selected["eigenphase_residual"],
+            )
+            > 1.0e-12
+        ):
+            failure = "projector_invalid"
+            break
+        point_audits.append(
+            {
+                "reciprocal_index": reciprocal_index,
+                "momentum_path_id": path_id,
+                "momentum_path_position": position,
+                "shell_phase": selected["phase"],
+                "rank": selected["rank"],
+                "hermitian_residual": selected["hermitian_residual"],
+                "idempotent_residual": selected["idempotent_residual"],
+                "g_invariance_residual": selected["g_invariance_residual"],
+                "eigenphase_residual": selected["eigenphase_residual"],
+                "participation": selected["participation"],
+                "nearest_competitor_gap": selected[
+                    "nearest_competitor_gap"
+                ],
+                "reference_overlap": reference_overlaps[selected_index],
+                "runner_up_overlap": runner_score,
+                "predecessor_overlap": (
+                    None
+                    if predecessor is None
+                    else predecessor_overlaps[selected_index]
+                ),
+                "loop_residual": None,
+            }
+        )
+        selected_projectors.append(selected["projector"])
+        selected_by_key[(path_id, position)] = selected["projector"]
+        predecessor_by_path[path_id] = selected["projector"]
+
+    loop_residuals = []
+    if failure is None:
+        audit_positions = {
+            (item["momentum_path_id"], item["momentum_path_position"]): index
+            for index, item in enumerate(point_audits)
+        }
+        occupied = set()
+        for closure in direction["closure_path_pairs"]:
+            first_key = (
+                closure["first_path_id"],
+                closure["first_path_position"],
+            )
+            second_key = (
+                closure["second_path_id"],
+                closure["second_path_position"],
+            )
+            if first_key not in selected_by_key or second_key not in selected_by_key:
+                raise ValueError("closure references an unreplayed shell point")
+            if second_key in occupied:
+                raise ValueError(
+                    "multiple closure residuals cannot occupy one point wire"
+                )
+            occupied.add(second_key)
+            residual = float(
+                np.linalg.norm(
+                    selected_by_key[first_key] - selected_by_key[second_key],
+                    2,
+                )
+            )
+            loop_residuals.append(residual)
+            point_audits[audit_positions[second_key]]["loop_residual"] = residual
+            if residual > 1.0e-10:
+                failure = "loop_inconsistent"
+                break
+
+    loop_observed = None if not loop_residuals else float(max(loop_residuals))
+    attempt_payload = {
+        "attempt_schema_version": "v3m0.endpoint-shell-attempt.v1",
+        "shell_spec": spec,
+        "point_attempts": point_attempts,
+        "projector_residual_max": float(projector_residual_max),
+        "loop_residual_max_observed": loop_observed,
+    }
+    attempt = dict(attempt_payload)
+    attempt["attempt_sha"] = canonical_sha_v1(attempt_payload)
+    shell = None
+    if failure is None:
+        if len(point_audits) != len(point_keys):
+            raise AssertionError("successful shell did not audit every point")
+        gaps = tuple(
+            item["nearest_competitor_gap"]
+            for item in point_audits
+            if item["nearest_competitor_gap"] is not None
+        )
+        runners = tuple(
+            item["runner_up_overlap"]
+            for item in point_audits
+            if item["runner_up_overlap"] is not None
+        )
+        predecessors = tuple(
+            item["predecessor_overlap"]
+            for item in point_audits
+            if item["predecessor_overlap"] is not None
+        )
+        shell_payload = {
+            "shell_schema_version": "v3m0.endpoint-shell-manifest.v1",
+            "actual_factory_sha": actual_factory_sha,
+            "actual_transition_sha": actual_transition_sha,
+            "actual_dynamics_certificate_sha": actual_dynamics_certificate_sha,
+            "shell_spec": spec,
+            "dt": time_step,
+            "eigenphase_convention_id": (
+                "lambda-exp-plus-i-theta-principal-v1"
+            ),
+            "shell_phases": [item["shell_phase"] for item in point_audits],
+            "shell_projectors": _freeze_complex_tensor_raw_v1(
+                np.stack(selected_projectors, axis=0).astype(np.complex128)
+            ),
+            "point_audits": point_audits,
+            "hermitian_residual_max": float(
+                max(item["hermitian_residual"] for item in point_audits)
+            ),
+            "idempotent_residual_max": float(
+                max(item["idempotent_residual"] for item in point_audits)
+            ),
+            "g_invariance_residual_max": float(
+                max(item["g_invariance_residual"] for item in point_audits)
+            ),
+            "eigenphase_residual_max": float(
+                max(item["eigenphase_residual"] for item in point_audits)
+            ),
+            "participation_min": float(
+                min(item["participation"] for item in point_audits)
+            ),
+            "nearest_competitor_gap_min": (
+                None if not gaps else float(min(gaps))
+            ),
+            "reference_overlap_min": float(
+                min(item["reference_overlap"] for item in point_audits)
+            ),
+            "runner_up_overlap_max": (
+                None if not runners else float(max(runners))
+            ),
+            "predecessor_overlap_min": (
+                None if not predecessors else float(min(predecessors))
+            ),
+            "overlap_margin_min": (
+                None if not overlap_margins else float(min(overlap_margins))
+            ),
+            "loop_residual_max": loop_observed,
+            "ambiguous": False,
+        }
+        shell = dict(shell_payload)
+        shell["shell_manifest_sha"] = canonical_sha_v1(shell_payload)
+    outcome_payload = {
+        "status": (
+            {"defined": True, "reason": None}
+            if failure is None
+            else {
+                "defined": False,
+                "reason": "endpoint_shell_ambiguous",
+            }
+        ),
+        "failure": failure,
+        "reference_outcome": reference,
+        "attempt_audit": attempt,
+        "shell": shell,
+    }
+    outcome = dict(outcome_payload)
+    outcome["outcome_sha"] = canonical_sha_v1(outcome_payload)
+    validate_endpoint_shell_outcome_raw_v1(outcome)
+    return outcome
+
+
+def _build_fejer_branch_response_values_from_raw(
+    branch,
+    response_grid,
+    fejer_order,
+    source_basis,
+    readout_basis,
+    shell_phases,
+    ordered_transition_matrices,
+    ordered_metric_matrices,
+):
+    if type(branch) is not str or branch not in ("actual", "matched_ablated"):
+        raise ValueError("response branch is not closed")
+    grid = _validate_record_raw_v1(
+        response_grid,
+        "ResponseKGridManifest",
+        "response_grid",
+        _record_schemas_v1(),
+    )
+    if type(fejer_order) is not int:
+        raise TypeError("fejer_order must be an exact int")
+    if fejer_order not in (256, 512, 1024, 2048, 4096, 8192, 16384):
+        raise ValueError("fejer_order is not frozen")
+    source_vectors = _basis_matrix_raw_v1(source_basis, "source_basis", "source")
+    readout_vectors = _basis_matrix_raw_v1(
+        readout_basis,
+        "readout_basis",
+        "readout",
+    )
+    if source_basis["state_schema_id"] != readout_basis["state_schema_id"]:
+        raise ValueError("source/readout state schema mismatch")
+    if source_basis["channel_order"] != readout_basis["channel_order"]:
+        raise ValueError("source/readout channel order mismatch")
+    if type(shell_phases) is not list:
+        raise TypeError("shell_phases must be an exact JSON array")
+    if type(ordered_transition_matrices) is not tuple:
+        raise TypeError("ordered_transition_matrices must be a tuple")
+    if type(ordered_metric_matrices) is not tuple:
+        raise TypeError("ordered_metric_matrices must be a tuple")
+    point_count = len(grid["reciprocal_indices"])
+    if (
+        point_count <= 0
+        or len(shell_phases) != point_count
+        or len(ordered_transition_matrices) != point_count
+        or len(ordered_metric_matrices) != point_count
+    ):
+        raise ValueError("response raw inputs do not cover the response grid")
+    state_count = len(source_basis["channel_order"])
+    if point_count * (state_count**3 + fejer_order * state_count) > 2_000_000_000:
+        raise ValueError("Fejer work exceeds the frozen cap")
+    source = source_vectors.T.copy()
+    readout = readout_vectors.conj().copy()
+    values = np.empty(
+        (point_count, readout_vectors.shape[0], source_vectors.shape[0]),
+        dtype=np.complex128,
+    )
+    for position, (phase, transition, metric) in enumerate(
+        zip(
+            shell_phases,
+            ordered_transition_matrices,
+            ordered_metric_matrices,
+        )
+    ):
+        values[position] = _compute_fejer_filtered_response_raw_v1(
+            transition,
+            metric,
+            phase,
+            fejer_order,
+            source,
+            readout,
+        )
+    return _freeze_complex_tensor_raw_v1(values)
+
+
+def _audit_source_readout_bridge_from_raw(
+    branch,
+    factory_sha,
+    transition_sha,
+    dynamics_certificate_sha,
+    run_spec_sha,
+    bridge_grid,
+    bridge_steps,
+    source_trial_vectors,
+    current_readout_calibration_spec,
+    ordered_raw_differences,
+):
+    if type(branch) is not str or branch not in ("actual", "matched_ablated"):
+        raise ValueError("branch is not closed")
+    _require_sha256_v1(factory_sha, "factory_sha")
+    _require_sha256_v1(transition_sha, "transition_sha")
+    _require_sha256_v1(
+        dynamics_certificate_sha,
+        "dynamics_certificate_sha",
+    )
+    _require_sha256_v1(run_spec_sha, "run_spec_sha")
+    schemas = _record_schemas_v1()
+    grid = _validate_record_raw_v1(
+        bridge_grid,
+        "BridgeKGridManifest",
+        "bridge_grid",
+        schemas,
+    )
+    reciprocal_indices = grid["reciprocal_indices"]
+    spatial_shape = grid["spatial_shape"]
+    denominators = grid["torus_denominators"]
+    if (
+        not reciprocal_indices
+        or len(reciprocal_indices) > 64
+        or not spatial_shape
+        or len(spatial_shape) != len(denominators)
+    ):
+        raise ValueError("bridge grid shape is not closed")
+    if any(
+        type(value) is not int or value <= 0
+        for value in (*spatial_shape, *denominators)
+    ):
+        raise ValueError("bridge grid dimensions must be positive")
+    if any(
+        len(index) != len(spatial_shape)
+        or any(type(value) is not int for value in index)
+        for index in reciprocal_indices
+    ):
+        raise ValueError("bridge reciprocal index shape mismatch")
+    if len({tuple(index) for index in reciprocal_indices}) != len(
+        reciprocal_indices
+    ):
+        raise ValueError("bridge reciprocal indices must be unique")
+    if type(bridge_steps) is not list or not bridge_steps:
+        raise TypeError("bridge_steps must be a non-empty exact JSON array")
+    if any(type(step) is not int or step <= 0 for step in bridge_steps):
+        raise ValueError("bridge_steps must contain positive exact ints")
+    if bridge_steps != sorted(set(bridge_steps)):
+        raise ValueError("bridge_steps must be unique and strictly ascending")
+    if bridge_steps[-1] > 16384 or not any(step > 1 for step in bridge_steps):
+        raise ValueError("bridge_steps violate the frozen range")
+    trials = _frozen_tensor_array_raw_v1(
+        source_trial_vectors,
+        "source_trial_vectors",
+    )
+    if trials.ndim != 2 or trials.shape[0] != trials.shape[1]:
+        raise ValueError("source trials must be a square frame")
+    source_count = trials.shape[0]
+    if not np.array_equal(
+        trials,
+        np.eye(source_count, dtype=np.complex128),
+    ):
+        raise ValueError("source trials are not the frozen identity frame")
+    if len(reciprocal_indices) * source_count * bridge_steps[-1] > 32_768:
+        raise ValueError("source bridge work exceeds the frozen cap")
+    if type(current_readout_calibration_spec) is not dict:
+        raise TypeError("current_readout_calibration_spec must be an exact object")
+    if (
+        current_readout_calibration_spec.get("spec_schema_version")
+        == "v3m0.current-readout-calibration-spec.v3"
+    ):
+        calibration = _validate_record_raw_v1(
+            current_readout_calibration_spec,
+            "CurrentReadoutCalibrationSpecV3",
+            "current_readout_calibration_spec",
+            schemas,
+        )
+    else:
+        calibration = _validate_record_raw_v1(
+            current_readout_calibration_spec,
+            "ControlReadoutCalibrationSpec",
+            "current_readout_calibration_spec",
+            schemas,
+        )
+    source_whitener = _frozen_tensor_array_raw_v1(
+        calibration["source_metric_whitener"],
+        "current_readout_calibration_spec.source_metric_whitener",
+    )
+    h_whitener = _frozen_tensor_array_raw_v1(
+        calibration["h_metric_whitener"],
+        "current_readout_calibration_spec.h_metric_whitener",
+    )
+    incidence = _frozen_tensor_array_raw_v1(
+        calibration["curvature_incidence_operator"],
+        "current_readout_calibration_spec.curvature_incidence_operator",
+    )
+    curv_whitener = _frozen_tensor_array_raw_v1(
+        calibration["curvature_metric_whitener"],
+        "current_readout_calibration_spec.curvature_metric_whitener",
+    )
+    if source_whitener.shape != (source_count, source_count):
+        raise ValueError("source whitener shape mismatch")
+    if h_whitener.ndim != 2 or h_whitener.shape[0] != h_whitener.shape[1]:
+        raise ValueError("h whitener must be square")
+    readout_count = h_whitener.shape[0]
+    if incidence.ndim != 2 or incidence.shape[1] != readout_count:
+        raise ValueError("curvature incidence shape mismatch")
+    curvature_count = incidence.shape[0]
+    if curv_whitener.shape != (curvature_count, curvature_count):
+        raise ValueError("curvature whitener shape mismatch")
+    expected_keys = [
+        (tuple(reciprocal_index), step)
+        for reciprocal_index in reciprocal_indices
+        for step in bridge_steps
+    ]
+    if type(ordered_raw_differences) is not tuple:
+        raise TypeError("ordered_raw_differences must be a tuple")
+    if len(ordered_raw_differences) != len(expected_keys):
+        raise ValueError("bridge differences do not cover grid x steps")
+    if len(expected_keys) * readout_count * source_count > 16_777_216:
+        raise ValueError("bridge matrix evidence exceeds entry cap")
+    source_inverse = np.linalg.inv(source_whitener)
+    matrix_audits = []
+    for expected_key, item in zip(expected_keys, ordered_raw_differences):
+        if type(item) is not tuple or len(item) != 3:
+            raise TypeError("bridge differences entries must be triples")
+        reciprocal_index, macro_steps, raw = item
+        if type(reciprocal_index) is not tuple or (
+            reciprocal_index,
+            macro_steps,
+        ) != expected_key:
+            raise ValueError("bridge differences are missing or reordered")
+        difference = _strict_complex_matrix_v1(raw, "raw_difference_matrix")
+        if difference.shape != (readout_count, source_count):
+            raise ValueError("raw difference matrix shape mismatch")
+        raw_frobenius = _exact_frobenius_upper_raw_v1(difference)
+        h_error = np.asarray(
+            h_whitener @ difference @ source_inverse,
+            dtype=np.complex128,
+        )
+        curv_error = np.asarray(
+            curv_whitener @ incidence @ difference @ source_inverse,
+            dtype=np.complex128,
+        )
+        matrix_audits.append(
+            {
+                "reciprocal_index": list(reciprocal_index),
+                "macro_steps": macro_steps,
+                "raw_difference_matrix": _freeze_complex_tensor_raw_v1(
+                    difference
+                ),
+                "frame_coverage": None,
+                "raw_frobenius_upper": raw_frobenius,
+                "raw_operator_norm_upper": raw_frobenius,
+                "h_whitened_operator_error_upper": (
+                    _exact_frobenius_upper_raw_v1(h_error)
+                ),
+                "curv_whitened_operator_error_upper": (
+                    _exact_frobenius_upper_raw_v1(curv_error)
+                ),
+            }
+        )
+    payload = {
+        "bridge_schema_version": "v3m0.source-readout-bridge.v1",
+        "branch": branch,
+        "factory_sha": factory_sha,
+        "transition_sha": transition_sha,
+        "dynamics_certificate_sha": dynamics_certificate_sha,
+        "run_spec_sha": run_spec_sha,
+        "source_metric_whitener_sha": calibration[
+            "source_metric_whitener"
+        ]["tensor_sha"],
+        "readout_calibration_spec_sha": calibration["spec_sha"],
+        "matrix_audits": matrix_audits,
+        "h_operator_error_max": float(
+            max(
+                item["h_whitened_operator_error_upper"]
+                for item in matrix_audits
+            )
+        ),
+        "curv_operator_error_max": float(
+            max(
+                item["curv_whitened_operator_error_upper"]
+                for item in matrix_audits
+            )
+        ),
+    }
+    audit = dict(payload)
+    audit["bridge_sha"] = canonical_sha_v1(payload)
+    _validate_record_raw_v1(
+        audit,
+        "SourceReadoutBridgeAudit",
+        "source_readout_bridge_audit",
+        schemas,
+    )
+    return audit
+
+
+def _build_branch_attempt_raw_v1(
+    branch,
+    response_values,
+    bridge_audit,
+    failure,
+):
+    payload = {
+        "branch_attempt_schema_version": (
+            "experimental.v3m0.b7.branch-attempt.v1"
+        ),
+        "branch": branch,
+        "response_values": response_values,
+        "bridge_audit": bridge_audit,
+        "failure": failure,
+    }
+    attempt = dict(payload)
+    attempt["attempt_sha"] = canonical_sha_v1(payload)
+    validate_branch_attempt_v1(attempt)
+    return attempt
+
+
+def _assemble_atomic_paired_response_attempt_from_raw(
+    actual_response_values,
+    matched_ablated_response_values,
+    actual_bridge_audit,
+    matched_ablated_bridge_audit,
+    first_failure,
+):
+    if first_failure == "actual_response_failed":
+        if (
+            actual_response_values is not None
+            or matched_ablated_response_values is not None
+            or actual_bridge_audit is not None
+            or matched_ablated_bridge_audit is not None
+        ):
+            raise ValueError("actual response failure has an invalid raw prefix")
+        return (
+            _build_branch_attempt_raw_v1(
+                "actual",
+                None,
+                None,
+                first_failure,
+            ),
+            None,
+            first_failure,
+        )
+    if first_failure == "matched_ablated_response_failed":
+        if (
+            actual_response_values is None
+            or matched_ablated_response_values is not None
+            or actual_bridge_audit is not None
+            or matched_ablated_bridge_audit is not None
+        ):
+            raise ValueError("matched response failure has an invalid raw prefix")
+        return (
+            _build_branch_attempt_raw_v1(
+                "actual",
+                actual_response_values,
+                None,
+                None,
+            ),
+            _build_branch_attempt_raw_v1(
+                "matched_ablated",
+                None,
+                None,
+                first_failure,
+            ),
+            first_failure,
+        )
+    if first_failure == "actual_bridge_failed":
+        if (
+            actual_response_values is None
+            or matched_ablated_response_values is None
+            or actual_bridge_audit is not None
+            or matched_ablated_bridge_audit is not None
+        ):
+            raise ValueError("actual bridge failure has an invalid raw prefix")
+        return (
+            _build_branch_attempt_raw_v1(
+                "actual",
+                actual_response_values,
+                None,
+                first_failure,
+            ),
+            _build_branch_attempt_raw_v1(
+                "matched_ablated",
+                matched_ablated_response_values,
+                None,
+                None,
+            ),
+            first_failure,
+        )
+    if first_failure == "matched_ablated_bridge_failed":
+        if (
+            actual_response_values is None
+            or matched_ablated_response_values is None
+            or actual_bridge_audit is None
+            or matched_ablated_bridge_audit is not None
+        ):
+            raise ValueError("matched bridge failure has an invalid raw prefix")
+        return (
+            _build_branch_attempt_raw_v1(
+                "actual",
+                actual_response_values,
+                actual_bridge_audit,
+                None,
+            ),
+            _build_branch_attempt_raw_v1(
+                "matched_ablated",
+                matched_ablated_response_values,
+                None,
+                first_failure,
+            ),
+            first_failure,
+        )
+    if first_failure is not None:
+        raise ValueError("first_failure is not a frozen response stage failure")
+    if (
+        actual_response_values is None
+        or matched_ablated_response_values is None
+        or actual_bridge_audit is None
+        or matched_ablated_bridge_audit is None
+    ):
+        raise ValueError("successful paired assembly has an incomplete raw prefix")
+    return (
+        _build_branch_attempt_raw_v1(
+            "actual",
+            actual_response_values,
+            actual_bridge_audit,
+            None,
+        ),
+        _build_branch_attempt_raw_v1(
+            "matched_ablated",
+            matched_ablated_response_values,
+            matched_ablated_bridge_audit,
+            None,
+        ),
+        None,
+    )

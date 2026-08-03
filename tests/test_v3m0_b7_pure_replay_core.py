@@ -11,12 +11,14 @@ import json
 import math
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = REPOSITORY_ROOT / "docsv3" / "v3-机器合同-B7-v9.1-registry.json"
 CORE_PATH = REPOSITORY_ROOT / "rulespace_v3" / "b7_replay_core_v1.py"
+RESPONSE_PATH = REPOSITORY_ROOT / "rulespace_v3" / "response.py"
 
 PROJECTION_SHA256 = "bafbaeb75e890715464c1fff6e6e0cbf1d4f56bb53a3817a9b2d12d2a3c27ff9"
 
@@ -385,6 +387,57 @@ TASK4_PUBLIC_VALIDATOR_SYMBOLS = {
     "validate_synthetic_component_body_v1",
     "validate_provenance_fixture_v1",
     "validate_branch_attempt_v1",
+}
+
+TASK5_FUNCTION_SIGNATURES = {
+    "_select_endpoint_reference_from_raw": (
+        "reference_spec",
+        "transition_matrix",
+        "metric_matrix",
+        "source_injection_matrix",
+        "readout_matrix",
+    ),
+    "_track_endpoint_shell_from_raw": (
+        "reference_outcome",
+        "shell_spec",
+        "ordered_transition_matrices",
+        "ordered_metric_matrices",
+        "source_injection_matrix",
+        "readout_matrix",
+        "actual_factory_sha",
+        "actual_transition_sha",
+        "actual_dynamics_certificate_sha",
+        "dt",
+    ),
+    "_build_fejer_branch_response_values_from_raw": (
+        "branch",
+        "response_grid",
+        "fejer_order",
+        "source_basis",
+        "readout_basis",
+        "shell_phases",
+        "ordered_transition_matrices",
+        "ordered_metric_matrices",
+    ),
+    "_audit_source_readout_bridge_from_raw": (
+        "branch",
+        "factory_sha",
+        "transition_sha",
+        "dynamics_certificate_sha",
+        "run_spec_sha",
+        "bridge_grid",
+        "bridge_steps",
+        "source_trial_vectors",
+        "current_readout_calibration_spec",
+        "ordered_raw_differences",
+    ),
+    "_assemble_atomic_paired_response_attempt_from_raw": (
+        "actual_response_values",
+        "matched_ablated_response_values",
+        "actual_bridge_audit",
+        "matched_ablated_bridge_audit",
+        "first_failure",
+    ),
 }
 
 TASK4_LITERAL_ASSIGNMENTS = {
@@ -1802,6 +1855,571 @@ def test_core_runtime_namespace_has_exact_task3_task4_symbols() -> None:
         name for name in TASK4_FUNCTION_SIGNATURES if name.startswith("_")
     }
     assert observed_private == expected_private
+
+
+def test_task5_owner_neutral_leaf_signatures_are_exact() -> None:
+    tree = ast.parse(CORE_PATH.read_text(encoding="utf-8"))
+    observed = {
+        node.name: tuple(argument.arg for argument in node.args.args)
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name in TASK5_FUNCTION_SIGNATURES
+    }
+
+    assert observed == TASK5_FUNCTION_SIGNATURES
+
+
+def test_task5_response_atomic_assembly_wrapper_is_one_static_delegation() -> None:
+    tree = ast.parse(RESPONSE_PATH.read_text(encoding="utf-8"))
+    matches = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_assemble_atomic_paired_response_attempt_from_raw"
+    ]
+    assert len(matches) == 1
+    function = matches[0]
+    assert tuple(argument.arg for argument in function.args.args) == (
+        TASK5_FUNCTION_SIGNATURES[
+            "_assemble_atomic_paired_response_attempt_from_raw"
+        ]
+    )
+    assert len(function.body) == 1
+    statement = function.body[0]
+    assert isinstance(statement, ast.Return)
+    call = statement.value
+    assert isinstance(call, ast.Call)
+    assert isinstance(call.func, ast.Attribute)
+    assert isinstance(call.func.value, ast.Name)
+    assert call.func.value.id == "_b7_replay_core_v1"
+    assert call.func.attr == function.name
+    assert not call.keywords
+    assert tuple(
+        argument.id for argument in call.args if isinstance(argument, ast.Name)
+    ) == TASK5_FUNCTION_SIGNATURES[function.name]
+
+
+def _task5_basis(role: str) -> dict[str, object]:
+    basis = _task4_minimal_record("BasisManifest")
+    basis["role"] = role
+    basis["state_schema_id"] = "task5-state-v1"
+    basis["channel_order"] = ["q0", "q1"]
+    basis["vectors_wire"] = [
+        [[1.0, 0.0], [0.0, 0.0]],
+        [[0.0, 0.0], [1.0, 0.0]],
+    ]
+    _task4_resign_tree("BasisManifest", basis)
+    return basis
+
+
+def _task5_response_grid() -> dict[str, object]:
+    grid = _task4_minimal_record("ResponseKGridManifest")
+    grid["spatial_ndim"] = 1
+    grid["torus_denominators"] = [8]
+    grid["reciprocal_indices"] = [[0]]
+    _task4_resign_tree("ResponseKGridManifest", grid)
+    return grid
+
+
+def _task5_tensor_from_array(values: np.ndarray) -> dict[str, object]:
+    array = np.asarray(values, dtype=np.complex128)
+    tensor = {
+        "tensor_schema_version": "v3m0.frozen-complex-tensor.v1",
+        "shape": [int(length) for length in array.shape],
+        "values_wire": [
+            [float(value.real), float(value.imag)]
+            for value in array.reshape(-1, order="C")
+        ],
+        "tensor_sha": "0" * 64,
+    }
+    return _task4_seal(tensor, "tensor_sha")
+
+
+def _task5_bridge_grid() -> dict[str, object]:
+    grid = _task4_minimal_record("BridgeKGridManifest")
+    grid["spatial_shape"] = [8]
+    grid["torus_denominators"] = [8]
+    grid["reciprocal_indices"] = [[0]]
+    _task4_resign_tree("BridgeKGridManifest", grid)
+    return grid
+
+
+def _task5_current_readout_spec() -> dict[str, object]:
+    spec = _task4_minimal_record("CurrentReadoutCalibrationSpecV3")
+    spec["source_metric_whitener"] = _task5_tensor_from_array(
+        np.eye(10, dtype=np.complex128)
+    )
+    spec["h_metric_whitener"] = _task5_tensor_from_array(
+        np.eye(10, dtype=np.complex128)
+    )
+    spec["curvature_incidence_operator"] = _task5_tensor_from_array(
+        np.eye(10, dtype=np.complex128)[:6]
+    )
+    spec["curvature_metric_whitener"] = _task5_tensor_from_array(
+        np.eye(6, dtype=np.complex128)
+    )
+    _task4_resign_tree("CurrentReadoutCalibrationSpecV3", spec)
+    return spec
+
+
+def _task5_reference_spec(
+    phase_bands: list[list[float]],
+) -> dict[str, object]:
+    spec = _task4_minimal_record("EndpointReferenceSpec")
+    spec["reference_spec_schema_version"] = "v3m0.endpoint-reference-spec.v1"
+    spec["window_protocol_sha"] = "a" * 64
+    spec["actual_factory_sha"] = "b" * 64
+    spec["actual_transition_sha"] = "c" * 64
+    spec["actual_dynamics_certificate_sha"] = "d" * 64
+    spec["candidate_fejer_order"] = 256
+    spec["reference_reciprocal_index"] = [0]
+    spec["preregistered_phase_bands"] = phase_bands
+    spec["expected_shell_rank"] = 1
+    spec["expected_shell_rank_source_id"] = (
+        "parent-freeze-control-application-spec-v1"
+    )
+    _task4_resign_tree("EndpointReferenceSpec", spec)
+    return spec
+
+
+def _task5_reference_success_raw(
+    spec: dict[str, object],
+) -> dict[str, object]:
+    projector = _task5_tensor_from_array(np.ones((1, 1), dtype=np.complex128))
+    reference = _task4_seal(
+        {
+            "reference_schema_version": "v3m0.endpoint-reference-projector.v1",
+            "control_registry_entry_sha": spec["control_registry_entry"][
+                "entry_sha"
+            ],
+            "actual_transition_sha": spec["actual_transition_sha"],
+            "actual_dynamics_certificate_sha": spec[
+                "actual_dynamics_certificate_sha"
+            ],
+            "reference_reciprocal_index": spec["reference_reciprocal_index"],
+            "reference_phase": math.pi / 2.0,
+            "projector_coordinate_convention_id": "g-whitened-state-v1",
+            "rank": 1,
+            "projector": projector,
+            "reference_sha": "0" * 64,
+        },
+        "reference_sha",
+    )
+    attempt = _task4_seal(
+        {
+            "attempt_schema_version": "v3m0.endpoint-reference-attempt.v1",
+            "reference_spec": spec,
+            "candidate_phases": [math.pi / 2.0],
+            "candidate_ranks": [1],
+            "expected_shell_rank": 1,
+            "expected_shell_rank_source_id": (
+                "parent-freeze-control-application-spec-v1"
+            ),
+            "candidate_participations": [1.0],
+            "runner_up_overlaps": [None],
+            "hermitian_residuals": [0.0],
+            "idempotent_residuals": [0.0],
+            "g_invariance_residuals": [0.0],
+            "eigenphase_residuals": [math.cos(math.pi / 2.0)],
+            "observed_competitor_gaps": [None],
+            "attempt_sha": "0" * 64,
+        },
+        "attempt_sha",
+    )
+    return _task4_seal(
+        {
+            "status": {"defined": True, "reason": None},
+            "failure": None,
+            "reference_spec": spec,
+            "attempt_audit": attempt,
+            "reference": reference,
+            "outcome_sha": "0" * 64,
+        },
+        "outcome_sha",
+    )
+
+
+def _task5_shell_spec(
+    reference_outcome: dict[str, object],
+) -> dict[str, object]:
+    assert isinstance(reference_outcome["reference"], dict)
+    spec = _task4_minimal_record("EndpointShellSpec")
+    spec["shell_spec_schema_version"] = "v3m0.endpoint-shell-spec.v1"
+    spec["window_protocol_sha"] = "a" * 64
+    spec["control_registry_entry"] = reference_outcome["reference_spec"][
+        "control_registry_entry"
+    ]
+    grid = _task5_response_grid()
+    direction = grid["direction_manifest"]
+    direction["direction_ids"] = ["d0"]
+    direction["primitive_directions"] = [[1]]
+    direction["path_ids"] = ["p0"]
+    direction["ordered_paths"] = [[[0]]]
+    direction["closure_path_pairs"] = []
+    _task4_resign_tree("ResponseKGridManifest", grid)
+    spec["response_grid"] = grid
+    spec["preregistered_phase_bands"] = [[1.0, 2.0]]
+    spec["candidate_fejer_order"] = 256
+    spec["endpoint_reference_projector"] = reference_outcome["reference"]
+    spec["extraction_protocol_id"] = "endpoint-single-node-reference-v1"
+    _task4_resign_tree("EndpointShellSpec", spec)
+    return spec
+
+
+def test_task5_fejer_leaf_builds_canonical_ordered_fp64_tensor() -> None:
+    core = _core_module()
+    transition = np.asarray(
+        [[1.0 + 0.0j, 0.0 + 0.0j], [0.0 + 0.0j, -1.0 + 0.0j]],
+        dtype=np.complex128,
+    )
+    metric = np.eye(2, dtype=np.complex128)
+
+    observed = core._build_fejer_branch_response_values_from_raw(
+        "actual",
+        _task5_response_grid(),
+        256,
+        _task5_basis("source"),
+        _task5_basis("readout"),
+        [0.0],
+        (transition,),
+        (metric,),
+    )
+
+    expected = _task4_tensor([1, 2, 2])
+    expected["values_wire"] = [
+        [1.0, 0.0],
+        [0.0, 0.0],
+        [0.0, 0.0],
+        [1.0 / 257.0, 0.0],
+    ]
+    expected = _task4_seal(expected, "tensor_sha")
+    assert observed == expected
+
+
+@pytest.mark.parametrize(
+    ("branch", "shell_phases", "matrices"),
+    (
+        ("caller", [0.0], "valid"),
+        ("actual", [], "valid"),
+        ("actual", [0.0], "float64"),
+    ),
+)
+def test_task5_fejer_leaf_rejects_owner_and_numeric_shape_drift(
+    branch: str,
+    shell_phases: list[float],
+    matrices: str,
+) -> None:
+    core = _core_module()
+    dtype = np.float64 if matrices == "float64" else np.complex128
+    transition = np.eye(2, dtype=dtype)
+
+    with pytest.raises((TypeError, ValueError)):
+        core._build_fejer_branch_response_values_from_raw(
+            branch,
+            _task5_response_grid(),
+            256,
+            _task5_basis("source"),
+            _task5_basis("readout"),
+            shell_phases,
+            (transition,),
+            (np.eye(2, dtype=np.complex128),),
+        )
+
+
+def test_task5_reference_leaf_selects_and_hashes_one_invariant_projector() -> None:
+    core = _core_module()
+    spec = _task5_reference_spec([[1.0, 2.0]])
+    transition = np.asarray([[0.0 + 1.0j]], dtype=np.complex128)
+    identity = np.ones((1, 1), dtype=np.complex128)
+
+    observed = core._select_endpoint_reference_from_raw(
+        spec,
+        transition,
+        identity,
+        identity,
+        identity,
+    )
+
+    assert observed == _task5_reference_success_raw(spec)
+
+
+def test_task5_reference_leaf_freezes_empty_band_failure_prefix() -> None:
+    core = _core_module()
+    spec = _task5_reference_spec([[-2.0, -1.0]])
+    transition = np.asarray([[0.0 + 1.0j]], dtype=np.complex128)
+    identity = np.ones((1, 1), dtype=np.complex128)
+
+    observed = core._select_endpoint_reference_from_raw(
+        spec,
+        transition,
+        identity,
+        identity,
+        identity,
+    )
+
+    assert observed["status"] == {
+        "defined": False,
+        "reason": "endpoint_shell_ambiguous",
+    }
+    assert observed["failure"] == "phase_band_empty"
+    assert observed["reference"] is None
+    assert observed["attempt_audit"]["candidate_phases"] == []
+    assert observed["outcome_sha"] == _task4_canonical_sha(
+        {key: value for key, value in observed.items() if key != "outcome_sha"}
+    )
+
+
+def test_task5_shell_leaf_tracks_one_path_and_freezes_complete_manifest() -> None:
+    core = _core_module()
+    reference_spec = _task5_reference_spec([[1.0, 2.0]])
+    reference_outcome = _task5_reference_success_raw(reference_spec)
+    shell_spec = _task5_shell_spec(reference_outcome)
+    transition = np.asarray([[0.0 + 1.0j]], dtype=np.complex128)
+    identity = np.ones((1, 1), dtype=np.complex128)
+
+    observed = core._track_endpoint_shell_from_raw(
+        reference_outcome,
+        shell_spec,
+        (transition,),
+        (identity,),
+        identity,
+        identity,
+        "1" * 64,
+        "2" * 64,
+        "3" * 64,
+        1.0,
+    )
+
+    assert observed["status"] == {"defined": True, "reason": None}
+    assert observed["failure"] is None
+    shell = observed["shell"]
+    assert shell["shell_phases"] == [math.pi / 2.0]
+    assert shell["point_audits"][0]["rank"] == 1
+    assert shell["point_audits"][0]["momentum_path_id"] == "p0"
+    assert shell["shell_projectors"] == _task5_tensor_from_array(
+        np.ones((1, 1, 1), dtype=np.complex128)
+    )
+    assert shell["shell_manifest_sha"] == _task4_canonical_sha(
+        {
+            key: value
+            for key, value in shell.items()
+            if key != "shell_manifest_sha"
+        }
+    )
+    assert observed["outcome_sha"] == _task4_canonical_sha(
+        {key: value for key, value in observed.items() if key != "outcome_sha"}
+    )
+
+
+def test_task5_bridge_leaf_supports_rectangular_current_curvature_readout() -> None:
+    core = _core_module()
+    raw_difference = np.diag(
+        np.arange(1.0, 11.0, dtype=np.float64)
+    ).astype(np.complex128)
+    spec = _task5_current_readout_spec()
+
+    observed = core._audit_source_readout_bridge_from_raw(
+        "actual",
+        "1" * 64,
+        "2" * 64,
+        "3" * 64,
+        "4" * 64,
+        _task5_bridge_grid(),
+        [2],
+        _task5_tensor_from_array(np.eye(10, dtype=np.complex128)),
+        spec,
+        (((0,), 2, raw_difference),),
+    )
+
+    assert observed["branch"] == "actual"
+    assert observed["source_metric_whitener_sha"] == (
+        spec["source_metric_whitener"]["tensor_sha"]
+    )
+    assert observed["readout_calibration_spec_sha"] == spec["spec_sha"]
+    assert len(observed["matrix_audits"]) == 1
+    matrix = observed["matrix_audits"][0]
+    assert matrix["raw_difference_matrix"] == _task5_tensor_from_array(
+        raw_difference
+    )
+    assert matrix["frame_coverage"] is None
+    assert matrix["h_whitened_operator_error_upper"] >= float(
+        np.linalg.norm(raw_difference, "fro")
+    )
+    assert matrix["curv_whitened_operator_error_upper"] >= float(
+        np.linalg.norm(raw_difference[:6], "fro")
+    )
+    assert observed["bridge_sha"] == _task4_canonical_sha(
+        {key: value for key, value in observed.items() if key != "bridge_sha"}
+    )
+
+
+def test_task5_bridge_leaf_rejects_nonidentity_trial_frame() -> None:
+    core = _core_module()
+    trials = np.eye(10, dtype=np.complex128)
+    trials[0, 0] = 2.0 + 0.0j
+
+    with pytest.raises(ValueError, match="identity frame"):
+        core._audit_source_readout_bridge_from_raw(
+            "actual",
+            "1" * 64,
+            "2" * 64,
+            "3" * 64,
+            "4" * 64,
+            _task5_bridge_grid(),
+            [2],
+            _task5_tensor_from_array(trials),
+            _task5_current_readout_spec(),
+            (((0,), 2, np.eye(10, dtype=np.complex128)),),
+        )
+
+
+def _task5_branch_attempt(
+    branch: str,
+    response_values: object,
+    bridge_audit: object,
+    failure: str | None,
+) -> dict[str, object]:
+    return _task4_seal(
+        {
+            "branch_attempt_schema_version": (
+                "experimental.v3m0.b7.branch-attempt.v1"
+            ),
+            "branch": branch,
+            "response_values": response_values,
+            "bridge_audit": bridge_audit,
+            "failure": failure,
+            "attempt_sha": "0" * 64,
+        },
+        "attempt_sha",
+    )
+
+
+def test_task5_atomic_assembly_preserves_actual_response_failure_prefix() -> None:
+    core = _core_module()
+
+    observed = core._assemble_atomic_paired_response_attempt_from_raw(
+        None,
+        None,
+        None,
+        None,
+        "actual_response_failed",
+    )
+    assert observed == (
+        _task5_branch_attempt(
+            "actual",
+            None,
+            None,
+            "actual_response_failed",
+        ),
+        None,
+        "actual_response_failed",
+    )
+
+
+@pytest.mark.parametrize(
+    ("first_failure", "expected_actual", "expected_matched"),
+    (
+        (
+            "matched_ablated_response_failed",
+            ("present", None),
+            ("absent", "matched_ablated_response_failed"),
+        ),
+        (
+            "actual_bridge_failed",
+            ("present", "actual_bridge_failed"),
+            ("present", None),
+        ),
+    ),
+)
+def test_task5_atomic_assembly_preserves_values_prefix_before_bridge(
+    first_failure: str,
+    expected_actual: tuple[str, str | None],
+    expected_matched: tuple[str, str | None],
+) -> None:
+    core = _core_module()
+    actual_values = _task4_tensor([1, 1])
+    matched_values = (
+        None
+        if first_failure == "matched_ablated_response_failed"
+        else _task4_tensor([1, 1])
+    )
+
+    actual, matched, observed_failure = (
+        core._assemble_atomic_paired_response_attempt_from_raw(
+            actual_values,
+            matched_values,
+            None,
+            None,
+            first_failure,
+        )
+    )
+
+    assert observed_failure == first_failure
+    assert actual == _task5_branch_attempt(
+        "actual",
+        actual_values,
+        None,
+        expected_actual[1],
+    )
+    assert matched == _task5_branch_attempt(
+        "matched_ablated",
+        None if expected_matched[0] == "absent" else matched_values,
+        None,
+        expected_matched[1],
+    )
+
+
+@pytest.mark.parametrize(
+    "first_failure",
+    ("matched_ablated_bridge_failed", None),
+)
+def test_task5_atomic_assembly_preserves_bridge_prefix_and_success(
+    first_failure: str | None,
+) -> None:
+    core = _core_module()
+    actual_values = _task4_tensor([1, 1])
+    matched_values = _task4_tensor([1, 1])
+    actual_bridge = _task4_minimal_record("SourceReadoutBridgeAudit")
+    matched_bridge = json.loads(json.dumps(actual_bridge))
+    matched_bridge["branch"] = "matched_ablated"
+    _task4_resign_tree("SourceReadoutBridgeAudit", matched_bridge)
+    supplied_matched_bridge = None if first_failure is not None else matched_bridge
+
+    observed = core._assemble_atomic_paired_response_attempt_from_raw(
+        actual_values,
+        matched_values,
+        actual_bridge,
+        supplied_matched_bridge,
+        first_failure,
+    )
+
+    assert observed == (
+        _task5_branch_attempt(
+            "actual",
+            actual_values,
+            actual_bridge,
+            None,
+        ),
+        _task5_branch_attempt(
+            "matched_ablated",
+            matched_values,
+            supplied_matched_bridge,
+            first_failure,
+        ),
+        first_failure,
+    )
+
+
+def test_task5_atomic_assembly_rejects_post_failure_evidence() -> None:
+    core = _core_module()
+
+    with pytest.raises(ValueError, match="invalid raw prefix"):
+        core._assemble_atomic_paired_response_attempt_from_raw(
+            _task4_tensor([1, 1]),
+            None,
+            None,
+            None,
+            "actual_response_failed",
+        )
 
 
 def test_static_contract_rejects_extra_helper_callback_and_capability_imports() -> None:
