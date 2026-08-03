@@ -4,16 +4,19 @@
 
 # docsv3：因果可识别涌现边界文档体系
 
-> 状态：**纲领 v3 已生效；`HALT-V3M0-WINDOW` unchanged**，2026-08-01。
+> 状态：**纲领 v3 已生效；`STOP-PRE-GPU-CHECKPOINT`，`HALT-V3M0-WINDOW`
+> unchanged**，2026-08-03。
 > 本目录记录由 v2 M3′ 30 格无牙追因触发的范式修订。PI 已授权在北极星漂移审计通过后
 > 签发并开工；审计结论为 PASS。v2 证据链保持原样，V3-M1、新 family、pilot 与昂贵扫描
 > 继续锁定；`READY-V3-M1-ANCHOR-CERTIFICATION` 尚未签发。
 
-> **实施覆盖（2026-08-03）：** production 分支 HEAD 为 `18b0d43`；Phase A 的 A1–A5 与
-> Phase B 的 B0–B6 已有源码实现。当前边界是 B7；v8 的 response wire 合同因
-> prefix/provenance 矛盾重新打开。PI 已批准 D0+D1 的 A/B/C 三路线隔离并行对照，最终仍只允许
-> 一个 production schema。v9 P0 会改写尚未签发的 current response raw body，所以
-> A1–B6 须在新 root 上重放与复审。真实 P/S、V3-M0 run 与所有下游 READY/PASS 均尚未执行。
+> **实施覆盖（2026-08-03）：** production 基线为 `4926910`，Phase A A1–A5、P0 与
+> Phase B B0–B6 已有源码实现。B7 common/三条实验路线已在 `adf1715` 集成，但完整 D0 在
+> 产物发布前因 D1 raw framing 合同不可满足而中止；D0/D1、双 reviewer、selection 与
+> production handoff 均未完成。修正候选 C′ `e4deb3a` 仅为 WIP，未签发。B9-lower 第一
+> owner 已在隔离分支实现但未合入；B10 lower leaf 被独立复审 REJECT。权威细目见
+> `v3-阶段封存-2026-08-03-B7实验暂停与GPU锁定.md`。真实 P/S、V3-M0 run 与所有下游
+> READY/PASS 均未执行，GPU checkpoint 未到达。
 
 ## 为什么需要 v3
 
@@ -43,14 +46,15 @@ v3 因而把单轴拆开：
 
 ## 权威阅读顺序
 
-1. `v3-纲领-北极星-因果可识别涌现边界制图.md`
-2. `v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`
-3. `v3-勘误-observer-collapse-coisometry-2026-07-30.md`
-4. `v3-勘误-application-scenario与typed-termination-2026-07-31.md`
-5. `v3-任务书-V3M0-因果响应与几何距离仪器.md`
-6. `v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
-7. v2 当前状态：`../docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
-8. v2 任务书：`../docsv2/v2-任务书-M3-涌现边界制图.md`
+1. `v3-阶段封存-2026-08-03-B7实验暂停与GPU锁定.md`
+2. `v3-纲领-北极星-因果可识别涌现边界制图.md`
+3. `v3-裁定-从单epsilon到因果可识别双轴-2026-07-30.md`
+4. `v3-勘误-observer-collapse-coisometry-2026-07-30.md`
+5. `v3-勘误-application-scenario与typed-termination-2026-07-31.md`
+6. `v3-任务书-V3M0-因果响应与几何距离仪器.md`
+7. `v3-实施计划-V3M0-双轴仪器迁移-2026-07-30.md`
+8. v2 当前状态：`../docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`
+9. v2 任务书：`../docsv2/v2-任务书-M3-涌现边界制图.md`
 
 ## 版本关系
 
