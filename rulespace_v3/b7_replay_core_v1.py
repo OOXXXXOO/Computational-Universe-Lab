@@ -103,33 +103,39 @@ def canonical_json_bytes_v1(value: object) -> bytes:
 
     def validate_object_keys(candidate: object, path: str) -> None:
         candidate_type = type(candidate)
-        if candidate is None or candidate_type in (str, bool, int, float):
+        if (
+            candidate is None
+            or candidate_type is str
+            or candidate_type is bool
+            or candidate_type is int
+            or candidate_type is float
+        ):
             return
         if candidate_type is dict:
             container_id = id(candidate)
             if container_id in active_containers:
-                raise ValueError(f"{path} contains a cyclic JSON container")
+                raise ValueError("JSON value contains a cyclic container")
             set.add(active_containers, container_id)
             try:
                 for key, item in dict.items(candidate):
                     if type(key) is not str:
-                        raise TypeError(f"{path} JSON object key must be a str")
-                    validate_object_keys(item, f"{path}.{key}")
+                        raise TypeError("JSON object key must be a str")
+                    validate_object_keys(item, path)
             finally:
                 set.remove(active_containers, container_id)
             return
-        if candidate_type in (list, tuple):
+        if candidate_type is list or candidate_type is tuple:
             container_id = id(candidate)
             if container_id in active_containers:
-                raise ValueError(f"{path} contains a cyclic JSON container")
+                raise ValueError("JSON value contains a cyclic container")
             set.add(active_containers, container_id)
             try:
                 for index, item in enumerate(candidate):
-                    validate_object_keys(item, f"{path}[{index}]")
+                    validate_object_keys(item, path)
             finally:
                 set.remove(active_containers, container_id)
             return
-        raise TypeError(f"{path} must contain only exact built-in JSON values")
+        raise TypeError("JSON value must contain only exact built-in JSON values")
 
     validate_object_keys(value, "$")
     text = json.dumps(
@@ -160,12 +166,12 @@ def strict_json_loads_v1(canonical_json_utf8: bytes) -> object:
         result: dict[str, object] = {}
         for key, value in pairs:
             if key in result:
-                raise ValueError(f"duplicate JSON object key: {key}")
+                raise ValueError("duplicate JSON object key")
             result[key] = value
         return result
 
     def reject_nonfinite_constant(constant_text: str) -> object:
-        raise ValueError(f"JSON number must be finite: {constant_text}")
+        raise ValueError("JSON number must be finite")
 
     if type(canonical_json_utf8) is not bytes:
         raise TypeError("canonical_json_utf8 must be exact bytes")

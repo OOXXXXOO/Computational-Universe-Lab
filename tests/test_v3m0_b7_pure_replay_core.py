@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from collections import Counter
 import hashlib
 import importlib
 import json
@@ -85,6 +86,11 @@ TASK3_NESTED_FUNCTION_SIGNATURES = {
     ("canonical_json_bytes_v1", "validate_object_keys"): ("candidate", "path"),
     ("strict_json_loads_v1", "reject_duplicate_object_pairs"): ("pairs",),
     ("strict_json_loads_v1", "reject_nonfinite_constant"): ("constant_text",),
+}
+
+TASK3_ALL_FUNCTION_SCOPES = {
+    *TASK3_FUNCTION_SIGNATURES,
+    *(name for _, name in TASK3_NESTED_FUNCTION_SIGNATURES),
 }
 
 TASK3_DIRECT_IMPORTS = ["__future__", "hashlib", "json"]
@@ -235,6 +241,66 @@ TASK4_FUNCTION_SIGNATURES = {
     "validate_branch_attempt_v1": ("raw_body",),
 }
 
+TASK4_FUNCTION_ANNOTATIONS = {
+    "_split_wire_top_level_v1": (("str", "str"), "list[str]"),
+    "_literal_wire_value_v1": (("str",), "object"),
+    "_validate_wire_value_v1": (
+        ("object", "str", "str | None", "str", "dict[str, object]"),
+        "None",
+    ),
+    "_validate_record_raw_v1": (
+        ("object", "str", "str", "dict[str, object]"),
+        "dict[str, object]",
+    ),
+    "_record_schemas_v1": ((), "dict[str, object]"),
+    "_canonical_equal_v1": (("object", "object", "str"), "None"),
+    "_component_by_id_v1": (("object", "str"), "dict[str, object]"),
+    "validate_endpoint_reference_outcome_raw_v1": (
+        ("object",),
+        "dict[str, object]",
+    ),
+    "validate_endpoint_shell_outcome_raw_v1": (
+        ("object",),
+        "dict[str, object]",
+    ),
+    "validate_synthetic_parent_freeze_v3_body_v1": (
+        ("object",),
+        "dict[str, object]",
+    ),
+    "validate_provenance_fixture_v1": (("object",), "dict[str, object]"),
+    "_resolve_json_pointer_v1": (("object", "str", "str"), "object"),
+    "validate_synthetic_component_body_v1": (
+        ("object", "object", "object"),
+        "dict[str, object]",
+    ),
+    "_validate_synthetic_graph_raw_v1": (
+        ("object", "object"),
+        "dict[str, object]",
+    ),
+    "validate_response_run_spec_fixture_v1": (
+        ("object", "object", "object"),
+        "dict[str, object]",
+    ),
+    "validate_source_readout_response_raw_v1": (
+        ("object", "object", "object", "object"),
+        "dict[str, object]",
+    ),
+    "_require_exact_dict_fields_v1": (
+        ("object", "tuple[str, ...]", "str"),
+        "dict[str, object]",
+    ),
+    "_require_sha256_v1": (("object", "str"), "str"),
+    "_require_self_hash_v1": (
+        ("dict[str, object]", "str", "str"),
+        "None",
+    ),
+    "_validate_frozen_complex_tensor_raw_v1": (
+        ("object", "str"),
+        "dict[str, object]",
+    ),
+    "validate_branch_attempt_v1": (("object",), "dict[str, object]"),
+}
+
 TASK4_PUBLIC_VALIDATOR_SYMBOLS = {
     "validate_response_run_spec_fixture_v1",
     "validate_endpoint_reference_outcome_raw_v1",
@@ -306,6 +372,253 @@ TASK4_CALL_SHAPES = {
     "zip": ((2, ()),),
 }
 
+TASK3_FUNCTION_ANNOTATIONS = {
+    "canonical_json_bytes_v1": (("object",), "bytes"),
+    "canonical_sha_v1": (("object",), "str"),
+    "strict_json_loads_v1": (("bytes",), "object"),
+}
+
+TASK3_NESTED_FUNCTION_ANNOTATIONS = {
+    ("canonical_json_bytes_v1", "validate_object_keys"): (
+        ("object", "str"),
+        "None",
+    ),
+    ("strict_json_loads_v1", "reject_duplicate_object_pairs"): (
+        ("list[tuple[str, object]]",),
+        "dict[str, object]",
+    ),
+    ("strict_json_loads_v1", "reject_nonfinite_constant"): (
+        ("str",),
+        "object",
+    ),
+}
+
+TASK3_EXPECTED_SCOPE_BINDINGS = Counter(
+    {
+        ((), "annotations", "import-alias"): 1,
+        ((), "hashlib", "import-alias"): 1,
+        ((), "json", "import-alias"): 1,
+        ((), "B7_V91_PURE_REPLAY_PROJECTION_SHA256", "assign-target"): 1,
+        ((), "canonical_json_bytes_v1", "function-def"): 1,
+        ((), "canonical_sha_v1", "function-def"): 1,
+        ((), "strict_json_loads_v1", "function-def"): 1,
+        (("canonical_json_bytes_v1",), "value", "parameter"): 1,
+        (("canonical_json_bytes_v1",), "active_containers", "assign-target"): 1,
+        (("canonical_json_bytes_v1",), "validate_object_keys", "function-def"): 1,
+        (("canonical_json_bytes_v1",), "text", "assign-target"): 1,
+        (("canonical_json_bytes_v1",), "exc", "except-handler"): 1,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "candidate",
+            "parameter",
+        ): 1,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "path",
+            "parameter",
+        ): 1,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "candidate_type",
+            "assign-target",
+        ): 1,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "container_id",
+            "assign-target",
+        ): 2,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "key",
+            "for-target",
+        ): 1,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "item",
+            "for-target",
+        ): 2,
+        (
+            ("canonical_json_bytes_v1", "validate_object_keys"),
+            "index",
+            "for-target",
+        ): 1,
+        (("canonical_sha_v1",), "value", "parameter"): 1,
+        (("strict_json_loads_v1",), "canonical_json_utf8", "parameter"): 1,
+        (
+            ("strict_json_loads_v1",),
+            "reject_duplicate_object_pairs",
+            "function-def",
+        ): 1,
+        (
+            ("strict_json_loads_v1",),
+            "reject_nonfinite_constant",
+            "function-def",
+        ): 1,
+        (("strict_json_loads_v1",), "text", "assign-target"): 1,
+        (("strict_json_loads_v1",), "exc", "except-handler"): 1,
+        (("strict_json_loads_v1",), "value", "assign-target"): 1,
+        (
+            ("strict_json_loads_v1", "reject_duplicate_object_pairs"),
+            "pairs",
+            "parameter",
+        ): 1,
+        (
+            ("strict_json_loads_v1", "reject_duplicate_object_pairs"),
+            "result",
+            "assign-target",
+        ): 1,
+        (
+            ("strict_json_loads_v1", "reject_duplicate_object_pairs"),
+            "key",
+            "for-target",
+        ): 1,
+        (
+            ("strict_json_loads_v1", "reject_duplicate_object_pairs"),
+            "value",
+            "for-target",
+        ): 1,
+        (
+            ("strict_json_loads_v1", "reject_nonfinite_constant"),
+            "constant_text",
+            "parameter",
+        ): 1,
+    }
+)
+
+TASK3_EXPECTED_CALL_TARGETS = Counter(
+    {
+        ("canonical_json_bytes_v1", "set"): 1,
+        ("canonical_json_bytes_v1", "validate_object_keys"): 1,
+        ("canonical_json_bytes_v1", "json.dumps"): 1,
+        ("canonical_json_bytes_v1", "str.encode"): 1,
+        ("canonical_json_bytes_v1", "ValueError"): 1,
+        ("validate_object_keys", "type"): 2,
+        ("validate_object_keys", "id"): 2,
+        ("validate_object_keys", "ValueError"): 2,
+        ("validate_object_keys", "set.add"): 2,
+        ("validate_object_keys", "dict.items"): 1,
+        ("validate_object_keys", "TypeError"): 2,
+        ("validate_object_keys", "validate_object_keys"): 2,
+        ("validate_object_keys", "set.remove"): 2,
+        ("validate_object_keys", "enumerate"): 1,
+        ("canonical_sha_v1", "hashlib.sha256().hexdigest"): 1,
+        ("canonical_sha_v1", "hashlib.sha256"): 1,
+        ("canonical_sha_v1", "canonical_json_bytes_v1"): 1,
+        ("strict_json_loads_v1", "type"): 1,
+        ("strict_json_loads_v1", "TypeError"): 1,
+        ("strict_json_loads_v1", "bytes.startswith"): 1,
+        ("strict_json_loads_v1", "ValueError"): 2,
+        ("strict_json_loads_v1", "bytes.decode"): 1,
+        ("strict_json_loads_v1", "json.loads"): 1,
+        ("strict_json_loads_v1", "canonical_json_bytes_v1"): 1,
+        ("reject_duplicate_object_pairs", "ValueError"): 1,
+        ("reject_nonfinite_constant", "ValueError"): 1,
+    }
+)
+
+TASK3_EXPECTED_CALL_EXPRESSIONS = {
+    "canonical_json_bytes_v1": (
+        "set()",
+        'validate_object_keys(value, "$")',
+        "json.dumps(value, ensure_ascii=False, allow_nan=False, sort_keys=True, "
+        'separators=(",", ":"))',
+        'str.encode(text, "utf-8")',
+        'ValueError("canonical JSON text must be valid UTF-8")',
+    ),
+    "validate_object_keys": (
+        "type(candidate)",
+        "id(candidate)",
+        'ValueError("JSON value contains a cyclic container")',
+        "set.add(active_containers, container_id)",
+        "dict.items(candidate)",
+        "type(key)",
+        'TypeError("JSON object key must be a str")',
+        "validate_object_keys(item, path)",
+        "set.remove(active_containers, container_id)",
+        "id(candidate)",
+        'ValueError("JSON value contains a cyclic container")',
+        "set.add(active_containers, container_id)",
+        "enumerate(candidate)",
+        "validate_object_keys(item, path)",
+        "set.remove(active_containers, container_id)",
+        'TypeError("JSON value must contain only exact built-in JSON values")',
+    ),
+    "canonical_sha_v1": (
+        "hashlib.sha256(canonical_json_bytes_v1(value)).hexdigest()",
+        "hashlib.sha256(canonical_json_bytes_v1(value))",
+        "canonical_json_bytes_v1(value)",
+    ),
+    "strict_json_loads_v1": (
+        "type(canonical_json_utf8)",
+        'TypeError("canonical_json_utf8 must be exact bytes")',
+        'bytes.startswith(canonical_json_utf8, b"\\xef\\xbb\\xbf")',
+        'ValueError("JSON UTF-8 BOM is forbidden")',
+        'bytes.decode(canonical_json_utf8, "utf-8")',
+        'ValueError("JSON input must be strict UTF-8")',
+        "json.loads(text, object_pairs_hook=reject_duplicate_object_pairs, "
+        "parse_constant=reject_nonfinite_constant)",
+        "canonical_json_bytes_v1(value)",
+    ),
+    "reject_duplicate_object_pairs": ('ValueError("duplicate JSON object key")',),
+    "reject_nonfinite_constant": ('ValueError("JSON number must be finite")',),
+}
+
+TASK3_EXPECTED_IF_TESTS = {
+    "validate_object_keys": (
+        "candidate is None or candidate_type is str or candidate_type is bool "
+        "or candidate_type is int or candidate_type is float",
+        "candidate_type is dict",
+        "container_id in active_containers",
+        "type(key) is not str",
+        "candidate_type is list or candidate_type is tuple",
+        "container_id in active_containers",
+    ),
+    "reject_duplicate_object_pairs": ("key in result",),
+    "strict_json_loads_v1": (
+        "type(canonical_json_utf8) is not bytes",
+        'bytes.startswith(canonical_json_utf8, b"\\xef\\xbb\\xbf")',
+    ),
+}
+
+TASK3_EXPECTED_FOR_SHAPES = Counter(
+    {
+        (
+            "validate_object_keys",
+            ("key", "item"),
+            "dict.items",
+            ("candidate",),
+        ): 1,
+        (
+            "validate_object_keys",
+            ("index", "item"),
+            "enumerate",
+            ("candidate",),
+        ): 1,
+        (
+            "reject_duplicate_object_pairs",
+            ("key", "value"),
+            None,
+            ("pairs",),
+        ): 1,
+    }
+)
+
+TASK3_EXPECTED_EXCEPTION_HANDLERS = Counter(
+    {
+        (
+            "canonical_json_bytes_v1",
+            "UnicodeEncodeError",
+            "exc",
+            "canonical JSON text must be valid UTF-8",
+        ): 1,
+        (
+            "strict_json_loads_v1",
+            "UnicodeDecodeError",
+            "exc",
+            "JSON input must be strict UTF-8",
+        ): 1,
+    }
+)
 
 def _registry() -> dict[str, object]:
     return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
@@ -350,11 +663,233 @@ def _enclosing_function_name(
     return None
 
 
+def _nearest_binding_scope(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+    *,
+    skip_comprehensions: bool = False,
+) -> ast.AST:
+    scope_types = (
+        ast.Module,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.Lambda,
+        ast.ClassDef,
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+    )
+    comprehension_types = (
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+    )
+    parent = parents.get(node)
+    while parent is not None:
+        if isinstance(parent, scope_types) and not (
+            skip_comprehensions and isinstance(parent, comprehension_types)
+        ):
+            return parent
+        parent = parents.get(parent)
+    raise AssertionError("binding has no lexical scope")
+
+
+def _binding_target_kind(
+    node: ast.Name,
+    parents: dict[ast.AST, ast.AST],
+) -> str:
+    target: ast.AST = node
+    parent = parents.get(target)
+    while isinstance(parent, (ast.List, ast.Tuple, ast.Starred)):
+        target = parent
+        parent = parents.get(target)
+    if isinstance(parent, (ast.For, ast.AsyncFor)) and parent.target is target:
+        return "for-target"
+    if isinstance(parent, ast.comprehension) and parent.target is target:
+        return "comprehension-target"
+    if isinstance(parent, ast.withitem) and parent.optional_vars is target:
+        return "with-target"
+    if isinstance(parent, ast.NamedExpr) and parent.target is target:
+        return "named-expression"
+    if isinstance(parent, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        return "assign-target"
+    return "name-store"
+
+
+def _scope_binding_events(
+    tree: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> list[tuple[ast.AST, str, str, ast.AST]]:
+    events: list[tuple[ast.AST, str, str, ast.AST]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            kind = _binding_target_kind(node, parents)
+            events.append(
+                (
+                    _nearest_binding_scope(
+                        node,
+                        parents,
+                        skip_comprehensions=kind == "named-expression",
+                    ),
+                    node.id,
+                    kind,
+                    node,
+                )
+            )
+        elif isinstance(node, ast.ExceptHandler) and node.name is not None:
+            events.append(
+                (
+                    _nearest_binding_scope(node, parents),
+                    node.name,
+                    "except-handler",
+                    node,
+                )
+            )
+        elif isinstance(node, ast.alias):
+            parent = parents[node]
+            if isinstance(parent, ast.Import):
+                bound_name = node.asname or node.name.split(".", 1)[0]
+            else:
+                assert isinstance(parent, ast.ImportFrom)
+                bound_name = node.asname or node.name
+            events.append(
+                (
+                    _nearest_binding_scope(node, parents),
+                    bound_name,
+                    "import-alias",
+                    node,
+                )
+            )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            events.append(
+                (
+                    _nearest_binding_scope(node, parents),
+                    node.name,
+                    "function-def",
+                    node,
+                )
+            )
+        elif isinstance(node, ast.ClassDef):
+            events.append(
+                (
+                    _nearest_binding_scope(node, parents),
+                    node.name,
+                    "class-def",
+                    node,
+                )
+            )
+        elif isinstance(node, ast.arg):
+            events.append(
+                (
+                    _nearest_binding_scope(node, parents),
+                    node.arg,
+                    "parameter",
+                    node,
+                )
+            )
+
+        node_type = type(node).__name__
+        if node_type in {"MatchAs", "MatchStar"}:
+            bound_name = getattr(node, "name", None)
+            if bound_name is not None:
+                events.append(
+                    (
+                        _nearest_binding_scope(node, parents),
+                        bound_name,
+                        "match-capture",
+                        node,
+                    )
+                )
+        elif node_type == "MatchMapping":
+            bound_name = getattr(node, "rest", None)
+            if bound_name is not None:
+                events.append(
+                    (
+                        _nearest_binding_scope(node, parents),
+                        bound_name,
+                        "match-capture",
+                        node,
+                    )
+                )
+    return events
+
+
+def _scope_path(
+    scope: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> tuple[str, ...]:
+    names: list[str] = []
+    current: ast.AST | None = scope
+    while current is not None and not isinstance(current, ast.Module):
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.append(current.name)
+        elif isinstance(current, ast.Lambda):
+            names.append("<lambda>")
+        else:
+            names.append(f"<{type(current).__name__}>")
+        current = parents.get(current)
+        while current is not None and not isinstance(
+            current,
+            (
+                ast.Module,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.Lambda,
+                ast.ClassDef,
+                ast.ListComp,
+                ast.SetComp,
+                ast.DictComp,
+                ast.GeneratorExp,
+            ),
+        ):
+            current = parents.get(current)
+    return tuple(reversed(names))
+
+
+def _expression_shape(source: str) -> str:
+    return ast.dump(ast.parse(source, mode="eval").body, include_attributes=False)
+
+
+def _target_names(node: ast.AST) -> tuple[str, ...]:
+    if isinstance(node, ast.Name):
+        return (node.id,)
+    assert isinstance(node, (ast.Tuple, ast.List))
+    names: list[str] = []
+    for element in node.elts:
+        names.extend(_target_names(element))
+    return tuple(names)
+
+
+def _is_annotation_node(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> bool:
+    child = node
+    parent = parents.get(child)
+    while parent is not None:
+        if isinstance(parent, ast.arg) and parent.annotation is child:
+            return True
+        if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return parent.returns is child
+        if isinstance(parent, ast.AnnAssign):
+            return parent.annotation is child
+        if isinstance(parent, ast.stmt):
+            return False
+        child = parent
+        parent = parents.get(child)
+    return False
+
+
 def _assert_exact_function_shape(
     node: ast.FunctionDef,
     expected_arguments: tuple[str, ...],
+    expected_annotations: tuple[str, ...],
+    expected_return: str,
 ) -> None:
     assert node.decorator_list == []
+    assert node.type_comment is None
     assert node.args.defaults == []
     assert all(default is None for default in node.args.kw_defaults)
     assert node.args.posonlyargs == []
@@ -362,6 +897,106 @@ def _assert_exact_function_shape(
     assert node.args.kwonlyargs == []
     assert node.args.kwarg is None
     assert tuple(argument.arg for argument in node.args.args) == expected_arguments
+    assert (
+        tuple(ast.unparse(argument.annotation) for argument in node.args.args)
+        == expected_annotations
+    )
+    assert node.returns is not None
+    assert ast.unparse(node.returns) == expected_return
+
+
+def test_scope_binding_extractor_covers_every_python_binding_site() -> None:
+    tree = ast.parse(
+        """
+import hashlib as imported_name
+from json import dumps as imported_from_name
+
+assigned_name = 1
+
+def function_name(parameter_name):
+    try:
+        pass
+    except Exception as exception_name:
+        pass
+    with context as with_name:
+        pass
+    for for_name in sequence:
+        pass
+    comprehended = [item for comprehension_name in sequence]
+    (walrus_name := source)
+
+    class class_name:
+        pass
+
+async def asynchronous(async_parameter_name):
+    async with context as async_with_name:
+        pass
+    async for async_for_name in sequence:
+        pass
+"""
+    )
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+    observed = {
+        (name, kind) for _, name, kind, _ in _scope_binding_events(tree, parents)
+    }
+
+    assert {
+        ("imported_name", "import-alias"),
+        ("imported_from_name", "import-alias"),
+        ("assigned_name", "assign-target"),
+        ("function_name", "function-def"),
+        ("parameter_name", "parameter"),
+        ("exception_name", "except-handler"),
+        ("with_name", "with-target"),
+        ("for_name", "for-target"),
+        ("comprehension_name", "comprehension-target"),
+        ("walrus_name", "named-expression"),
+        ("class_name", "class-def"),
+        ("asynchronous", "function-def"),
+        ("async_parameter_name", "parameter"),
+        ("async_with_name", "with-target"),
+        ("async_for_name", "for-target"),
+    }.issubset(observed)
+
+
+def test_scope_binding_extractor_covers_match_capture_forms() -> None:
+    match_as_type = type("MatchAs", (ast.AST,), {"_fields": ("pattern", "name")})
+    match_star_type = type("MatchStar", (ast.AST,), {"_fields": ("name",)})
+    match_mapping_type = type(
+        "MatchMapping",
+        (ast.AST,),
+        {"_fields": ("keys", "patterns", "rest")},
+    )
+    match_as = match_as_type()
+    match_as.pattern = None
+    match_as.name = "match_as_name"
+    match_star = match_star_type()
+    match_star.name = "match_star_name"
+    match_mapping = match_mapping_type()
+    match_mapping.keys = []
+    match_mapping.patterns = []
+    match_mapping.rest = "match_mapping_rest"
+    tree = ast.Module(body=[match_as, match_star, match_mapping], type_ignores=[])
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+
+    observed = {
+        (name, kind) for _, name, kind, _ in _scope_binding_events(tree, parents)
+    }
+
+    assert {
+        ("match_as_name", "match-capture"),
+        ("match_star_name", "match-capture"),
+        ("match_mapping_rest", "match-capture"),
+    }.issubset(observed)
 
 
 def _assert_core_source_contract(source: str) -> None:
@@ -385,6 +1020,10 @@ def _assert_core_source_contract(source: str) -> None:
             assert node.module is not None
             assert all(alias.name != "*" for alias in node.names)
             assert all(alias.asname is None for alias in node.names)
+            if node.module == "__future__":
+                assert [(alias.name, alias.asname) for alias in node.names] == [
+                    ("annotations", None)
+                ]
             imported_modules.append(node.module)
     assert imported_modules == TASK3_DIRECT_IMPORTS
     assert set(imported_modules).issubset(allowed_imports)
@@ -411,9 +1050,20 @@ def _assert_core_source_contract(source: str) -> None:
             top_level_functions.append(node.name)
             if node.name in TASK3_FUNCTION_SIGNATURES:
                 expected_arguments = (TASK3_FUNCTION_SIGNATURES[node.name],)
+                expected_annotations, expected_return = TASK3_FUNCTION_ANNOTATIONS[
+                    node.name
+                ]
             else:
                 expected_arguments = TASK4_FUNCTION_SIGNATURES[node.name]
-            _assert_exact_function_shape(node, expected_arguments)
+                expected_annotations, expected_return = TASK4_FUNCTION_ANNOTATIONS[
+                    node.name
+                ]
+            _assert_exact_function_shape(
+                node,
+                expected_arguments,
+                expected_annotations,
+                expected_return,
+            )
 
     assert top_level_assignments == {
         "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
@@ -425,11 +1075,221 @@ def _assert_core_source_contract(source: str) -> None:
     ]
     assert TASK4_PUBLIC_VALIDATOR_SYMBOLS <= set(top_level_functions)
 
+    binding_events = _scope_binding_events(tree, parents)
+    task3_module_bindings = {
+        "annotations",
+        "hashlib",
+        "json",
+        "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
+        *TASK3_FUNCTION_SIGNATURES,
+    }
+    observed_scope_bindings = Counter(
+        (scope_path, name, kind)
+        for scope, name, kind, _ in binding_events
+        if (
+            (scope_path := _scope_path(scope, parents))
+            and scope_path[0] in TASK3_FUNCTION_SIGNATURES
+        )
+        or (not scope_path and name in task3_module_bindings)
+    )
+    assert observed_scope_bindings == TASK3_EXPECTED_SCOPE_BINDINGS
+
+    expected_if_tests = Counter(
+        (scope, _expression_shape(expression))
+        for scope, expressions in TASK3_EXPECTED_IF_TESTS.items()
+        for expression in expressions
+    )
+    observed_if_tests: Counter[tuple[str, str]] = Counter()
+    approved_condition_nodes: set[ast.AST] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        scope = _enclosing_function_name(node, parents)
+        assert scope is not None
+        if scope not in TASK3_ALL_FUNCTION_SCOPES:
+            continue
+        observed_if_tests[(scope, ast.dump(node.test, include_attributes=False))] += 1
+        approved_condition_nodes.update(ast.walk(node.test))
+    assert observed_if_tests == expected_if_tests
+
+    observed_for_shapes: Counter[
+        tuple[str, tuple[str, ...], str | None, tuple[str, ...]]
+    ] = Counter()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.For):
+            continue
+        scope = _enclosing_function_name(node, parents)
+        assert scope is not None
+        if scope not in TASK3_ALL_FUNCTION_SCOPES:
+            continue
+        assert node.orelse == []
+        assert node.type_comment is None
+        target_names = _target_names(node.target)
+        if isinstance(node.iter, ast.Call):
+            iterator_target = _task3_call_target(node.iter)
+            assert iterator_target is not None
+            assert node.iter.keywords == []
+            assert all(isinstance(argument, ast.Name) for argument in node.iter.args)
+            iterator_arguments = tuple(argument.id for argument in node.iter.args)
+        else:
+            assert isinstance(node.iter, ast.Name)
+            iterator_target = None
+            iterator_arguments = (node.iter.id,)
+        observed_for_shapes[
+            (scope, target_names, iterator_target, iterator_arguments)
+        ] += 1
+        if iterator_target in {"dict.items", "enumerate"}:
+            expected_guard = _expression_shape(
+                "candidate_type is dict"
+                if iterator_target == "dict.items"
+                else "candidate_type is list or candidate_type is tuple"
+            )
+            guarded_child: ast.AST = node
+            guard_ancestor = parents.get(guarded_child)
+            while guard_ancestor is not None:
+                if (
+                    isinstance(guard_ancestor, ast.If)
+                    and ast.dump(
+                        guard_ancestor.test,
+                        include_attributes=False,
+                    )
+                    == expected_guard
+                ):
+                    assert guarded_child in guard_ancestor.body
+                    break
+                guarded_child = guard_ancestor
+                guard_ancestor = parents.get(guarded_child)
+            else:
+                raise AssertionError("for-loop exact-type guard is not dominant")
+    assert observed_for_shapes == TASK3_EXPECTED_FOR_SHAPES
+
+    observed_handlers: Counter[tuple[str, str, str, str]] = Counter()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ExceptHandler):
+            continue
+        scope = _enclosing_function_name(node, parents)
+        assert scope is not None
+        if scope not in TASK3_ALL_FUNCTION_SCOPES:
+            continue
+        assert isinstance(node.type, ast.Name)
+        assert node.name is not None
+        assert len(node.body) == 1 and isinstance(node.body[0], ast.Raise)
+        raise_node = node.body[0]
+        assert isinstance(raise_node.exc, ast.Call)
+        assert _task3_call_target(raise_node.exc) == "ValueError"
+        assert len(raise_node.exc.args) == 1
+        assert isinstance(raise_node.exc.args[0], ast.Constant)
+        assert isinstance(raise_node.exc.args[0].value, str)
+        assert isinstance(raise_node.cause, ast.Name)
+        assert raise_node.cause.id == node.name
+        observed_handlers[
+            (
+                scope,
+                node.type.id,
+                node.name,
+                raise_node.exc.args[0].value,
+            )
+        ] += 1
+    assert observed_handlers == TASK3_EXPECTED_EXCEPTION_HANDLERS
+
+    observed_try_shapes: Counter[tuple[str, str]] = Counter()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        scope = _enclosing_function_name(node, parents)
+        assert scope is not None
+        if scope not in TASK3_ALL_FUNCTION_SCOPES:
+            continue
+        assert node.orelse == []
+        if scope == "validate_object_keys":
+            assert node.handlers == []
+            assert len(node.body) == 1 and isinstance(node.body[0], ast.For)
+            assert len(node.finalbody) == 1
+            final_statement = node.finalbody[0]
+            assert isinstance(final_statement, ast.Expr)
+            assert isinstance(final_statement.value, ast.Call)
+            assert _task3_call_target(final_statement.value) == "set.remove"
+            assert len(final_statement.value.args) == 2
+            assert all(
+                isinstance(argument, ast.Name)
+                for argument in final_statement.value.args
+            )
+            assert tuple(argument.id for argument in final_statement.value.args) == (
+                "active_containers",
+                "container_id",
+            )
+            observed_try_shapes[(scope, "finally")] += 1
+        elif scope == "canonical_json_bytes_v1":
+            assert node.finalbody == []
+            assert len(node.handlers) == 1
+            assert len(node.body) == 1 and isinstance(node.body[0], ast.Return)
+            return_value = node.body[0].value
+            assert isinstance(return_value, ast.Call)
+            assert _task3_call_target(return_value) == "str.encode"
+            observed_try_shapes[(scope, "except")] += 1
+        elif scope == "strict_json_loads_v1":
+            assert node.finalbody == []
+            assert len(node.handlers) == 1
+            assert len(node.body) == 1 and isinstance(node.body[0], ast.Assign)
+            assert isinstance(node.body[0].value, ast.Call)
+            assert _task3_call_target(node.body[0].value) == "bytes.decode"
+            observed_try_shapes[(scope, "except")] += 1
+        else:
+            raise AssertionError("unexpected try statement")
+    assert observed_try_shapes == Counter(
+        {
+            ("validate_object_keys", "finally"): 2,
+            ("canonical_json_bytes_v1", "except"): 1,
+            ("strict_json_loads_v1", "except"): 1,
+        }
+    )
+
     observed_nested_functions: set[tuple[str, str]] = set()
     observed_exact_local_bindings: set[tuple[str, str]] = set()
+    observed_call_targets: Counter[tuple[str, str]] = Counter()
+    expected_call_expressions = Counter(
+        (scope, _expression_shape(expression))
+        for scope, expressions in TASK3_EXPECTED_CALL_EXPRESSIONS.items()
+        for expression in expressions
+    )
+    observed_call_expressions: Counter[tuple[str, str]] = Counter()
+    forbidden_implicit_nodes = (
+        ast.AsyncFunctionDef,
+        ast.AsyncFor,
+        ast.AsyncWith,
+        ast.Assert,
+        ast.AugAssign,
+        ast.Await,
+        ast.BinOp,
+        ast.Break,
+        ast.ClassDef,
+        ast.Continue,
+        ast.Delete,
+        ast.DictComp,
+        ast.FormattedValue,
+        ast.GeneratorExp,
+        ast.Global,
+        ast.IfExp,
+        ast.JoinedStr,
+        ast.Lambda,
+        ast.ListComp,
+        ast.NamedExpr,
+        ast.Nonlocal,
+        ast.Set,
+        ast.SetComp,
+        ast.Starred,
+        ast.UnaryOp,
+        ast.While,
+        ast.With,
+        ast.Yield,
+        ast.YieldFrom,
+    )
     for node in ast.walk(tree):
-        assert not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda))
-        assert not isinstance(node, (ast.Global, ast.Nonlocal))
+        node_scope = _enclosing_function_name(node, parents)
+        if node_scope is None or node_scope in TASK3_ALL_FUNCTION_SCOPES:
+            assert not isinstance(node, forbidden_implicit_nodes)
+            assert not type(node).__name__.startswith("Match")
+            assert type(node).__name__ != "TryStar"
         if isinstance(node, ast.FunctionDef) and node not in tree.body:
             parent_name = _enclosing_function_name(node, parents)
             assert parent_name is not None
@@ -437,10 +1297,121 @@ def _assert_core_source_contract(source: str) -> None:
             assert key in TASK3_NESTED_FUNCTION_SIGNATURES
             assert key not in observed_nested_functions
             observed_nested_functions.add(key)
+            expected_annotations, expected_return = TASK3_NESTED_FUNCTION_ANNOTATIONS[
+                key
+            ]
             _assert_exact_function_shape(
                 node,
                 TASK3_NESTED_FUNCTION_SIGNATURES[key],
+                expected_annotations,
+                expected_return,
             )
+        if isinstance(node, ast.Assign):
+            assert node.type_comment is None
+            assert len(node.targets) == 1
+            target_node = node.targets[0]
+            scope = _enclosing_function_name(node, parents)
+            if scope not in TASK3_ALL_FUNCTION_SCOPES and scope is not None:
+                continue
+            if isinstance(target_node, ast.Subscript):
+                assert _enclosing_function_name(node, parents) == (
+                    "reject_duplicate_object_pairs"
+                )
+                assert isinstance(target_node.value, ast.Name)
+                assert target_node.value.id == "result"
+                assert isinstance(target_node.slice, ast.Name)
+                assert target_node.slice.id == "key"
+                assert isinstance(node.value, ast.Name)
+                assert node.value.id == "value"
+            else:
+                assert isinstance(target_node, ast.Name)
+                binding_key = (scope, target_node.id)
+                if binding_key == (None, "B7_V91_PURE_REPLAY_PROJECTION_SHA256"):
+                    assert ast.literal_eval(node.value) == PROJECTION_SHA256
+                elif scope is None and target_node.id in TASK4_LITERAL_ASSIGNMENTS:
+                    ast.literal_eval(node.value)
+                else:
+                    expected_assignment_calls = {
+                        ("validate_object_keys", "candidate_type"): "type",
+                        ("validate_object_keys", "container_id"): "id",
+                        ("canonical_json_bytes_v1", "text"): "json.dumps",
+                        ("strict_json_loads_v1", "text"): "bytes.decode",
+                        ("strict_json_loads_v1", "value"): "json.loads",
+                    }
+                    assert isinstance(node.value, ast.Call)
+                    assert (
+                        _task3_call_target(node.value)
+                        == expected_assignment_calls[binding_key]
+                    )
+        if isinstance(node, ast.AnnAssign):
+            scope = _enclosing_function_name(node, parents)
+            if scope not in TASK3_ALL_FUNCTION_SCOPES:
+                continue
+            assert isinstance(node.target, ast.Name)
+            assert node.simple == 1
+            annotation_shape = ast.unparse(node.annotation)
+            if (scope, node.target.id) == (
+                "canonical_json_bytes_v1",
+                "active_containers",
+            ):
+                assert annotation_shape == "set[int]"
+                assert isinstance(node.value, ast.Call)
+                assert _task3_call_target(node.value) == "set"
+                assert node.value.args == [] and node.value.keywords == []
+            else:
+                assert (scope, node.target.id) == (
+                    "reject_duplicate_object_pairs",
+                    "result",
+                )
+                assert annotation_shape == "dict[str, object]"
+                assert isinstance(node.value, ast.Dict)
+                assert node.value.keys == [] and node.value.values == []
+        if (
+            isinstance(node, ast.Subscript)
+            and not _is_annotation_node(node, parents)
+            and _enclosing_function_name(node, parents) in TASK3_ALL_FUNCTION_SCOPES
+        ):
+            assert isinstance(node.ctx, ast.Store)
+            assert _enclosing_function_name(node, parents) == (
+                "reject_duplicate_object_pairs"
+            )
+            assert isinstance(node.value, ast.Name) and node.value.id == "result"
+            assert isinstance(node.slice, ast.Name) and node.slice.id == "key"
+            assignment = parents[node]
+            assert isinstance(assignment, ast.Assign)
+            assert assignment.targets == [node]
+            assert isinstance(assignment.value, ast.Name)
+            assert assignment.value.id == "value"
+            loop = parents[assignment]
+            assert isinstance(loop, ast.For)
+            assert assignment in loop.body
+            assert _target_names(loop.target) == ("key", "value")
+            assert isinstance(loop.iter, ast.Name) and loop.iter.id == "pairs"
+        if (
+            isinstance(node, ast.Dict)
+            and _enclosing_function_name(node, parents) in TASK3_ALL_FUNCTION_SCOPES
+        ):
+            assert node.keys == [] and node.values == []
+            assignment = parents[node]
+            assert isinstance(assignment, ast.AnnAssign)
+            assert isinstance(assignment.target, ast.Name)
+            assert assignment.target.id == "result"
+            assert _enclosing_function_name(assignment, parents) == (
+                "reject_duplicate_object_pairs"
+            )
+        if (
+            isinstance(node, (ast.BoolOp, ast.Compare))
+            and _enclosing_function_name(node, parents) in TASK3_ALL_FUNCTION_SCOPES
+        ):
+            assert node in approved_condition_nodes
+        if isinstance(node, ast.Raise):
+            assert isinstance(node.exc, ast.Call)
+            assert _task3_call_target(node.exc) in {"TypeError", "ValueError"}
+            if node.cause is not None:
+                handler = parents[node]
+                assert isinstance(handler, ast.ExceptHandler)
+                assert isinstance(node.cause, ast.Name)
+                assert node.cause.id == handler.name
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             scope = _enclosing_function_name(node, parents)
             if scope is None:
@@ -495,11 +1466,20 @@ def _assert_core_source_contract(source: str) -> None:
                     token in lowered_target for token in TASK3_CAPABILITY_CALL_TOKENS
                 )
                 assert target in TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION[scope]
-                shapes = (TASK3_CALL_SHAPES[target],)
+                observed_call_targets[(scope, target)] += 1
+                observed_call_expressions[
+                    (scope, ast.dump(node, include_attributes=False))
+                ] += 1
+                positional_count, keyword_names = TASK3_CALL_SHAPES[target]
+                shapes = ((positional_count, keyword_names),)
             else:
                 assert scope in TASK4_FUNCTION_SIGNATURES
                 shapes = TASK4_CALL_SHAPES[target]
-            assert (len(node.args), tuple(keyword.arg for keyword in node.keywords)) in shapes
+            observed_shape = (
+                len(node.args),
+                tuple(keyword.arg for keyword in node.keywords),
+            )
+            assert observed_shape in shapes
             assert not any(isinstance(argument, ast.Starred) for argument in node.args)
             assert all(keyword.arg is not None for keyword in node.keywords)
             if target == "json.dumps":
@@ -530,6 +1510,43 @@ def _assert_core_source_contract(source: str) -> None:
 
     assert observed_nested_functions == set(TASK3_NESTED_FUNCTION_SIGNATURES)
     assert observed_exact_local_bindings == set(TASK3_EXACT_LOCAL_CALL_BINDINGS)
+    assert observed_call_targets == TASK3_EXPECTED_CALL_TARGETS
+    assert observed_call_expressions == expected_call_expressions
+
+    canonical_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and _enclosing_function_name(node, parents) == "canonical_json_bytes_v1"
+    ]
+    guards = [
+        node
+        for node in canonical_calls
+        if _task3_call_target(node) == "validate_object_keys"
+    ]
+    dumps_calls = [
+        node for node in canonical_calls if _task3_call_target(node) == "json.dumps"
+    ]
+    assert len(guards) == 1 and len(dumps_calls) == 1
+    guard = guards[0]
+    dumps_call = dumps_calls[0]
+    assert len(guard.args) == 2
+    assert isinstance(guard.args[0], ast.Name) and guard.args[0].id == "value"
+    assert isinstance(guard.args[1], ast.Constant) and guard.args[1].value == "$"
+    assert len(dumps_call.args) == 1
+    assert isinstance(dumps_call.args[0], ast.Name)
+    assert dumps_call.args[0].id == "value"
+    guard_statement = parents[guard]
+    dumps_statement = parents[dumps_call]
+    assert isinstance(guard_statement, ast.Expr)
+    assert isinstance(dumps_statement, ast.Assign)
+    canonical_function = parents[guard_statement]
+    assert isinstance(canonical_function, ast.FunctionDef)
+    assert canonical_function.name == "canonical_json_bytes_v1"
+    assert parents[dumps_statement] is canonical_function
+    assert canonical_function.body.index(
+        guard_statement
+    ) < canonical_function.body.index(dumps_statement)
 
 
 def test_core_source_has_exact_task3_task4_symbols_imports_and_signatures() -> None:
@@ -660,6 +1677,113 @@ def test_static_contract_rejects_definition_use_capability_escapes() -> None:
             _assert_core_source_contract(attacked_source)
 
 
+def test_except_handler_cannot_shadow_json_receiver_before_sentinel_dispatch() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    attacked_source = source.replace(
+        canonical_body_anchor,
+        canonical_body_anchor
+        + "\n    try:\n"
+        + "        raise value\n"
+        + "    except BaseException as json:\n"
+        + "        return json.dumps(\n"
+        + "            value,\n"
+        + "            ensure_ascii=False,\n"
+        + "            allow_nan=False,\n"
+        + "            sort_keys=True,\n"
+        + '            separators=(",", ":"),\n'
+        + "        )\n",
+        1,
+    )
+    callback_trace: list[object] = []
+
+    class ReceiverSentinel(BaseException):
+        def dumps(self, *args, **kwargs):
+            callback_trace.append(self)
+            return b"CALLER_RECEIVER"
+
+    namespace: dict[str, object] = {}
+    exec(compile(attacked_source, "<except-receiver-attack>", "exec"), namespace)
+    sentinel = ReceiverSentinel()
+
+    assert namespace["canonical_json_bytes_v1"](sentinel) == b"CALLER_RECEIVER"
+    assert callback_trace == [sentinel]
+    with pytest.raises((AssertionError, KeyError)):
+        _assert_core_source_contract(attacked_source)
+
+
+def test_static_contract_rejects_implicit_protocol_surfaces() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    candidate_type_anchor = "        candidate_type = type(candidate)\n"
+    attacks = {
+        "with": canonical_body_anchor + "\n    with value as hidden:\n        pass\n",
+        "for": canonical_body_anchor + "\n    for hidden in value:\n        break\n",
+        "comprehension": canonical_body_anchor + "\n    [hidden for hidden in value]\n",
+        "named_expression": candidate_type_anchor
+        + "        (candidate_type := list)\n",
+        "subscript_load": canonical_body_anchor + "\n    value[0]\n",
+        "subscript_store": canonical_body_anchor + "\n    value[0] = 1\n",
+        "subscript_delete": canonical_body_anchor + "\n    del value[0]\n",
+        "augmented_assignment": canonical_body_anchor + "\n    value += ()\n",
+        "truthiness_if": canonical_body_anchor + "\n    if value:\n        pass\n",
+        "truthiness_assert": canonical_body_anchor + "\n    assert value\n",
+        "formatted_string": canonical_body_anchor + '\n    f"{value}"\n',
+        "binary_operation": canonical_body_anchor + "\n    value + 1\n",
+        "membership": canonical_body_anchor + "\n    0 in value\n",
+        "star_list": canonical_body_anchor + "\n    [*value]\n",
+        "star_dict": canonical_body_anchor + "\n    {**value}\n",
+        "set_literal": canonical_body_anchor + "\n    {value}\n",
+        "dict_key": canonical_body_anchor + "\n    {value: 1}\n",
+        "unpack_assignment": canonical_body_anchor + "\n    hidden, = value\n",
+        "yield": canonical_body_anchor + "\n    yield value\n",
+        "yield_from": canonical_body_anchor + "\n    yield from value\n",
+    }
+
+    for attack_id, injected_source in attacks.items():
+        if attack_id == "named_expression":
+            attacked_source = source.replace(
+                candidate_type_anchor,
+                injected_source,
+                1,
+            )
+        else:
+            attacked_source = source.replace(
+                canonical_body_anchor,
+                injected_source,
+                1,
+            )
+        assert attacked_source != source, (
+            f"attack fixture did not mutate source: {attack_id}"
+        )
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
+
+
+def test_dynamic_container_literals_dispatch_only_without_static_gate() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+
+    for expression in ("{value}", "{value: 1}"):
+        attacked_source = source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor + f"\n    {expression}\n",
+            1,
+        )
+        callback_trace: list[str] = []
+
+        class HashSentinel:
+            def __hash__(self):
+                callback_trace.append("__hash__")
+                return 0
+
+        namespace: dict[str, object] = {}
+        exec(compile(attacked_source, "<literal-attack>", "exec"), namespace)
+        with pytest.raises(TypeError, match="exact built-in JSON"):
+            namespace["canonical_json_bytes_v1"](HashSentinel())
+        assert callback_trace != []
+
+
 def test_projection_literal_recomputes_from_the_pinned_registry() -> None:
     registry = _registry()
     projection_contract = registry["lab_contract"]["pure_replay_core_contract"][
@@ -704,6 +1828,14 @@ def test_canonical_json_bytes_and_sha_match_the_registry_algorithm() -> None:
         core.canonical_json_bytes_v1({1: "not-a-JSON-object-key"})
     with pytest.raises(ValueError, match="UTF-8"):
         core.canonical_json_bytes_v1({"bad": "\ud800"})
+    cyclic_list: list[object] = []
+    cyclic_list.append(cyclic_list)
+    with pytest.raises(ValueError, match="cyclic"):
+        core.canonical_json_bytes_v1(cyclic_list)
+    cyclic_dict: dict[str, object] = {}
+    cyclic_dict["self"] = cyclic_dict
+    with pytest.raises(ValueError, match="cyclic"):
+        core.canonical_json_bytes_v1(cyclic_dict)
 
 
 def test_canonical_json_rejects_subclasses_before_caller_dispatch() -> None:
@@ -746,6 +1878,141 @@ def test_canonical_json_rejects_subclasses_before_caller_dispatch() -> None:
         with pytest.raises(TypeError, match="exact built-in JSON"):
             core.canonical_json_bytes_v1(value)
         assert callback_trace == []
+
+
+def test_canonical_json_rejects_custom_metaclass_without_equality_dispatch() -> None:
+    core = _core_module()
+    callback_trace: list[object] = []
+
+    class CallerMetaclass(type):
+        def __eq__(cls, other):
+            callback_trace.append(other)
+            return False
+
+    class CallerValue(metaclass=CallerMetaclass):
+        pass
+
+    with pytest.raises(TypeError, match="exact built-in JSON"):
+        core.canonical_json_bytes_v1(CallerValue())
+    assert callback_trace == []
+
+
+def test_static_contract_freezes_future_annotations_guard_order_and_handlers() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    guard = '    validate_object_keys(value, "$")\n'
+    canonical_try = '    try:\n        return str.encode(text, "utf-8")\n'
+    delayed_guard = source.replace(guard, "", 1).replace(
+        canonical_try,
+        guard + canonical_try,
+        1,
+    )
+    attacks = {
+        "future_feature": source.replace(
+            "from __future__ import annotations",
+            "from __future__ import generator_stop",
+            1,
+        ),
+        "argument_annotation": source.replace(
+            "from __future__ import annotations",
+            "from __future__ import generator_stop",
+            1,
+        ).replace(
+            "def canonical_json_bytes_v1(value: object)",
+            "def canonical_json_bytes_v1(value: probe[0])",
+            1,
+        ),
+        "return_annotation": source.replace(
+            "from __future__ import annotations",
+            "from __future__ import generator_stop",
+            1,
+        ).replace(
+            "def canonical_json_bytes_v1(value: object) -> bytes",
+            "def canonical_json_bytes_v1(value: object) -> probe[0]",
+            1,
+        ),
+        "delayed_guard": delayed_guard,
+        "handler_type": source.replace(
+            "except UnicodeEncodeError as exc:",
+            "except BaseException as exc:",
+            1,
+        ),
+        "handler_name": source.replace(
+            "except UnicodeEncodeError as exc:",
+            "except UnicodeEncodeError as hidden:",
+            1,
+        ).replace(
+            "from exc\n\n\ndef canonical_sha_v1",
+            "from hidden\n\n\ndef canonical_sha_v1",
+            1,
+        ),
+        "handler_cause": source.replace(
+            "from exc\n\n\ndef canonical_sha_v1",
+            "from value\n\n\ndef canonical_sha_v1",
+            1,
+        ),
+    }
+
+    for attack_id, attacked_source in attacks.items():
+        assert attacked_source != source, (
+            f"attack fixture did not mutate source: {attack_id}"
+        )
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
+
+
+def test_annotation_and_delayed_guard_attacks_dispatch_only_without_static_gate() -> (
+    None
+):
+    source = CORE_PATH.read_text(encoding="utf-8")
+    annotation_attack = source.replace(
+        "from __future__ import annotations",
+        "from __future__ import generator_stop",
+        1,
+    ).replace(
+        "def canonical_json_bytes_v1(value: object)",
+        "def canonical_json_bytes_v1(value: probe[0])",
+        1,
+    ).replace(
+        "str | None",
+        "object",
+    )
+    annotation_trace: list[object] = []
+
+    class AnnotationProbe:
+        def __getitem__(self, key):
+            annotation_trace.append(key)
+            return object
+
+    exec(
+        compile(
+            annotation_attack,
+            "<annotation-attack>",
+            "exec",
+            dont_inherit=True,
+        ),
+        {"probe": AnnotationProbe()},
+    )
+    assert annotation_trace == [0]
+
+    guard = '    validate_object_keys(value, "$")\n'
+    canonical_try = '    try:\n        return str.encode(text, "utf-8")\n'
+    delayed_guard = source.replace(guard, "", 1).replace(
+        canonical_try,
+        guard + canonical_try,
+        1,
+    )
+    item_trace: list[str] = []
+
+    class CallerDict(dict):
+        def items(self):
+            item_trace.append("items")
+            return super().items()
+
+    namespace: dict[str, object] = {}
+    exec(compile(delayed_guard, "<delayed-guard-attack>", "exec"), namespace)
+    with pytest.raises(TypeError):
+        namespace["canonical_json_bytes_v1"](CallerDict(a=1))
+    assert item_trace != []
 
 
 def test_strict_json_loader_rejects_ambiguous_or_nonfinite_input() -> None:
