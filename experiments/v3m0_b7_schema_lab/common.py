@@ -3505,3 +3505,57 @@ def build_cross_replay_cell_v1(
     }
     _rehash_record_field_v1(cell, "cell_sha")
     return validate_exact_lab_record_v1("B7LabCrossReplayCellV1", cell)
+
+
+def compute_evidence_loss_count_v1(
+    ordered_source_transcripts_raw,
+    ordered_decoded_transcripts_raw,
+):
+    """Count exact non-null evidence-pointer losses over one seven-case capture."""
+
+    if (
+        type(ordered_source_transcripts_raw) is not list
+        or type(ordered_decoded_transcripts_raw) is not list
+        or len(ordered_source_transcripts_raw) != 7
+        or len(ordered_decoded_transcripts_raw) != 7
+        or any(type(raw) is not dict for raw in ordered_decoded_transcripts_raw)
+    ):
+        raise TypeError("evidence metric requires two exact seven-transcript lists")
+    sources = [validate_case_contract_v1(raw) for raw in ordered_source_transcripts_raw]
+    if [source["case_id"] for source in sources] != [
+        row[1] for row in _CASE_CONTRACTS_V1
+    ]:
+        raise ValueError("evidence metric source case order drifted")
+    loss_count = 0
+    for source, decoded in zip(sources, ordered_decoded_transcripts_raw):
+        for pointer in _EVIDENCE_POINTER_ORDER_V1:
+            source_present, source_value = _optional_pointer_value_v1(source, pointer)
+            if not source_present:
+                continue
+            decoded_present, decoded_value = _optional_pointer_value_v1(
+                decoded,
+                pointer,
+            )
+            if not decoded_present or canonical_json_bytes_v1(
+                decoded_value
+            ) != canonical_json_bytes_v1(source_value):
+                loss_count += 1
+    return loss_count
+
+
+def compute_canonical_wire_bytes_v1(ordered_wire_bytes):
+    """Validate and total one dynamic capture's canonical route-wire bytes."""
+
+    if (
+        type(ordered_wire_bytes) is not list
+        or not ordered_wire_bytes
+        or any(type(raw_bytes) is not bytes for raw_bytes in ordered_wire_bytes)
+    ):
+        raise TypeError("canonical wire metric requires a nonempty exact bytes list")
+    total = 0
+    for raw_bytes in ordered_wire_bytes:
+        parsed = strict_json_loads_v1(raw_bytes)
+        if canonical_json_bytes_v1(parsed) != raw_bytes:
+            raise ValueError("route wire is not project-canonical JSON")
+        total += len(raw_bytes)
+    return total

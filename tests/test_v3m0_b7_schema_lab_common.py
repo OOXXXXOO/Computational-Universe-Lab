@@ -1945,6 +1945,60 @@ def test_cross_replay_cell_rejects_identity_cardinality_and_type_attacks(
         _common_module().build_cross_replay_cell_v1(**arguments)
 
 
+def test_evidence_loss_metric_uses_only_nonnull_source_pointer_units() -> None:
+    common = _common_module()
+    source = _seven_transcripts()
+    decoded = copy.deepcopy(source)
+
+    assert common.compute_evidence_loss_count_v1(source, decoded) == 0
+
+    decoded[0]["terminal_tag"] = "success"
+    decoded[1].pop("reference_outcome")
+    decoded[2]["provenance_fixture"] = None
+    assert common.compute_evidence_loss_count_v1(source, decoded) == 3
+
+    # A pointer whose source value is null is outside the metric domain.
+    decoded = copy.deepcopy(source)
+    decoded[0]["shell_outcome"] = {"new": "body"}
+    assert common.compute_evidence_loss_count_v1(source, decoded) == 0
+
+
+@pytest.mark.parametrize(
+    ("source", "decoded"),
+    (([], _seven_transcripts()), (_seven_transcripts(), []), (None, None)),
+)
+def test_evidence_loss_metric_rejects_non_seven_case_domains(
+    source: object,
+    decoded: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        _common_module().compute_evidence_loss_count_v1(source, decoded)
+
+
+def test_canonical_wire_bytes_metric_counts_exact_bytes() -> None:
+    common = _common_module()
+    wires = [canonical_json_bytes_v1({"route": index}) for index in range(21)]
+
+    assert common.compute_canonical_wire_bytes_v1(wires) == sum(map(len, wires))
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    (
+        [b'{"a":1} '],
+        [b'{"a":1,"a":2}'],
+        [b"\xef\xbb\xbf{}"],
+        [b'{"x":NaN}'],
+        ["not-bytes"],
+    ),
+)
+def test_canonical_wire_bytes_metric_rejects_noncanonical_wires(
+    hostile: object,
+) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        _common_module().compute_canonical_wire_bytes_v1(hostile)
+
+
 def _decision_record(
     field_order: tuple[str, ...],
     projection_order: tuple[str, ...],
