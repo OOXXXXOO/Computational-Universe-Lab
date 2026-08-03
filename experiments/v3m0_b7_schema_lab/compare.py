@@ -126,6 +126,45 @@ _REVIEWER_CONTRACT_INPUTS_V1 = (
         "experimental.v3m0.b7.v9.2.1-machine-contract-overlay.v1",
     ),
 )
+_TRUSTED_GIT_EXECUTABLE_V1 = "/usr/bin/git"
+_TRUSTED_GIT_GLOBAL_ARGV_V1 = (
+    "--no-replace-objects",
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "diff.external=",
+    "-c",
+    "core.attributesFile=/dev/null",
+)
+_SANITIZED_GIT_ENVIRONMENT_V1 = (
+    ("GIT_NO_REPLACE_OBJECTS", "1"),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
+    ("GIT_CONFIG_GLOBAL", "/dev/null"),
+    ("GIT_ALTERNATE_OBJECT_DIRECTORIES", ""),
+    ("LANG", "C"),
+    ("LC_ALL", "C"),
+)
+_REVIEWER_EXPORT_INCLUDED_PATHS_V1 = (
+    "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+    "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+    "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+    "docsv3/v3-机器合同-B7-v9.2.1-overlay.json",
+    "experiments/v3m0_b7_schema_lab",
+    "rulespace_v3",
+    "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+)
+_REVIEWER_REQUIRED_INPUT_PATHS_V1 = (
+    ("d0", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[0]),
+    ("d1", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[1]),
+    ("registry_base", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[2]),
+    ("registry_overlay", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[3]),
+    ("registry_overlay_v921", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[4]),
+    ("corpus", _REVIEWER_EXPORT_INCLUDED_PATHS_V1[7]),
+)
+_OWNED_REVIEWER_EXPORT_ROOTS_V1 = {}
 _REPLAY_INPUT_PROJECTION_FIELDS_V1 = (
     "reviewer_role",
     "review_protocol_id",
@@ -1157,6 +1196,428 @@ def build_sanitized_reviewer_environment_v1():
     """Build the exact caller-independent reviewer child environment."""
 
     return {name: value for name, value in _SANITIZED_REVIEWER_ENVIRONMENT_V1}
+
+
+def build_sanitized_git_environment_v1():
+    """Build the exact caller-independent environment for trusted Git reads."""
+
+    return {name: value for name, value in _SANITIZED_GIT_ENVIRONMENT_V1}
+
+
+def _precheck_trusted_git_executable_v1():
+    import os
+    import stat
+
+    observation = os.stat(_TRUSTED_GIT_EXECUTABLE_V1, follow_symlinks=False)
+    if (
+        not stat.S_ISREG(observation.st_mode)
+        or observation.st_uid != 0
+        or observation.st_mode & 0o022
+        or not os.access(_TRUSTED_GIT_EXECUTABLE_V1, os.X_OK)
+    ):
+        raise ValueError("trusted Git executable identity or mode drifted")
+    return (
+        observation.st_dev,
+        observation.st_ino,
+        observation.st_mode,
+        observation.st_uid,
+    )
+
+
+def _normalize_reviewer_repository_root_v1(repository_root):
+    import os
+    import stat
+
+    if type(repository_root) is not str:
+        raise TypeError("reviewer repository root must be an exact string")
+    normalized = os.path.normpath(os.path.abspath(repository_root))
+    if repository_root != normalized or normalized == "/":
+        raise ValueError("reviewer repository root must be normalized absolute")
+    observation = os.stat(normalized, follow_symlinks=False)
+    if not stat.S_ISDIR(observation.st_mode):
+        raise ValueError("reviewer repository root is not a directory")
+    return normalized
+
+
+def _trusted_git_argv_v1(*arguments):
+    if any(type(argument) is not str for argument in arguments):
+        raise TypeError("trusted Git arguments must be exact strings")
+    return (
+        _TRUSTED_GIT_EXECUTABLE_V1,
+        *_TRUSTED_GIT_GLOBAL_ARGV_V1,
+        *arguments,
+    )
+
+
+def _run_trusted_git_capture_v1(repository_root, *arguments):
+    import subprocess
+
+    completed = subprocess.run(
+        _trusted_git_argv_v1(*arguments),
+        cwd=repository_root,
+        env=build_sanitized_git_environment_v1(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+    )
+    if completed.returncode != 0 or completed.stderr:
+        raise ValueError("trusted Git object read failed closed")
+    return completed.stdout
+
+
+def _require_safe_reviewer_repo_path_v1(path, field):
+    if (
+        type(path) is not str
+        or not path
+        or path.startswith("/")
+        or path.endswith("/")
+        or pathlib.PurePosixPath(path).as_posix() != path
+        or any(part in ("", ".", "..") for part in path.split("/"))
+    ):
+        raise ValueError(f"reviewer {field} path is not normalized relative")
+    return path
+
+
+def _parse_reviewer_ls_tree_v1(raw_bytes, evidence_commit_sha, included_paths):
+    if type(raw_bytes) is not bytes or not raw_bytes.endswith(b"\0"):
+        raise ValueError("trusted Git ls-tree frame is malformed")
+    records = []
+    observed_paths = set()
+    matched = {path: False for path in included_paths}
+    for frame in raw_bytes[:-1].split(b"\0"):
+        metadata, separator, raw_path = frame.partition(b"\t")
+        fields = metadata.split(b" ")
+        if separator != b"\t" or len(fields) != 3:
+            raise ValueError("trusted Git ls-tree record is malformed")
+        try:
+            mode, object_type, object_oid = (
+                field.decode("ascii") for field in fields
+            )
+            path = raw_path.decode("utf-8")
+        except UnicodeError as error:
+            raise ValueError("trusted Git ls-tree encoding drifted") from error
+        _require_safe_reviewer_repo_path_v1(path, "Git tree")
+        if (
+            mode not in ("100644", "100755")
+            or object_type != "blob"
+            or len(object_oid) != 40
+            or any(character not in "0123456789abcdef" for character in object_oid)
+        ):
+            raise ValueError("trusted Git tree leaf mode, type, or OID drifted")
+        if path in observed_paths:
+            raise ValueError("trusted Git tree contains a duplicate path")
+        owners = [
+            selector
+            for selector in included_paths
+            if path == selector or path.startswith(selector + "/")
+        ]
+        if len(owners) != 1:
+            raise ValueError("trusted Git tree path escapes or overlaps export scope")
+        matched[owners[0]] = True
+        observed_paths.add(path)
+        records.append(
+            (evidence_commit_sha, path, mode, object_type, object_oid)
+        )
+    if not records or not all(matched.values()):
+        raise ValueError("trusted Git tree omits an included export path")
+    if records != sorted(records, key=lambda record: record[1].encode("utf-8")):
+        raise ValueError("trusted Git tree paths are not in raw-byte order")
+    return tuple(records)
+
+
+def read_immutable_git_tree_blobs_v1(
+    *,
+    repository_root,
+    commit_sha,
+    included_paths,
+):
+    """Read one scoped tree exclusively through sanitized literal trusted Git."""
+
+    root = _normalize_reviewer_repository_root_v1(repository_root)
+    _precheck_trusted_git_executable_v1()
+    _require_lower_hex_v1(commit_sha, 40, "immutable Git commit")
+    if type(included_paths) is not tuple or not included_paths:
+        raise TypeError("immutable Git included paths must be a nonempty tuple")
+    for ordinal, path in enumerate(included_paths):
+        _require_safe_reviewer_repo_path_v1(path, f"included path {ordinal}")
+    if len(set(included_paths)) != len(included_paths):
+        raise ValueError("immutable Git included paths are duplicated")
+    if _run_trusted_git_capture_v1(root, "cat-file", "-t", commit_sha) != b"commit\n":
+        raise ValueError("immutable Git source object is not a commit")
+    tree = _parse_reviewer_ls_tree_v1(
+        _run_trusted_git_capture_v1(
+            root,
+            "ls-tree",
+            "-r",
+            "-z",
+            commit_sha,
+            "--",
+            *included_paths,
+        ),
+        commit_sha,
+        included_paths,
+    )
+    blobs = []
+    for record in tree:
+        raw_bytes = _run_trusted_git_capture_v1(
+            root,
+            "cat-file",
+            "blob",
+            record[4],
+        )
+        header = f"blob {len(raw_bytes)}\0".encode("ascii")
+        if hashlib.sha1(header + raw_bytes).hexdigest() != record[4]:
+            raise ValueError("immutable Git blob OID/body mismatch")
+        blobs.append((*record, raw_bytes))
+    return tuple(blobs)
+
+
+def _expected_reviewer_export_directories_v1(expected_file_paths):
+    directories = set()
+    for path in expected_file_paths:
+        parts = path.split("/")[:-1]
+        for stop in range(1, len(parts) + 1):
+            directories.add("/".join(parts[:stop]))
+    return directories
+
+
+def _validate_reviewer_tar_members_v1(members, *, expected_file_paths):
+    if type(members) is not list or type(expected_file_paths) is not tuple:
+        raise TypeError("reviewer tar observations must be exact containers")
+    expected_files = set(expected_file_paths)
+    expected_directories = _expected_reviewer_export_directories_v1(
+        expected_file_paths
+    )
+    observed = set()
+    observed_files = set()
+    validated = []
+    for member in members:
+        if member.isdir():
+            name = member.name[:-1] if member.name.endswith("/") else member.name
+            member_kind = "directory"
+        elif member.isreg():
+            name = member.name
+            member_kind = "file"
+        else:
+            raise ValueError("reviewer tar contains a non-regular entry")
+        _require_safe_reviewer_repo_path_v1(name, "tar member")
+        if name in observed:
+            raise ValueError("reviewer tar contains a duplicate path")
+        observed.add(name)
+        if member_kind == "file":
+            if name not in expected_files:
+                raise ValueError("reviewer tar contains an unexpected file")
+            observed_files.add(name)
+        elif name not in expected_directories:
+            raise ValueError("reviewer tar contains an unexpected directory")
+        validated.append(member)
+    if observed_files != expected_files:
+        raise ValueError("reviewer tar omits an immutable Git leaf")
+    return validated
+
+
+def _run_trusted_git_archive_v1(
+    repository_root,
+    evidence_commit_sha,
+    included_paths,
+    archive_stream,
+):
+    import subprocess
+
+    completed = subprocess.run(
+        _trusted_git_argv_v1(
+            "archive",
+            "--format=tar",
+            evidence_commit_sha,
+            "--",
+            *included_paths,
+        ),
+        cwd=repository_root,
+        env=build_sanitized_git_environment_v1(),
+        stdin=subprocess.DEVNULL,
+        stdout=archive_stream,
+        stderr=subprocess.PIPE,
+        check=False,
+        shell=False,
+    )
+    if completed.returncode != 0 or completed.stderr:
+        raise ValueError("trusted Git archive failed closed")
+    archive_stream.seek(0)
+
+
+def _remove_immutable_reviewer_tree_v1(export_root, root_identity):
+    import os
+    import shutil
+    import stat
+    import tempfile
+
+    normalized = os.path.normpath(os.path.abspath(export_root))
+    temporary_parent = os.path.normpath(tempfile.gettempdir())
+    if (
+        export_root != normalized
+        or os.path.dirname(normalized) != temporary_parent
+        or not os.path.basename(normalized).startswith("v3m0-b7-reviewer-")
+    ):
+        raise ValueError("reviewer cleanup target is not an owned mkdtemp root")
+    root_stat = os.stat(normalized, follow_symlinks=False)
+    if (
+        not stat.S_ISDIR(root_stat.st_mode)
+        or (root_stat.st_dev, root_stat.st_ino) != root_identity
+    ):
+        raise ValueError("reviewer cleanup root identity drifted")
+    for current_root, directory_names, file_names in os.walk(
+        normalized,
+        topdown=False,
+        followlinks=False,
+    ):
+        for name in file_names:
+            path = os.path.join(current_root, name)
+            observation = os.stat(path, follow_symlinks=False)
+            if not stat.S_ISREG(observation.st_mode):
+                raise ValueError("reviewer cleanup encountered a non-regular file")
+            os.chmod(path, 0o600, follow_symlinks=False)
+        for name in directory_names:
+            path = os.path.join(current_root, name)
+            observation = os.stat(path, follow_symlinks=False)
+            if not stat.S_ISDIR(observation.st_mode):
+                raise ValueError("reviewer cleanup encountered a non-directory")
+            os.chmod(path, 0o700, follow_symlinks=False)
+    os.chmod(normalized, 0o700, follow_symlinks=False)
+    shutil.rmtree(normalized)
+    return not os.path.exists(normalized)
+
+
+def cleanup_immutable_reviewer_export_v1(export_observation):
+    """Remove only a root created and identity-bound by this process."""
+
+    if (
+        type(export_observation) is not dict
+        or export_observation.get("export_schema_version")
+        != "experimental.v3m0.b7.immutable-reviewer-export.v1"
+    ):
+        return False
+    export_root = export_observation.get("export_root")
+    root_identity = export_observation.get("root_identity")
+    if (
+        type(export_root) is not str
+        or type(root_identity) is not tuple
+        or len(root_identity) != 2
+        or _OWNED_REVIEWER_EXPORT_ROOTS_V1.get(export_root) != root_identity
+    ):
+        return False
+    del _OWNED_REVIEWER_EXPORT_ROOTS_V1[export_root]
+    try:
+        return _remove_immutable_reviewer_tree_v1(export_root, root_identity)
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def materialize_immutable_reviewer_export_v1(
+    *,
+    repository_root,
+    evidence_commit_sha,
+):
+    """Materialize the exact reviewer tree from E, never from the worktree."""
+
+    import os
+    import stat
+    import tarfile
+    import tempfile
+
+    root = _normalize_reviewer_repository_root_v1(repository_root)
+    blobs = read_immutable_git_tree_blobs_v1(
+        repository_root=root,
+        commit_sha=evidence_commit_sha,
+        included_paths=_REVIEWER_EXPORT_INCLUDED_PATHS_V1,
+    )
+    blob_by_path = {blob[1]: blob for blob in blobs}
+    export_root = tempfile.mkdtemp(prefix="v3m0-b7-reviewer-")
+    root_stat = os.stat(export_root, follow_symlinks=False)
+    root_identity = (root_stat.st_dev, root_stat.st_ino)
+    _OWNED_REVIEWER_EXPORT_ROOTS_V1[export_root] = root_identity
+    partial = {
+        "export_schema_version": (
+            "experimental.v3m0.b7.immutable-reviewer-export.v1"
+        ),
+        "export_root": export_root,
+        "root_identity": root_identity,
+    }
+    try:
+        with tempfile.TemporaryFile() as archive_stream:
+            _run_trusted_git_archive_v1(
+                root,
+                evidence_commit_sha,
+                _REVIEWER_EXPORT_INCLUDED_PATHS_V1,
+                archive_stream,
+            )
+            with tarfile.open(fileobj=archive_stream, mode="r:") as archive:
+                members = _validate_reviewer_tar_members_v1(
+                    archive.getmembers(),
+                    expected_file_paths=tuple(blob_by_path),
+                )
+                archive.extractall(path=export_root, members=members)
+        observed_files = set()
+        observed_directories = []
+        for current_root, directory_names, file_names in os.walk(
+            export_root,
+            topdown=False,
+            followlinks=False,
+        ):
+            for name in file_names:
+                path = os.path.join(current_root, name)
+                observation = os.stat(path, follow_symlinks=False)
+                if not stat.S_ISREG(observation.st_mode):
+                    raise ValueError("reviewer export contains a non-regular file")
+                relative = os.path.relpath(path, export_root).replace(os.sep, "/")
+                if relative not in blob_by_path:
+                    raise ValueError("reviewer export contains an unscoped file")
+                if pathlib.Path(path).read_bytes() != blob_by_path[relative][5]:
+                    raise ValueError("reviewer export bytes differ from E blob")
+                observed_files.add(relative)
+                frozen_mode = 0o555 if blob_by_path[relative][2] == "100755" else 0o444
+                os.chmod(path, frozen_mode, follow_symlinks=False)
+            for name in directory_names:
+                path = os.path.join(current_root, name)
+                observation = os.stat(path, follow_symlinks=False)
+                if not stat.S_ISDIR(observation.st_mode):
+                    raise ValueError("reviewer export contains a non-directory")
+                observed_directories.append(path)
+        if observed_files != set(blob_by_path):
+            raise ValueError("reviewer export leaf set differs from E tree")
+        experiments_initializer = os.path.join(
+            export_root,
+            "experiments",
+            "__init__.py",
+        )
+        if os.path.exists(experiments_initializer):
+            raise ValueError("reviewer export contains experiments initializer")
+        required_input_bytes = {}
+        for role, path in _REVIEWER_REQUIRED_INPUT_PATHS_V1:
+            raw_bytes = pathlib.Path(export_root, path).read_bytes()
+            if raw_bytes != blob_by_path[path][5]:
+                raise ValueError("reviewer required input differs from E blob")
+            required_input_bytes[role] = raw_bytes
+        for path in observed_directories:
+            os.chmod(path, 0o555, follow_symlinks=False)
+        os.chmod(export_root, 0o555, follow_symlinks=False)
+        return {
+            **partial,
+            "evidence_commit_sha": evidence_commit_sha,
+            "included_path_order": list(_REVIEWER_EXPORT_INCLUDED_PATHS_V1),
+            "tree_blobs": blobs,
+            "required_input_bytes": required_input_bytes,
+            "namespace_observation": {
+                "fresh_export_root_count": 1,
+                "experiments_init_present": False,
+                "experiments_namespace_portion_count": 1,
+                "shadowing_paths": [],
+            },
+        }
+    except (OSError, TypeError, ValueError, tarfile.TarError):
+        cleanup_immutable_reviewer_export_v1(partial)
+        raise
 
 
 def materialize_reviewer_command_v1(

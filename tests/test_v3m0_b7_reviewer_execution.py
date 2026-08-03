@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import os
 from pathlib import Path
+import subprocess
+import tarfile
 
 import pytest
 
@@ -312,3 +315,152 @@ def test_execute_reviewer_replay_recomputes_frozen_roots(
     ]
     assert report["observed_provisional_winner_route_id"] == "A_FLAT"
     assert compare.validate_replay_report_v1(report) == report
+
+
+def _git(repository: Path, *arguments: str) -> bytes:
+    completed = subprocess.run(
+        ("/usr/bin/git", *arguments),
+        cwd=repository,
+        env={"LANG": "C", "LC_ALL": "C"},
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout
+
+
+def _make_export_repository(tmp_path: Path, *, hostile_symlink=False):
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    _git(repository, "init", "-q")
+    bodies = {
+        "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json": b"d0\n",
+        "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json": b"d1\n",
+        "docsv3/v3-机器合同-B7-v9.1-registry.json": b"v91\n",
+        "docsv3/v3-机器合同-B7-v9.2-overlay.json": b"v92\n",
+        "docsv3/v3-机器合同-B7-v9.2.1-overlay.json": b"v921\n",
+        "experiments/v3m0_b7_schema_lab/__init__.py": b"",
+        "experiments/v3m0_b7_schema_lab/common.py": b"COMMON = True\n",
+        "experiments/v3m0_b7_schema_lab/compare.py": b"COMPARE = True\n",
+        "rulespace_v3/__init__.py": b"",
+        "rulespace_v3/runner.sh": b"#!/bin/sh\nexit 0\n",
+        "tests/fixtures/v3m0_b7_schema_lab_corpus.json": b"corpus\n",
+    }
+    for relative, body in bodies.items():
+        path = repository / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+    os.chmod(repository / "rulespace_v3/runner.sh", 0o755)
+    if hostile_symlink:
+        os.symlink(
+            "/etc/passwd",
+            repository / "experiments/v3m0_b7_schema_lab/escape",
+        )
+    _git(repository, "add", "--all")
+    _git(
+        repository,
+        "-c",
+        "user.name=Reviewer Test",
+        "-c",
+        "user.email=reviewer@example.invalid",
+        "commit",
+        "-q",
+        "-m",
+        "fixture",
+    )
+    evidence_commit = _git(repository, "rev-parse", "HEAD").decode().strip()
+    return repository, evidence_commit, bodies
+
+
+def test_immutable_export_reads_only_git_E_and_restores_git_modes(
+    tmp_path: Path,
+) -> None:
+    repository, evidence_commit, bodies = _make_export_repository(tmp_path)
+    (repository / "experiments/v3m0_b7_schema_lab/common.py").write_bytes(
+        b"HOSTILE WORKTREE DRIFT\n"
+    )
+
+    export = compare.materialize_immutable_reviewer_export_v1(
+        repository_root=str(repository),
+        evidence_commit_sha=evidence_commit,
+    )
+    export_root = Path(export["export_root"])
+    try:
+        assert export_root != repository
+        assert export["required_input_bytes"] == {
+            role: bodies[path]
+            for role, path in compare._REVIEWER_REQUIRED_INPUT_PATHS_V1
+        }
+        assert (
+            export_root / "experiments/v3m0_b7_schema_lab/common.py"
+        ).read_bytes() == b"COMMON = True\n"
+        assert (export_root / "experiments/__init__.py").exists() is False
+        assert export["namespace_observation"] == {
+            "fresh_export_root_count": 1,
+            "experiments_init_present": False,
+            "experiments_namespace_portion_count": 1,
+            "shadowing_paths": [],
+        }
+        assert (export_root / "rulespace_v3/runner.sh").stat().st_mode & 0o777 == 0o555
+        assert (
+            export_root / "experiments/v3m0_b7_schema_lab/common.py"
+        ).stat().st_mode & 0o777 == 0o444
+    finally:
+        assert compare.cleanup_immutable_reviewer_export_v1(export) is True
+    assert export_root.exists() is False
+
+
+def test_immutable_export_rejects_git_symlink_before_archive(tmp_path: Path) -> None:
+    repository, evidence_commit, _bodies = _make_export_repository(
+        tmp_path,
+        hostile_symlink=True,
+    )
+
+    with pytest.raises(ValueError, match="mode|blob"):
+        compare.materialize_immutable_reviewer_export_v1(
+            repository_root=str(repository),
+            evidence_commit_sha=evidence_commit,
+        )
+
+
+@pytest.mark.parametrize(
+    "name",
+    ("/absolute", "../escape", "safe/../../escape", "safe"),
+)
+def test_tar_member_validator_rejects_unsafe_or_duplicate_paths(name: str) -> None:
+    first = tarfile.TarInfo(name)
+    first.type = tarfile.REGTYPE
+    members = [first]
+    if name == "safe":
+        duplicate = tarfile.TarInfo(name)
+        duplicate.type = tarfile.REGTYPE
+        members.append(duplicate)
+
+    with pytest.raises(ValueError):
+        compare._validate_reviewer_tar_members_v1(
+            members,
+            expected_file_paths=("safe",),
+        )
+
+
+def test_trusted_git_environment_and_global_argv_are_literal() -> None:
+    assert compare._TRUSTED_GIT_EXECUTABLE_V1 == "/usr/bin/git"
+    assert compare.build_sanitized_git_environment_v1() == {
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES": "",
+        "LANG": "C",
+        "LC_ALL": "C",
+    }
+    assert compare._TRUSTED_GIT_GLOBAL_ARGV_V1 == (
+        "--no-replace-objects",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "diff.external=",
+        "-c",
+        "core.attributesFile=/dev/null",
+    )
