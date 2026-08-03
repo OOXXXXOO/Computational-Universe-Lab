@@ -38,11 +38,13 @@ FORBIDDEN_MODULE_ROOTS = {
 FORBIDDEN_CALL_NAMES = {
     "__import__",
     "breakpoint",
+    "callable",
     "compile",
     "eval",
     "exec",
     "getattr",
     "globals",
+    "hasattr",
     "input",
     "locals",
     "open",
@@ -79,7 +81,97 @@ TASK3_FUNCTION_SIGNATURES = {
     "strict_json_loads_v1": "canonical_json_utf8",
 }
 
+TASK3_NESTED_FUNCTION_SIGNATURES = {
+    ("canonical_json_bytes_v1", "validate_object_keys"): ("candidate", "path"),
+    ("strict_json_loads_v1", "reject_duplicate_object_pairs"): ("pairs",),
+    ("strict_json_loads_v1", "reject_nonfinite_constant"): ("constant_text",),
+}
+
 TASK3_DIRECT_IMPORTS = ["__future__", "hashlib", "json"]
+
+TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION = {
+    "canonical_json_bytes_v1": {
+        "ValueError",
+        "json.dumps",
+        "text.encode",
+        "validate_object_keys",
+    },
+    "validate_object_keys": {
+        "TypeError",
+        "candidate.items",
+        "enumerate",
+        "isinstance",
+        "type",
+        "validate_object_keys",
+    },
+    "canonical_sha_v1": {
+        "canonical_json_bytes_v1",
+        "hashlib.sha256",
+        "hashlib.sha256().hexdigest",
+    },
+    "strict_json_loads_v1": {
+        "TypeError",
+        "ValueError",
+        "canonical_json_bytes_v1",
+        "canonical_json_utf8.decode",
+        "canonical_json_utf8.startswith",
+        "json.loads",
+        "type",
+    },
+    "reject_duplicate_object_pairs": {"ValueError"},
+    "reject_nonfinite_constant": {"ValueError"},
+}
+
+TASK3_CALL_SHAPES = {
+    "ValueError": (1, ()),
+    "TypeError": (1, ()),
+    "canonical_json_bytes_v1": (1, ()),
+    "canonical_json_utf8.decode": (1, ()),
+    "canonical_json_utf8.startswith": (1, ()),
+    "candidate.items": (0, ()),
+    "enumerate": (1, ()),
+    "hashlib.sha256": (1, ()),
+    "hashlib.sha256().hexdigest": (0, ()),
+    "isinstance": (2, ()),
+    "json.dumps": (
+        1,
+        ("ensure_ascii", "allow_nan", "sort_keys", "separators"),
+    ),
+    "json.loads": (1, ("object_pairs_hook", "parse_constant")),
+    "text.encode": (1, ()),
+    "type": (1, ()),
+    "validate_object_keys": (2, ()),
+}
+
+TASK3_CAPABILITY_CALL_TOKENS = {
+    "authority",
+    "callback",
+    "callable",
+    "caller",
+    "capability",
+    "environment",
+    "hydrate",
+    "issuer",
+    "promote",
+    "registry",
+    "resign",
+    "seal",
+    "token",
+    "wrapper",
+    "worktree",
+}
+
+TASK3_RESERVED_CALL_ROOTS = {
+    "TypeError",
+    "ValueError",
+    "canonical_json_bytes_v1",
+    "enumerate",
+    "hashlib",
+    "isinstance",
+    "json",
+    "type",
+    "validate_object_keys",
+}
 
 
 def _registry() -> dict[str, object]:
@@ -98,19 +190,68 @@ def _resolved_attribute_root(node: ast.Attribute) -> str | None:
     return value.id if isinstance(value, ast.Name) else None
 
 
+def _task3_call_target(node: ast.Call) -> str | None:
+    function = node.func
+    if isinstance(function, ast.Name):
+        return function.id
+    if not isinstance(function, ast.Attribute):
+        return None
+    if isinstance(function.value, ast.Name):
+        return f"{function.value.id}.{function.attr}"
+    if isinstance(function.value, ast.Call):
+        receiver = _task3_call_target(function.value)
+        if receiver is not None:
+            return f"{receiver}().{function.attr}"
+    return None
+
+
+def _enclosing_function_name(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> str | None:
+    parent = parents.get(node)
+    while parent is not None:
+        if isinstance(parent, ast.FunctionDef):
+            return parent.name
+        parent = parents.get(parent)
+    return None
+
+
+def _assert_exact_function_shape(
+    node: ast.FunctionDef,
+    expected_arguments: tuple[str, ...],
+) -> None:
+    assert node.decorator_list == []
+    assert node.args.defaults == []
+    assert all(default is None for default in node.args.kw_defaults)
+    assert node.args.posonlyargs == []
+    assert node.args.vararg is None
+    assert node.args.kwonlyargs == []
+    assert node.args.kwarg is None
+    assert tuple(argument.arg for argument in node.args.args) == expected_arguments
+
+
 def _assert_core_source_contract(source: str) -> None:
     tree = ast.parse(source)
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
     contract = _registry()["lab_contract"]["pure_replay_core_contract"]
     allowed_imports = set(contract["allowed_external_import_modules_exact"])
 
     imported_modules: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            imported_modules.extend(alias.name for alias in node.names)
+            for alias in node.names:
+                assert alias.asname is None
+                imported_modules.append(alias.name)
         elif isinstance(node, ast.ImportFrom):
             assert node.level == 0, "repository-local imports are forbidden"
             assert node.module is not None
             assert all(alias.name != "*" for alias in node.names)
+            assert all(alias.asname is None for alias in node.names)
             imported_modules.append(node.module)
     assert imported_modules == TASK3_DIRECT_IMPORTS
     assert set(imported_modules).issubset(allowed_imports)
@@ -132,32 +273,79 @@ def _assert_core_source_contract(source: str) -> None:
         elif isinstance(node, ast.FunctionDef):
             top_level_functions.append(node.name)
             assert node.name in TASK3_FUNCTION_SIGNATURES
-            assert node.decorator_list == []
-            assert node.args.defaults == []
-            assert all(default is None for default in node.args.kw_defaults)
-            assert node.args.posonlyargs == []
-            assert node.args.vararg is None
-            assert node.args.kwonlyargs == []
-            assert node.args.kwarg is None
-            assert [argument.arg for argument in node.args.args] == [
-                TASK3_FUNCTION_SIGNATURES[node.name]
-            ]
+            _assert_exact_function_shape(
+                node,
+                (TASK3_FUNCTION_SIGNATURES[node.name],),
+            )
 
     assert top_level_assignments == {"B7_V91_PURE_REPLAY_PROJECTION_SHA256"}
     assert top_level_functions == list(TASK3_FUNCTION_SIGNATURES)
     assert set(top_level_functions).isdisjoint(FUTURE_TASK_SYMBOLS)
 
+    observed_nested_functions: set[tuple[str, str]] = set()
     for node in ast.walk(tree):
         assert not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            assert node.func.id not in FORBIDDEN_CALL_NAMES
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            assert _resolved_attribute_root(node.func) not in FORBIDDEN_MODULE_ROOTS
+        assert not isinstance(node, (ast.Global, ast.Nonlocal))
+        if isinstance(node, ast.FunctionDef) and node not in tree.body:
+            parent_name = _enclosing_function_name(node, parents)
+            assert parent_name is not None
+            key = (parent_name, node.name)
+            assert key in TASK3_NESTED_FUNCTION_SIGNATURES
+            assert key not in observed_nested_functions
+            observed_nested_functions.add(key)
+            _assert_exact_function_shape(
+                node,
+                TASK3_NESTED_FUNCTION_SIGNATURES[key],
+            )
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            assert node.id not in TASK3_RESERVED_CALL_ROOTS
+        if isinstance(node, ast.Attribute) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            raise AssertionError("attribute mutation is forbidden in the Task-3 core")
+        if isinstance(node, ast.Call):
+            target = _task3_call_target(node)
+            assert target is not None, "dynamic call target is forbidden"
+            lowered_target = target.casefold()
+            assert not any(
+                token in lowered_target for token in TASK3_CAPABILITY_CALL_TOKENS
+            )
+            if isinstance(node.func, ast.Name):
+                assert node.func.id not in FORBIDDEN_CALL_NAMES
+            if isinstance(node.func, ast.Attribute):
+                assert _resolved_attribute_root(node.func) not in FORBIDDEN_MODULE_ROOTS
+            scope = _enclosing_function_name(node, parents)
+            assert scope is not None, "module-body calls are forbidden"
+            assert target in TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION[scope]
+            positional_count, keyword_names = TASK3_CALL_SHAPES[target]
+            assert len(node.args) == positional_count
+            assert not any(isinstance(argument, ast.Starred) for argument in node.args)
+            assert tuple(keyword.arg for keyword in node.keywords) == keyword_names
+            if target == "json.dumps":
+                assert {
+                    keyword.arg: ast.literal_eval(keyword.value)
+                    for keyword in node.keywords
+                } == {
+                    "ensure_ascii": False,
+                    "allow_nan": False,
+                    "sort_keys": True,
+                    "separators": (",", ":"),
+                }
+            elif target == "json.loads":
+                observed_hooks = {
+                    keyword.arg: keyword.value.id
+                    for keyword in node.keywords
+                    if isinstance(keyword.value, ast.Name)
+                }
+                assert observed_hooks == {
+                    "object_pairs_hook": "reject_duplicate_object_pairs",
+                    "parse_constant": "reject_nonfinite_constant",
+                }
         if isinstance(node, ast.arg):
             lowered = node.arg.casefold()
             assert "authority" not in lowered
             assert "callback" not in lowered
             assert "callable" not in lowered
+
+    assert observed_nested_functions == set(TASK3_NESTED_FUNCTION_SIGNATURES)
 
 
 def test_core_source_has_exact_task3_symbols_imports_and_signatures() -> None:
@@ -179,6 +367,9 @@ def test_core_runtime_namespace_has_exact_task3_public_symbols() -> None:
 
 def test_static_contract_rejects_extra_helper_callback_and_capability_imports() -> None:
     source = CORE_PATH.read_text(encoding="utf-8")
+    canonical_body_anchor = (
+        '    """Encode one JSON value using the frozen B7 canonical byte algorithm."""\n'
+    )
     attacks = (
         source + "\ndef _extra_callback_helper(value):\n    return value\n",
         source.replace(
@@ -189,6 +380,18 @@ def test_static_contract_rejects_extra_helper_callback_and_capability_imports() 
         source.replace("import json", "import json\nimport time", 1),
         source.replace("import json", "import json\nimport random", 1),
         source.replace("import json", "import json\nimport os", 1),
+        source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor + "\n    if callable(value):\n        return value()\n",
+            1,
+        ),
+        source.replace(
+            canonical_body_anchor,
+            canonical_body_anchor
+            + "\n    if hasattr(value, 'issue_authority'):\n"
+            + "        return value.issue_authority()\n",
+            1,
+        ),
     )
 
     for attacked_source in attacks:
