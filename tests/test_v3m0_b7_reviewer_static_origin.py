@@ -383,6 +383,7 @@ def test_reviewer_static_surface_revalidates_each_route_manifest() -> None:
         "route-alias-unresolved",
         "stdout-not-terminal",
         "nested-default-capability",
+        "nested-local-call",
     ),
 )
 def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
@@ -445,13 +446,25 @@ def test_reviewer_static_surface_rejects_cross_module_and_flow_attacks(
                 b"    return hashlib.sha256(payload).digest()\n"
             ),
         )
-    else:
+    elif attack_id == "nested-default-capability":
         common_source += (
             b"\nimport pathlib as _review_pathlib\n"
             b"def _hostile_child(value):\n"
             b"    def _hidden(payload=_review_pathlib.Path(value).write_text('x')):\n"
             b"        return payload\n"
             b"    return value\n"
+        )
+        compare_source = compare_source.replace(
+            b"    _common._child_common_identity(b'{}')\n",
+            b"    _common._hostile_child('escape')\n",
+            1,
+        )
+    else:
+        common_source += (
+            b"\ndef _hostile_child(value):\n"
+            b"    def _hidden(payload):\n"
+            b"        return _ast.dump(_ast.parse(payload))\n"
+            b"    return _hidden(value)\n"
         )
         compare_source = compare_source.replace(
             b"    _common._child_common_identity(b'{}')\n",

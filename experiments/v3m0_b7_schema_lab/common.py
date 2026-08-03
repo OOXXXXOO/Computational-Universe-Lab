@@ -8555,6 +8555,47 @@ def _reviewer_binding_nodes_v1(node):
         pending.extend(reversed(children))
 
 
+def _reviewer_direct_nested_functions_v1(node):
+    pending = list(reversed(node.body))
+    observed = []
+    while pending:
+        child = pending.pop()
+        if isinstance(child, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            observed.append(child)
+            continue
+        if isinstance(child, (_ast.ClassDef, _ast.Lambda)):
+            continue
+        pending.extend(reversed(list(_ast.iter_child_nodes(child))))
+    names = [child.name for child in observed]
+    if len(names) != len(set(names)):
+        raise ValueError("reviewer lexical scope has duplicate nested functions")
+    return observed
+
+
+def _reviewer_expand_nested_function_definitions_v1(definitions):
+    expanded = dict(definitions)
+    lexical_targets = {}
+
+    def visit(owner, node, inherited):
+        children = _reviewer_direct_nested_functions_v1(node)
+        child_targets = {
+            child.name: f"{owner}.<locals>.{child.name}" for child in children
+        }
+        visible = {**inherited, **child_targets}
+        lexical_targets[owner] = visible
+        for child in children:
+            qualified = child_targets[child.name]
+            if qualified in expanded:
+                raise ValueError("reviewer nested function binding is duplicated")
+            expanded[qualified] = child
+            visit(qualified, child, visible)
+
+    for owner, node in tuple(definitions.items()):
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            visit(owner, node, {})
+    return expanded, lexical_targets
+
+
 def _reviewer_local_import_nodes_v1(node):
     return [
         child
@@ -8715,6 +8756,7 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
     module_definitions = {}
     module_aliases = {}
     parents_by_module = {}
+    lexical_targets = {}
     for path, tree in trees.items():
         module = modules_by_path[path]
         _functions, by_name = _reviewer_top_level_functions_v1(tree, path)
@@ -8724,7 +8766,12 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
         overlap = set(by_name).intersection(classes)
         if overlap:
             raise ValueError("reviewer top-level callable binding is duplicated")
-        module_definitions[module] = {**by_name, **classes}
+        expanded, lexical = _reviewer_expand_nested_function_definitions_v1(
+            {**by_name, **classes}
+        )
+        module_definitions[module] = expanded
+        for owner, targets in lexical.items():
+            lexical_targets[(module, owner)] = targets
         module_aliases[module] = _reviewer_import_aliases_v1(
             [
                 node
@@ -8786,6 +8833,10 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
                 if name in module_definitions[module]:
                     target = (module, name)
                     resolved = f"{module}.{name}"
+                elif name in lexical_targets.get((module, owner), {}):
+                    lexical_owner = lexical_targets[(module, owner)][name]
+                    target = (module, lexical_owner)
+                    resolved = f"{module}.{lexical_owner}"
                 elif name in aliases:
                     _kind, resolved = aliases[name]
                     target = _reviewer_local_target_v1(resolved, module_definitions)
@@ -8796,7 +8847,10 @@ def _validate_reviewer_child_calls_v1(trees, definitions, child_union):
                 elif name in forbidden:
                     raise ValueError("reviewer child calls a forbidden resolver")
                 else:
-                    raise ValueError("reviewer child has an unresolved direct call")
+                    raise ValueError(
+                        "reviewer child has an unresolved direct call: "
+                        f"{module}.{owner}->{name}"
+                    )
             else:
                 resolved = _reviewer_resolve_qualified_v1(call.func, aliases)
                 if resolved is None:
