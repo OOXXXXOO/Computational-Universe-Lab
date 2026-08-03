@@ -1852,47 +1852,106 @@ def validate_branch_attempt_v1(raw_body: object) -> dict[str, object]:
     return attempt
 
 
-def _make_task5_dependency_guard_v1(
-    np_binding,
-    scipy_binding,
-    math_binding,
-    fraction_binding,
-    canonical_json_binding,
-    canonical_sha_binding,
-    strict_json_binding,
+def _require_task5_dependencies_v1(
+    np_candidate,
+    scipy_candidate,
+    math_candidate,
+    fraction_candidate,
+    canonical_json_candidate,
+    canonical_sha_candidate,
+    strict_json_candidate,
+    np_binding=np,
+    np_ndarray_binding=np.ndarray,
+    np_dtype_binding=np.dtype,
+    np_complex128_binding=np.complex128,
+    np_float64_binding=np.float64,
+    np_isfinite_binding=np.isfinite,
+    np_asarray_binding=np.asarray,
+    np_diag_binding=np.diag,
+    np_eye_binding=np.eye,
+    np_sqrt_binding=np.sqrt,
+    np_any_binding=np.any,
+    np_finfo_binding=np.finfo,
+    np_trace_binding=np.trace,
+    np_stack_binding=np.stack,
+    np_empty_binding=np.empty,
+    np_array_equal_binding=np.array_equal,
+    np_linalg_binding=np.linalg,
+    np_linalg_eigh_binding=np.linalg.eigh,
+    np_linalg_norm_binding=np.linalg.norm,
+    np_linalg_inv_binding=np.linalg.inv,
+    scipy_binding=scipy,
+    scipy_linalg_binding=scipy.linalg,
+    scipy_schur_binding=scipy.linalg.schur,
+    math_binding=math,
+    math_isfinite_binding=math.isfinite,
+    math_cos_binding=math.cos,
+    math_fsum_binding=math.fsum,
+    math_sin_binding=math.sin,
+    math_pi_binding=math.pi,
+    math_inf_binding=math.inf,
+    math_nextafter_binding=math.nextafter,
+    math_sqrt_binding=math.sqrt,
+    math_hypot_binding=math.hypot,
+    math_atan2_binding=math.atan2,
+    fraction_binding=Fraction,
+    canonical_json_binding=canonical_json_bytes_v1,
+    canonical_sha_binding=canonical_sha_v1,
+    strict_json_binding=strict_json_loads_v1,
 ):
-    def require_task5_dependencies(
-        np_candidate,
-        scipy_candidate,
-        math_candidate,
-        fraction_candidate,
-        canonical_json_candidate,
-        canonical_sha_candidate,
-        strict_json_candidate,
+    if np_candidate is not np_binding:
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if (
+        np_candidate.ndarray is not np_ndarray_binding
+        or np_candidate.dtype is not np_dtype_binding
+        or np_candidate.complex128 is not np_complex128_binding
+        or np_candidate.float64 is not np_float64_binding
+        or np_candidate.isfinite is not np_isfinite_binding
+        or np_candidate.asarray is not np_asarray_binding
+        or np_candidate.diag is not np_diag_binding
+        or np_candidate.eye is not np_eye_binding
+        or np_candidate.sqrt is not np_sqrt_binding
+        or np_candidate.any is not np_any_binding
+        or np_candidate.finfo is not np_finfo_binding
+        or np_candidate.trace is not np_trace_binding
+        or np_candidate.stack is not np_stack_binding
+        or np_candidate.empty is not np_empty_binding
+        or np_candidate.array_equal is not np_array_equal_binding
+        or np_candidate.linalg is not np_linalg_binding
+        or np_candidate.linalg.eigh is not np_linalg_eigh_binding
+        or np_candidate.linalg.norm is not np_linalg_norm_binding
+        or np_candidate.linalg.inv is not np_linalg_inv_binding
     ):
-        if (
-            np_candidate is not np_binding
-            or scipy_candidate is not scipy_binding
-            or math_candidate is not math_binding
-            or fraction_candidate is not fraction_binding
-            or canonical_json_candidate is not canonical_json_binding
-            or canonical_sha_candidate is not canonical_sha_binding
-            or strict_json_candidate is not strict_json_binding
-        ):
-            raise RuntimeError("B7 Task-5 dependency binding changed")
-
-    return require_task5_dependencies
-
-
-_require_task5_dependencies_v1 = _make_task5_dependency_guard_v1(
-    np,
-    scipy,
-    math,
-    Fraction,
-    canonical_json_bytes_v1,
-    canonical_sha_v1,
-    strict_json_loads_v1,
-)
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if scipy_candidate is not scipy_binding:
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if (
+        scipy_candidate.linalg is not scipy_linalg_binding
+        or scipy_candidate.linalg.schur is not scipy_schur_binding
+    ):
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if math_candidate is not math_binding:
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if (
+        math_candidate.isfinite is not math_isfinite_binding
+        or math_candidate.cos is not math_cos_binding
+        or math_candidate.fsum is not math_fsum_binding
+        or math_candidate.sin is not math_sin_binding
+        or math_candidate.pi is not math_pi_binding
+        or math_candidate.inf is not math_inf_binding
+        or math_candidate.nextafter is not math_nextafter_binding
+        or math_candidate.sqrt is not math_sqrt_binding
+        or math_candidate.hypot is not math_hypot_binding
+        or math_candidate.atan2 is not math_atan2_binding
+    ):
+        raise RuntimeError("B7 Task-5 dependency binding changed")
+    if (
+        fraction_candidate is not fraction_binding
+        or canonical_json_candidate is not canonical_json_binding
+        or canonical_sha_candidate is not canonical_sha_binding
+        or strict_json_candidate is not strict_json_binding
+    ):
+        raise RuntimeError("B7 Task-5 dependency binding changed")
 
 
 def _finite_float_v1(value, field):
@@ -2079,32 +2138,66 @@ def _compute_fejer_filtered_response_raw_v1(
     return np.asarray(projection @ filtered @ source, dtype=np.complex128)
 
 
+def _float_square_below_ratio_raw_v1(value, numerator, denominator):
+    value_numerator, value_denominator = float(value).as_integer_ratio()
+    return (
+        value_numerator * value_numerator * denominator
+        < numerator * value_denominator * value_denominator
+    )
+
+
 def _exact_frobenius_upper_raw_v1(values):
     matrix = _strict_complex_matrix_v1(values, "Frobenius input", False)
-    total = Fraction(0, 1)
+    common_denominator = 1
+    total_numerator = 0
     for value in matrix.reshape(-1, order="C"):
-        real = Fraction.from_float(float(value.real))
-        imaginary = Fraction.from_float(float(value.imag))
-        total += real * real + imaginary * imaginary
-    if total == 0:
+        for component in (value.real, value.imag):
+            numerator, denominator = float(component).as_integer_ratio()
+            numerator *= numerator
+            denominator *= denominator
+            if denominator > common_denominator:
+                total_numerator *= denominator // common_denominator
+                common_denominator = denominator
+            total_numerator += numerator * (common_denominator // denominator)
+    if total_numerator == 0:
         return +0.0
-    maximum = Fraction.from_float(1.7976931348623157e308)
-    if maximum * maximum < total:
+    maximum_numerator, maximum_denominator = (1.7976931348623157e308).as_integer_ratio()
+    if (
+        maximum_numerator * maximum_numerator * common_denominator
+        < total_numerator * maximum_denominator * maximum_denominator
+    ):
         raise ValueError("Frobenius square root exceeds finite fp64 range")
     minimum_normal = 2.2250738585072014e-308
-    minimum_fraction = Fraction.from_float(minimum_normal)
-    if minimum_fraction * minimum_fraction >= total:
+    minimum_numerator, minimum_denominator = minimum_normal.as_integer_ratio()
+    if (
+        minimum_numerator * minimum_numerator * common_denominator
+        >= total_numerator * minimum_denominator * minimum_denominator
+    ):
         return minimum_normal
-    candidate = math.sqrt(float(total))
+    candidate = 0.0
+    for value in matrix.reshape(-1, order="C"):
+        candidate = math.hypot(
+            candidate,
+            float(value.real),
+            float(value.imag),
+        )
     if not math.isfinite(candidate):
         raise ValueError("Frobenius square root exceeds finite fp64 range")
     if candidate < minimum_normal:
         candidate = minimum_normal
-    while Fraction.from_float(candidate) ** 2 < total:
+    while _float_square_below_ratio_raw_v1(
+        candidate,
+        total_numerator,
+        common_denominator,
+    ):
         candidate = math.nextafter(candidate, math.inf)
     while candidate > minimum_normal:
         previous = math.nextafter(candidate, -math.inf)
-        if previous < minimum_normal or Fraction.from_float(previous) ** 2 < total:
+        if previous < minimum_normal or _float_square_below_ratio_raw_v1(
+            previous,
+            total_numerator,
+            common_denominator,
+        ):
             break
         candidate = previous
     return candidate

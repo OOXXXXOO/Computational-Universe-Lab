@@ -99,16 +99,13 @@ from .window import (
 )
 
 
-def _make_b7_replay_core_guard_v1(core_binding):
-    def require_b7_replay_core(candidate):
-        if candidate is not core_binding:
-            raise RuntimeError("B7 replay core module binding changed")
-        return core_binding
-
-    return require_b7_replay_core
-
-
-_require_b7_replay_core_v1 = _make_b7_replay_core_guard_v1(_b7_replay_core_v1)
+def _require_b7_replay_core_v1(
+    candidate,
+    core_binding=_b7_replay_core_v1,
+):
+    if candidate is not core_binding:
+        raise RuntimeError("B7 replay core module binding changed")
+    return core_binding
 
 
 RESPONSE_RUN_SPEC_SCHEMA_VERSION = "v3m0.response-run-spec.v1"

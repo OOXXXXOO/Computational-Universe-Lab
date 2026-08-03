@@ -460,15 +460,61 @@ TASK5_DEPENDENCY_BINDINGS = (
     "strict_json_loads_v1",
 )
 
+TASK5_GUARD_REQUIRED_ARGUMENTS = (
+    "np_candidate",
+    "scipy_candidate",
+    "math_candidate",
+    "fraction_candidate",
+    "canonical_json_candidate",
+    "canonical_sha_candidate",
+    "strict_json_candidate",
+)
+
+TASK5_GUARD_DEFAULT_ARGUMENTS = (
+    ("np_binding", "np"),
+    ("np_ndarray_binding", "np.ndarray"),
+    ("np_dtype_binding", "np.dtype"),
+    ("np_complex128_binding", "np.complex128"),
+    ("np_float64_binding", "np.float64"),
+    ("np_isfinite_binding", "np.isfinite"),
+    ("np_asarray_binding", "np.asarray"),
+    ("np_diag_binding", "np.diag"),
+    ("np_eye_binding", "np.eye"),
+    ("np_sqrt_binding", "np.sqrt"),
+    ("np_any_binding", "np.any"),
+    ("np_finfo_binding", "np.finfo"),
+    ("np_trace_binding", "np.trace"),
+    ("np_stack_binding", "np.stack"),
+    ("np_empty_binding", "np.empty"),
+    ("np_array_equal_binding", "np.array_equal"),
+    ("np_linalg_binding", "np.linalg"),
+    ("np_linalg_eigh_binding", "np.linalg.eigh"),
+    ("np_linalg_norm_binding", "np.linalg.norm"),
+    ("np_linalg_inv_binding", "np.linalg.inv"),
+    ("scipy_binding", "scipy"),
+    ("scipy_linalg_binding", "scipy.linalg"),
+    ("scipy_schur_binding", "scipy.linalg.schur"),
+    ("math_binding", "math"),
+    ("math_isfinite_binding", "math.isfinite"),
+    ("math_cos_binding", "math.cos"),
+    ("math_fsum_binding", "math.fsum"),
+    ("math_sin_binding", "math.sin"),
+    ("math_pi_binding", "math.pi"),
+    ("math_inf_binding", "math.inf"),
+    ("math_nextafter_binding", "math.nextafter"),
+    ("math_sqrt_binding", "math.sqrt"),
+    ("math_hypot_binding", "math.hypot"),
+    ("math_atan2_binding", "math.atan2"),
+    ("fraction_binding", "Fraction"),
+    ("canonical_json_binding", "canonical_json_bytes_v1"),
+    ("canonical_sha_binding", "canonical_sha_v1"),
+    ("strict_json_binding", "strict_json_loads_v1"),
+)
+
 TASK5_HELPER_FUNCTION_SIGNATURES = {
-    "_make_task5_dependency_guard_v1": (
-        "np_binding",
-        "scipy_binding",
-        "math_binding",
-        "fraction_binding",
-        "canonical_json_binding",
-        "canonical_sha_binding",
-        "strict_json_binding",
+    "_require_task5_dependencies_v1": (
+        *TASK5_GUARD_REQUIRED_ARGUMENTS,
+        *(name for name, _ in TASK5_GUARD_DEFAULT_ARGUMENTS),
     ),
     "_finite_float_v1": ("value", "field"),
     "_strict_complex_matrix_v1": ("value", "field", "square"),
@@ -484,6 +530,11 @@ TASK5_HELPER_FUNCTION_SIGNATURES = {
         "order",
         "source_injection",
         "readout",
+    ),
+    "_float_square_below_ratio_raw_v1": (
+        "value",
+        "numerator",
+        "denominator",
     ),
     "_exact_frobenius_upper_raw_v1": ("values",),
     "_principal_phase_raw_v1": ("value",),
@@ -509,17 +560,7 @@ TASK5_HELPER_FUNCTION_SIGNATURES = {
     ),
 }
 
-TASK5_NESTED_FUNCTION_SIGNATURES = {
-    ("_make_task5_dependency_guard_v1", "require_task5_dependencies"): (
-        "np_candidate",
-        "scipy_candidate",
-        "math_candidate",
-        "fraction_candidate",
-        "canonical_json_candidate",
-        "canonical_sha_candidate",
-        "strict_json_candidate",
-    ),
-}
+TASK5_NESTED_FUNCTION_SIGNATURES: dict[tuple[str, str], tuple[str, ...]] = {}
 
 TASK5_ALL_FUNCTION_SCOPES = {
     *TASK5_FUNCTION_SIGNATURES,
@@ -528,7 +569,7 @@ TASK5_ALL_FUNCTION_SCOPES = {
 }
 
 TASK5_TOP_LEVEL_FUNCTION_ORDER = (
-    "_make_task5_dependency_guard_v1",
+    "_require_task5_dependencies_v1",
     "_finite_float_v1",
     "_strict_complex_matrix_v1",
     "_freeze_complex_tensor_raw_v1",
@@ -537,6 +578,7 @@ TASK5_TOP_LEVEL_FUNCTION_ORDER = (
     "_hermitian_sqrt_pair_raw_v1",
     "_fejer_scalar_raw_v1",
     "_compute_fejer_filtered_response_raw_v1",
+    "_float_square_below_ratio_raw_v1",
     "_exact_frobenius_upper_raw_v1",
     "_principal_phase_raw_v1",
     "_phase_distance_raw_v1",
@@ -1244,10 +1286,13 @@ def _assert_exact_function_shape(
 def _assert_exact_unannotated_function_shape(
     node: ast.FunctionDef,
     expected_arguments: tuple[str, ...],
+    expected_default_expressions: tuple[str, ...] = (),
 ) -> None:
     assert node.decorator_list == []
     assert node.type_comment is None
-    assert node.args.defaults == []
+    assert tuple(ast.unparse(value) for value in node.args.defaults) == (
+        expected_default_expressions
+    )
     assert all(default is None for default in node.args.kw_defaults)
     assert node.args.posonlyargs == []
     assert node.args.vararg is None
@@ -1402,23 +1447,7 @@ def _assert_core_source_contract(source: str) -> None:
         elif isinstance(node, ast.Assign):
             assert all(isinstance(target, ast.Name) for target in node.targets)
             top_level_assignments.update(target.id for target in node.targets)
-            target_names = tuple(target.id for target in node.targets)
-            if target_names == ("_require_task5_dependencies_v1",):
-                assert isinstance(node.value, ast.Call)
-                assert _task3_call_target(node.value) == (
-                    "_make_task5_dependency_guard_v1"
-                )
-                assert node.value.keywords == []
-                assert (
-                    tuple(
-                        argument.id
-                        for argument in node.value.args
-                        if isinstance(argument, ast.Name)
-                    )
-                    == TASK5_DEPENDENCY_BINDINGS
-                )
-            else:
-                ast.literal_eval(node.value)
+            ast.literal_eval(node.value)
         elif isinstance(node, ast.FunctionDef):
             top_level_functions.append(node.name)
             if node.name in TASK3_FUNCTION_SIGNATURES:
@@ -1456,12 +1485,19 @@ def _assert_core_source_contract(source: str) -> None:
                 _assert_exact_unannotated_function_shape(
                     node,
                     expected_arguments,
+                    (
+                        tuple(
+                            expression
+                            for _, expression in TASK5_GUARD_DEFAULT_ARGUMENTS
+                        )
+                        if node.name == "_require_task5_dependencies_v1"
+                        else ()
+                    ),
                 )
 
     assert top_level_assignments == {
         "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
         *TASK4_LITERAL_ASSIGNMENTS,
-        "_require_task5_dependencies_v1",
     }
     assert top_level_functions == [
         *TASK3_FUNCTION_SIGNATURES,
@@ -1786,11 +1822,6 @@ def _assert_core_source_contract(source: str) -> None:
                     assert ast.literal_eval(node.value) == PROJECTION_SHA256
                 elif scope is None and target_node.id in TASK4_LITERAL_ASSIGNMENTS:
                     ast.literal_eval(node.value)
-                elif binding_key == (None, "_require_task5_dependencies_v1"):
-                    assert isinstance(node.value, ast.Call)
-                    assert _task3_call_target(node.value) == (
-                        "_make_task5_dependency_guard_v1"
-                    )
                 else:
                     expected_assignment_calls = {
                         ("validate_object_keys", "candidate_type"): "type",
@@ -1885,7 +1916,6 @@ def _assert_core_source_contract(source: str) -> None:
                 assert node.id in {
                     "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
                     *TASK4_LITERAL_ASSIGNMENTS,
-                    "_require_task5_dependencies_v1",
                 }
             elif scope in TASK3_FUNCTION_SIGNATURES or scope in {
                 item[1] for item in TASK3_NESTED_FUNCTION_SIGNATURES
@@ -1939,17 +1969,7 @@ def _assert_core_source_contract(source: str) -> None:
             if isinstance(node.func, ast.Attribute):
                 assert _resolved_attribute_root(node.func) not in FORBIDDEN_MODULE_ROOTS
             if scope is None:
-                assert target == "_make_task5_dependency_guard_v1"
-                assert node.keywords == []
-                assert (
-                    tuple(
-                        argument.id
-                        for argument in node.args
-                        if isinstance(argument, ast.Name)
-                    )
-                    == TASK5_DEPENDENCY_BINDINGS
-                )
-                continue
+                raise AssertionError("module-body calls are forbidden")
             if scope in TASK3_ALLOWED_CALL_TARGETS_BY_FUNCTION:
                 lowered_target = target.casefold()
                 assert not any(
@@ -2101,69 +2121,76 @@ def test_task5_owner_neutral_leaf_signatures_are_exact() -> None:
 
 def test_task5_dependency_guard_is_definition_time_and_dominates_every_leaf() -> None:
     tree = ast.parse(CORE_PATH.read_text(encoding="utf-8"))
-    factories = [
+    guards = [
         node
         for node in tree.body
         if isinstance(node, ast.FunctionDef)
-        and node.name == "_make_task5_dependency_guard_v1"
+        and node.name == "_require_task5_dependencies_v1"
     ]
-    assert len(factories) == 1
-    factory = factories[0]
-    assert len(factory.body) == 2
-    nested = factory.body[0]
-    factory_return = factory.body[1]
-    assert isinstance(nested, ast.FunctionDef)
-    assert nested.name == "require_task5_dependencies"
-    assert isinstance(factory_return, ast.Return)
-    assert isinstance(factory_return.value, ast.Name)
-    assert factory_return.value.id == nested.name
-    assert len(nested.body) == 1
-    dependency_if = nested.body[0]
-    assert isinstance(dependency_if, ast.If)
-    assert ast.dump(dependency_if.test, include_attributes=False) == (
-        _expression_shape(
-            "np_candidate is not np_binding "
-            "or scipy_candidate is not scipy_binding "
-            "or math_candidate is not math_binding "
-            "or fraction_candidate is not fraction_binding "
-            "or canonical_json_candidate is not canonical_json_binding "
-            "or canonical_sha_candidate is not canonical_sha_binding "
-            "or strict_json_candidate is not strict_json_binding"
-        )
-    )
-    assert dependency_if.orelse == []
-    assert len(dependency_if.body) == 1
-    failure = dependency_if.body[0]
-    assert isinstance(failure, ast.Raise)
-    assert isinstance(failure.exc, ast.Call)
-    assert _task3_call_target(failure.exc) == "RuntimeError"
-    assert len(failure.exc.args) == 1
-    assert isinstance(failure.exc.args[0], ast.Constant)
-    assert failure.exc.args[0].value == "B7 Task-5 dependency binding changed"
-
-    assignments = [
-        node
-        for node in tree.body
-        if isinstance(node, ast.Assign)
-        and any(
-            isinstance(target, ast.Name)
-            and target.id == "_require_task5_dependencies_v1"
-            for target in node.targets
-        )
-    ]
-    assert len(assignments) == 1
-    assignment_call = assignments[0].value
-    assert isinstance(assignment_call, ast.Call)
-    assert _task3_call_target(assignment_call) == ("_make_task5_dependency_guard_v1")
-    assert len(assignment_call.args) == len(TASK5_DEPENDENCY_BINDINGS)
+    assert len(guards) == 1
+    guard = guards[0]
     assert (
-        tuple(
-            argument.id
-            for argument in assignment_call.args
-            if isinstance(argument, ast.Name)
-        )
-        == TASK5_DEPENDENCY_BINDINGS
+        tuple(argument.arg for argument in guard.args.args)
+        == (TASK5_HELPER_FUNCTION_SIGNATURES["_require_task5_dependencies_v1"])
     )
+    assert tuple(ast.unparse(value) for value in guard.args.defaults) == tuple(
+        expression for _, expression in TASK5_GUARD_DEFAULT_ARGUMENTS
+    )
+    expected_tests = (
+        "np_candidate is not np_binding",
+        "np_candidate.ndarray is not np_ndarray_binding "
+        "or np_candidate.dtype is not np_dtype_binding "
+        "or np_candidate.complex128 is not np_complex128_binding "
+        "or np_candidate.float64 is not np_float64_binding "
+        "or np_candidate.isfinite is not np_isfinite_binding "
+        "or np_candidate.asarray is not np_asarray_binding "
+        "or np_candidate.diag is not np_diag_binding "
+        "or np_candidate.eye is not np_eye_binding "
+        "or np_candidate.sqrt is not np_sqrt_binding "
+        "or np_candidate.any is not np_any_binding "
+        "or np_candidate.finfo is not np_finfo_binding "
+        "or np_candidate.trace is not np_trace_binding "
+        "or np_candidate.stack is not np_stack_binding "
+        "or np_candidate.empty is not np_empty_binding "
+        "or np_candidate.array_equal is not np_array_equal_binding "
+        "or np_candidate.linalg is not np_linalg_binding "
+        "or np_candidate.linalg.eigh is not np_linalg_eigh_binding "
+        "or np_candidate.linalg.norm is not np_linalg_norm_binding "
+        "or np_candidate.linalg.inv is not np_linalg_inv_binding",
+        "scipy_candidate is not scipy_binding",
+        "scipy_candidate.linalg is not scipy_linalg_binding "
+        "or scipy_candidate.linalg.schur is not scipy_schur_binding",
+        "math_candidate is not math_binding",
+        "math_candidate.isfinite is not math_isfinite_binding "
+        "or math_candidate.cos is not math_cos_binding "
+        "or math_candidate.fsum is not math_fsum_binding "
+        "or math_candidate.sin is not math_sin_binding "
+        "or math_candidate.pi is not math_pi_binding "
+        "or math_candidate.inf is not math_inf_binding "
+        "or math_candidate.nextafter is not math_nextafter_binding "
+        "or math_candidate.sqrt is not math_sqrt_binding "
+        "or math_candidate.hypot is not math_hypot_binding "
+        "or math_candidate.atan2 is not math_atan2_binding",
+        "fraction_candidate is not fraction_binding "
+        "or canonical_json_candidate is not canonical_json_binding "
+        "or canonical_sha_candidate is not canonical_sha_binding "
+        "or strict_json_candidate is not strict_json_binding",
+    )
+    assert len(guard.body) == len(expected_tests)
+    for statement, expected_test in zip(guard.body, expected_tests):
+        assert isinstance(statement, ast.If)
+        assert ast.dump(statement.test, include_attributes=False) == (
+            _expression_shape(expected_test)
+        )
+        assert statement.orelse == []
+        assert len(statement.body) == 1
+        failure = statement.body[0]
+        assert isinstance(failure, ast.Raise)
+        assert isinstance(failure.exc, ast.Call)
+        assert _task3_call_target(failure.exc) == "RuntimeError"
+        assert len(failure.exc.args) == 1
+        assert isinstance(failure.exc.args[0], ast.Constant)
+        assert failure.exc.args[0].value == ("B7 Task-5 dependency binding changed")
 
     leaves = {
         node.name: node
@@ -2229,22 +2256,23 @@ def test_task5_response_wrappers_are_one_guarded_static_delegation() -> None:
 
 def test_task5_response_core_guard_captures_exact_imported_module() -> None:
     tree = ast.parse(RESPONSE_PATH.read_text(encoding="utf-8"))
-    factories = [
+    guards = [
         node
         for node in tree.body
         if isinstance(node, ast.FunctionDef)
-        and node.name == "_make_b7_replay_core_guard_v1"
+        and node.name == "_require_b7_replay_core_v1"
     ]
-    assert len(factories) == 1
-    factory = factories[0]
-    assert tuple(argument.arg for argument in factory.args.args) == ("core_binding",)
-    assert len(factory.body) == 2
-    nested = factory.body[0]
-    factory_return = factory.body[1]
-    assert isinstance(nested, ast.FunctionDef)
-    assert tuple(argument.arg for argument in nested.args.args) == ("candidate",)
-    assert len(nested.body) == 2
-    guard = nested.body[0]
+    assert len(guards) == 1
+    guard_function = guards[0]
+    assert tuple(argument.arg for argument in guard_function.args.args) == (
+        "candidate",
+        "core_binding",
+    )
+    assert len(guard_function.args.defaults) == 1
+    assert isinstance(guard_function.args.defaults[0], ast.Name)
+    assert guard_function.args.defaults[0].id == "_b7_replay_core_v1"
+    assert len(guard_function.body) == 2
+    guard = guard_function.body[0]
     assert isinstance(guard, ast.If)
     assert ast.dump(guard.test, include_attributes=False) == _expression_shape(
         "candidate is not core_binding"
@@ -2255,30 +2283,10 @@ def test_task5_response_core_guard_captures_exact_imported_module() -> None:
     assert _task3_call_target(failure.exc) == "RuntimeError"
     assert isinstance(failure.exc.args[0], ast.Constant)
     assert failure.exc.args[0].value == "B7 replay core module binding changed"
-    nested_return = nested.body[1]
-    assert isinstance(nested_return, ast.Return)
-    assert isinstance(nested_return.value, ast.Name)
-    assert nested_return.value.id == "core_binding"
-    assert isinstance(factory_return, ast.Return)
-    assert isinstance(factory_return.value, ast.Name)
-    assert factory_return.value.id == nested.name
-
-    assignments = [
-        node
-        for node in tree.body
-        if isinstance(node, ast.Assign)
-        and any(
-            isinstance(target, ast.Name) and target.id == "_require_b7_replay_core_v1"
-            for target in node.targets
-        )
-    ]
-    assert len(assignments) == 1
-    assignment_call = assignments[0].value
-    assert isinstance(assignment_call, ast.Call)
-    assert _task3_call_target(assignment_call) == ("_make_b7_replay_core_guard_v1")
-    assert len(assignment_call.args) == 1
-    assert isinstance(assignment_call.args[0], ast.Name)
-    assert assignment_call.args[0].id == "_b7_replay_core_v1"
+    guarded_return = guard_function.body[1]
+    assert isinstance(guarded_return, ast.Return)
+    assert isinstance(guarded_return.value, ast.Name)
+    assert guarded_return.value.id == "core_binding"
 
 
 @pytest.mark.parametrize("binding_name", TASK5_DEPENDENCY_BINDINGS)
@@ -2309,6 +2317,122 @@ def test_task5_core_dependency_redirect_fails_closed_before_dispatch(
             None,
         )
     assert callback_trace == []
+
+
+@pytest.mark.parametrize(
+    ("binding_name", "attribute_path"),
+    (
+        ("np", "asarray"),
+        ("np", "linalg.inv"),
+        ("scipy", "linalg.schur"),
+        ("math", "cos"),
+        ("math", "hypot"),
+    ),
+)
+def test_task5_nested_numeric_dependency_redirect_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    binding_name: str,
+    attribute_path: str,
+) -> None:
+    core = _core_module()
+    callback_trace: list[str] = []
+
+    class HostileDependency:
+        def __call__(self, *args, **kwargs):
+            del args, kwargs
+            callback_trace.append("call")
+            raise AssertionError("caller numeric dependency executed")
+
+        def __getattr__(self, name: str):
+            callback_trace.append(name)
+            raise AssertionError("caller numeric dependency attribute executed")
+
+    owner = getattr(core, binding_name)
+    path = attribute_path.split(".")
+    for token in path[:-1]:
+        owner = getattr(owner, token)
+    monkeypatch.setattr(owner, path[-1], HostileDependency())
+    with pytest.raises(RuntimeError, match="B7 Task-5 dependency binding changed"):
+        core._assemble_atomic_paired_response_attempt_from_raw(
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    assert callback_trace == []
+
+
+@pytest.mark.parametrize("attribute_name", ("from_float", "__mul__"))
+def test_task5_bridge_does_not_dispatch_mutable_fraction_protocol(
+    monkeypatch: pytest.MonkeyPatch,
+    attribute_name: str,
+) -> None:
+    core = _core_module()
+    callback_trace: list[str] = []
+
+    def hostile_fraction_protocol(*args, **kwargs):
+        del args, kwargs
+        callback_trace.append(attribute_name)
+        raise AssertionError("mutable Fraction protocol executed")
+
+    monkeypatch.setattr(core.Fraction, attribute_name, hostile_fraction_protocol)
+    raw_difference = np.diag(np.arange(1.0, 11.0, dtype=np.float64)).astype(
+        np.complex128
+    )
+    observed = core._audit_source_readout_bridge_from_raw(
+        "actual",
+        "1" * 64,
+        "2" * 64,
+        "3" * 64,
+        "4" * 64,
+        _task5_bridge_grid(),
+        [2],
+        _task5_tensor_from_array(np.eye(10, dtype=np.complex128)),
+        _task5_current_readout_spec(),
+        (((0,), 2, raw_difference),),
+    )
+    assert observed["branch"] == "actual"
+    assert callback_trace == []
+
+
+def test_task5_exact_frobenius_upper_handles_finite_fp64_boundary() -> None:
+    core = _core_module()
+    maximum = float.fromhex("0x1.fffffffffffffp+1023")
+
+    assert core._exact_frobenius_upper_raw_v1(
+        np.asarray([[1.0e200 + 0.0j]], dtype=np.complex128)
+    ) == float.fromhex("0x1.4e718d7d7625ap+664")
+    assert (
+        core._exact_frobenius_upper_raw_v1(
+            np.asarray([[maximum + 0.0j]], dtype=np.complex128)
+        )
+        == maximum
+    )
+    with pytest.raises(ValueError, match="exceeds finite fp64 range"):
+        core._exact_frobenius_upper_raw_v1(
+            np.asarray([[maximum + 0.0j, maximum + 0.0j]], dtype=np.complex128)
+        )
+
+
+def test_task5_exact_frobenius_upper_uses_constant_auxiliary_storage() -> None:
+    tree = ast.parse(CORE_PATH.read_text(encoding="utf-8"))
+    helper = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name == "_exact_frobenius_upper_raw_v1"
+    )
+
+    assert not any(
+        isinstance(node, (ast.List, ast.ListComp)) for node in ast.walk(helper)
+    )
+    assert not any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"append", "extend", "insert"}
+        for node in ast.walk(helper)
+    )
 
 
 def test_task5_response_core_module_redirect_fails_closed_before_dispatch(
