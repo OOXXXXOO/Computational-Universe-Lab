@@ -7718,3 +7718,269 @@ def validate_d0_comparison_v1(
     if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
         raise ValueError("D0 comparison differs from fresh recomputation")
     return observed
+
+
+_D1_ROUTE_CAPTURE_INPUT_FIELDS_V1 = (
+    "route_id",
+    "route_manifest_sha",
+    "ordered_legal_replays",
+)
+
+
+def _validate_d1_capture_source_bytes_v1(ordered_capture_source_bytes):
+    if (
+        type(ordered_capture_source_bytes) is not list
+        or len(ordered_capture_source_bytes) != 3
+    ):
+        raise TypeError("D1 source domain must contain exactly three captures")
+    expected_case_ids = [row[1] for row in _CASE_CONTRACTS_V1]
+    captures = []
+    for capture_ordinal, raw_capture in enumerate(ordered_capture_source_bytes):
+        sources = _require_exact_seven_bytes_v1(
+            raw_capture,
+            f"D1 capture {capture_ordinal} sources",
+        )
+        transcripts = []
+        for raw_bytes in sources:
+            parsed = strict_json_loads_v1(raw_bytes)
+            if canonical_json_bytes_v1(parsed) != raw_bytes:
+                raise ValueError("D1 source transcript bytes are not canonical")
+            transcripts.append(validate_case_contract_v1(parsed))
+        case_ids = [transcript["case_id"] for transcript in transcripts]
+        if case_ids != expected_case_ids:
+            raise ValueError("D1 source transcript case order drifted")
+        leaf_root = canonical_sha_v1(
+            [
+                {
+                    "case_id": case_id,
+                    "ordered_leaf_digests_sha": canonical_sha_v1(
+                        transcript["ordered_leaf_digests"]
+                    ),
+                }
+                for case_id, transcript in zip(case_ids, transcripts)
+            ]
+        )
+        captures.append(
+            {
+                "capture_ordinal": capture_ordinal,
+                "case_ids": case_ids,
+                "source_bytes": list(sources),
+                "transcript_set_sha": _ordered_bytes_root_v1(case_ids, sources),
+                "ordered_leaf_digest_set_sha": leaf_root,
+            }
+        )
+    return captures
+
+
+def _build_d1_cross_replay_domain_v1(
+    *,
+    synthetic_graph_manifest_sha,
+    ordered_survivor_route_ids,
+    ordered_capture_source_bytes,
+    ordered_route_capture_inputs,
+):
+    graph_sha = _require_sha256_root_v1(
+        synthetic_graph_manifest_sha,
+        "D1 synthetic graph manifest",
+    )
+    if (
+        type(ordered_survivor_route_ids) is not list
+        or not ordered_survivor_route_ids
+        or len(set(ordered_survivor_route_ids)) != len(ordered_survivor_route_ids)
+    ):
+        raise TypeError("D1 survivor route order must be a nonempty unique list")
+    for route_id in ordered_survivor_route_ids:
+        _validate_lab_wire_semantics_v1(route_id, "route-id", None, "route_id")
+    if type(ordered_route_capture_inputs) is not list or len(
+        ordered_route_capture_inputs
+    ) != len(ordered_survivor_route_ids):
+        raise TypeError("D1 route capture domain cardinality drifted")
+
+    captures = _validate_d1_capture_source_bytes_v1(ordered_capture_source_bytes)
+    route_cells = []
+    route_decoded_bytes = []
+    for expected_route_id, raw_route_input in zip(
+        ordered_survivor_route_ids,
+        ordered_route_capture_inputs,
+    ):
+        route_input = _require_exact_ordered_dict_v1(
+            raw_route_input,
+            _D1_ROUTE_CAPTURE_INPUT_FIELDS_V1,
+            "D1 route capture input",
+        )
+        if route_input["route_id"] != expected_route_id:
+            raise ValueError("D1 route capture order drifted")
+        manifest_sha = _require_sha256_root_v1(
+            route_input["route_manifest_sha"],
+            "D1 route capture manifest",
+        )
+        replays = route_input["ordered_legal_replays"]
+        if type(replays) is not list or len(replays) != 21:
+            raise TypeError("D1 route capture must contain exactly 21 replays")
+        cells = []
+        decoded_by_capture = []
+        cursor = 0
+        for capture in captures:
+            route_sources = []
+            route_wires = []
+            route_decoded = []
+            for case_id in capture["case_ids"]:
+                replay = _require_exact_ordered_dict_v1(
+                    replays[cursor],
+                    _LEGAL_REPLAY_OBSERVATION_FIELDS_V1,
+                    "D1 legal replay observation",
+                )
+                cursor += 1
+                if (
+                    type(replay["capture_ordinal"]) is not int
+                    or replay["capture_ordinal"] != capture["capture_ordinal"]
+                    or replay["case_id"] != case_id
+                    or replay["route_id"] != expected_route_id
+                    or type(replay["source_transcript_bytes"]) is not bytes
+                ):
+                    raise ValueError("D1 legal replay capture/case/route order drifted")
+                encode = _validate_route_call_observation_v1(
+                    replay["encode_result"],
+                    "D1 legal encode result",
+                )
+                decode = _validate_route_call_observation_v1(
+                    replay["decode_result"],
+                    "D1 legal decode result",
+                )
+                if (
+                    encode["termination_kind"] != "RETURNED_BYTES"
+                    or decode["termination_kind"] != "RETURNED_BYTES"
+                ):
+                    raise ValueError("D1 cross replay did not return byte strings")
+                route_sources.append(replay["source_transcript_bytes"])
+                route_wires.append(encode["raw_bytes"])
+                route_decoded.append(decode["raw_bytes"])
+            cells.append(
+                build_cross_replay_cell_v1(
+                    capture_ordinal=capture["capture_ordinal"],
+                    synthetic_graph_manifest_sha=graph_sha,
+                    route_id=expected_route_id,
+                    route_manifest_sha=manifest_sha,
+                    ordered_source_transcript_bytes=route_sources,
+                    ordered_route_wire_bytes=route_wires,
+                    ordered_decoded_transcript_bytes=route_decoded,
+                )
+            )
+            decoded_by_capture.append(route_decoded)
+        route_cells.append(cells)
+        route_decoded_bytes.append(decoded_by_capture)
+
+    capture_ordinals_match = all(
+        [cell["capture_ordinal"] for cell in cells] == [0, 1, 2]
+        for cells in route_cells
+    )
+    case_cardinalities_match = all(
+        cell["case_count"] == 7 and cell["ordered_case_ids"] == capture["case_ids"]
+        for cells in route_cells
+        for cell, capture in zip(cells, captures)
+    )
+    decoded_bytes_match = all(
+        decoded == capture["source_bytes"]
+        for decoded_captures in route_decoded_bytes
+        for decoded, capture in zip(decoded_captures, captures)
+    )
+    decoded_roots_match = all(
+        cell["decoded_transcript_set_sha"] == capture["transcript_set_sha"]
+        for cells in route_cells
+        for cell, capture in zip(cells, captures)
+    )
+    leaf_roots_match = all(
+        cell["ordered_leaf_digest_set_sha"] == capture["ordered_leaf_digest_set_sha"]
+        for cells in route_cells
+        for cell, capture in zip(cells, captures)
+    )
+    cross_route_identity_matches = all(
+        cell["transcript_set_sha"] == capture["transcript_set_sha"]
+        and cell["ordered_leaf_digest_set_sha"]
+        == capture["ordered_leaf_digest_set_sha"]
+        for cells in route_cells
+        for cell, capture in zip(cells, captures)
+    )
+    identity_entries = [
+        {
+            "capture_ordinal": capture["capture_ordinal"],
+            "transcript_set_sha": capture["transcript_set_sha"],
+            "ordered_leaf_digest_set_sha": capture["ordered_leaf_digest_set_sha"],
+            "ordered_route_ids": list(ordered_survivor_route_ids),
+            "ordered_decoded_transcript_set_shas": [
+                cells[capture["capture_ordinal"]]["decoded_transcript_set_sha"]
+                for cells in route_cells
+            ],
+        }
+        for capture in captures
+    ]
+    return {
+        "graph_sha": graph_sha,
+        "captures": captures,
+        "route_cells": route_cells,
+        "domain_root_sha": canonical_sha_v1(identity_entries),
+        "predicate_results": (
+            capture_ordinals_match,
+            case_cardinalities_match,
+            decoded_bytes_match,
+            decoded_roots_match,
+            leaf_roots_match,
+            cross_route_identity_matches,
+        ),
+    }
+
+
+def build_gate_e05_v1(
+    *,
+    phase,
+    route_id,
+    synthetic_graph_manifest_sha,
+    ordered_survivor_route_ids,
+    ordered_capture_source_bytes,
+    ordered_route_capture_inputs,
+):
+    """Build D1 E05 only from all survivor routes' exact replay bytes."""
+
+    if phase != "D1":
+        raise ValueError("E05 is a D1-only gate")
+    if route_id not in ordered_survivor_route_ids:
+        raise ValueError("E05 route is not a D0 survivor")
+    domain = _build_d1_cross_replay_domain_v1(
+        synthetic_graph_manifest_sha=synthetic_graph_manifest_sha,
+        ordered_survivor_route_ids=ordered_survivor_route_ids,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+        ordered_route_capture_inputs=ordered_route_capture_inputs,
+    )
+    return build_gate_outcome_v1(
+        gate_id="E05",
+        phase=phase,
+        route_id=route_id,
+        domain_root_sha=domain["domain_root_sha"],
+        predicate_results=list(domain["predicate_results"]),
+    )
+
+
+def validate_gate_e05_v1(
+    raw_body,
+    *,
+    synthetic_graph_manifest_sha,
+    ordered_survivor_route_ids,
+    ordered_capture_source_bytes,
+    ordered_route_capture_inputs,
+):
+    """Reject E05 unless every source/wire/decoded/leaf root recomputes."""
+
+    observed = validate_exact_lab_record_v1("B7LabGateOutcomeV1", raw_body)
+    if observed["gate_id"] != "E05" or observed["phase"] != "D1":
+        raise ValueError("E05 validator received another gate or phase")
+    expected = build_gate_e05_v1(
+        phase="D1",
+        route_id=observed["observation"]["route_id"],
+        synthetic_graph_manifest_sha=synthetic_graph_manifest_sha,
+        ordered_survivor_route_ids=ordered_survivor_route_ids,
+        ordered_capture_source_bytes=ordered_capture_source_bytes,
+        ordered_route_capture_inputs=ordered_route_capture_inputs,
+    )
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("E05 outcome differs from fresh recomputation")
+    return observed
