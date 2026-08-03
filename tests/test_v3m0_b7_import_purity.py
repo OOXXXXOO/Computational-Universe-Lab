@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -17,6 +18,16 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_INIT_PATH = REPOSITORY_ROOT / "rulespace_v3" / "__init__.py"
 CORE_PATH = REPOSITORY_ROOT / "rulespace_v3" / "b7_replay_core_v1.py"
 PACKAGE_DOCSTRING = "V3-M0 immutable contracts and profile-aware evidence primitives."
+EXTERNAL_DEPENDENCY_MODULES = (
+    "__future__",
+    "fractions",
+    "hashlib",
+    "json",
+    "math",
+    "numpy",
+    "scipy",
+    "scipy.linalg",
+)
 
 LEGACY_EXPORTS = (
     "FINAL_RESULT_EVIDENCE_FIELDS",
@@ -119,8 +130,19 @@ def _materialize_minimal_export(export_root: Path) -> None:
     shutil.copy2(CORE_PATH, package_root / "b7_replay_core_v1.py")
 
 
+def _expected_external_origins() -> dict[str, str]:
+    origins: dict[str, str] = {}
+    for module_name in EXTERNAL_DEPENDENCY_MODULES:
+        specification = importlib.util.find_spec(module_name)
+        assert specification is not None
+        assert specification.origin is not None
+        origins[module_name] = str(Path(specification.origin).resolve())
+    return origins
+
+
 def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[str]:
     assert CORE_PATH.is_file(), "B7 pure replay core has not been created"
+    expected_external_origins = _expected_external_origins()
     audit_program = textwrap.dedent(
         """
         import importlib.util
@@ -130,6 +152,10 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
 
         export_root = Path.cwd().resolve()
         stdlib_root = Path(os.__file__).resolve().parent
+        approved_external_origins = {
+            name: Path(origin).resolve()
+            for name, origin in __EXPECTED_EXTERNAL_ORIGINS__.items()
+        }
         approved_local_sources = {
             export_root / "rulespace_v3" / "__init__.py",
             export_root / "rulespace_v3" / "b7_replay_core_v1.py",
@@ -139,14 +165,6 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
             Path(importlib.util.cache_from_source(str(path))).resolve()
             for path in approved_local_sources
         )
-        approved_external_origins = {
-            "__future__": stdlib_root / "__future__.py",
-            "hashlib": stdlib_root / "hashlib.py",
-            "json": stdlib_root / "json" / "__init__.py",
-            "json.decoder": stdlib_root / "json" / "decoder.py",
-            "json.encoder": stdlib_root / "json" / "encoder.py",
-            "json.scanner": stdlib_root / "json" / "scanner.py",
-        }
         for extension_name in ("_blake2", "_hashlib", "_json", "_sha3"):
             specification = importlib.util.find_spec(extension_name)
             if specification is None or specification.origin is None:
@@ -158,13 +176,6 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
                 raise RuntimeError(
                     f"frozen extension escaped stdlib: {extension_name} from {origin}"
                 ) from exc
-            approved_external_origins[extension_name] = origin
-        approved_external_reads = set(approved_external_origins.values())
-        approved_external_reads.update(
-            Path(importlib.util.cache_from_source(str(path))).resolve()
-            for path in tuple(approved_external_origins.values())
-            if path.suffix == ".py"
-        )
         forbidden_events = {
             "os.chdir",
             "os.chmod",
@@ -213,10 +224,19 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
                 if not isinstance(arguments[0], (str, bytes, os.PathLike)):
                     raise RuntimeError("non-path filesystem read during core import")
                 path = Path(arguments[0]).resolve()
-                if path not in approved_local_reads and path not in approved_external_reads:
+                if path not in approved_local_reads:
                     raise RuntimeError(f"unapproved file-read origin during core import: {path}")
 
-        for external_name in ("__future__", "hashlib", "json"):
+        external_roots = (
+            "__future__",
+            "fractions",
+            "hashlib",
+            "json",
+            "math",
+            "numpy",
+            "scipy",
+        )
+        for external_name in external_roots:
             if external_name in sys.modules:
                 raise RuntimeError(f"external module was unexpectedly preloaded: {external_name}")
             specification = importlib.util.find_spec(external_name)
@@ -226,6 +246,40 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
             if origin != approved_external_origins[external_name]:
                 raise RuntimeError(
                     f"unapproved external import origin for {external_name}: {origin}"
+                )
+
+        original_search_path = list(sys.path)
+        sys.path[:] = [
+            entry
+            for entry in original_search_path
+            if Path(entry or os.curdir).resolve() != export_root
+        ]
+        try:
+            for external_name in external_roots:
+                __import__(external_name)
+            specification = importlib.util.find_spec("scipy.linalg")
+            if specification is None or specification.origin is None:
+                raise RuntimeError("external module has no static origin: scipy.linalg")
+            origin = Path(specification.origin).resolve()
+            if origin != approved_external_origins["scipy.linalg"]:
+                raise RuntimeError(
+                    f"unapproved external import origin for scipy.linalg: {origin}"
+                )
+            __import__("scipy.linalg")
+        finally:
+            sys.path[:] = original_search_path
+
+        for external_name, expected_origin in approved_external_origins.items():
+            module = sys.modules.get(external_name)
+            if module is None:
+                raise RuntimeError(f"approved external module was not staged: {external_name}")
+            source = getattr(module, "__file__", None)
+            if source is None:
+                raise RuntimeError(f"approved external module has no file origin: {external_name}")
+            origin = Path(source).resolve()
+            if origin != expected_origin:
+                raise RuntimeError(
+                    f"unapproved loaded-module origin: {external_name} from {origin}"
                 )
 
         modules_before_core = set(sys.modules)
@@ -262,7 +316,7 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
             raise RuntimeError(f"unexpected local import closure: {local_modules!r}")
 
         loaded_after_core = set(sys.modules).difference(modules_before_core)
-        expected_loaded = set(approved_external_origins) | set(expected)
+        expected_loaded = set(expected)
         if loaded_after_core != expected_loaded:
             raise RuntimeError(
                 "unexpected imported module set: "
@@ -277,12 +331,10 @@ def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[st
             origin = Path(source).resolve()
             if origin in approved_local_sources:
                 continue
-            if approved_external_origins.get(name) == origin:
-                continue
             raise RuntimeError(f"unapproved loaded-module origin: {name} from {origin}")
         sys.stdout.write("IMPORT_PURE\\n")
         """
-    )
+    ).replace("__EXPECTED_EXTERNAL_ORIGINS__", repr(expected_external_origins))
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -310,8 +362,18 @@ def test_fresh_python_import_executes_only_initializer_and_core(tmp_path: Path) 
     assert result.stdout == "IMPORT_PURE\n"
 
 
-@pytest.mark.parametrize("shadow_name", ["hashlib.py", "json.py"])
-def test_fresh_import_rejects_repository_root_stdlib_shadow(
+@pytest.mark.parametrize(
+    "shadow_name",
+    [
+        "fractions.py",
+        "hashlib.py",
+        "json.py",
+        "math.py",
+        "numpy.py",
+        "scipy.py",
+    ],
+)
+def test_fresh_import_rejects_repository_root_external_shadow(
     tmp_path: Path,
     shadow_name: str,
 ) -> None:
