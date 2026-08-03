@@ -321,6 +321,24 @@ def _environment_manifest() -> dict[str, object]:
 
 def _corpus_case(case_id: str) -> dict[str, object]:
     rows = {
+        "reference_failure": (
+            0,
+            "reference_failure",
+            "reference",
+            "000000000",
+            None,
+            None,
+            ["reference"],
+        ),
+        "shell_failure": (
+            1,
+            "shell_failure",
+            "shell",
+            "100000000",
+            None,
+            None,
+            ["reference", "shell"],
+        ),
         "actual_response_values_failure": (
             2,
             "actual_response_values_failure",
@@ -329,6 +347,51 @@ def _corpus_case(case_id: str) -> dict[str, object]:
             "actual_response_failed",
             None,
             ["reference", "shell", "actual_response_values"],
+        ),
+        "matched_response_values_failure": (
+            3,
+            "matched_response_values_failure",
+            "matched_ablated_response_values",
+            "111100000",
+            None,
+            "matched_ablated_response_failed",
+            [
+                "reference",
+                "shell",
+                "actual_response_values",
+                "matched_ablated_response_values",
+            ],
+        ),
+        "actual_bridge_failure": (
+            4,
+            "actual_bridge_failure",
+            "actual_bridge",
+            "111110000",
+            "actual_bridge_failed",
+            None,
+            [
+                "reference",
+                "shell",
+                "actual_response_values",
+                "matched_ablated_response_values",
+                "actual_bridge",
+            ],
+        ),
+        "matched_bridge_failure": (
+            5,
+            "matched_bridge_failure",
+            "matched_ablated_bridge",
+            "111111000",
+            None,
+            "matched_ablated_bridge_failed",
+            [
+                "reference",
+                "shell",
+                "actual_response_values",
+                "matched_ablated_response_values",
+                "actual_bridge",
+                "matched_ablated_bridge",
+            ],
         ),
         "success": (
             6,
@@ -389,8 +452,29 @@ def _nested_rule() -> dict[str, object]:
     )
 
 
+def _seal_mutation_identity(raw: dict[str, object]) -> dict[str, object]:
+    projection = {
+        name: raw[name]
+        for name in (
+            "base_case_id",
+            "probe_kind",
+            "mutation_class",
+            "target_json_pointer",
+            "operation",
+            "replacement_json",
+            "expected_boundary",
+        )
+    }
+    case_token = "GLOBAL" if raw["base_case_id"] is None else raw["base_case_id"]
+    raw["mutation_id"] = (
+        f"M{raw['mutation_ordinal']:06d}-{raw['mutation_class']}-{case_token}-"
+        f"{canonical_sha_v1(projection)[:16]}"
+    )
+    return _seal(raw, "mutation_sha")
+
+
 def _mutation() -> dict[str, object]:
-    return _seal(
+    return _seal_mutation_identity(
         {
             "mutation_schema_version": "experimental.v3m0.b7.mutation.v1",
             "mutation_ordinal": 0,
@@ -404,7 +488,6 @@ def _mutation() -> dict[str, object]:
             "expected_boundary": "ROUTE_VERIFICATION",
             "mutation_sha": "",
         },
-        "mutation_sha",
     )
 
 
@@ -543,7 +626,7 @@ def test_common_basic_record_validators_reject_schema_and_domain_drift() -> None
     _seal(wrong_pointer, "rule_sha")
     wrong_mutation = _mutation()
     wrong_mutation["mutation_class"] = "UNKNOWN"
-    _seal(wrong_mutation, "mutation_sha")
+    _seal_mutation_identity(wrong_mutation)
 
     attacks = (
         (common.validate_environment_manifest_v1, wrong_schema),
@@ -554,6 +637,102 @@ def test_common_basic_record_validators_reject_schema_and_domain_drift() -> None
     for validator, hostile in attacks:
         with pytest.raises((TypeError, ValueError)):
             validator(hostile)
+
+
+@pytest.mark.parametrize(
+    (
+        "probe_kind",
+        "mutation_class",
+        "operation",
+        "expected_boundary",
+        "base_case_id",
+    ),
+    (
+        (
+            "ROUNDTRIP_MUST_EQUAL",
+            "CANONICAL_ROUNDTRIP",
+            "REENCODE",
+            "EQUALITY_CHECK",
+            "success",
+        ),
+        (
+            "REPEAT_MUST_EQUAL",
+            "CANONICAL_REPEAT",
+            "REPEAT",
+            "EQUALITY_CHECK",
+            "success",
+        ),
+        (
+            "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT",
+            "UPSTREAM_INVALID",
+            "RAISE_UPSTREAM",
+            "UPSTREAM_JOIN",
+            None,
+        ),
+    ),
+)
+def test_mutation_validator_accepts_exact_empty_pointer_global_operations(
+    probe_kind: str,
+    mutation_class: str,
+    operation: str,
+    expected_boundary: str,
+    base_case_id: str | None,
+) -> None:
+    raw = _mutation()
+    raw.update(
+        {
+            "base_case_id": base_case_id,
+            "probe_kind": probe_kind,
+            "mutation_class": mutation_class,
+            "target_json_pointer": "",
+            "operation": operation,
+            "replacement_json": None,
+            "expected_boundary": expected_boundary,
+        }
+    )
+    _seal_mutation_identity(raw)
+
+    assert _common_module().validate_mutation_v1(raw) == raw
+
+
+def test_mutation_validator_pointer_domain_and_boundary_enum_are_exact() -> None:
+    common = _common_module()
+    construction = _mutation()
+    construction["expected_boundary"] = "TRANSCRIPT_CONSTRUCTION"
+    _seal_mutation_identity(construction)
+    assert common.validate_mutation_v1(construction) == construction
+
+    rooted_operation_with_empty_pointer = _mutation()
+    rooted_operation_with_empty_pointer["target_json_pointer"] = ""
+    _seal_mutation_identity(rooted_operation_with_empty_pointer)
+    global_operation_with_rooted_pointer = _mutation()
+    global_operation_with_rooted_pointer.update(
+        {
+            "probe_kind": "ROUNDTRIP_MUST_EQUAL",
+            "mutation_class": "CANONICAL_ROUNDTRIP",
+            "target_json_pointer": "/terminal_tag",
+            "operation": "REENCODE",
+            "replacement_json": None,
+            "expected_boundary": "EQUALITY_CHECK",
+        }
+    )
+    _seal_mutation_identity(global_operation_with_rooted_pointer)
+
+    for hostile in (
+        rooted_operation_with_empty_pointer,
+        global_operation_with_rooted_pointer,
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_mutation_v1(hostile)
+
+
+def test_mutation_validator_rejects_forged_projection_prefix() -> None:
+    hostile = _mutation()
+    hostile["mutation_id"] = "M000000-TERMINAL_TAG-success-ffffffffffffffff"
+    _seal(hostile, "mutation_sha")
+
+    with pytest.raises((TypeError, ValueError)):
+        _common_module().validate_mutation_v1(hostile)
 
 
 def test_generic_record_validator_rejects_semantic_id_type_confusion() -> None:
@@ -569,6 +748,272 @@ def test_generic_record_validator_rejects_semantic_id_type_confusion() -> None:
             "B7LeafDigestV1",
             hostile_leaf,
         )
+
+
+def test_rfc6901_resolver_and_walk_freeze_escape_and_utf8_order() -> None:
+    common = _common_module()
+    raw = {
+        "~": {"/": ["zero", {"β": 2, "a": 1}]},
+        "a": 0,
+    }
+
+    assert common.resolve_json_pointer_v1(raw, "") is raw
+    assert common.resolve_json_pointer_v1(raw, "/~0/~1/1/a") == 1
+    assert tuple(
+        pointer for pointer, _value in common.walk_json_pointer_items_v1(raw)
+    ) == (
+        "",
+        "/a",
+        "/~0",
+        "/~0/~1",
+        "/~0/~1/0",
+        "/~0/~1/1",
+        "/~0/~1/1/a",
+        "/~0/~1/1/β",
+    )
+
+    for invalid in ("relative", "/~2", "/~", "/~0/~1/01", "/~0/~1/-"):
+        with pytest.raises((TypeError, ValueError)):
+            common.resolve_json_pointer_v1(raw, invalid)
+
+
+def test_self_hash_snapshot_excludes_leaf_reference_hashes() -> None:
+    common = _common_module()
+    child = _seal(
+        {
+            "kind": "child",
+            "child_sha": "",
+        },
+        "child_sha",
+    )
+    leaf = {
+        "leaf_id": "reference",
+        "call_ordinal": 0,
+        "input_body_sha": canonical_sha_v1({"input": True}),
+        "output_body_sha": canonical_sha_v1({"output": True}),
+    }
+    root = _seal(
+        {
+            "child": child,
+            "ordered_leaf_digests": [leaf],
+            "experimental_sha": "",
+        },
+        "experimental_sha",
+    )
+
+    assert common.discover_record_self_hashes_v1(root) == (
+        ("", "experimental_sha"),
+        ("/child", "child_sha"),
+    )
+
+
+def _seven_transcripts() -> list[dict[str, object]]:
+    return [
+        _transcript(case_id)
+        for case_id in (
+            "reference_failure",
+            "shell_failure",
+            "actual_response_values_failure",
+            "matched_response_values_failure",
+            "actual_bridge_failure",
+            "matched_bridge_failure",
+            "success",
+        )
+    ]
+
+
+def _mutation_projection(raw: dict[str, object]) -> dict[str, object]:
+    return {
+        name: raw[name]
+        for name in (
+            "base_case_id",
+            "probe_kind",
+            "mutation_class",
+            "target_json_pointer",
+            "operation",
+            "replacement_json",
+            "expected_boundary",
+        )
+    }
+
+
+def test_mutation_generator_freezes_exact_count_order_ids_and_global_probe() -> None:
+    common = _common_module()
+    case_ids = (
+        "reference_failure",
+        "shell_failure",
+        "actual_response_values_failure",
+        "matched_response_values_failure",
+        "actual_bridge_failure",
+        "matched_bridge_failure",
+        "success",
+    )
+    class_order = (
+        "SINGLE_FIELD_PRESENCE",
+        "TERMINAL_TAG",
+        "OUTER_BRANCH_FAILURE_SPLICE",
+        "DELETE_SUCCESSFUL_PREFIX_BODY",
+        "INJECT_POST_FAILURE_BODY",
+        "NESTED_BODY_SHA_SPLICE",
+        "CANONICAL_ROUNDTRIP",
+        "CANONICAL_REPEAT",
+        "UPSTREAM_INVALID",
+    )
+    operation_order = (
+        "DELETE",
+        "SET_NULL",
+        "SET_VALUE",
+        "INSERT_BODY",
+        "REPLACE_BODY_AND_RESIGN",
+        "REENCODE",
+        "REPEAT",
+        "RAISE_UPSTREAM",
+    )
+
+    observed = common.generate_ordered_mutations_v1(_seven_transcripts())
+
+    assert type(observed) is list
+    assert len(observed) == 326
+    class_counts = {mutation_class: 0 for mutation_class in class_order}
+    sort_keys = []
+    mutation_ids = set()
+    for ordinal, mutation in enumerate(observed):
+        assert common.validate_mutation_v1(mutation) == mutation
+        assert mutation["mutation_ordinal"] == ordinal
+        projection = _mutation_projection(mutation)
+        projection_prefix = canonical_sha_v1(projection)[:16]
+        case_id = mutation["base_case_id"]
+        case_token = "GLOBAL" if case_id is None else case_id
+        assert mutation["mutation_id"] == (
+            f"M{ordinal:06d}-{mutation['mutation_class']}-{case_token}-"
+            f"{projection_prefix}"
+        )
+        assert mutation["mutation_id"] not in mutation_ids
+        mutation_ids.add(mutation["mutation_id"])
+        class_counts[mutation["mutation_class"]] += 1
+        sort_keys.append(
+            (
+                7 if case_id is None else case_ids.index(case_id),
+                class_order.index(mutation["mutation_class"]),
+                mutation["target_json_pointer"].encode("utf-8"),
+                operation_order.index(mutation["operation"]),
+                canonical_json_bytes_v1(mutation["replacement_json"]),
+            )
+        )
+
+    assert sort_keys == sorted(sort_keys)
+    assert class_counts == {
+        "SINGLE_FIELD_PRESENCE": 63,
+        "TERMINAL_TAG": 42,
+        "OUTER_BRANCH_FAILURE_SPLICE": 36,
+        "DELETE_SUCCESSFUL_PREFIX_BODY": 23,
+        "INJECT_POST_FAILURE_BODY": 36,
+        "NESTED_BODY_SHA_SPLICE": 111,
+        "CANONICAL_ROUNDTRIP": 7,
+        "CANONICAL_REPEAT": 7,
+        "UPSTREAM_INVALID": 1,
+    }
+    global_probes = [item for item in observed if item["base_case_id"] is None]
+    assert len(global_probes) == 1
+    assert global_probes[0] is observed[-1]
+    assert global_probes[0]["operation"] == "RAISE_UPSTREAM"
+    assert global_probes[0]["target_json_pointer"] == ""
+    assert any(
+        mutation["mutation_class"] == "NESTED_BODY_SHA_SPLICE"
+        and mutation["operation"] == "SET_VALUE"
+        and "/ordered_leaf_digests/0/input_body_sha" in mutation["target_json_pointer"]
+        for mutation in observed
+    )
+
+
+def _assert_self_hash(raw: dict[str, object], hash_field: str) -> None:
+    assert raw[hash_field] == canonical_sha_v1(
+        {name: value for name, value in raw.items() if name != hash_field}
+    )
+
+
+def test_mutation_materializer_resigns_deepest_first_and_preserves_donor_body() -> None:
+    common = _common_module()
+    transcripts = _seven_transcripts()
+    mutations = common.generate_ordered_mutations_v1(transcripts)
+    by_case = {transcript["case_id"]: transcript for transcript in transcripts}
+
+    donor_splice = next(
+        mutation
+        for mutation in mutations
+        if mutation["base_case_id"] == "actual_response_values_failure"
+        and mutation["operation"] == "REPLACE_BODY_AND_RESIGN"
+        and mutation["target_json_pointer"] == "/actual_branch_attempt"
+    )
+    base = by_case["actual_response_values_failure"]
+    base_before = copy.deepcopy(base)
+    spliced = common.apply_transcript_mutation_v1(
+        base,
+        donor_splice,
+        by_case["success"],
+        common.discover_record_self_hashes_v1(base),
+    )
+    assert base == base_before
+    assert spliced["actual_branch_attempt"] == donor_splice["replacement_json"]
+    assert tuple(spliced["actual_branch_attempt"]) == tuple(
+        donor_splice["replacement_json"]
+    )
+    _assert_self_hash(spliced["actual_branch_attempt"], "attempt_sha")
+    _assert_self_hash(spliced, "experimental_sha")
+
+    nested_failure = next(
+        mutation
+        for mutation in mutations
+        if mutation["base_case_id"] == "success"
+        and mutation["mutation_class"] == "OUTER_BRANCH_FAILURE_SPLICE"
+        and mutation["target_json_pointer"] == "/actual_branch_attempt/failure"
+        and mutation["replacement_json"] == "actual_response_failed"
+    )
+    success = by_case["success"]
+    changed = common.apply_transcript_mutation_v1(
+        success,
+        nested_failure,
+        success,
+        common.discover_record_self_hashes_v1(success),
+    )
+    assert (
+        changed["actual_branch_attempt"]["attempt_sha"]
+        != success["actual_branch_attempt"]["attempt_sha"]
+    )
+    _assert_self_hash(changed["actual_branch_attempt"], "attempt_sha")
+    _assert_self_hash(changed, "experimental_sha")
+
+
+def test_m06_leaf_reference_sha_mutates_without_becoming_a_self_hash() -> None:
+    common = _common_module()
+    transcripts = _seven_transcripts()
+    success = transcripts[-1]
+    mutation = next(
+        item
+        for item in common.generate_ordered_mutations_v1(transcripts)
+        if item["base_case_id"] == "success"
+        and item["operation"] == "SET_VALUE"
+        and item["target_json_pointer"] == "/ordered_leaf_digests/0/input_body_sha"
+    )
+
+    changed = common.apply_transcript_mutation_v1(
+        success,
+        mutation,
+        success,
+        common.discover_record_self_hashes_v1(success),
+    )
+
+    assert (
+        changed["ordered_leaf_digests"][0]["input_body_sha"]
+        == (mutation["replacement_json"])
+    )
+    assert all(
+        record_pointer != "/ordered_leaf_digests/0"
+        for record_pointer, _hash_field in common.discover_record_self_hashes_v1(
+            success
+        )
+    )
+    _assert_self_hash(changed, "experimental_sha")
 
 
 def _provenance_fixture() -> dict[str, object]:

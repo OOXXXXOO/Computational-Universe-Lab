@@ -1522,6 +1522,168 @@ _LAB_SEMANTIC_STRING_DOMAINS_V1 = (
         ),
     ),
 )
+_PRESENCE_POINTER_ORDER_V1 = (
+    "/shell_outcome",
+    "/actual_branch_attempt",
+    "/actual_branch_attempt/response_values",
+    "/matched_ablated_branch_attempt",
+    "/matched_ablated_branch_attempt/response_values",
+    "/actual_branch_attempt/bridge_audit",
+    "/matched_ablated_branch_attempt/bridge_audit",
+    "/actual_completed_response",
+    "/matched_ablated_completed_response",
+)
+_TERMINAL_TAG_ORDER_V1 = (
+    "reference_failure",
+    "shell_failure",
+    "actual_response_values_failure",
+    "matched_response_values_failure",
+    "actual_bridge_failure",
+    "matched_bridge_failure",
+    "success",
+)
+_SUCCESSFUL_BODY_POINTERS_BY_CASE_V1 = (
+    ("reference_failure", ()),
+    ("shell_failure", ("/reference_outcome",)),
+    (
+        "actual_response_values_failure",
+        ("/reference_outcome", "/shell_outcome"),
+    ),
+    (
+        "matched_response_values_failure",
+        (
+            "/reference_outcome",
+            "/shell_outcome",
+            "/actual_branch_attempt/response_values",
+        ),
+    ),
+    (
+        "actual_bridge_failure",
+        (
+            "/reference_outcome",
+            "/shell_outcome",
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt/response_values",
+        ),
+    ),
+    (
+        "matched_bridge_failure",
+        (
+            "/reference_outcome",
+            "/shell_outcome",
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+        ),
+    ),
+    (
+        "success",
+        (
+            "/reference_outcome",
+            "/shell_outcome",
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+)
+_POST_FAILURE_POINTERS_BY_CASE_V1 = (
+    (
+        "reference_failure",
+        (
+            "/shell_outcome",
+            "/actual_branch_attempt",
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt",
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    (
+        "shell_failure",
+        (
+            "/actual_branch_attempt",
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt",
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    (
+        "actual_response_values_failure",
+        (
+            "/actual_branch_attempt/response_values",
+            "/matched_ablated_branch_attempt",
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    (
+        "matched_response_values_failure",
+        (
+            "/matched_ablated_branch_attempt/response_values",
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    (
+        "actual_bridge_failure",
+        (
+            "/actual_branch_attempt/bridge_audit",
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    (
+        "matched_bridge_failure",
+        (
+            "/matched_ablated_branch_attempt/bridge_audit",
+            "/actual_completed_response",
+            "/matched_ablated_completed_response",
+        ),
+    ),
+    ("success", ()),
+)
+_CROSS_CASE_BODY_POINTER_ORDER_V1 = (
+    "/provenance_fixture",
+    "/response_run_spec_fixture",
+    "/reference_outcome",
+    "/shell_outcome",
+    "/actual_branch_attempt",
+    "/actual_branch_attempt/response_values",
+    "/matched_ablated_branch_attempt",
+    "/matched_ablated_branch_attempt/response_values",
+    "/actual_branch_attempt/bridge_audit",
+    "/matched_ablated_branch_attempt/bridge_audit",
+    "/actual_completed_response",
+    "/matched_ablated_completed_response",
+)
+_BRANCH_FAILURE_POINTER_ORDER_V1 = (
+    "/actual_branch_attempt/failure",
+    "/matched_ablated_branch_attempt/failure",
+)
+_BRANCH_FAILURE_REPLACEMENT_ORDER_V1 = (
+    None,
+    "actual_response_failed",
+    "matched_ablated_response_failed",
+    "actual_bridge_failed",
+    "matched_ablated_bridge_failed",
+)
 
 
 def _core_record_schemas_v1():
@@ -1710,9 +1872,7 @@ def _validate_exact_lab_record_v1(record_name, raw_body):
         record_name,
         _core_record_schemas_v1(),
     )
-    return _pure_core.strict_json_loads_v1(
-        _pure_core.canonical_json_bytes_v1(validated)
-    )
+    return _detach_json_v1(validated)
 
 
 def validate_environment_manifest_v1(raw_body):
@@ -1751,26 +1911,618 @@ def validate_corpus_case_v1(raw_body):
     return case
 
 
+def _escape_json_pointer_token_v1(token):
+    if type(token) is not str:
+        raise TypeError("JSON pointer token must be an exact str")
+    return token.replace("~", "~0").replace("/", "~1")
+
+
+def _json_pointer_tokens_v1(pointer):
+    if type(pointer) is not str:
+        raise TypeError("JSON pointer must be an exact str")
+    if pointer == "":
+        return ()
+    if not pointer.startswith("/"):
+        raise ValueError("JSON pointer must be absolute")
+    tokens = []
+    for raw_token in pointer[1:].split("/"):
+        decoded = []
+        index = 0
+        while index < len(raw_token):
+            character = raw_token[index]
+            if character != "~":
+                decoded.append(character)
+            else:
+                if index + 1 >= len(raw_token):
+                    raise ValueError("JSON pointer escape is truncated")
+                escaped = raw_token[index + 1]
+                if escaped == "0":
+                    decoded.append("~")
+                elif escaped == "1":
+                    decoded.append("/")
+                else:
+                    raise ValueError("JSON pointer escape is not RFC6901")
+                index += 1
+            index += 1
+        tokens.append("".join(decoded))
+    return tuple(tokens)
+
+
+def resolve_json_pointer_v1(raw_body, pointer):
+    """Resolve one strict RFC6901 pointer without JSON-Patch extensions."""
+    current = raw_body
+    for token in _json_pointer_tokens_v1(pointer):
+        if type(current) is dict:
+            if token not in current:
+                raise ValueError("JSON pointer object member does not resolve")
+            current = current[token]
+        elif type(current) is list:
+            if (
+                not token
+                or any(character not in "0123456789" for character in token)
+                or (len(token) > 1 and token.startswith("0"))
+            ):
+                raise ValueError("JSON pointer array index is not canonical")
+            index = int(token)
+            if index >= len(current):
+                raise ValueError("JSON pointer array index does not resolve")
+            current = current[index]
+        else:
+            raise ValueError("JSON pointer traverses a non-container")
+    return current
+
+
+def _walk_json_pointer_items_into_v1(value, pointer, items):
+    items.append((pointer, value))
+    if type(value) is dict:
+        encoded_keys = sorted((key.encode("utf-8"), key) for key in value)
+        for _encoded, key in encoded_keys:
+            child_pointer = f"{pointer}/{_escape_json_pointer_token_v1(key)}"
+            _walk_json_pointer_items_into_v1(value[key], child_pointer, items)
+    elif type(value) is list:
+        for index, item in enumerate(value):
+            _walk_json_pointer_items_into_v1(item, f"{pointer}/{index}", items)
+
+
+def walk_json_pointer_items_v1(raw_body):
+    """Return the frozen recursive RFC6901 pointer/value walk."""
+    _pure_core.canonical_json_bytes_v1(raw_body)
+    items = []
+    _walk_json_pointer_items_into_v1(raw_body, "", items)
+    return tuple(items)
+
+
+def discover_record_self_hashes_v1(raw_body):
+    """Snapshot exact record object paths and their unique self-hash member."""
+    discovered = []
+    for pointer, candidate in walk_json_pointer_items_v1(raw_body):
+        if type(candidate) is not dict:
+            continue
+        matches = []
+        for _encoded, key in sorted((name.encode("utf-8"), name) for name in candidate):
+            observed = candidate[key]
+            if (
+                not key.endswith(("_sha", "_sha256"))
+                or type(observed) is not str
+                or len(observed) != 64
+                or any(character not in "0123456789abcdef" for character in observed)
+            ):
+                continue
+            payload = {name: value for name, value in candidate.items() if name != key}
+            if observed == _pure_core.canonical_sha_v1(payload):
+                matches.append(key)
+        if len(matches) > 1:
+            raise ValueError("record has more than one self-hash member")
+        if matches:
+            discovered.append((pointer, matches[0]))
+    return tuple(discovered)
+
+
+def _clone_json_preserving_order_v1(value):
+    if type(value) is dict:
+        return {
+            name: _clone_json_preserving_order_v1(item) for name, item in value.items()
+        }
+    if type(value) is list or type(value) is tuple:
+        return [_clone_json_preserving_order_v1(item) for item in value]
+    return value
+
+
+def _detach_json_v1(value):
+    _pure_core.canonical_json_bytes_v1(value)
+    return _clone_json_preserving_order_v1(value)
+
+
+def _optional_pointer_value_v1(raw_body, pointer):
+    try:
+        value = resolve_json_pointer_v1(raw_body, pointer)
+    except ValueError:
+        return False, None
+    return value is not None, value
+
+
+def _resolved_pointer_value_v1(raw_body, pointer):
+    try:
+        return True, resolve_json_pointer_v1(raw_body, pointer)
+    except ValueError:
+        return False, None
+
+
+def _case_pointer_order_v1(catalog, case_id):
+    for catalog_case_id, pointers in catalog:
+        if catalog_case_id == case_id:
+            return pointers
+    raise ValueError("mutation pointer catalog case is not frozen")
+
+
+def _append_mutation_candidate_v1(
+    candidates,
+    base_ordinal,
+    donor_ordinal,
+    rule_id,
+    base_case_id,
+    probe_kind,
+    mutation_class,
+    target_json_pointer,
+    operation,
+    replacement_json,
+    expected_boundary,
+):
+    candidates.append(
+        (
+            base_ordinal,
+            donor_ordinal,
+            rule_id,
+            base_case_id,
+            probe_kind,
+            mutation_class,
+            target_json_pointer,
+            operation,
+            _detach_json_v1(replacement_json),
+            expected_boundary,
+        )
+    )
+
+
+def _mutation_candidate_sort_key_v1(candidate):
+    return (
+        candidate[0],
+        _MUTATION_CLASSES_V1.index(candidate[5]),
+        candidate[6].encode("utf-8"),
+        _MUTATION_OPERATIONS_V1.index(candidate[7]),
+        _pure_core.canonical_json_bytes_v1(candidate[8]),
+        candidate[1],
+        candidate[2].encode("utf-8"),
+    )
+
+
+def _mutation_candidate_projection_v1(candidate):
+    return {
+        "base_case_id": candidate[3],
+        "probe_kind": candidate[4],
+        "mutation_class": candidate[5],
+        "target_json_pointer": candidate[6],
+        "operation": candidate[7],
+        "replacement_json": candidate[8],
+        "expected_boundary": candidate[9],
+    }
+
+
+def _finalize_mutation_candidates_v1(candidates):
+    ordered_indices = sorted(
+        (
+            _mutation_candidate_sort_key_v1(candidate),
+            candidate_index,
+        )
+        for candidate_index, candidate in enumerate(candidates)
+    )
+    deduplicated = []
+    seen_projections = set()
+    for _sort_key, candidate_index in ordered_indices:
+        candidate = candidates[candidate_index]
+        projection = _mutation_candidate_projection_v1(candidate)
+        projection_bytes = _pure_core.canonical_json_bytes_v1(projection)
+        if projection_bytes in seen_projections:
+            continue
+        seen_projections.add(projection_bytes)
+        deduplicated.append((candidate, projection))
+
+    ordered_mutations = []
+    mutation_ids = set()
+    for ordinal, (candidate, projection) in enumerate(deduplicated):
+        case_token = "GLOBAL" if candidate[3] is None else candidate[3]
+        projection_prefix = _pure_core.canonical_sha_v1(projection)[:16]
+        mutation_id = f"M{ordinal:06d}-{candidate[5]}-{case_token}-{projection_prefix}"
+        if mutation_id in mutation_ids:
+            raise ValueError("mutation ID collision after deduplication")
+        mutation_ids.add(mutation_id)
+        mutation = {
+            "mutation_schema_version": "experimental.v3m0.b7.mutation.v1",
+            "mutation_ordinal": ordinal,
+            "mutation_id": mutation_id,
+            "base_case_id": candidate[3],
+            "probe_kind": candidate[4],
+            "mutation_class": candidate[5],
+            "target_json_pointer": candidate[6],
+            "operation": candidate[7],
+            "replacement_json": _detach_json_v1(candidate[8]),
+            "expected_boundary": candidate[9],
+            "mutation_sha": "",
+        }
+        mutation["mutation_sha"] = _pure_core.canonical_sha_v1(
+            {name: value for name, value in mutation.items() if name != "mutation_sha"}
+        )
+        ordered_mutations.append(validate_mutation_v1(mutation))
+    return ordered_mutations
+
+
+def generate_ordered_mutations_v1(ordered_transcripts_raw):
+    """Generate the frozen exhaustive M01--M10 mutation list."""
+    if type(ordered_transcripts_raw) is not list or len(ordered_transcripts_raw) != 7:
+        raise TypeError("mutation generator requires an exact seven-transcript list")
+    transcripts = []
+    for case_ordinal, (raw_body, case_contract) in enumerate(
+        zip(ordered_transcripts_raw, _CASE_CONTRACTS_V1)
+    ):
+        transcript = validate_case_contract_v1(raw_body)
+        if (
+            transcript["case_id"] != case_contract[1]
+            or case_ordinal != case_contract[0]
+        ):
+            raise ValueError("mutation generator transcript order drifted")
+        transcripts.append(transcript)
+    self_hash_snapshots = tuple(
+        discover_record_self_hashes_v1(transcript) for transcript in transcripts
+    )
+    if len(self_hash_snapshots) != 7:
+        raise ValueError("mutation self-hash snapshot cardinality drifted")
+
+    candidates = []
+    success = transcripts[6]
+    for base_ordinal, transcript in enumerate(transcripts):
+        base_case_id = transcript["case_id"]
+        for pointer in _PRESENCE_POINTER_ORDER_V1:
+            present, _current = _optional_pointer_value_v1(transcript, pointer)
+            if present:
+                operation = "SET_NULL"
+                replacement = None
+            else:
+                operation = "INSERT_BODY"
+                replacement = resolve_json_pointer_v1(success, pointer)
+            _append_mutation_candidate_v1(
+                candidates,
+                base_ordinal,
+                7,
+                "M01_PRESENCE_TOGGLE",
+                base_case_id,
+                "MUTATION_MUST_REJECT",
+                "SINGLE_FIELD_PRESENCE",
+                pointer,
+                operation,
+                replacement,
+                "ROUTE_VERIFICATION",
+            )
+
+        for terminal_tag in _TERMINAL_TAG_ORDER_V1:
+            if terminal_tag == transcript["terminal_tag"]:
+                continue
+            _append_mutation_candidate_v1(
+                candidates,
+                base_ordinal,
+                7,
+                "M02_TERMINAL_TAG_OTHER_SIX",
+                base_case_id,
+                "MUTATION_MUST_REJECT",
+                "TERMINAL_TAG",
+                "/terminal_tag",
+                "SET_VALUE",
+                terminal_tag,
+                "ROUTE_VERIFICATION",
+            )
+
+        for pointer in _BRANCH_FAILURE_POINTER_ORDER_V1:
+            resolved, current = _resolved_pointer_value_v1(transcript, pointer)
+            if not resolved:
+                continue
+            for replacement in _BRANCH_FAILURE_REPLACEMENT_ORDER_V1:
+                if type(replacement) is type(current) and replacement == current:
+                    continue
+                _append_mutation_candidate_v1(
+                    candidates,
+                    base_ordinal,
+                    7,
+                    "M03_BRANCH_FAILURE_SPLICE",
+                    base_case_id,
+                    "MUTATION_MUST_REJECT",
+                    "OUTER_BRANCH_FAILURE_SPLICE",
+                    pointer,
+                    "SET_VALUE",
+                    replacement,
+                    "ROUTE_VERIFICATION",
+                )
+
+        for pointer in _case_pointer_order_v1(
+            _SUCCESSFUL_BODY_POINTERS_BY_CASE_V1,
+            base_case_id,
+        ):
+            _append_mutation_candidate_v1(
+                candidates,
+                base_ordinal,
+                7,
+                "M04_DELETE_SUCCESSFUL_PREFIX_BODY",
+                base_case_id,
+                "MUTATION_MUST_REJECT",
+                "DELETE_SUCCESSFUL_PREFIX_BODY",
+                pointer,
+                "DELETE",
+                None,
+                "ROUTE_VERIFICATION",
+            )
+
+        for pointer in _case_pointer_order_v1(
+            _POST_FAILURE_POINTERS_BY_CASE_V1,
+            base_case_id,
+        ):
+            _append_mutation_candidate_v1(
+                candidates,
+                base_ordinal,
+                7,
+                "M05_INJECT_POST_FAILURE_BODY",
+                base_case_id,
+                "MUTATION_MUST_REJECT",
+                "INJECT_POST_FAILURE_BODY",
+                pointer,
+                "INSERT_BODY",
+                resolve_json_pointer_v1(success, pointer),
+                "ROUTE_VERIFICATION",
+            )
+
+        for pointer, value in walk_json_pointer_items_v1(transcript):
+            if pointer == "" or pointer == "/experimental_sha":
+                continue
+            tokens = _json_pointer_tokens_v1(pointer)
+            member_name = tokens[-1]
+            if (
+                not member_name.endswith(("_sha", "_sha256"))
+                or type(value) is not str
+                or len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)
+            ):
+                continue
+            replacement = "f" * 64 if value == "0" * 64 else "0" * 64
+            _append_mutation_candidate_v1(
+                candidates,
+                base_ordinal,
+                7,
+                "M06_NESTED_SHA_SINGLE_POINT",
+                base_case_id,
+                "MUTATION_MUST_REJECT",
+                "NESTED_BODY_SHA_SPLICE",
+                pointer,
+                "SET_VALUE",
+                replacement,
+                "ROUTE_VERIFICATION",
+            )
+
+        for pointer in _CROSS_CASE_BODY_POINTER_ORDER_V1:
+            base_present, base_body = _optional_pointer_value_v1(transcript, pointer)
+            if not base_present:
+                continue
+            base_bytes = _pure_core.canonical_json_bytes_v1(base_body)
+            for donor_ordinal, donor in enumerate(transcripts):
+                if donor_ordinal == base_ordinal:
+                    continue
+                donor_present, donor_body = _optional_pointer_value_v1(donor, pointer)
+                if not donor_present:
+                    continue
+                if _pure_core.canonical_json_bytes_v1(donor_body) == base_bytes:
+                    continue
+                _append_mutation_candidate_v1(
+                    candidates,
+                    base_ordinal,
+                    donor_ordinal,
+                    "M07_CROSS_CASE_BODY_SPLICE",
+                    base_case_id,
+                    "MUTATION_MUST_REJECT",
+                    "NESTED_BODY_SHA_SPLICE",
+                    pointer,
+                    "REPLACE_BODY_AND_RESIGN",
+                    donor_body,
+                    "ROUTE_VERIFICATION",
+                )
+
+        _append_mutation_candidate_v1(
+            candidates,
+            base_ordinal,
+            7,
+            "M08_CANONICAL_ROUNDTRIP",
+            base_case_id,
+            "ROUNDTRIP_MUST_EQUAL",
+            "CANONICAL_ROUNDTRIP",
+            "",
+            "REENCODE",
+            None,
+            "EQUALITY_CHECK",
+        )
+        _append_mutation_candidate_v1(
+            candidates,
+            base_ordinal,
+            7,
+            "M09_CANONICAL_REPEAT",
+            base_case_id,
+            "REPEAT_MUST_EQUAL",
+            "CANONICAL_REPEAT",
+            "",
+            "REPEAT",
+            None,
+            "EQUALITY_CHECK",
+        )
+
+    _append_mutation_candidate_v1(
+        candidates,
+        7,
+        7,
+        "M10_UPSTREAM_INVALID_ZERO_TRANSCRIPT",
+        None,
+        "UPSTREAM_MUST_PRODUCE_ZERO_TRANSCRIPT",
+        "UPSTREAM_INVALID",
+        "",
+        "RAISE_UPSTREAM",
+        None,
+        "UPSTREAM_JOIN",
+    )
+    return _finalize_mutation_candidates_v1(candidates)
+
+
+def _pointer_parent_member_v1(raw_body, pointer):
+    tokens = _json_pointer_tokens_v1(pointer)
+    if not tokens:
+        raise ValueError("mutation target may not replace the transcript root")
+    parent_pointer = (
+        ""
+        if len(tokens) == 1
+        else "/"
+        + "/".join(_escape_json_pointer_token_v1(token) for token in tokens[:-1])
+    )
+    parent = resolve_json_pointer_v1(raw_body, parent_pointer)
+    if type(parent) is not dict:
+        raise ValueError("mutation target parent must be an exact object")
+    member = tokens[-1]
+    if member not in parent:
+        raise ValueError("mutation target member does not exist")
+    return parent, member
+
+
+def _materialize_success_ancestor_v1(mutated, success, target_pointer):
+    ancestor_pointer = None
+    for candidate in (
+        "/actual_branch_attempt",
+        "/matched_ablated_branch_attempt",
+    ):
+        if target_pointer.startswith(f"{candidate}/"):
+            ancestor_pointer = candidate
+            break
+    if ancestor_pointer is None:
+        raise ValueError("mutation target has no declared materializable ancestor")
+    ancestor_parent, ancestor_member = _pointer_parent_member_v1(
+        mutated,
+        ancestor_pointer,
+    )
+    if ancestor_parent[ancestor_member] is not None:
+        raise ValueError("mutation ancestor is not absent")
+    materialized = _detach_json_v1(resolve_json_pointer_v1(success, ancestor_pointer))
+    if type(materialized) is not dict:
+        raise ValueError("success mutation ancestor is not an exact object")
+    materialized["response_values"] = None
+    materialized["bridge_audit"] = None
+    materialized["failure"] = None
+    ancestor_parent[ancestor_member] = materialized
+
+
+def _record_hash_pointer_v1(record_pointer, hash_field):
+    escaped = _escape_json_pointer_token_v1(hash_field)
+    return f"{record_pointer}/{escaped}" if record_pointer else f"/{escaped}"
+
+
+def _resign_from_snapshots_v1(mutated, target_pointer, snapshots):
+    containing = []
+    seen_record_paths = set()
+    for record_pointer, hash_field in snapshots:
+        if record_pointer in seen_record_paths:
+            continue
+        seen_record_paths.add(record_pointer)
+        strictly_contains = record_pointer == "" or target_pointer.startswith(
+            f"{record_pointer}/"
+        )
+        if not strictly_contains or record_pointer == target_pointer:
+            continue
+        if _record_hash_pointer_v1(record_pointer, hash_field) == target_pointer:
+            continue
+        containing.append(
+            (
+                -len(_json_pointer_tokens_v1(record_pointer)),
+                record_pointer.encode("utf-8"),
+                record_pointer,
+                hash_field,
+            )
+        )
+    for _negative_depth, _encoded_path, record_pointer, hash_field in sorted(
+        containing
+    ):
+        record = resolve_json_pointer_v1(mutated, record_pointer)
+        if type(record) is not dict or hash_field not in record:
+            raise ValueError("frozen self-hash snapshot no longer resolves")
+        record[hash_field] = _pure_core.canonical_sha_v1(
+            {name: value for name, value in record.items() if name != hash_field}
+        )
+
+
+def apply_transcript_mutation_v1(
+    base_transcript_raw,
+    mutation_raw,
+    success_transcript_raw,
+    self_hash_snapshot,
+):
+    """Materialize one transcript mutation using pre-mutation hash snapshots."""
+    base = validate_case_contract_v1(base_transcript_raw)
+    success = validate_case_contract_v1(success_transcript_raw)
+    mutation = validate_mutation_v1(mutation_raw)
+    if success["case_id"] != "success":
+        raise ValueError("mutation materializer success donor drifted")
+    if mutation["base_case_id"] != base["case_id"]:
+        raise ValueError("mutation materializer base case drifted")
+    if type(self_hash_snapshot) is not tuple:
+        raise TypeError("self-hash snapshot must be an exact tuple")
+    base_snapshot = discover_record_self_hashes_v1(base)
+    if self_hash_snapshot != base_snapshot:
+        raise ValueError("self-hash snapshot differs from the immutable base")
+    success_snapshot = discover_record_self_hashes_v1(success)
+    operation = mutation["operation"]
+    if operation in ("REENCODE", "REPEAT", "RAISE_UPSTREAM"):
+        raise ValueError("global probe operation has no materialized transcript")
+
+    mutated = _detach_json_v1(base)
+    target_pointer = mutation["target_json_pointer"]
+    replacement = _detach_json_v1(mutation["replacement_json"])
+    if operation == "INSERT_BODY":
+        try:
+            parent, member = _pointer_parent_member_v1(mutated, target_pointer)
+        except ValueError:
+            _materialize_success_ancestor_v1(mutated, success, target_pointer)
+            parent, member = _pointer_parent_member_v1(mutated, target_pointer)
+        if parent[member] is not None:
+            raise ValueError("INSERT_BODY target is not null")
+        parent[member] = replacement
+    else:
+        parent, member = _pointer_parent_member_v1(mutated, target_pointer)
+        if operation == "DELETE":
+            parent.pop(member)
+        elif operation == "SET_NULL":
+            parent[member] = None
+        elif operation in ("SET_VALUE", "REPLACE_BODY_AND_RESIGN"):
+            parent[member] = replacement
+        else:
+            raise ValueError("mutation materializer operation is not frozen")
+
+    effective_snapshot = tuple(base_snapshot) + tuple(
+        item for item in success_snapshot if item not in base_snapshot
+    )
+    _resign_from_snapshots_v1(mutated, target_pointer, effective_snapshot)
+    _pure_core.canonical_json_bytes_v1(mutated)
+    return mutated
+
+
 def _require_json_pointer_v1(value, field):
     if type(value) is not str:
         raise TypeError(f"{field} must be an exact str")
-    if value == "":
-        return
-    if not value.startswith("/"):
-        raise ValueError(f"{field} must be a rooted JSON pointer")
-    for token in value.split("/")[1:]:
-        index = 0
-        while index < len(token):
-            if token[index] == "~":
-                if index + 1 >= len(token) or token[index + 1] not in ("0", "1"):
-                    raise ValueError(f"{field} has an invalid JSON pointer escape")
-                index += 1
-            index += 1
+    _json_pointer_tokens_v1(value)
 
 
 def validate_nested_body_rule_v1(raw_body):
     """Validate one normalized nested-body traversal rule."""
     rule = _validate_exact_lab_record_v1("B7LabNestedBodyRuleV1", raw_body)
+    if rule["json_pointer"] == "":
+        raise ValueError("nested body rule pointer must be rooted and nonempty")
     _require_json_pointer_v1(rule["json_pointer"], "nested body rule pointer")
     return rule
 
@@ -1786,21 +2538,38 @@ def validate_mutation_v1(raw_body):
         raise ValueError("mutation operation drifted")
     if mutation["expected_boundary"] not in _MUTATION_BOUNDARIES_V1:
         raise ValueError("mutation expected boundary drifted")
-    _require_json_pointer_v1(
-        mutation["target_json_pointer"],
-        "mutation target pointer",
+    global_operations = ("REENCODE", "REPEAT", "RAISE_UPSTREAM")
+    if mutation["operation"] in global_operations:
+        if mutation["target_json_pointer"] != "":
+            raise ValueError("global mutation operation pointer must be empty")
+    else:
+        if mutation["target_json_pointer"] == "":
+            raise ValueError("local mutation operation pointer must be nonempty")
+        _require_json_pointer_v1(
+            mutation["target_json_pointer"],
+            "mutation target pointer",
+        )
+    projection = {
+        name: mutation[name]
+        for name in (
+            "base_case_id",
+            "probe_kind",
+            "mutation_class",
+            "target_json_pointer",
+            "operation",
+            "replacement_json",
+            "expected_boundary",
+        )
+    }
+    case_token = (
+        "GLOBAL" if mutation["base_case_id"] is None else mutation["base_case_id"]
     )
-    mutation_id = mutation["mutation_id"]
-    expected_prefix = (
+    expected_id = (
         f"M{mutation['mutation_ordinal']:06d}-{mutation['mutation_class']}-"
+        f"{case_token}-{_pure_core.canonical_sha_v1(projection)[:16]}"
     )
-    suffix = mutation_id.split("-")[-1]
-    if (
-        not mutation_id.startswith(expected_prefix)
-        or len(suffix) != 16
-        or any(character not in "0123456789abcdef" for character in suffix)
-    ):
-        raise ValueError("mutation ID format drifted")
+    if mutation["mutation_id"] != expected_id:
+        raise ValueError("mutation ID projection prefix drifted")
     return mutation
 
 
