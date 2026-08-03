@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 
 import pytest
 
@@ -32,7 +33,11 @@ def _seal(raw: dict[str, object], field: str) -> dict[str, object]:
     return raw
 
 
-def _source_transcripts() -> list[dict[str, object]]:
+def _source_transcripts(
+    *,
+    corpus_spec_sha: str = "4" * 64,
+    environment_manifest_sha: str = "5" * 64,
+) -> list[dict[str, object]]:
     common = _common()
     transcripts = []
     for case_id, contract in zip(CASE_IDS, common._CASE_CONTRACTS_V1):
@@ -55,8 +60,8 @@ def _source_transcripts() -> list[dict[str, object]]:
             }
         transcripts.append(
             {
-                "corpus_spec_sha": "4" * 64,
-                "environment_manifest_sha": "5" * 64,
+                "corpus_spec_sha": corpus_spec_sha,
+                "environment_manifest_sha": environment_manifest_sha,
                 "case_id": case_id,
                 "terminal_tag": contract[2],
                 "shell_outcome": {} if bits[0] == "1" else None,
@@ -121,6 +126,62 @@ def _legal_replays(route_id: str = "A_FLAT") -> list[dict[str, object]]:
             }
         )
     return rows
+
+
+def _environment_v2() -> dict[str, object]:
+    return _seal(
+        {
+            "environment_schema_version": (
+                "experimental.v3m0.b7.environment-manifest.v2"
+            ),
+            "python_implementation": "CPython",
+            "python_version": "3.test",
+            "python_invocation_path": "/tmp/b7-venv/bin/python",
+            "python_executable_realpath": "/usr/bin/python3",
+            "python_executable_raw_sha256": "c" * 64,
+            "python_invocation_identity_sha": "d" * 64,
+            "python_venv_prefix": "/tmp/b7-venv",
+            "python_pyvenv_cfg_path": "/tmp/b7-venv/pyvenv.cfg",
+            "python_pyvenv_cfg_raw_sha256": "e" * 64,
+            "numpy_version": "test",
+            "scipy_version": "test",
+            "platform_system": "test",
+            "platform_release": "test",
+            "platform_machine": "test",
+            "numpy_float64_dtype_str": "<f8",
+            "numpy_float64_itemsize": 8,
+            "byteorder": "little",
+            "python_hash_seed": "0",
+            "blas_thread_settings": [
+                ["OPENBLAS_NUM_THREADS", "1"],
+                ["OMP_NUM_THREADS", "1"],
+                ["MKL_NUM_THREADS", "1"],
+                ["VECLIB_MAXIMUM_THREADS", "1"],
+                ["NUMEXPR_NUM_THREADS", "1"],
+            ],
+            "threadpool_info": [],
+            "fresh_process_per_capture": True,
+            "environment_sha": "",
+        },
+        "environment_sha",
+    )
+
+
+def _comparison_fixture() -> dict[str, object]:
+    environment = _environment_v2()
+    raw = {
+        "fixture_schema_version": "experimental.v3m0.b7.corpus-fixture.v2",
+        "corpus_spec": {"corpus_spec_sha": "4" * 64},
+        "mutation_universe": {"mutation_universe_sha": "6" * 64},
+        "metric_spec": {"metric_spec_sha": "7" * 64},
+        "environment_manifest": environment,
+        "synthetic_graph_manifest": {},
+        "ordered_d0_transcripts": _source_transcripts(
+            environment_manifest_sha=environment["environment_sha"]
+        ),
+        "fixture_sha": "",
+    }
+    return _seal(raw, "fixture_sha")
 
 
 def test_e01_recomputes_legal_domain_and_rejects_self_report_flips(
@@ -788,3 +849,326 @@ def test_d0_route_result_derives_non_survival_from_mutation_metric(
 
     assert result["mutation_accept_count"] == 1
     assert result["survives_d0"] is False
+
+
+def _comparison_inputs() -> tuple[
+    tuple[str, str, str, bytes],
+    tuple[str, str, str, bytes],
+    list[dict[str, object]],
+]:
+    common_commit = "b" * 40
+    common_source = b"frozen-common-source"
+    compare_source = b"frozen-compare-source"
+    common_sha = hashlib.sha256(common_source).hexdigest()
+    compare_sha = hashlib.sha256(compare_source).hexdigest()
+    common_blob = (
+        common_commit,
+        "experiments/v3m0_b7_schema_lab/common.py",
+        "100644",
+        common_source,
+    )
+    compare_blob = (
+        common_commit,
+        "experiments/v3m0_b7_schema_lab/compare.py",
+        "100644",
+        compare_source,
+    )
+    route_inputs = []
+    for route_id in ("A_FLAT", "B_PROGRESS", "C_UNION"):
+        manifest = _route_manifest(
+            route_id,
+            common_commit_sha=common_commit,
+            common_source_sha256=common_sha,
+            compare_source_sha256=compare_sha,
+        )
+        route_inputs.append(
+            {
+                "route_manifest": manifest,
+                "route_blob": (
+                    manifest["route_commit_sha"],
+                    manifest["route_source_path"],
+                    "100644",
+                    f"route-{route_id}".encode(),
+                ),
+                "production_blobs": (
+                    (common_commit, "rulespace_v3/x.py", "100644", b"x"),
+                ),
+                "gate_inputs": _gate_inputs(),
+            }
+        )
+    return common_blob, compare_blob, route_inputs
+
+
+def _patch_corpus_fixture_validation(
+    monkeypatch: pytest.MonkeyPatch,
+    events: list[tuple[object, ...]],
+) -> None:
+    common = _common()
+
+    def validate(
+        raw: object,
+        common_source: object,
+        compare_source: object,
+        *,
+        python_identity_observation: object,
+        python_probe_result: object,
+    ) -> object:
+        events.append(
+            (
+                common_source,
+                compare_source,
+                python_identity_observation,
+                python_probe_result,
+            )
+        )
+        return copy.deepcopy(raw)
+
+    monkeypatch.setattr(common, "validate_corpus_fixture_v2", validate)
+
+
+def _reseal_d0_comparison(raw: dict[str, object]) -> None:
+    common = _common()
+    raw["decision_payload_sha"] = common.canonical_sha_v1(
+        {name: raw[name] for name in common._D0_DECISION_FIELDS}
+    )
+    _seal(raw, "d0_result_sha")
+
+
+def _auxiliary_benchmark() -> dict[str, object]:
+    return {
+        "warm_up": 5,
+        "repeat": 30,
+        "reported_statistics": ["median", "p95", "tracemalloc_peak"],
+        "ordered_route_statistics": [
+            {
+                "route_id": route_id,
+                "median": float(ordinal + 1) / 1000.0,
+                "p95": float(ordinal + 2) / 1000.0,
+                "tracemalloc_peak": (ordinal + 1) * 1024,
+            }
+            for ordinal, route_id in enumerate(("A_FLAT", "B_PROGRESS", "C_UNION"))
+        ],
+    }
+
+
+def test_d0_comparison_revalidates_corpus_v2_and_stable_filters_survivors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    events: list[tuple[object, ...]] = []
+    _patch_corpus_fixture_validation(monkeypatch, events)
+    _patch_d0_route_dependencies(
+        monkeypatch,
+        mutation_accept_by_route={"A_FLAT": 0, "B_PROGRESS": 1, "C_UNION": 0},
+    )
+    fixture_bytes = common.canonical_json_bytes_v1(_comparison_fixture())
+    common_blob, compare_blob, route_inputs = _comparison_inputs()
+    identity = {"identity": "caller-observed"}
+    probe = {"probe": "caller-observed"}
+
+    result = common.build_d0_comparison_v1(
+        corpus_fixture_raw_bytes=fixture_bytes,
+        common_blob=common_blob,
+        compare_blob=compare_blob,
+        python_identity_observation=identity,
+        python_probe_result=probe,
+        ordered_route_inputs=route_inputs,
+        auxiliary_benchmark=_auxiliary_benchmark(),
+    )
+
+    assert [route["route_id"] for route in result["ordered_route_results"]] == [
+        "A_FLAT",
+        "B_PROGRESS",
+        "C_UNION",
+    ]
+    assert result["surviving_route_ids"] == ["A_FLAT", "C_UNION"]
+    assert events == [(common_blob[3], compare_blob[3], identity, probe)]
+    assert common.validate_d0_decision_payload_projection_v1(result) == result
+    assert common.validate_exact_lab_record_v1("B7LabD0ComparisonV1", result) == result
+    validated_route_ids: list[str] = []
+    original_route_validator = common.validate_d0_route_result_v1
+
+    def validate_route(raw_body: object, **kwargs: object) -> object:
+        validated_route_ids.append(raw_body["route_id"])
+        return original_route_validator(raw_body, **kwargs)
+
+    monkeypatch.setattr(common, "validate_d0_route_result_v1", validate_route)
+    assert (
+        common.validate_d0_comparison_v1(
+            result,
+            corpus_fixture_raw_bytes=fixture_bytes,
+            common_blob=common_blob,
+            compare_blob=compare_blob,
+            python_identity_observation=identity,
+            python_probe_result=probe,
+            ordered_route_inputs=route_inputs,
+        )
+        == result
+    )
+    assert validated_route_ids == ["A_FLAT", "B_PROGRESS", "C_UNION"]
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda inputs: inputs.reverse(),
+        lambda inputs: inputs[0].update(unknown=None),
+        lambda inputs: inputs[0].update(
+            route_blob=(
+                inputs[0]["route_blob"][0],
+                inputs[1]["route_blob"][1],
+                inputs[0]["route_blob"][2],
+                inputs[0]["route_blob"][3],
+            )
+        ),
+    ),
+)
+def test_d0_comparison_rejects_route_input_order_shape_and_blob_splice(
+    monkeypatch: pytest.MonkeyPatch,
+    mutator,
+) -> None:
+    common = _common()
+    _patch_corpus_fixture_validation(monkeypatch, [])
+    _patch_d0_route_dependencies(monkeypatch)
+    common_blob, compare_blob, route_inputs = _comparison_inputs()
+    mutator(route_inputs)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.build_d0_comparison_v1(
+            corpus_fixture_raw_bytes=common.canonical_json_bytes_v1(
+                _comparison_fixture()
+            ),
+            common_blob=common_blob,
+            compare_blob=compare_blob,
+            python_identity_observation={},
+            python_probe_result={},
+            ordered_route_inputs=route_inputs,
+            auxiliary_benchmark=_auxiliary_benchmark(),
+        )
+
+
+def test_d0_comparison_rejects_survivor_decision_and_route_result_attacks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _patch_corpus_fixture_validation(monkeypatch, [])
+    _patch_d0_route_dependencies(
+        monkeypatch,
+        mutation_accept_by_route={"A_FLAT": 0, "B_PROGRESS": 1, "C_UNION": 0},
+    )
+    fixture_bytes = common.canonical_json_bytes_v1(_comparison_fixture())
+    common_blob, compare_blob, route_inputs = _comparison_inputs()
+    result = common.build_d0_comparison_v1(
+        corpus_fixture_raw_bytes=fixture_bytes,
+        common_blob=common_blob,
+        compare_blob=compare_blob,
+        python_identity_observation={},
+        python_probe_result={},
+        ordered_route_inputs=route_inputs,
+        auxiliary_benchmark=_auxiliary_benchmark(),
+    )
+    survivor_attack = copy.deepcopy(result)
+    survivor_attack["surviving_route_ids"] = ["C_UNION", "A_FLAT"]
+    _reseal_d0_comparison(survivor_attack)
+    route_order_attack = copy.deepcopy(result)
+    route_order_attack["ordered_route_results"].reverse()
+    route_order_attack["surviving_route_ids"] = ["C_UNION", "A_FLAT"]
+    _reseal_d0_comparison(route_order_attack)
+
+    for hostile in (survivor_attack, route_order_attack):
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_d0_comparison_v1(
+                hostile,
+                corpus_fixture_raw_bytes=fixture_bytes,
+                common_blob=common_blob,
+                compare_blob=compare_blob,
+                python_identity_observation={},
+                python_probe_result={},
+                ordered_route_inputs=route_inputs,
+            )
+
+
+def test_d0_comparison_rejects_fixture_body_and_manifest_root_substitution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    common = _common()
+    _patch_corpus_fixture_validation(monkeypatch, [])
+    _patch_d0_route_dependencies(monkeypatch)
+    fixture = _comparison_fixture()
+    fixture_bytes = common.canonical_json_bytes_v1(fixture)
+    common_blob, compare_blob, route_inputs = _comparison_inputs()
+    result = common.build_d0_comparison_v1(
+        corpus_fixture_raw_bytes=fixture_bytes,
+        common_blob=common_blob,
+        compare_blob=compare_blob,
+        python_identity_observation={},
+        python_probe_result={},
+        ordered_route_inputs=route_inputs,
+        auxiliary_benchmark=_auxiliary_benchmark(),
+    )
+    substituted_fixture = copy.deepcopy(fixture)
+    substituted_fixture["metric_spec"]["metric_spec_sha"] = "f" * 64
+    _seal(substituted_fixture, "fixture_sha")
+    manifest_attack_inputs = copy.deepcopy(route_inputs)
+    manifest_attack_inputs[1]["route_manifest"]["corpus_spec_sha"] = "f" * 64
+    _seal(manifest_attack_inputs[1]["route_manifest"], "route_manifest_sha")
+
+    for changed_fixture_bytes, changed_route_inputs in (
+        (
+            common.canonical_json_bytes_v1(substituted_fixture),
+            route_inputs,
+        ),
+        (fixture_bytes, manifest_attack_inputs),
+    ):
+        with pytest.raises((TypeError, ValueError)):
+            common.validate_d0_comparison_v1(
+                result,
+                corpus_fixture_raw_bytes=changed_fixture_bytes,
+                common_blob=common_blob,
+                compare_blob=compare_blob,
+                python_identity_observation={},
+                python_probe_result={},
+                ordered_route_inputs=changed_route_inputs,
+            )
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    (
+        lambda benchmark: benchmark.update(unknown=None),
+        lambda benchmark: benchmark.__setitem__("warm_up", benchmark.pop("warm_up")),
+        lambda benchmark: benchmark.__setitem__("warm_up", 5.0),
+        lambda benchmark: benchmark.__setitem__(
+            "reported_statistics",
+            ["p95", "median", "tracemalloc_peak"],
+        ),
+        lambda benchmark: benchmark["ordered_route_statistics"].reverse(),
+        lambda benchmark: benchmark["ordered_route_statistics"][0].update(median=1),
+        lambda benchmark: benchmark["ordered_route_statistics"][0].update(
+            tracemalloc_peak=1.0
+        ),
+    ),
+)
+def test_d0_comparison_rejects_auxiliary_benchmark_protocol_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    mutator,
+) -> None:
+    common = _common()
+    _patch_corpus_fixture_validation(monkeypatch, [])
+    _patch_d0_route_dependencies(monkeypatch)
+    common_blob, compare_blob, route_inputs = _comparison_inputs()
+    benchmark = _auxiliary_benchmark()
+    mutator(benchmark)
+
+    with pytest.raises((TypeError, ValueError)):
+        common.build_d0_comparison_v1(
+            corpus_fixture_raw_bytes=common.canonical_json_bytes_v1(
+                _comparison_fixture()
+            ),
+            common_blob=common_blob,
+            compare_blob=compare_blob,
+            python_identity_observation={},
+            python_probe_result={},
+            ordered_route_inputs=route_inputs,
+            auxiliary_benchmark=benchmark,
+        )

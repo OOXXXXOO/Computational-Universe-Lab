@@ -6837,3 +6837,275 @@ def validate_d0_route_result_v1(
     if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
         raise ValueError("D0 route result differs from fresh recomputation")
     return observed
+
+
+_D0_ROUTE_INPUT_FIELDS_V1 = (
+    "route_manifest",
+    "route_blob",
+    "production_blobs",
+    "gate_inputs",
+)
+_D0_AUXILIARY_BENCHMARK_FIELDS_V1 = (
+    "warm_up",
+    "repeat",
+    "reported_statistics",
+    "ordered_route_statistics",
+)
+_D0_AUXILIARY_REPORTED_STATISTICS_V1 = (
+    "median",
+    "p95",
+    "tracemalloc_peak",
+)
+_D0_AUXILIARY_ROUTE_STATISTIC_FIELDS_V1 = (
+    "route_id",
+    "median",
+    "p95",
+    "tracemalloc_peak",
+)
+_COMMON_SOURCE_PATH_V1 = "experiments/v3m0_b7_schema_lab/common.py"
+_COMPARE_SOURCE_PATH_V1 = "experiments/v3m0_b7_schema_lab/compare.py"
+
+
+def _validate_d0_route_inputs_v1(raw_inputs, common_commit_sha):
+    if type(raw_inputs) is not list or len(raw_inputs) != 3:
+        raise TypeError("D0 comparison requires exactly three route inputs")
+    validated = []
+    for route_id, raw_input in zip(
+        (entry[0] for entry in _ROUTE_STATIC_REGISTRY_V1),
+        raw_inputs,
+    ):
+        route_input = _require_exact_ordered_dict_v1(
+            raw_input,
+            _D0_ROUTE_INPUT_FIELDS_V1,
+            "D0 route input",
+        )
+        manifest = validate_exact_lab_record_v1(
+            "B7LabRouteManifestV1",
+            route_input["route_manifest"],
+        )
+        if manifest["route_id"] != route_id:
+            raise ValueError("D0 route input order drifted")
+        route_blob = _require_git_blob_descriptor_v1(
+            route_input["route_blob"],
+            "D0 route blob",
+        )
+        if (
+            route_blob[0] != manifest["route_commit_sha"]
+            or route_blob[1] != manifest["route_source_path"]
+            or route_blob[2] != "100644"
+        ):
+            raise ValueError("D0 route blob descriptor drifted")
+        production_blobs = route_input["production_blobs"]
+        if type(production_blobs) is not tuple or not production_blobs:
+            raise TypeError("D0 production blobs must be a nonempty exact tuple")
+        for ordinal, blob in enumerate(production_blobs):
+            checked_blob = _require_git_blob_descriptor_v1(
+                blob,
+                f"D0 production blob {ordinal}",
+            )
+            if checked_blob[0] != common_commit_sha or checked_blob[2] != "100644":
+                raise ValueError("D0 production blob commit or mode drifted")
+        _validate_d0_gate_inputs_v1(route_input["gate_inputs"])
+        validated.append(route_input)
+    return validated
+
+
+def _validate_common_compare_blobs_v1(common_blob, compare_blob):
+    common_checked = _require_git_blob_descriptor_v1(common_blob, "D0 common blob")
+    compare_checked = _require_git_blob_descriptor_v1(compare_blob, "D0 compare blob")
+    if (
+        common_checked[0] != compare_checked[0]
+        or common_checked[1] != _COMMON_SOURCE_PATH_V1
+        or compare_checked[1] != _COMPARE_SOURCE_PATH_V1
+        or common_checked[2] != "100644"
+        or compare_checked[2] != "100644"
+    ):
+        raise ValueError("D0 common/compare blob identity drifted")
+    return common_checked, compare_checked
+
+
+def _validate_d0_auxiliary_benchmark_v1(raw_benchmark):
+    benchmark = _require_exact_ordered_dict_v1(
+        raw_benchmark,
+        _D0_AUXILIARY_BENCHMARK_FIELDS_V1,
+        "D0 auxiliary benchmark",
+    )
+    if type(benchmark["warm_up"]) is not int or benchmark["warm_up"] != 5:
+        raise ValueError("D0 auxiliary benchmark warm-up drifted")
+    if type(benchmark["repeat"]) is not int or benchmark["repeat"] != 30:
+        raise ValueError("D0 auxiliary benchmark repeat count drifted")
+    if (
+        type(benchmark["reported_statistics"]) is not list
+        or tuple(benchmark["reported_statistics"])
+        != _D0_AUXILIARY_REPORTED_STATISTICS_V1
+    ):
+        raise ValueError("D0 auxiliary reported-statistics protocol drifted")
+    route_statistics = benchmark["ordered_route_statistics"]
+    if type(route_statistics) is not list or len(route_statistics) != 3:
+        raise TypeError("D0 auxiliary route statistics must be an exact triple")
+    expected_route_ids = tuple(entry[0] for entry in _ROUTE_STATIC_REGISTRY_V1)
+    for expected_route_id, raw_statistic in zip(expected_route_ids, route_statistics):
+        statistic = _require_exact_ordered_dict_v1(
+            raw_statistic,
+            _D0_AUXILIARY_ROUTE_STATISTIC_FIELDS_V1,
+            "D0 auxiliary route statistic",
+        )
+        if statistic["route_id"] != expected_route_id:
+            raise ValueError("D0 auxiliary route statistic order drifted")
+        for field in ("median", "p95"):
+            if type(statistic[field]) is not float or statistic[field] < 0.0:
+                raise TypeError(
+                    f"D0 auxiliary route statistic {field} must be a nonnegative float"
+                )
+        if statistic["p95"] < statistic["median"]:
+            raise ValueError("D0 auxiliary p95 must not be below its median")
+        if (
+            type(statistic["tracemalloc_peak"]) is not int
+            or statistic["tracemalloc_peak"] < 0
+        ):
+            raise TypeError(
+                "D0 auxiliary tracemalloc peak must be a nonnegative exact int"
+            )
+    canonical_json_bytes_v1(benchmark)
+    return _detach_json_v1(benchmark)
+
+
+def build_d0_comparison_v1(
+    *,
+    corpus_fixture_raw_bytes,
+    common_blob,
+    compare_blob,
+    python_identity_observation,
+    python_probe_result,
+    ordered_route_inputs,
+    auxiliary_benchmark,
+):
+    """Build D0 by revalidating one V2 corpus and all immutable blob inputs."""
+
+    if type(corpus_fixture_raw_bytes) is not bytes:
+        raise TypeError("D0 corpus fixture input must be exact bytes")
+    parsed_fixture = strict_json_loads_v1(corpus_fixture_raw_bytes)
+    if type(parsed_fixture) is not dict:
+        raise TypeError("D0 corpus fixture bytes must decode to an exact object")
+    common_checked, compare_checked = _validate_common_compare_blobs_v1(
+        common_blob,
+        compare_blob,
+    )
+    fixture = validate_corpus_fixture_v2(
+        parsed_fixture,
+        common_checked[3],
+        compare_checked[3],
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+    )
+    if canonical_json_bytes_v1(fixture) != canonical_json_bytes_v1(parsed_fixture):
+        raise ValueError("validated D0 corpus fixture body was substituted")
+    route_inputs = _validate_d0_route_inputs_v1(
+        ordered_route_inputs,
+        common_checked[0],
+    )
+    route_results = []
+    expected_manifest_joins = {
+        "common_commit_sha": common_checked[0],
+        "common_source_sha256": _raw_source_sha256_v1(
+            common_checked[3],
+            "common",
+        ),
+        "compare_source_sha256": _raw_source_sha256_v1(
+            compare_checked[3],
+            "compare",
+        ),
+        "corpus_spec_sha": fixture["corpus_spec"]["corpus_spec_sha"],
+        "mutation_universe_sha": fixture["mutation_universe"]["mutation_universe_sha"],
+        "metric_spec_sha": fixture["metric_spec"]["metric_spec_sha"],
+    }
+    for route_input in route_inputs:
+        result = build_d0_route_result_v1(
+            route_manifest=route_input["route_manifest"],
+            route_blob=route_input["route_blob"],
+            production_blobs=route_input["production_blobs"],
+            validated_corpus_fixture=fixture,
+            gate_inputs=route_input["gate_inputs"],
+        )
+        manifest = result["route_manifest"]
+        for field, expected in expected_manifest_joins.items():
+            if manifest[field] != expected:
+                raise ValueError(f"D0 route manifest {field} join drifted")
+        route_results.append(result)
+    expected_route_ids = tuple(entry[0] for entry in _ROUTE_STATIC_REGISTRY_V1)
+    if tuple(result["route_id"] for result in route_results) != expected_route_ids:
+        raise ValueError("D0 route result order drifted")
+    survivors = [
+        result["route_id"] for result in route_results if result["survives_d0"]
+    ]
+    benchmark = _validate_d0_auxiliary_benchmark_v1(auxiliary_benchmark)
+    result = {
+        "d0_result_schema_version": "experimental.v3m0.b7.d0-comparison.v1",
+        "common_commit_sha": common_checked[0],
+        "common_source_sha256": expected_manifest_joins["common_source_sha256"],
+        "compare_source_sha256": expected_manifest_joins["compare_source_sha256"],
+        "corpus_fixture_raw_sha256": _pure_core.hashlib.sha256(
+            corpus_fixture_raw_bytes
+        ).hexdigest(),
+        "corpus_spec_sha": expected_manifest_joins["corpus_spec_sha"],
+        "mutation_universe_sha": expected_manifest_joins["mutation_universe_sha"],
+        "metric_spec_sha": expected_manifest_joins["metric_spec_sha"],
+        "environment_manifest": fixture["environment_manifest"],
+        "ordered_route_results": route_results,
+        "surviving_route_ids": survivors,
+        "decision_payload_sha": "",
+        "auxiliary_benchmark": benchmark,
+        "d0_result_sha": "",
+    }
+    result["decision_payload_sha"] = canonical_sha_v1(
+        {name: result[name] for name in _D0_DECISION_FIELDS}
+    )
+    _rehash_record_field_v1(result, "d0_result_sha")
+    validated = validate_exact_lab_record_v1("B7LabD0ComparisonV1", result)
+    validate_d0_decision_payload_projection_v1(validated)
+    return validated
+
+
+def validate_d0_comparison_v1(
+    raw_body,
+    *,
+    corpus_fixture_raw_bytes,
+    common_blob,
+    compare_blob,
+    python_identity_observation,
+    python_probe_result,
+    ordered_route_inputs,
+):
+    """Reject D0 unless corpus, blobs, routes, survivors and both roots replay."""
+
+    observed = validate_exact_lab_record_v1("B7LabD0ComparisonV1", raw_body)
+    validate_d0_decision_payload_projection_v1(observed)
+    expected = build_d0_comparison_v1(
+        corpus_fixture_raw_bytes=corpus_fixture_raw_bytes,
+        common_blob=common_blob,
+        compare_blob=compare_blob,
+        python_identity_observation=python_identity_observation,
+        python_probe_result=python_probe_result,
+        ordered_route_inputs=ordered_route_inputs,
+        auxiliary_benchmark=observed["auxiliary_benchmark"],
+    )
+    parsed_fixture = strict_json_loads_v1(corpus_fixture_raw_bytes)
+    for observed_route, expected_route, route_input in zip(
+        observed["ordered_route_results"],
+        expected["ordered_route_results"],
+        ordered_route_inputs,
+    ):
+        validated_route = validate_d0_route_result_v1(
+            observed_route,
+            route_blob=route_input["route_blob"],
+            production_blobs=route_input["production_blobs"],
+            validated_corpus_fixture=parsed_fixture,
+            gate_inputs=route_input["gate_inputs"],
+        )
+        if canonical_json_bytes_v1(validated_route) != canonical_json_bytes_v1(
+            expected_route
+        ):
+            raise ValueError("D0 comparison route result join drifted")
+    if canonical_json_bytes_v1(observed) != canonical_json_bytes_v1(expected):
+        raise ValueError("D0 comparison differs from fresh recomputation")
+    return observed
