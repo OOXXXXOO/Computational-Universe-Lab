@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import inspect
 
 import pytest
 
@@ -271,6 +272,12 @@ def test_common_harness_rejects_nonexact_leaf_input_domain_before_any_leaf_call(
         _capture("success", leaf_inputs)
 
     assert calls == []
+
+
+def test_injected_leaf_failure_helper_accepts_no_callback_or_provider() -> None:
+    assert tuple(
+        inspect.signature(common._capture_injected_leaf_failure_v1).parameters
+    ) == ("leaves", "leaf_id", "call_args")
 
 
 def test_common_harness_leaf_digest_binds_actual_matrix_bytes(

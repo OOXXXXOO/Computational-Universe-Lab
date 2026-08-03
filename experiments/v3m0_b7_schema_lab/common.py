@@ -4811,9 +4811,18 @@ def _capture_leaf_digest_v1(leaves, leaf_id, call_args, output):
     return output
 
 
-def _capture_injected_leaf_failure_v1(leaves, leaf_id, function, call_args):
+def _capture_injected_leaf_failure_v1(leaves, leaf_id, call_args):
     try:
-        function(*call_args)
+        with _pure_core.np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            if leaf_id in (
+                "actual_response_values",
+                "matched_ablated_response_values",
+            ):
+                _pure_core._build_fejer_branch_response_values_from_raw(*call_args)
+            elif leaf_id in ("actual_bridge", "matched_ablated_bridge"):
+                _pure_core._audit_source_readout_bridge_from_raw(*call_args)
+            else:
+                raise ValueError("injected leaf ID is not a response stage")
     except (TypeError, ValueError) as error:
         observation = {
             "termination_kind": "INJECTED_FAILURE",
@@ -4913,11 +4922,15 @@ def capture_normalized_transcript_from_raw_v1(
         inputs["source_injection_matrix"],
         inputs["readout_matrix"],
     )
+    with _pure_core.np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        reference_output = _pure_core._select_endpoint_reference_from_raw(
+            *reference_args
+        )
     reference = _capture_leaf_digest_v1(
         leaves,
         "reference",
         reference_args,
-        _pure_core._select_endpoint_reference_from_raw(*reference_args),
+        reference_output,
     )
     reference_defined = (
         type(reference) is dict
@@ -4953,11 +4966,13 @@ def capture_normalized_transcript_from_raw_v1(
             actual_lineage["dynamics_certificate_sha"],
             actual_lineage["dt"],
         )
+        with _pure_core.np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+            shell_output = _pure_core._track_endpoint_shell_from_raw(*shell_args)
         shell = _capture_leaf_digest_v1(
             leaves,
             "shell",
             shell_args,
-            _pure_core._track_endpoint_shell_from_raw(*shell_args),
+            shell_output,
         )
         shell_defined = (
             type(shell) is dict
@@ -5013,17 +5028,24 @@ def capture_normalized_transcript_from_raw_v1(
                     _capture_injected_leaf_failure_v1(
                         leaves,
                         leaf_id,
-                        _pure_core._build_fejer_branch_response_values_from_raw,
                         call_args,
                     )
                     break
+                with _pure_core.np.errstate(
+                    divide="ignore",
+                    over="ignore",
+                    invalid="ignore",
+                ):
+                    values_output = (
+                        _pure_core._build_fejer_branch_response_values_from_raw(
+                            *call_args
+                        )
+                    )
                 values_by_branch[branch] = _capture_leaf_digest_v1(
                     leaves,
                     leaf_id,
                     call_args,
-                    _pure_core._build_fejer_branch_response_values_from_raw(
-                        *call_args
-                    ),
+                    values_output,
                 )
 
             audits_by_branch = {"actual": None, "matched_ablated": None}
@@ -5062,15 +5084,22 @@ def capture_normalized_transcript_from_raw_v1(
                         _capture_injected_leaf_failure_v1(
                             leaves,
                             leaf_id,
-                            _pure_core._audit_source_readout_bridge_from_raw,
                             call_args,
                         )
                         break
+                    with _pure_core.np.errstate(
+                        divide="ignore",
+                        over="ignore",
+                        invalid="ignore",
+                    ):
+                        bridge_output = (
+                            _pure_core._audit_source_readout_bridge_from_raw(*call_args)
+                        )
                     audits_by_branch[branch] = _capture_leaf_digest_v1(
                         leaves,
                         leaf_id,
                         call_args,
-                        _pure_core._audit_source_readout_bridge_from_raw(*call_args),
+                        bridge_output,
                     )
 
             first_failure = _NEUTRAL_CAPTURE_FAILURES_V1.get(injected_stage)
