@@ -9,6 +9,84 @@ class B7LabMutationRejected(ValueError):
     """Frozen route-level rejection surface for one invalid lab wire."""
 
 
+_D0_COMPARISON_FIELDS = (
+    "d0_result_schema_version",
+    "common_commit_sha",
+    "common_source_sha256",
+    "compare_source_sha256",
+    "corpus_fixture_raw_sha256",
+    "corpus_spec_sha",
+    "mutation_universe_sha",
+    "metric_spec_sha",
+    "environment_manifest",
+    "ordered_route_results",
+    "surviving_route_ids",
+    "decision_payload_sha",
+    "auxiliary_benchmark",
+    "d0_result_sha",
+)
+_D0_DECISION_FIELDS = _D0_COMPARISON_FIELDS[:11]
+_D1_COMPARISON_FIELDS = (
+    "d1_result_schema_version",
+    "d0_result_raw_sha256",
+    "d0_result_sha",
+    "d0_decision_payload_sha",
+    "common_commit_sha",
+    "common_source_sha256",
+    "compare_source_sha256",
+    "leaf_provider_source_sha256",
+    "corpus_fixture_raw_sha256",
+    "corpus_spec_sha",
+    "mutation_universe_sha",
+    "metric_spec_sha",
+    "synthetic_graph_manifest",
+    "environment_manifest",
+    "ordered_capture_transcript_set_shas",
+    "ordered_capture_leaf_digest_set_shas",
+    "ordered_route_results",
+    "surviving_route_ids",
+    "minimum_metric_vector",
+    "provisional_winner_route_id",
+    "tie_detected",
+    "decision_payload_sha",
+    "auxiliary_benchmark",
+    "d1_result_sha",
+)
+_D1_DECISION_FIELDS = (
+    _D1_COMPARISON_FIELDS[0],
+    *_D1_COMPARISON_FIELDS[3:21],
+)
+
+
+def _validate_decision_projection_v1(raw_body, fields, projection_fields):
+    if type(raw_body) is not dict:
+        raise TypeError("decision payload owner must be an exact dict")
+    if tuple(raw_body) != fields:
+        raise ValueError("decision payload owner field order drifted")
+    projection = {name: raw_body[name] for name in projection_fields}
+    if raw_body["decision_payload_sha"] != _pure_core.canonical_sha_v1(projection):
+        raise ValueError("decision payload projection hash mismatch")
+    return _pure_core.strict_json_loads_v1(_pure_core.canonical_json_bytes_v1(raw_body))
+
+
+def validate_d0_decision_payload_projection_v1(raw_body):
+    """Validate and detach the frozen D0 decision projection."""
+    return _validate_decision_projection_v1(
+        raw_body,
+        _D0_COMPARISON_FIELDS,
+        _D0_DECISION_FIELDS,
+    )
+
+
+def validate_d1_decision_payload_projection_v1(raw_body):
+    """Validate and detach the frozen D1 decision projection."""
+    return _validate_decision_projection_v1(
+        raw_body,
+        _D1_COMPARISON_FIELDS,
+        _D1_DECISION_FIELDS,
+    )
+
+
 def validate_response_run_spec_fixture_v1(
     raw_body,
     provenance_raw,
