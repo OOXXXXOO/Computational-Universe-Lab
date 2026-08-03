@@ -5,14 +5,18 @@ from __future__ import annotations
 import ast
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import textwrap
+
+import pytest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_INIT_PATH = REPOSITORY_ROOT / "rulespace_v3" / "__init__.py"
 CORE_PATH = REPOSITORY_ROOT / "rulespace_v3" / "b7_replay_core_v1.py"
+PACKAGE_DOCSTRING = "V3-M0 immutable contracts and profile-aware evidence primitives."
 
 LEGACY_EXPORTS = (
     "FINAL_RESULT_EVIDENCE_FIELDS",
@@ -55,7 +59,7 @@ def test_rulespace_initializer_has_exact_lazy_legacy_surface() -> None:
 
     docstring, all_assignment, lazy_getattr = tree.body
     assert isinstance(docstring.value, ast.Constant)
-    assert isinstance(docstring.value.value, str)
+    assert docstring.value.value == PACKAGE_DOCSTRING
 
     assert len(all_assignment.targets) == 1
     _assert_name(all_assignment.targets[0], "__all__")
@@ -108,15 +112,59 @@ def test_rulespace_initializer_has_exact_lazy_legacy_surface() -> None:
     assert terminal.exc.keywords == []
 
 
-def test_fresh_python_import_executes_only_initializer_and_core() -> None:
+def _materialize_minimal_export(export_root: Path) -> None:
+    package_root = export_root / "rulespace_v3"
+    package_root.mkdir(parents=True)
+    shutil.copy2(PACKAGE_INIT_PATH, package_root / "__init__.py")
+    shutil.copy2(CORE_PATH, package_root / "b7_replay_core_v1.py")
+
+
+def _run_fresh_import_audit(export_root: Path) -> subprocess.CompletedProcess[str]:
     assert CORE_PATH.is_file(), "B7 pure replay core has not been created"
     audit_program = textwrap.dedent(
         """
+        import importlib.util
         import os
         from pathlib import Path
         import sys
 
-        repository_root = Path.cwd().resolve()
+        export_root = Path.cwd().resolve()
+        stdlib_root = Path(os.__file__).resolve().parent
+        approved_local_sources = {
+            export_root / "rulespace_v3" / "__init__.py",
+            export_root / "rulespace_v3" / "b7_replay_core_v1.py",
+        }
+        approved_local_reads = set(approved_local_sources)
+        approved_local_reads.update(
+            Path(importlib.util.cache_from_source(str(path))).resolve()
+            for path in approved_local_sources
+        )
+        approved_external_origins = {
+            "__future__": stdlib_root / "__future__.py",
+            "hashlib": stdlib_root / "hashlib.py",
+            "json": stdlib_root / "json" / "__init__.py",
+            "json.decoder": stdlib_root / "json" / "decoder.py",
+            "json.encoder": stdlib_root / "json" / "encoder.py",
+            "json.scanner": stdlib_root / "json" / "scanner.py",
+        }
+        for extension_name in ("_blake2", "_hashlib", "_json", "_sha3"):
+            specification = importlib.util.find_spec(extension_name)
+            if specification is None or specification.origin is None:
+                raise RuntimeError(f"frozen extension is unavailable: {extension_name}")
+            origin = Path(specification.origin).resolve()
+            try:
+                origin.relative_to(stdlib_root)
+            except ValueError as exc:
+                raise RuntimeError(
+                    f"frozen extension escaped stdlib: {extension_name} from {origin}"
+                ) from exc
+            approved_external_origins[extension_name] = origin
+        approved_external_reads = set(approved_external_origins.values())
+        approved_external_reads.update(
+            Path(importlib.util.cache_from_source(str(path))).resolve()
+            for path in tuple(approved_external_origins.values())
+            if path.suffix == ".py"
+        )
         forbidden_events = {
             "os.chdir",
             "os.chmod",
@@ -125,6 +173,7 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
             "os.forkpty",
             "os.kill",
             "os.killpg",
+            "os.link",
             "os.mkdir",
             "os.posix_spawn",
             "os.putenv",
@@ -133,12 +182,22 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
             "os.rmdir",
             "os.spawn",
             "os.system",
+            "os.symlink",
             "os.truncate",
             "os.unsetenv",
             "pty.spawn",
+            "signal.pthread_kill",
+            "signal.raise_signal",
             "subprocess.Popen",
         }
         forbidden_prefixes = ("socket.",)
+
+        def is_within(path, root):
+            try:
+                path.relative_to(root)
+            except ValueError:
+                return False
+            return True
 
         def audit(event, arguments):
             if event in forbidden_events or event.startswith(forbidden_prefixes):
@@ -151,7 +210,25 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
                 write_flags = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
                 if isinstance(flags, int) and flags & write_flags:
                     raise RuntimeError("filesystem write during core import")
+                if not isinstance(arguments[0], (str, bytes, os.PathLike)):
+                    raise RuntimeError("non-path filesystem read during core import")
+                path = Path(arguments[0]).resolve()
+                if path not in approved_local_reads and path not in approved_external_reads:
+                    raise RuntimeError(f"unapproved file-read origin during core import: {path}")
 
+        for external_name in ("__future__", "hashlib", "json"):
+            if external_name in sys.modules:
+                raise RuntimeError(f"external module was unexpectedly preloaded: {external_name}")
+            specification = importlib.util.find_spec(external_name)
+            if specification is None or specification.origin is None:
+                raise RuntimeError(f"external module has no static origin: {external_name}")
+            origin = Path(specification.origin).resolve()
+            if origin != approved_external_origins[external_name]:
+                raise RuntimeError(
+                    f"unapproved external import origin for {external_name}: {origin}"
+                )
+
+        modules_before_core = set(sys.modules)
         sys.addaudithook(audit)
         __import__("rulespace_v3.b7_replay_core_v1")
 
@@ -171,7 +248,7 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
             if source is None:
                 continue
             try:
-                relative = Path(source).resolve().relative_to(repository_root)
+                relative = Path(source).resolve().relative_to(export_root)
             except ValueError:
                 continue
             if relative.parts and relative.parts[0] == "rulespace_v3":
@@ -183,6 +260,26 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
         }
         if local_modules != expected:
             raise RuntimeError(f"unexpected local import closure: {local_modules!r}")
+
+        loaded_after_core = set(sys.modules).difference(modules_before_core)
+        expected_loaded = set(approved_external_origins) | set(expected)
+        if loaded_after_core != expected_loaded:
+            raise RuntimeError(
+                "unexpected imported module set: "
+                f"missing={sorted(expected_loaded - loaded_after_core)!r}, "
+                f"extra={sorted(loaded_after_core - expected_loaded)!r}"
+            )
+        for name in loaded_after_core:
+            module = sys.modules[name]
+            source = getattr(module, "__file__", None)
+            if source is None:
+                raise RuntimeError(f"imported module has no file origin: {name}")
+            origin = Path(source).resolve()
+            if origin in approved_local_sources:
+                continue
+            if approved_external_origins.get(name) == origin:
+                continue
+            raise RuntimeError(f"unapproved loaded-module origin: {name} from {origin}")
         sys.stdout.write("IMPORT_PURE\\n")
         """
     )
@@ -192,7 +289,7 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
     environment["PYTHONNOUSERSITE"] = "1"
     result = subprocess.run(
         [sys.executable, "-s", "-c", audit_program],
-        cwd=REPOSITORY_ROOT,
+        cwd=export_root,
         env=environment,
         check=False,
         stdout=subprocess.PIPE,
@@ -201,8 +298,64 @@ def test_fresh_python_import_executes_only_initializer_and_core() -> None:
         timeout=60,
     )
 
+    return result
+
+
+def test_fresh_python_import_executes_only_initializer_and_core(tmp_path: Path) -> None:
+    export_root = tmp_path / "export"
+    _materialize_minimal_export(export_root)
+    result = _run_fresh_import_audit(export_root)
+
     assert result.returncode == 0, result.stderr
     assert result.stdout == "IMPORT_PURE\n"
+
+
+@pytest.mark.parametrize("shadow_name", ["hashlib.py", "json.py"])
+def test_fresh_import_rejects_repository_root_stdlib_shadow(
+    tmp_path: Path,
+    shadow_name: str,
+) -> None:
+    export_root = tmp_path / "shadow-export"
+    _materialize_minimal_export(export_root)
+    (export_root / shadow_name).write_text(
+        "raise RuntimeError('shadow module executed')\n",
+        encoding="utf-8",
+    )
+
+    result = _run_fresh_import_audit(export_root)
+
+    assert result.returncode != 0
+    assert "unapproved external import origin" in result.stderr
+    assert "shadow module executed" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("attack_source", "forbidden_path"),
+    [
+        ("import os\nos.system('/usr/bin/touch process-escaped')\n", "process-escaped"),
+        ("import socket\nsocket.socket()\n", None),
+        ("open('write-escaped', 'w')\n", "write-escaped"),
+        ("import os\nos.putenv('B7_ESCAPE', '1')\n", None),
+    ],
+)
+def test_fresh_import_audit_blocks_side_effects_before_execution(
+    tmp_path: Path,
+    attack_source: str,
+    forbidden_path: str | None,
+) -> None:
+    export_root = tmp_path / "attack-export"
+    _materialize_minimal_export(export_root)
+    core_path = export_root / "rulespace_v3" / "b7_replay_core_v1.py"
+    core_path.write_text(
+        core_path.read_text(encoding="utf-8") + "\n" + attack_source,
+        encoding="utf-8",
+    )
+
+    result = _run_fresh_import_audit(export_root)
+
+    assert result.returncode != 0
+    if forbidden_path is not None:
+        assert not (export_root / forbidden_path).exists()
 
 
 def test_lazy_package_exports_preserve_legacy_object_identity() -> None:

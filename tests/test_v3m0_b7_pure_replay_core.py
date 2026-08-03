@@ -66,6 +66,21 @@ FUTURE_TASK_SYMBOLS = {
     "_assemble_atomic_paired_response_attempt_from_raw",
 }
 
+TASK3_PUBLIC_SYMBOLS = {
+    "B7_V91_PURE_REPLAY_PROJECTION_SHA256",
+    "canonical_json_bytes_v1",
+    "canonical_sha_v1",
+    "strict_json_loads_v1",
+}
+
+TASK3_FUNCTION_SIGNATURES = {
+    "canonical_json_bytes_v1": "value",
+    "canonical_sha_v1": "value",
+    "strict_json_loads_v1": "canonical_json_utf8",
+}
+
+TASK3_DIRECT_IMPORTS = ["__future__", "hashlib", "json"]
+
 
 def _registry() -> dict[str, object]:
     return json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
@@ -83,9 +98,8 @@ def _resolved_attribute_root(node: ast.Attribute) -> str | None:
     return value.id if isinstance(value, ast.Name) else None
 
 
-def test_core_source_has_only_declared_pure_imports_and_top_level_shapes() -> None:
-    assert CORE_PATH.is_file(), "B7 pure replay core has not been created"
-    tree = ast.parse(CORE_PATH.read_text(encoding="utf-8"))
+def _assert_core_source_contract(source: str) -> None:
+    tree = ast.parse(source)
     contract = _registry()["lab_contract"]["pure_replay_core_contract"]
     allowed_imports = set(contract["allowed_external_import_modules_exact"])
 
@@ -98,43 +112,88 @@ def test_core_source_has_only_declared_pure_imports_and_top_level_shapes() -> No
             assert node.module is not None
             assert all(alias.name != "*" for alias in node.names)
             imported_modules.append(node.module)
+    assert imported_modules == TASK3_DIRECT_IMPORTS
     assert set(imported_modules).issubset(allowed_imports)
     assert not ({name.split(".", 1)[0] for name in imported_modules} & FORBIDDEN_MODULE_ROOTS)
 
+    top_level_assignments: set[str] = set()
+    top_level_functions: list[str] = []
     for node in tree.body:
         assert isinstance(
             node,
-            (ast.Expr, ast.Import, ast.ImportFrom, ast.Assign, ast.AnnAssign, ast.FunctionDef),
+            (ast.Expr, ast.Import, ast.ImportFrom, ast.Assign, ast.FunctionDef),
         )
         if isinstance(node, ast.Expr):
             assert isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
         elif isinstance(node, ast.Assign):
             assert all(isinstance(target, ast.Name) for target in node.targets)
-            ast.literal_eval(node.value)
-        elif isinstance(node, ast.AnnAssign):
-            assert isinstance(node.target, ast.Name)
-            assert node.value is not None
+            top_level_assignments.update(target.id for target in node.targets)
             ast.literal_eval(node.value)
         elif isinstance(node, ast.FunctionDef):
+            top_level_functions.append(node.name)
+            assert node.name in TASK3_FUNCTION_SIGNATURES
             assert node.decorator_list == []
             assert node.args.defaults == []
             assert all(default is None for default in node.args.kw_defaults)
+            assert node.args.posonlyargs == []
+            assert node.args.vararg is None
+            assert node.args.kwonlyargs == []
+            assert node.args.kwarg is None
+            assert [argument.arg for argument in node.args.args] == [
+                TASK3_FUNCTION_SIGNATURES[node.name]
+            ]
 
-    top_level_functions = {
-        node.name for node in tree.body if isinstance(node, ast.FunctionDef)
-    }
-    assert {
-        "canonical_json_bytes_v1",
-        "canonical_sha_v1",
-        "strict_json_loads_v1",
-    }.issubset(top_level_functions)
-    assert top_level_functions.isdisjoint(FUTURE_TASK_SYMBOLS)
+    assert top_level_assignments == {"B7_V91_PURE_REPLAY_PROJECTION_SHA256"}
+    assert top_level_functions == list(TASK3_FUNCTION_SIGNATURES)
+    assert set(top_level_functions).isdisjoint(FUTURE_TASK_SYMBOLS)
 
     for node in ast.walk(tree):
+        assert not isinstance(node, (ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             assert node.func.id not in FORBIDDEN_CALL_NAMES
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             assert _resolved_attribute_root(node.func) not in FORBIDDEN_MODULE_ROOTS
+        if isinstance(node, ast.arg):
+            lowered = node.arg.casefold()
+            assert "authority" not in lowered
+            assert "callback" not in lowered
+            assert "callable" not in lowered
+
+
+def test_core_source_has_exact_task3_symbols_imports_and_signatures() -> None:
+    assert CORE_PATH.is_file(), "B7 pure replay core has not been created"
+    _assert_core_source_contract(CORE_PATH.read_text(encoding="utf-8"))
+
+
+def test_core_runtime_namespace_has_exact_task3_public_symbols() -> None:
+    core = _core_module()
+    import_symbols = {"annotations", "hashlib", "json"}
+    observed = {
+        name
+        for name in vars(core)
+        if not name.startswith("__") and name not in import_symbols
+    }
+
+    assert observed == TASK3_PUBLIC_SYMBOLS
+
+
+def test_static_contract_rejects_extra_helper_callback_and_capability_imports() -> None:
+    source = CORE_PATH.read_text(encoding="utf-8")
+    attacks = (
+        source + "\ndef _extra_callback_helper(value):\n    return value\n",
+        source.replace(
+            "def canonical_json_bytes_v1(value: object)",
+            "def canonical_json_bytes_v1(value: object, callback=None)",
+            1,
+        ),
+        source.replace("import json", "import json\nimport time", 1),
+        source.replace("import json", "import json\nimport random", 1),
+        source.replace("import json", "import json\nimport os", 1),
+    )
+
+    for attacked_source in attacks:
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_core_source_contract(attacked_source)
 
 
 def test_projection_literal_recomputes_from_the_pinned_registry() -> None:
