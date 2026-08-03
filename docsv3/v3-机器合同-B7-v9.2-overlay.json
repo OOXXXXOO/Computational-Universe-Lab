@@ -1,0 +1,568 @@
+{
+  "registry_schema_version": "experimental.v3m0.b7.v9.2-machine-contract-overlay.v1",
+  "base_contract": {
+    "path": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "registry_schema_version": "experimental.v3m0.b7.v9.1-machine-contract-registry.v1",
+    "raw_sha256": "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72"
+  },
+  "overlay_algorithm": {
+    "algorithm": "VERIFY_EXACT_V91_RAW_THEN_APPLY_ORDERED_V92_LAB_OVERLAY",
+    "ordered_digest_algorithm": "recursively-freeze-mappings-as-insertion-order-tuples-then-json-dumps-ensure_ascii-false-separators-comma-colon-and-sha256",
+    "unlisted_v91_mutation_allowed": false,
+    "ordered_operations": [
+      {
+        "json_pointer": "/lab_contract/exact_records/B7LabEnvironmentManifestV2",
+        "operation": "ADD_ABSENT",
+        "replacement_ref": "/record_additions/B7LabEnvironmentManifestV2"
+      },
+      {
+        "json_pointer": "/lab_contract/exact_records/B7LabCorpusFixtureV2",
+        "operation": "ADD_ABSENT",
+        "replacement_ref": "/record_additions/B7LabCorpusFixtureV2"
+      },
+      {
+        "json_pointer": "/lab_contract/exact_records/B7LabD0ComparisonV1",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "5dd3f4782649907d20980e1228819b86f00a28cc85fc82c903262e10c185c1b1",
+        "replacement_ref": "/record_replacements/B7LabD0ComparisonV1"
+      },
+      {
+        "json_pointer": "/lab_contract/exact_records/B7LabD1ComparisonV1",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "0f74ae348f1ef603b4d730b83ab9fb782c525f738482fff94448de0a58194e1b",
+        "replacement_ref": "/record_replacements/B7LabD1ComparisonV1"
+      },
+      {
+        "json_pointer": "/lab_contract/validator_contracts/validators",
+        "operation": "APPEND_EXACT_LENGTH",
+        "expected_prior_length": 32,
+        "replacement_ref": "/validator_additions/validate_environment_manifest_v2"
+      },
+      {
+        "json_pointer": "/lab_contract/validator_contracts/validators",
+        "operation": "APPEND_EXACT_LENGTH",
+        "expected_prior_length": 33,
+        "replacement_ref": "/validator_additions/validate_corpus_fixture_v2"
+      },
+      {
+        "json_pointer": "/lab_contract/corpus_fixture_contract",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "774115a3a67691f172e112cce45a973fe2b18375b5eb956dbcbab6817c47c0de",
+        "replacement_ref": "/contract_replacements/corpus_fixture_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/validator_contracts/validators/22",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "75e23c0a3ccd1890e52413d866be4ea8fa3ce9eb22f2efee7cb4b5d78603a56d",
+        "replacement_ref": "/validator_replacements/validate_d0_comparison_v1"
+      },
+      {
+        "json_pointer": "/lab_contract/validator_contracts/validators/25",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "d86adc9b133430cc6994a3558eb7638445c0b7a62881d8a57d36cdc353dfe449",
+        "replacement_ref": "/validator_replacements/validate_d1_comparison_v1"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_protocol_registry",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "d3b586f89c7495cc30012924220f01d132132d1c1e4d2e085d03be60c4498c6d",
+        "replacement_ref": "/contract_replacements/reviewer_protocol_registry"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_replay_materialization_contract",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "b9d40ef83f4ed39279e7969d273455403c8ba6442c8fa436ad7b55c02b9d3018",
+        "replacement_ref": "/contract_replacements/reviewer_replay_materialization_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_executable_source_origin_contract",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "cb93d6840fbb159e0da25913412f6630231204af0da8743713ee5459e243e95c",
+        "replacement_ref": "/contract_replacements/reviewer_executable_source_origin_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_process_totalization_contract",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "1a3dfe12a15d57bf230e1e058c58558dd251b567338716ed5ef3adfc96ccfbae",
+        "replacement_ref": "/contract_replacements/reviewer_process_totalization_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/reviewer_receipt_failure_contract",
+        "operation": "PATCH_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "74273de381a6de70bc28e5f33c486fa9fb82d04239c3d93573e985fc2147a296",
+        "replacement_ref": "/contract_replacements/reviewer_receipt_failure_contract"
+      },
+      {
+        "json_pointer": "/lab_contract/validator_contracts/validators/28",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "96fc06d06d6d2118e3a85c2bd39a57349039c5a045655ea306a003b8c4b6e953",
+        "replacement_ref": "/validator_replacements/validate_reviewer_receipt_v1"
+      },
+      {
+        "json_pointer": "/lab_contract/global_invariants",
+        "operation": "REPLACE_EXACT_ORDERED_SHA256",
+        "expected_prior_value_ordered_sha256": "8aec0e8b6b4130aa3317b0e9c13a9f47f9761204ee5d7bd5b50caf2770ce7dd9",
+        "replacement_ref": "/contract_replacements/global_invariants"
+      }
+    ]
+  },
+  "record_additions": {
+    "B7LabEnvironmentManifestV2": {
+      "schema_id": "experimental.v3m0.b7.environment-manifest.v2",
+      "canonical_owner": "experiments.v3m0_b7_schema_lab.common",
+      "field_specs": [
+        {"name": "environment_schema_version", "wire_type": "Literal[experimental.v3m0.b7.environment-manifest.v2]", "presence": "required", "nested_record": null},
+        {"name": "python_implementation", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "python_version", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "python_invocation_path", "wire_type": "absolute-normalized-path", "presence": "required", "nested_record": null},
+        {"name": "python_executable_realpath", "wire_type": "absolute-normalized-path", "presence": "required", "nested_record": null},
+        {"name": "python_executable_raw_sha256", "wire_type": "sha256", "presence": "required", "nested_record": null},
+        {"name": "python_invocation_identity_sha", "wire_type": "sha256", "presence": "required", "nested_record": null},
+        {"name": "python_venv_prefix", "wire_type": "absolute-normalized-path", "presence": "required", "nested_record": null},
+        {"name": "python_pyvenv_cfg_path", "wire_type": "absolute-normalized-path", "presence": "required", "nested_record": null},
+        {"name": "python_pyvenv_cfg_raw_sha256", "wire_type": "sha256", "presence": "required", "nested_record": null},
+        {"name": "numpy_version", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "scipy_version", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "platform_system", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "platform_release", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "platform_machine", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "numpy_float64_dtype_str", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "numpy_float64_itemsize", "wire_type": "Literal[8]", "presence": "required", "nested_record": null},
+        {"name": "byteorder", "wire_type": "Literal[little,big]", "presence": "required", "nested_record": null},
+        {"name": "python_hash_seed", "wire_type": "str", "presence": "required", "nested_record": null},
+        {"name": "blas_thread_settings", "wire_type": "tuple[tuple[str,str],...;exact=5]", "presence": "required", "nested_record": null},
+        {"name": "threadpool_info", "wire_type": "canonical-json-array", "presence": "required", "nested_record": null},
+        {"name": "fresh_process_per_capture", "wire_type": "Literal[true]", "presence": "required", "nested_record": null},
+        {"name": "environment_sha", "wire_type": "sha256", "presence": "required", "nested_record": null}
+      ],
+      "record_invariants": [
+        "python_invocation_path is the normalized argv0 owner and may be a symlink while python_executable_realpath is the distinct resolved regular-file target owner",
+        "python_invocation_identity_sha recomputes by python_invocation_identity_contract and environment_sha removes only itself so both invocation and target identities enter the self root",
+        "the nearest pyvenv.cfg path, raw SHA and venv prefix recompute and the bounded child import probe exactly matches all version, platform, dtype, byteorder and threadpool fields",
+        "python_hash_seed is exact string 0, the five BLAS thread values are exact string 1, fresh_process_per_capture is true, and all D0, D1 and reviewer uses share one exact environment body"
+      ]
+    },
+    "B7LabCorpusFixtureV2": {
+      "schema_id": "experimental.v3m0.b7.corpus-fixture.v2",
+      "canonical_owner": "experiments.v3m0_b7_schema_lab.common",
+      "field_specs": [
+        {"name": "fixture_schema_version", "wire_type": "Literal[experimental.v3m0.b7.corpus-fixture.v2]", "presence": "required", "nested_record": null},
+        {"name": "corpus_spec", "wire_type": "B7LabCorpusSpecV1", "presence": "required", "nested_record": "B7LabCorpusSpecV1"},
+        {"name": "mutation_universe", "wire_type": "B7LabMutationUniverseV1", "presence": "required", "nested_record": "B7LabMutationUniverseV1"},
+        {"name": "metric_spec", "wire_type": "B7LabMetricSpecV1", "presence": "required", "nested_record": "B7LabMetricSpecV1"},
+        {"name": "environment_manifest", "wire_type": "B7LabEnvironmentManifestV2", "presence": "required", "nested_record": "B7LabEnvironmentManifestV2"},
+        {"name": "synthetic_graph_manifest", "wire_type": "B7LabSyntheticGraphManifestV1", "presence": "required", "nested_record": "B7LabSyntheticGraphManifestV1"},
+        {"name": "ordered_d0_transcripts", "wire_type": "tuple[NormalizedB7ExecutionTranscriptV1;exact=7]", "presence": "required", "nested_record": "NormalizedB7ExecutionTranscriptV1"},
+        {"name": "fixture_sha", "wire_type": "sha256", "presence": "required", "nested_record": null}
+      ],
+      "record_invariants": [
+        "validate_corpus_fixture_v2 must accept; fixture_sha equals project canonical_sha after removing only fixture_sha and therefore covers the complete environment and synthetic graph bodies"
+      ]
+    }
+  },
+  "record_replacements": {
+    "B7LabD0ComparisonV1": {
+      "relative_patches": [
+        {"relative_pointer": "/field_specs/8/wire_type", "operation": "REPLACE_EXACT", "expected_prior_value": "B7LabEnvironmentManifestV1", "replacement_value": "B7LabEnvironmentManifestV2"},
+        {"relative_pointer": "/field_specs/8/nested_record", "operation": "REPLACE_EXACT", "expected_prior_value": "B7LabEnvironmentManifestV1", "replacement_value": "B7LabEnvironmentManifestV2"}
+      ],
+      "result_ordered_sha256": "97a95ade0cb62291cbcc5bd429f65e51aba4a1b4d96d5ec41faf0ad9c8ddd9db"
+    },
+    "B7LabD1ComparisonV1": {
+      "relative_patches": [
+        {"relative_pointer": "/field_specs/13/wire_type", "operation": "REPLACE_EXACT", "expected_prior_value": "B7LabEnvironmentManifestV1", "replacement_value": "B7LabEnvironmentManifestV2"},
+        {"relative_pointer": "/field_specs/13/nested_record", "operation": "REPLACE_EXACT", "expected_prior_value": "B7LabEnvironmentManifestV1", "replacement_value": "B7LabEnvironmentManifestV2"}
+      ],
+      "result_ordered_sha256": "25386f082a634fe626dbd186f747b3a1afb2d4a26a055cfc05750faefe4fec6b"
+    }
+  },
+  "validator_additions": {
+    "validate_environment_manifest_v2": {
+      "validator_id": "validate_environment_manifest_v2",
+      "implementation_symbol": "validate_environment_manifest_v2",
+      "exact_conditions": [
+        "unknown-fields-reject-and-field-order-exactly-equals-B7LabEnvironmentManifestV2",
+        "python_invocation_path-and-python_executable_realpath-are-absolute-lexically-normalized-and-distinct-roles;invocation-may-be-symlink-and-resolves-exactly-to-target",
+        "python-invocation-lstat-chain-nearest-pyvenv-config-venv-prefix-and-target-raw-SHA-recompute-python_invocation_identity_sha-by-python_invocation_identity_contract",
+        "target-raw-SHA-is-read-through-one-open-O_NOFOLLOW-regular-file-descriptor-with-stable-before-after-fstat-and-path-identity",
+        "bounded-sanitized-python-s-import-probe-through-python_invocation_path-strict-decodes-one-canonical-report-and-all-reported-version-platform-dtype-byteorder-threadpool-executable-realpath-and-venv-prefix-fields-equal-the-manifest",
+        "python_hash_seed-thread-settings-fresh-process-and-environment-self-hash-recompute-exactly"
+      ]
+    },
+    "validate_corpus_fixture_v2": {
+      "validator_id": "validate_corpus_fixture_v2",
+      "implementation_symbol": "validate_corpus_fixture_v2",
+      "exact_conditions": [
+        "unknown-fields-reject-and-field-order-exactly-equals-B7LabCorpusFixtureV2",
+        "corpus-spec-mutation-universe-metric-spec-and-environment-v2-strict-validate-and-all-cross-source-self-roots-recompute",
+        "synthetic-graph-manifest-strict-validates-exactly-once-before-any-transcript-and-its-complete-canonical-body-is-the-only-graph-argument-for-every-graph-dependent-nested-validator",
+        "ordered-D0-transcript-case-ids-equal-case_contracts-order-and-each-transcript-corpus_spec_sha-and-environment_manifest_sha-equal-embedded-roots",
+        "all-seven-transcripts-strict-validate-provenance-case-presence-callback-leaf-prefix-self-hash-and-every-graph-dependent-run-spec-and-present-response-body-against-the-single-fixture-graph",
+        "fixture_sha-equals-project-canonical-sha-after-removing-only-fixture_sha-and-therefore-includes-synthetic_graph_manifest"
+      ]
+    }
+  },
+  "validator_replacements": {
+    "validate_d0_comparison_v1": {
+      "validator_id": "validate_d0_comparison_v1",
+      "implementation_symbol": "validate_d0_comparison_v1",
+      "exact_conditions": [
+        "corpus-fixture-file-raw-sha-equals-corpus_fixture_raw_sha256-and-parsed-body-validates-validate_corpus_fixture_v2",
+        "top-level-corpus_spec_sha-mutation_universe_sha-metric_spec_sha-and-environment_manifest-v2-exactly-equal-validated-fixture-bodies-and-self-hashes",
+        "validated-fixture-contains-the-unique-strict-synthetic-graph-used-by-all-seven-D0-source-transcripts",
+        "top-level-common_source_sha256-and-compare_source_sha256-equal-validated-fixture-metric-spec-and-raw-source-bytes-at-common_commit_sha",
+        "ordered-route-result-ids-equal-route_order",
+        "each-route-result-validates-validate_d0_route_result_v1",
+        "each-route-manifest-common-commit-common-source-compare-source-corpus-mutation-and-metric-roots-exactly-equal-D0-top-level-fields",
+        "surviving_route_ids-equal-stable-filter-route_order-by-survives_d0",
+        "decision_payload_sha-validates-validate_d0_decision_payload_projection_v1",
+        "d0_result_sha-equals-canonical_sha-remove-only-d0_result_sha"
+      ]
+    },
+    "validate_d1_comparison_v1": {
+      "validator_id": "validate_d1_comparison_v1",
+      "implementation_symbol": "validate_d1_comparison_v1",
+      "exact_conditions": [
+        "embedded-D0-raw-self-decision-roots-exactly-match-input-D0",
+        "common-commit-common-source-compare-source-corpus-fixture-raw-corpus-spec-mutation-universe-metric-spec-and-environment-v2-fields-exactly-equal-D0-and-the-validated-corpus-fixture-v2",
+        "leaf_provider_source_sha256-equals-raw-sha256-of-neutral_leaf_provider_contract.source_path-at-common_commit_sha-and-E",
+        "synthetic-graph-manifest-validates-validate_synthetic_graph_manifest_v1-and-its-canonical-bytes-exactly-equal-validated-fixture-synthetic-graph-manifest-canonical-bytes;new-reordered-or-re-signed-graph-reject",
+        "all-21-source-transcript-provenance-and-response-run-spec-bodies-validate-synthetic_graph_contract.transcript_lineage_rule-against-that-exact-fixture-graph",
+        "three-transcript-roots-and-three-leaf-roots-recompute-in-capture-order",
+        "ordered-route-result-ids-equal-D0-surviving_route_ids",
+        "each-route-result-validates-validate_d1_route_result_v1",
+        "each-D1-route-manifest-is-byte-for-byte-the-same-complete-body-as-the-corresponding-D0-route-manifest",
+        "surviving_route_ids-equal-stable-filter-D0-survivor-order-by-survives_d1",
+        "minimum_metric_vector-is-null-iff-no-D1-survivor-else-exact-lexicographic-minimum-under-metric_order",
+        "tie_detected-iff-at-least-two-D1-survivors-have-minimum_metric_vector",
+        "provisional_winner-is-nonnull-iff-exactly-one-D1-survivor-has-minimum_metric_vector-and-equals-that-route-id",
+        "decision_payload_sha-validates-validate_d1_decision_payload_projection_v1",
+        "d1_result_sha-equals-canonical_sha-remove-only-d1_result_sha"
+      ]
+    },
+    "validate_reviewer_receipt_v1": {
+      "validator_id": "validate_reviewer_receipt_v1",
+      "implementation_symbol": "validate_reviewer_receipt_v1",
+      "exact_conditions": [
+        "reviewed_lab_evidence_commit_sha-equals-E",
+        "review-role-protocol-command-and-source-fields-equal-v9.2-reviewer_protocol_registry-entry-and-reviewer_replay_materialization_contract",
+        "reviewer-child-source-closure-validates-validate_reviewer_child_static_surface_v1-before-Popen-iff-executable-source-origin-precheck-passed-else-child-is-not-spawned",
+        "reviewer-executable-source-origin-total-observation-validates-validate_reviewer_executable_source_origin_v1-for-both-pass-and-fail-and-joins-all-three-receipt-source-closure-fields",
+        "replay_input_root_sha-recomputes-from-reviewer_replay_materialization_contract.replay_input_root_projection",
+        "review-environment-total-observation-fields-follow-reviewer_receipt_failure_contract.environment_observation_rule-and-ACCEPT-only-requires-pass",
+        "python-invocation-chain-resolved-target-same-fd-raw-SHA-pyvenv-identity-and-bounded-import-probe-precheck-are-totalized-into-environment-observation-and-failure-still-produces-valid-REJECT-receipt",
+        "full-precheck-and-immediate-same-identity-recheck-are-adjacent-to-path-based-Popen-under-controlled-host-assumption-and-receipt-must-not-claim-descriptor-bound-or-adversarial-same-byte-exec",
+        "replay-process-cwd-import-root-source-and-required-input-observations-are-total;ACCEPT-requires-safe-read-only-immutable-export-of-E-with-both-v9.1-base-and-v9.2-overlay-and-never-current-worktree",
+        "fresh-process-spawn-timeout-signal-exit-and-cleanup-are-totalized-by-reviewer_process_totalization_contract-and-never-self-reported",
+        "stdout-and-stderr-stream-SHAs-recompute-for-every-termination-kind",
+        "optional-replay-output-presence-and-values-exactly-follow-reviewer_receipt_failure_contract.output_presence_rule",
+        "when-a-strict-report-is-decoded-its-observed-reviewer-role-review-protocol-id-lab-evidence-commit-sha-and-replay-input-root-sha-are-copied-exactly-into-the-four-receipt-observed-report-identity-fields",
+        "ACCEPT-requires-observed-report-role-protocol-and-E-equal-receipt-role-protocol-and-reviewed-E-and-observed-report-input-root-equal-replay_input_root_sha;each-mismatch-emits-its-frozen-identity-or-input-root-reason",
+        "reviewed-D0-D1-raw-and-self-roots-identify-E-blobs-but-only-decision-roots-are-fresh-replayed-and-compared",
+        "reviewed-corpus-mutation-metric-environment-common-compare-route-and-expected-executable-source-origin-roots-match-validated-D0-D1-and-declared-origins;observed-precheck-values-may-differ-only-with-exact-REJECT-reasons",
+        "when-nonnull-observed-survivors-and-provisional-winner-are-compared-exactly-to-D1-and-mismatches-produce-frozen-reasons",
+        "reason_codes-are-the-exact-stable-recomputed-subset-of-reviewer_receipt_failure_contract.reason_code_order",
+        "verdict-exactly-follows-reviewer_receipt_failure_contract.verdict_rule",
+        "receipt_sha-equals-project-canonical-sha-after-removing-only-receipt_sha"
+      ]
+    }
+  },
+  "contract_replacements": {
+    "corpus_fixture_contract": {
+      "path": "tests/fixtures/v3m0_b7_schema_lab_corpus.json",
+      "record": "B7LabCorpusFixtureV2",
+      "validator_id": "validate_corpus_fixture_v2",
+      "root_test_path": "tests/test_v3m0_b7_schema_lab_common.py",
+      "raw_sha_freeze_rule": "root-test-literal-is-filled-once-after-common-compare-graph-and-environment-v2-freeze-and-must-equal-sha256-of-exact-fixture-file-bytes-before-JSON-parse",
+      "d0_capture_id": "D0_FROZEN_CAPTURE",
+      "ordered_transcript_case_ids_source": "case_contracts.case_id-in-order",
+      "fixture_self_hash_rule": "project-canonical-sha-after-removing-only-fixture_sha-including-complete-synthetic_graph_manifest",
+      "environment_binding": "fixture-environment_manifest-v2-is-the-only-D0-environment-and-D1-and-reviewers-must-reuse-the-exact-environment_sha-and-body",
+      "synthetic_graph_binding": "fixture-synthetic_graph_manifest-is-the-only-D0-and-D1-graph-body-and-D1-canonical-bytes-must-equal-it-exactly",
+      "graph_validation_count_per_fixture": 1,
+      "validation_order": [
+        "strict-top-level-B7LabCorpusFixtureV2",
+        "validate-corpus-spec",
+        "validate-mutation-universe",
+        "validate-metric-spec",
+        "validate-environment-manifest-v2",
+        "validate-synthetic-graph-manifest-v1-exactly-once",
+        "validate-seven-transcripts-in-case-contract-order-against-that-graph",
+        "validate-cross-roots-and-fixture-self-hash"
+      ],
+      "transcript_graph_dependent_validator_calls": [
+        "validate_response_run_spec_fixture_v1(transcript.response_run_spec_fixture,transcript.provenance_fixture,fixture.synthetic_graph_manifest)",
+        "validate_source_readout_response_raw_v1(transcript.actual_completed_response,actual,transcript.response_run_spec_fixture,transcript.provenance_fixture,fixture.synthetic_graph_manifest)-iff-present",
+        "validate_source_readout_response_raw_v1(transcript.matched_ablated_completed_response,matched_ablated,transcript.response_run_spec_fixture,transcript.provenance_fixture,fixture.synthetic_graph_manifest)-iff-present"
+      ]
+    },
+    "reviewer_protocol_registry": [
+      {
+        "reviewer_role": "CORPUS_REPLAY",
+        "review_protocol_id": "v3m0-b7-corpus-replay-v2",
+        "replay_source_path": "experiments/v3m0_b7_schema_lab/compare.py",
+        "replay_command_argv_template": ["{FROZEN_PYTHON_INVOCATION_PATH}", "-s", "-m", "experiments.v3m0_b7_schema_lab.compare", "review-corpus", "--evidence-commit", "{E}", "--reviewed-executable-source-closure-sha", "{EXECUTABLE_SOURCE_CLOSURE_SHA}", "--emit-replay-report"],
+        "fresh_process_protocol_id": "fresh-python-s-immutable-E-venv-invocation-v2"
+      },
+      {
+        "reviewer_role": "METRIC_REPLAY",
+        "review_protocol_id": "v3m0-b7-metric-replay-v2",
+        "replay_source_path": "experiments/v3m0_b7_schema_lab/compare.py",
+        "replay_command_argv_template": ["{FROZEN_PYTHON_INVOCATION_PATH}", "-s", "-m", "experiments.v3m0_b7_schema_lab.compare", "review-metric", "--evidence-commit", "{E}", "--reviewed-executable-source-closure-sha", "{EXECUTABLE_SOURCE_CLOSURE_SHA}", "--emit-replay-report"],
+        "fresh_process_protocol_id": "fresh-python-s-immutable-E-venv-invocation-v2"
+      }
+    ],
+    "reviewer_replay_materialization_contract": {
+      "python_invocation": {
+        "placeholder": "{FROZEN_PYTHON_INVOCATION_PATH}",
+        "replacement_source": "reviewed-D1-environment_manifest.python_invocation_path",
+        "resolved_target_source": "reviewed-D1-environment_manifest.python_executable_realpath",
+        "required_target_raw_sha_source": "reviewed-D1-environment_manifest.python_executable_raw_sha256",
+        "required_invocation_identity_sha_source": "reviewed-D1-environment_manifest.python_invocation_identity_sha",
+        "argv0_rule": "use-normalized-invocation-path-never-resolved-target-realpath"
+      },
+      "evidence_commit": {
+        "placeholder": "{E}",
+        "replacement_source": "receipt.reviewed_lab_evidence_commit_sha",
+        "materialization": "full-lowercase-40hex-and-git-cat-file-type-commit"
+      },
+      "executable_source_closure": {
+        "placeholder": "{EXECUTABLE_SOURCE_CLOSURE_SHA}",
+        "replacement_source": "receipt.reviewed_executable_source_closure_sha",
+        "materialization": "must-first-recompute-as-reviewer_executable_source_origin_contract.expected_source_closure_root_algorithm;exact-lowercase-sha256;transported-to-child-only-by-this-literal-argv-pair"
+      },
+      "argv_rule": "replace-exactly-the-three-declared-placeholder-kinds-and-their-single-occurrences-in-the-role-template;unknown-or-unreplaced-placeholder-reject;argv0-is-invocation-path;result-must-exactly-equal-replay_command_argv",
+      "sanitized_environment": {
+        "clear_all_caller_environment_first": true,
+        "literal_values": {
+          "PYTHONHASHSEED": "0",
+          "PYTHONNOUSERSITE": "1",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONUTF8": "1",
+          "OPENBLAS_NUM_THREADS": "1",
+          "OMP_NUM_THREADS": "1",
+          "MKL_NUM_THREADS": "1",
+          "VECLIB_MAXIMUM_THREADS": "1",
+          "NUMEXPR_NUM_THREADS": "1",
+          "LANG": "C",
+          "LC_ALL": "C"
+        }
+      },
+      "python_environment_import_probe": {
+        "program_utf8": "import json,os,platform,sys;import numpy as np;import scipy;from threadpoolctl import threadpool_info;payload={'python_implementation':platform.python_implementation(),'python_version':platform.python_version(),'python_invocation_path':os.path.normpath(os.path.abspath(sys.executable)),'python_executable_realpath':os.path.realpath(sys.executable),'python_venv_prefix':os.path.normpath(os.path.abspath(sys.prefix)),'numpy_version':str(np.__version__),'scipy_version':str(scipy.__version__),'platform_system':platform.system(),'platform_release':platform.release(),'platform_machine':platform.machine(),'numpy_float64_dtype_str':np.dtype(np.float64).str,'numpy_float64_itemsize':np.dtype(np.float64).itemsize,'byteorder':sys.byteorder,'threadpool_info':threadpool_info()};sys.stdout.buffer.write(json.dumps(payload,allow_nan=False,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')+b'\\n')",
+        "argv_prefix_template": ["{FROZEN_PYTHON_INVOCATION_PATH}", "-s", "-c"],
+        "argv_final_item_source": "this-object.program_utf8",
+        "argv_rule": "exact-four-string-tuple-of-argv_prefix_template-followed-by-the-exact-program_utf8-field-value-no-other-placeholder-or-argument",
+        "required_imports": ["numpy", "scipy", "threadpoolctl"],
+        "timeout_seconds": 30,
+        "stdout_hard_cap_bytes": 262144,
+        "stderr_hard_cap_bytes": 262144,
+        "process_rule": "same-sanitized-environment-shell-false-bounded-nonblocking-pipes-and-immediate-identity-recheck-adjacent-to-probe-Popen;any-nonzero-signal-timeout-overflow-noncanonical-or-stderr-output-fails-precheck",
+        "result_join_rule": "strict-one-canonical-json-object-plus-one-LF-and-all-version-platform-dtype-byteorder-threadpool-and-venv-fields-equal-B7LabEnvironmentManifestV2"
+      },
+      "immutable_source_export": {
+        "source_commit": "E",
+        "git_object_protocol": "git_object_handoff_contract",
+        "included_path_order": [
+          "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+          "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+          "docsv3/v3-机器合同-B7-v9.1-registry.json",
+          "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+          "experiments/v3m0_b7_schema_lab",
+          "rulespace_v3",
+          "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+        ],
+        "export_method": "trusted-git-archive-E-double-dash-exact-included_path_order-to-fresh-mkdtemp",
+        "tar_entry_policy": "only-relative-normalized-regular-file-or-directory;reject-symlink-hardlink-device-fifo-absolute-dotdot-duplicate-path",
+        "git_tree_mode_prevalidation": "before-archive-use-trusted-git-ls-tree-r-z-E-double-dash-each-included-path;every-exported-leaf-must-be-type-blob-and-mode-100644-or-100755;symlink-160000-and-all-other-modes-reject",
+        "tar_permission_bits_authoritative": false,
+        "tar_mode_policy": "TarInfo-permission-bits-are-not-compared-to-Git-tree-modes;only-entry-type-and-safe-normalized-path-are-validated-before-extraction",
+        "post_extract_permission_policy": "regular-files-0444-or-0555-by-original-executable-bit;directories-0555;no-process-write-inside-export",
+        "required_input_paths": {
+          "d0": "data/results/experimental/v3m0_b7_schema_lab/d0_comparison.json",
+          "d1": "data/results/experimental/v3m0_b7_schema_lab/d1_comparison.json",
+          "registry_base": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+          "registry_overlay": "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+          "corpus": "tests/fixtures/v3m0_b7_schema_lab_corpus.json"
+        },
+        "input_blob_rule": "each-required-input-path-is-read-only-from-export-root-and-its-bytes-exactly-equal-E-colon-path-before-strict-parse;registry-base-and-overlay-must-materialize-the-exact-v9.2-effective-lab-contract",
+        "working_directory": "fresh-export-root",
+        "python_import_root": "fresh-export-root",
+        "current-worktree-or-PYTHONPATH-import-allowed": false,
+        "required_absent_export_paths": ["experiments/__init__.py"],
+        "namespace_package_rule": "experiments-is-a-single-portion-PEP-420-namespace-package-from-fresh-export-root-only;root-initializer-is-neither-exported-nor-executed",
+        "cleanup": "after-bounded-parent-fd-close-follow-reviewer_process_totalization_contract.cleanup_totalization;chmod-only-the-exact-mkdtemp-tree-back-to-owner-writable-with-no-symlink-follow;delete-only-that-validated-mkdtemp;never-wait-unbounded-for-child-or-pipe-EOF"
+      },
+      "replay_input_root_projection": {
+        "algorithm": "canonical_sha-of-new-object-with-exact-fields-in-order",
+        "field_order": ["reviewer_role", "review_protocol_id", "reviewed_lab_evidence_commit_sha", "review_environment_manifest_sha", "reviewed_d0_result_raw_sha256", "reviewed_d0_result_sha", "reviewed_d0_decision_payload_sha", "reviewed_d1_result_raw_sha256", "reviewed_d1_result_sha", "reviewed_d1_decision_payload_sha", "reviewed_common_commit_sha", "reviewed_route_commit_shas", "reviewed_corpus_spec_sha", "reviewed_mutation_universe_sha", "reviewed_metric_spec_sha", "reviewed_compare_source_sha256", "reviewed_executable_source_closure_sha", "replay_source_sha256"]
+      }
+    },
+    "reviewer_executable_source_origin_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/common_origin_exact_blob_paths",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": ["docsv3/v3-机器合同-B7-v9.1-registry.json", "experiments/v3m0_b7_schema_lab/__init__.py", "experiments/v3m0_b7_schema_lab/common.py", "experiments/v3m0_b7_schema_lab/compare.py", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"],
+          "replacement_value": ["docsv3/v3-机器合同-B7-v9.1-registry.json", "docsv3/v3-机器合同-B7-v9.2-overlay.json", "experiments/v3m0_b7_schema_lab/__init__.py", "experiments/v3m0_b7_schema_lab/common.py", "experiments/v3m0_b7_schema_lab/compare.py", "tests/fixtures/v3m0_b7_schema_lab_corpus.json"]
+        }
+      ],
+      "result_ordered_sha256": "903a913925aa46c15879d4b6c4d82127db7985c414e7008750210f97b6840a2e"
+    },
+    "reviewer_process_totalization_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/precheck_failure_protocol",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": "complete-Python-environment-Git-object-export-executable-source-origin-closure-input-argv-and-cwd-prechecks-before-Popen;on-any-failure-do-not-create-child;termination-kind-PRECHECK_FAILED;exit-and-signal-null;stdout-and-stderr-exact-empty-bytes",
+          "replacement_value": "complete-environment-v2-invocation-chain-target-same-fd-raw-SHA-pyvenv-import-probe-Git-object-export-executable-source-origin-closure-input-argv-and-cwd-prechecks-before-Popen;on-any-failure-do-not-create-reviewer-child;termination-kind-PRECHECK_FAILED;exit-and-signal-null;stdout-and-stderr-exact-empty-bytes"
+        },
+        {
+          "relative_pointer": "/python_execution_binding_contract",
+          "operation": "ADD_ABSENT",
+          "replacement_value": {
+            "profile_id": "controlled-host-path-recheck-v1",
+            "full_precheck_required": true,
+            "immediate_identity_recheck_required": true,
+            "popen_adjacency_rule": "after-the-final-invocation-chain-target-pyvenv-and-environment-identity-recheck-returns-true-the-next-side-effecting-operation-is-Popen-with-argv0-equal-python_invocation_path",
+            "descriptor_bound_exec": false,
+            "strict_same_byte_adversarial_exec_claim_allowed": false,
+            "controlled_host_assumption": "the-final-recheck-to-kernel-exec-window-runs-on-a-controlled-host-with-no-concurrent-path-mutation-of-invocation-symlink-chain-resolved-target-or-pyvenv-config",
+            "macos_capability_observation": {
+              "scope": "2026-08-03-current-development-host-observation-not-portable-kernel-law",
+              "os_fexecve_available": false,
+              "os_execveat_available": false,
+              "dev_fd_python_exec_observation": "EACCES"
+            },
+            "stronger_security_deployment_prior": {
+              "required_only_for_adversarial_same-byte-claim": true,
+              "current_B7_experiment_gate": false,
+              "requirement": "separately-frozen-descriptor-bound-launcher-with-proven-venv-invocation-semantics-or-an-equivalent-immutable-deployment-profile"
+            }
+          }
+        }
+      ],
+      "result_ordered_sha256": "a496db55a7060738a35cec62f5b3ac126cd95dac9e94292b9967c21984f4df83"
+    },
+    "reviewer_receipt_failure_contract": {
+      "relative_patches": [
+        {
+          "relative_pointer": "/environment_observation_rule",
+          "operation": "REPLACE_EXACT",
+          "expected_prior_value": "review_environment_manifest_sha-is-the-expected-validated-D1-root;observed_review_environment_manifest_sha-is-null-iff-live-manifest-or-frozen-python-precheck-cannot-be-completely-observed;review_environment_precheck_passed-iff-observed-is-nonnull-and-exactly-equals-expected-and-all-python-realpath-mode-and-raw-SHA-predicates-pass",
+          "replacement_value": "review_environment_manifest_sha-is-the-expected-validated-D1-B7LabEnvironmentManifestV2-root;observed_review_environment_manifest_sha-is-null-iff-invocation-chain-target-same-fd-raw-SHA-pyvenv-config-bounded-import-probe-or-live-manifest-cannot-be-completely-observed;review_environment_precheck_passed-iff-observed-is-nonnull-and-exactly-equals-expected-and-all-v9.2-environment-predicates-and-final-identity-recheck-pass"
+        }
+      ],
+      "result_ordered_sha256": "322ceb2911470b70adc457862dfd86cf9cacaf30ce1a596d4c65947b901635fb"
+    },
+    "global_invariants": [
+      "D0 can eliminate routes but cannot name a winner or disposition",
+      "D1 can name only a provisional winner and cannot emit a disposition",
+      "selection review preserves every route result including failed routes",
+      "auxiliary benchmark uses warm-up 5 and repeat 30 and is excluded from every decision payload",
+      "all D1 captures use synthetic selected Fejer order 256 and do not alter WINDOW_UNRESOLVED",
+      "the production handoff tuple is source-review provenance only and never enters V3M0State, runtime artifacts, checkpoint capabilities, or GPU permits",
+      "one complete synthetic graph is frozen before corpus V2 and its exact canonical bytes are reused by D0 and D1",
+      "reviewer argv0 is the frozen Python invocation path while realpath and raw SHA identify its resolved target; neither may substitute for the other",
+      "path identity recheck on the controlled host is not descriptor-bound execution and cannot support an adversarial same-byte execution claim"
+    ]
+  },
+  "python_invocation_identity_contract": {
+    "profile_id": "v3m0-b7-python-venv-invocation-identity-v1",
+    "invocation_path_rule": "absolute-lexically-normalized-existing-path;symlink-allowed;used-as-argv0",
+    "max_symlink_hops": 40,
+    "loop_rule": "duplicate-lstat-device-inode-or-more-than-max_symlink_hops-reject",
+    "resolved_target_rule": "ordered-lstat-readlink-resolution-must-terminate-at-the-recorded-python_executable_realpath-regular-file",
+    "lstat_hop_field_order": ["hop_ordinal", "absolute_normalized_path", "lstat_device", "lstat_inode", "lstat_mode", "lstat_size", "lstat_mtime_ns", "lstat_ctime_ns", "symlink_target_or_null"],
+    "symlink_resolution_rule": "readlink-text-is-recorded-exactly;absolute-target-is-normalized-directly;relative-target-is-resolved-against-current-hop-directory-then-normalized;final-realpath-must-equal-python_executable_realpath",
+    "target_raw_sha_rule": "open-resolved-target-O_RDONLY-O_CLOEXEC-O_NOFOLLOW-O_NONBLOCK;require-regular-and-executable;hash-exact-initial-size-through-the-same-open-file-descriptor;one-extra-byte-growth-check;before-after-fstat-and-final-nofollow-path-stat-identities-equal",
+    "nearest_pyvenv_cfg_rule": "walk-lexical-ancestors-from-directory-of-python_invocation_path-toward-root;first-existing-regular-pyvenv.cfg-is-unique-nearest-config;hash-through-one-O_NOFOLLOW-descriptor;its-parent-is-python_venv_prefix-and-child-probe-sys.prefix-must-equal-it",
+    "identity_projection_field_order": ["python_invocation_path", "ordered_lstat_hops", "python_executable_realpath", "python_executable_raw_sha256", "python_venv_prefix", "python_pyvenv_cfg_path", "python_pyvenv_cfg_raw_sha256"],
+    "identity_sha_rule": "project-canonical-sha-of-one-object-in-identity_projection_field_order",
+    "full_precheck_order": ["normalize-invocation", "resolve-and-lstat-chain", "same-fd-hash-target", "find-and-same-fd-hash-nearest-pyvenv-config", "recompute-invocation-identity-sha", "run-bounded-sanitized-child-import-probe", "reconstruct-and-validate-environment-v2-self-hash"],
+    "immediate_recheck_order": ["invocation-lstat-chain-identity", "resolved-target-identity", "nearest-pyvenv-config-identity-and-raw-SHA", "environment-v2-root", "Popen-next"]
+  },
+  "execution_dag_contract": {
+    "node_order": ["VERIFY_V92_OVERLAY", "FREEZE_SYNTHETIC_GRAPH_MANIFEST", "FREEZE_ENVIRONMENT_MANIFEST_V2", "FREEZE_CORPUS_FIXTURE_V2", "RUN_D0", "RUN_D1_IF_D0_SURVIVORS", "COMMIT_E_IF_LAB_ARTIFACTS_VALIDATE", "MATERIALIZE_REVIEWER_EXPORT_IF_UNIQUE_D1", "RUN_TWO_REVIEWERS"],
+    "ordered_edges": [
+      ["VERIFY_V92_OVERLAY", "FREEZE_SYNTHETIC_GRAPH_MANIFEST"],
+      ["FREEZE_SYNTHETIC_GRAPH_MANIFEST", "FREEZE_CORPUS_FIXTURE_V2"],
+      ["FREEZE_CORPUS_FIXTURE_V2", "RUN_D0"],
+      ["FREEZE_ENVIRONMENT_MANIFEST_V2", "FREEZE_CORPUS_FIXTURE_V2"],
+      ["VERIFY_V92_OVERLAY", "FREEZE_ENVIRONMENT_MANIFEST_V2"],
+      ["RUN_D0", "RUN_D1_IF_D0_SURVIVORS"],
+      ["RUN_D1_IF_D0_SURVIVORS", "COMMIT_E_IF_LAB_ARTIFACTS_VALIDATE"],
+      ["COMMIT_E_IF_LAB_ARTIFACTS_VALIDATE", "MATERIALIZE_REVIEWER_EXPORT_IF_UNIQUE_D1"],
+      ["MATERIALIZE_REVIEWER_EXPORT_IF_UNIQUE_D1", "RUN_TWO_REVIEWERS"]
+    ],
+    "graph_freeze_root": "B7LabSyntheticGraphManifestV1.graph_sha-and-complete-canonical-bytes",
+    "corpus_freeze_root": "raw-sha256-of-fixture-file-plus-B7LabCorpusFixtureV2.fixture_sha",
+    "d1_graph_rule": "D1-must-reuse-canonical-bytes-identical-fixture-synthetic-graph-manifest;new-or-re-signed-graph-reject",
+    "d0_start_rule": "RUN_D0-is-illegal-until-base-and-overlay-raw-roots-environment-v2-graph-and-corpus-v2-raw-self-roots-all-validate",
+    "reviewer_start_rule": "reviewers-are-illegal-until-E-export-binds-both-registry-files-corpus-v2-D0-D1-common-routes-and-source-closure"
+  },
+  "pure_core_projection_reuse_contract": {
+    "source_registry_path": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "source_registry_raw_sha256": "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72",
+    "source_pointer": "/lab_contract/pure_replay_core_contract/registry_literal_projection",
+    "canonical_sha256": "bafbaeb75e890715464c1fff6e6e0cbf1d4f56bb53a3817a9b2d12d2a3c27ff9",
+    "reuse_reason": "v9.2 changes only common-layer corpus-environment-reviewer joins; all eight pure production-body validator semantics and literals remain v9.1",
+    "v92_overlay_fields_enter_pure_projection": false,
+    "core_literal_rewrite_required": false
+  },
+  "static_scanner_reuse_contract": {
+    "source_registry_path": "docsv3/v3-机器合同-B7-v9.1-registry.json",
+    "source_registry_raw_sha256": "222cd47e95de63eaedee41f6ca4b207a0eccceb7a77089aed43a480a77f69d72",
+    "route_forbidden_reachable_calls_exact": ["eval", "exec", "compile", "__import__", "globals", "locals", "getattr"],
+    "reviewer_forbidden_exact_names_exact": ["__import__", "breakpoint", "compile", "eval", "exec", "getattr", "globals", "input", "locals", "open", "print", "vars"],
+    "source_closure_membership_record": {
+      "schema_id": "experimental.v3m0.b7.reviewer-source-closure-membership.v1",
+      "field_specs": [
+        {"name": "role_or_route_id", "wire_type": "Literal[CORPUS_REPLAY,METRIC_REPLAY,A_FLAT,B_PROGRESS,C_UNION]"},
+        {"name": "execution_ordinal", "wire_type": "nonnegative-int"},
+        {"name": "path", "wire_type": "normalized-repository-relative-path"},
+        {"name": "candidate_mode", "wire_type": "Literal[100644,100755]"},
+        {"name": "candidate_blob_oid", "wire_type": "git-sha1"},
+        {"name": "origin_kind", "wire_type": "Literal[COMMON,ROUTE]"},
+        {"name": "origin_commit", "wire_type": "git-sha1"},
+        {"name": "origin_path", "wire_type": "normalized-repository-relative-path"},
+        {"name": "origin_mode", "wire_type": "Literal[100644,100755]"},
+        {"name": "origin_blob_oid", "wire_type": "git-sha1"},
+        {"name": "static_scan_sha", "wire_type": "sha256"}
+      ],
+      "group_order": ["CORPUS_REPLAY", "METRIC_REPLAY", "A_FLAT", "B_PROGRESS", "C_UNION"],
+      "ordinal_rule": "execution_ordinal-is-zero-based-contiguous-within-each-group-and-records-follow-group_order-then-static-executed-module-order",
+      "duplicate_rule": "duplicate-group-ordinal-or-group-path-reject",
+      "path_rule": "candidate-path-and-origin-path-are-normalized-no-empty-dot-dotdot-backslash-or-absolute-repository-relative-paths",
+      "origin_join_rule": "COMMON-membership-origin-is-common_commit_sha;ROUTE-membership-origin-is-the-matching-route_commit_sha;candidate-and-origin-mode-type-OID-bytes-must-follow-reviewer_executable_source_origin_contract"
+    },
+    "expected_root_algorithm": "canonical-sha-of-role-order-then-all-three-route-order-then-expected-executed-module-order-records-in-source_closure_root_record_field_order;candidate_mode-candidate_blob_oid-and-static_scan_sha-use-the-declared-origin-entry-values-and-origin-AST-scan",
+    "observed_root_algorithm": "if-all-E-tree-and-AST-observations-are-readable-canonical-sha-records-in-the-identical-source_closure_root_record_field_order-and-order;candidate_mode-candidate_blob_oid-and-static_scan_sha-use-E-entry-values-and-E-AST-scan-else-null",
+    "v92_algorithm_change": "NONE-v9.2-overlay-enters-common-origin-exact-blob-set-but-not-the-executed-module-membership-sequence",
+    "implementation_extension_or_relaxation_allowed": false
+  },
+  "source_closure_additions": [
+    "docsv3/v3-机器合同-B7-v9.2-overlay.json",
+    "docsv3/v3-勘误-B7-v9.2-corpus-环境与复放威胁边界-2026-08-03.md",
+    "tests/test_v3m0_b7_v92_contracts.py"
+  ],
+  "activation_contract": {
+    "effective_scope": "B7-lab-common-corpus-D0-D1-and-reviewer-materialization-only",
+    "activation_point": "before-first-v3m0-b7-schema-lab-corpus-fixture-or-D0-artifact",
+    "v91_files_modified": false,
+    "v91-corpus-fixture-v1-accepted-for-new-execution": false,
+    "migration_adapter_allowed": false,
+    "implementation_required_before_D0": ["common-v2-records-and-validators", "compare-invocation-precheck-probe-and-adjacent-recheck", "graph-bearing-corpus-fixture-v2", "v9.1-plus-v9.2-reviewer-export"],
+    "typed_effect_of_incomplete_implementation": "PRE-D0-CONTRACT-BLOCKED-NOT-A-SCIENTIFIC-FAIL"
+  },
+  "physical_contract_preservation": {
+    "physical_object_changed": false,
+    "thresholds_changed": false,
+    "route_order_changed": false,
+    "seven_cases_changed": false,
+    "gate_or_metric_order_changed": false,
+    "d1_selected_fejer_order_changed": false,
+    "scientific_status_effect": "NONE-CONTRACT-ERRATUM-ONLY",
+    "gpu_unlock_effect": "NONE"
+  }
+}
