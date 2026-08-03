@@ -7093,6 +7093,630 @@ def validate_route_static_surface_v1(raw_body, route_blob, production_blobs):
     return manifest
 
 
+_REVIEWER_ROLE_ROOTS_V1 = (
+    (
+        "CORPUS_REPLAY",
+        "_review_corpus_replay_cli",
+    ),
+    (
+        "METRIC_REPLAY",
+        "_review_metric_replay_cli",
+    ),
+)
+_REVIEWER_OUTER_ROOTS_V1 = (
+    "precheck_python_invocation_identity_v2",
+    "recheck_python_invocation_identity_v2",
+    "run_python_environment_import_probe_v2",
+    "capture_environment_manifest_v2",
+    "run_frozen_reviewer_process_v2",
+)
+_REVIEWER_OUTER_HELPERS_V1 = (
+    "_require_lower_hex_v1",
+    "build_sanitized_reviewer_environment_v1",
+    "recheck_frozen_python_executable_identity_v1",
+    "_require_normalized_absolute_path_v2",
+    "_stable_regular_file_observation_v2",
+    "_resolve_python_invocation_chain_v2",
+    "_nearest_pyvenv_cfg_v2",
+    "_python_environment_probe_report_is_well_typed_v2",
+    "_empty_process_observation_v1",
+    "_process_observation_v1",
+    "_validate_bounded_process_configuration_v1",
+    "run_bounded_reviewer_process_v1",
+    "experiments.v3m0_b7_schema_lab.common.canonical_json_bytes_v1",
+    "experiments.v3m0_b7_schema_lab.common.canonical_sha_v1",
+    "experiments.v3m0_b7_schema_lab.common.strict_json_loads_v1",
+    "experiments.v3m0_b7_schema_lab.common.validate_environment_manifest_v2",
+    "experiments.v3m0_b7_schema_lab.common.validate_exact_lab_record_v1",
+)
+_REVIEWER_CHILD_FORBIDDEN_OUTER_V1 = (
+    "precheck_python_invocation_identity_v2",
+    "recheck_python_invocation_identity_v2",
+    "run_bounded_reviewer_process_v1",
+    "run_python_environment_import_probe_v2",
+    "capture_environment_manifest_v2",
+    "run_frozen_reviewer_process_v2",
+)
+_REVIEWER_COMMON_IMPORTS_V1 = (
+    "__future__",
+    "ast",
+    "base64",
+    "binascii",
+    "copy",
+    "dataclasses",
+    "difflib",
+    "enum",
+    "hashlib",
+    "json",
+    "math",
+    "numpy",
+    "pathlib",
+    "re",
+    "struct",
+    "typing",
+    "rulespace_v3.b7_replay_core_v1",
+)
+_REVIEWER_COMPARE_BOOTSTRAP_IMPORTS_V1 = (
+    "__future__",
+    "argparse",
+    "hashlib",
+    "json",
+    "pathlib",
+    "sys",
+    "typing",
+    "experiments.v3m0_b7_schema_lab.common",
+)
+_REVIEWER_COMPARE_OUTER_IMPORTS_V1 = (
+    "os",
+    "selectors",
+    "shutil",
+    "signal",
+    "stat",
+    "subprocess",
+    "tarfile",
+    "tempfile",
+    "time",
+)
+_REVIEWER_CORE_IMPORTS_V1 = (
+    "__future__",
+    "base64",
+    "binascii",
+    "dataclasses",
+    "enum",
+    "fractions",
+    "hashlib",
+    "json",
+    "math",
+    "numpy",
+    "re",
+    "scipy.linalg",
+    "struct",
+    "typing",
+)
+_REVIEWER_FORBIDDEN_EXACT_NAMES_V1 = (
+    "__import__",
+    "breakpoint",
+    "compile",
+    "eval",
+    "exec",
+    "getattr",
+    "globals",
+    "input",
+    "locals",
+    "open",
+    "print",
+    "vars",
+)
+_REVIEWER_FORBIDDEN_CALL_PREFIXES_V1 = (
+    "asyncio.create_subprocess",
+    "concurrent.futures.ProcessPoolExecutor",
+    "concurrent.futures.process.",
+    "ctypes.",
+    "multiprocessing.",
+    "os.exec",
+    "os.fork",
+    "os.kill",
+    "os.killpg",
+    "os.posix_spawn",
+    "os.popen",
+    "os.setsid",
+    "os.spawn",
+    "os.system",
+    "posix.",
+    "pty.",
+    "signal.pthread_kill",
+    "signal.raise_signal",
+    "socket.",
+    "subprocess.",
+)
+_REVIEWER_FORBIDDEN_MODULE_ROOTS_V1 = (
+    "_posixsubprocess",
+    "asyncio",
+    "concurrent",
+    "ctypes",
+    "importlib",
+    "multiprocessing",
+    "os",
+    "posix",
+    "pty",
+    "runpy",
+    "socket",
+    "subprocess",
+)
+_REVIEWER_LEGACY_EXPORTS_V1 = (
+    "FINAL_RESULT_EVIDENCE_FIELDS",
+    "BlockStatus",
+    "EvidenceEnvelope",
+    "RequiredBlockReport",
+    "UndefinedReason",
+    "canonical_sha",
+    "evaluate_required_blocks",
+    "validate_evidence_envelope",
+    "validate_evidence_fields",
+)
+_REVIEWER_LEGACY_EXPORT_MODULES_V1 = (
+    "evidence",
+    "contracts",
+    "evidence",
+    "contracts",
+    "contracts",
+    "evidence",
+    "contracts",
+    "evidence",
+    "evidence",
+)
+
+
+def _require_reviewer_git_sha1_v1(value, field):
+    if (
+        type(value) is not str
+        or len(value) != 40
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise TypeError(f"{field} must be an exact lowercase Git SHA-1")
+    return value
+
+
+def _reviewer_top_level_functions_v1(tree, path):
+    functions = [
+        node
+        for node in tree.body
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+    ]
+    names = [node.name for node in functions]
+    if len(names) != len(set(names)):
+        raise ValueError(f"{path} has duplicate top-level function bindings")
+    return functions, {node.name: node for node in functions}
+
+
+def _reviewer_local_call_closure_v1(root, definitions):
+    if root not in definitions:
+        raise ValueError(f"reviewer root {root} is absent")
+    queue = [root]
+    reached = set(queue)
+    edges = []
+    while queue:
+        owner = queue.pop(0)
+        callees = []
+        for node in _ast.walk(definitions[owner]):
+            if (
+                isinstance(node, _ast.Call)
+                and isinstance(node.func, _ast.Name)
+                and node.func.id in definitions
+            ):
+                callees.append(node.func.id)
+        ordered = []
+        for name in callees:
+            if name not in ordered:
+                ordered.append(name)
+            if name not in reached:
+                reached.add(name)
+                queue.append(name)
+        edges.append({"owner": owner, "callees": ordered})
+    return reached, edges
+
+
+def _reviewer_imports_owned_by_functions_v1(tree):
+    records = []
+    for top_level in tree.body:
+        if not isinstance(top_level, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        for node in _ast.walk(top_level):
+            if not isinstance(node, (_ast.Import, _ast.ImportFrom)):
+                continue
+            modules = (
+                [alias.name for alias in node.names]
+                if isinstance(node, _ast.Import)
+                else [_normalized_import_module_v1(node)]
+            )
+            for module in modules:
+                records.append(
+                    {
+                        "owner": top_level.name,
+                        "module": module,
+                        "location": _source_location_v1(node),
+                        "star": any(alias.name == "*" for alias in node.names),
+                    }
+                )
+    return records
+
+
+def _validate_reviewer_initializer_v1(tree, source_bytes):
+    if source_bytes != b"" or tree.body:
+        raise ValueError("schema-lab initializer must be the exact empty blob")
+
+
+def _validate_rulespace_initializer_v1(tree):
+    if tuple(type(node) for node in tree.body) != (
+        _ast.Expr,
+        _ast.Assign,
+        _ast.FunctionDef,
+    ):
+        raise ValueError("rulespace initializer node order drifted")
+    docstring, export_assignment, lazy = tree.body
+    if (
+        not isinstance(docstring.value, _ast.Constant)
+        or docstring.value.value
+        != "V3-M0 immutable contracts and profile-aware evidence primitives."
+    ):
+        raise ValueError("rulespace initializer docstring drifted")
+    if (
+        len(export_assignment.targets) != 1
+        or not isinstance(export_assignment.targets[0], _ast.Name)
+        or export_assignment.targets[0].id != "__all__"
+        or not isinstance(export_assignment.value, _ast.Tuple)
+        or tuple(
+            item.value
+            for item in export_assignment.value.elts
+            if isinstance(item, _ast.Constant)
+        )
+        != _REVIEWER_LEGACY_EXPORTS_V1
+        or len(export_assignment.value.elts) != len(_REVIEWER_LEGACY_EXPORTS_V1)
+    ):
+        raise ValueError("rulespace initializer export tuple drifted")
+    args = lazy.args
+    if (
+        lazy.name != "__getattr__"
+        or [argument.arg for argument in args.args] != ["name"]
+        or args.posonlyargs
+        or args.vararg is not None
+        or args.kwonlyargs
+        or args.kw_defaults
+        or args.kwarg is not None
+        or args.defaults
+        or lazy.decorator_list
+        or lazy.returns is not None
+        or lazy.type_comment is not None
+        or args.args[0].annotation is not None
+        or len(lazy.body) != len(_REVIEWER_LEGACY_EXPORTS_V1) + 1
+    ):
+        raise ValueError("rulespace initializer lazy resolver signature drifted")
+    for branch, name, module in zip(
+        lazy.body[:-1],
+        _REVIEWER_LEGACY_EXPORTS_V1,
+        _REVIEWER_LEGACY_EXPORT_MODULES_V1,
+    ):
+        if (
+            not isinstance(branch, _ast.If)
+            or branch.orelse
+            or not isinstance(branch.test, _ast.Compare)
+            or not isinstance(branch.test.left, _ast.Name)
+            or branch.test.left.id != "name"
+            or len(branch.test.ops) != 1
+            or not isinstance(branch.test.ops[0], _ast.Eq)
+            or len(branch.test.comparators) != 1
+            or not isinstance(branch.test.comparators[0], _ast.Constant)
+            or branch.test.comparators[0].value != name
+            or len(branch.body) != 2
+        ):
+            raise ValueError("rulespace initializer lazy branch drifted")
+        import_node, return_node = branch.body
+        if (
+            not isinstance(import_node, _ast.ImportFrom)
+            or import_node.level != 1
+            or import_node.module != module
+            or [(alias.name, alias.asname) for alias in import_node.names]
+            != [(name, None)]
+            or not isinstance(return_node, _ast.Return)
+            or not isinstance(return_node.value, _ast.Name)
+            or return_node.value.id != name
+        ):
+            raise ValueError("rulespace initializer lazy import drifted")
+    terminal = lazy.body[-1]
+    if (
+        not isinstance(terminal, _ast.Raise)
+        or terminal.cause is not None
+        or not isinstance(terminal.exc, _ast.Call)
+        or not isinstance(terminal.exc.func, _ast.Name)
+        or terminal.exc.func.id != "AttributeError"
+        or len(terminal.exc.args) != 1
+        or not isinstance(terminal.exc.args[0], _ast.Name)
+        or terminal.exc.args[0].id != "name"
+        or terminal.exc.keywords
+    ):
+        raise ValueError("rulespace initializer terminal raise drifted")
+
+
+def _reviewer_module_level_imports_v1(tree):
+    records = []
+    for node in tree.body:
+        if isinstance(node, _ast.Import):
+            records.extend(alias.name for alias in node.names)
+        elif isinstance(node, _ast.ImportFrom):
+            if any(alias.name == "*" for alias in node.names):
+                raise ValueError("reviewer star import is forbidden")
+            records.append(_normalized_import_module_v1(node))
+    return records
+
+
+def _validate_reviewer_import_surface_v1(trees, child_closures):
+    common_tree = trees["experiments/v3m0_b7_schema_lab/common.py"]
+    for record in _iter_import_records_v1(common_tree):
+        if record["module"] not in _REVIEWER_COMMON_IMPORTS_V1:
+            raise ValueError("common imports an unlisted module")
+        if record["imported_name"] == "*":
+            raise ValueError("common star import is forbidden")
+
+    core_tree = trees["rulespace_v3/b7_replay_core_v1.py"]
+    for record in _iter_import_records_v1(core_tree):
+        if record["module"] not in _REVIEWER_CORE_IMPORTS_V1:
+            raise ValueError("pure replay core imports an unlisted module")
+        if record["imported_name"] == "*":
+            raise ValueError("pure replay core star import is forbidden")
+
+    compare_tree = trees["experiments/v3m0_b7_schema_lab/compare.py"]
+    module_imports = _reviewer_module_level_imports_v1(compare_tree)
+    if any(
+        module not in _REVIEWER_COMPARE_BOOTSTRAP_IMPORTS_V1
+        for module in module_imports
+    ):
+        raise ValueError("compare bootstrap imports an unlisted module")
+    owned = _reviewer_imports_owned_by_functions_v1(compare_tree)
+    if any(record["star"] for record in owned):
+        raise ValueError("reviewer function-local star import is forbidden")
+    route_modules = tuple(entry[2] for entry in _ROUTE_STATIC_REGISTRY_V1)
+    child_union = set().union(*(closure for closure in child_closures.values()))
+    for record in owned:
+        module = record["module"]
+        if module in route_modules:
+            continue
+        if module in _REVIEWER_COMPARE_BOOTSTRAP_IMPORTS_V1:
+            continue
+        if module in _REVIEWER_COMPARE_OUTER_IMPORTS_V1:
+            if record["owner"] in child_union:
+                raise ValueError("outer process import enters reviewer child closure")
+            continue
+        raise ValueError("compare function imports an unlisted module")
+    for role, closure in child_closures.items():
+        ordered_modules = [
+            record["module"]
+            for record in owned
+            if record["owner"] in closure and record["module"] in route_modules
+        ]
+        if tuple(ordered_modules) != route_modules:
+            raise ValueError(f"{role} route import closure/order drifted")
+    return module_imports, owned
+
+
+def _attribute_path_v1(node):
+    parts = []
+    cursor = node
+    while isinstance(cursor, _ast.Attribute):
+        parts.append(cursor.attr)
+        cursor = cursor.value
+    if not isinstance(cursor, _ast.Name):
+        return None
+    return ".".join((cursor.id, *reversed(parts)))
+
+
+def _validate_reviewer_child_calls_v1(compare_tree, definitions, child_union):
+    forbidden = set(_REVIEWER_FORBIDDEN_EXACT_NAMES_V1)
+    for path, tree in compare_tree.items():
+        for node in _ast.walk(tree):
+            if isinstance(node, _ast.Name) and node.id in forbidden:
+                raise ValueError(f"reviewer source {path} uses forbidden exact name")
+    stdout_calls = []
+    edge_records = []
+    for owner in sorted(child_union, key=lambda name: definitions[name].lineno):
+        node = definitions[owner]
+        owner_calls = []
+        for call in (item for item in _ast.walk(node) if isinstance(item, _ast.Call)):
+            if isinstance(call.func, _ast.Name):
+                resolved = call.func.id
+                if resolved in definitions:
+                    owner_calls.append(resolved)
+                    continue
+                if resolved in forbidden:
+                    raise ValueError("reviewer child calls a forbidden resolver")
+                raise ValueError("reviewer child has an unresolved direct call")
+            resolved = _attribute_path_v1(call.func)
+            if resolved is None:
+                raise ValueError("reviewer child has dynamic call resolution")
+            if resolved == "sys.stdout.buffer.write":
+                stdout_calls.append(_source_location_v1(call))
+                owner_calls.append(resolved)
+                continue
+            if any(resolved.startswith(prefix) for prefix in _REVIEWER_FORBIDDEN_CALL_PREFIXES_V1):
+                raise ValueError("reviewer child calls a forbidden capability")
+            if resolved.split(".", 1)[0] in _REVIEWER_FORBIDDEN_MODULE_ROOTS_V1:
+                raise ValueError("reviewer child uses a forbidden module root")
+            raise ValueError("reviewer child has an unlisted external call")
+        edge_records.append({"owner": owner, "calls": owner_calls})
+    if len(stdout_calls) != 1:
+        raise ValueError("reviewer child must have exactly one terminal stdout call")
+    return edge_records, stdout_calls[0]
+
+
+def _validate_reviewer_outer_closure_v1(functions, definitions):
+    reached = set()
+    common_calls = set()
+    for root in _REVIEWER_OUTER_ROOTS_V1:
+        closure, _edges = _reviewer_local_call_closure_v1(root, definitions)
+        reached.update(closure)
+        for owner in closure:
+            for call in (
+                node
+                for node in _ast.walk(definitions[owner])
+                if isinstance(node, _ast.Call)
+            ):
+                path = _attribute_path_v1(call.func)
+                if path is not None and path.startswith("_common."):
+                    common_calls.add(
+                        "experiments.v3m0_b7_schema_lab.common."
+                        + path.removeprefix("_common.")
+                    )
+    local_helpers = [
+        node.name
+        for node in functions
+        if node.name in reached and node.name not in _REVIEWER_OUTER_ROOTS_V1
+    ]
+    observed = tuple(local_helpers) + tuple(
+        sorted(common_calls, key=lambda value: value.encode("utf-8"))
+    )
+    if observed != _REVIEWER_OUTER_HELPERS_V1:
+        raise ValueError("reviewer outer runner helper closure drifted")
+    return observed
+
+
+def _reviewer_module_static_scan_record_v1(path, source_bytes, tree):
+    return {
+        "path": path,
+        "raw_sha256": _raw_source_sha256_v1(source_bytes, path),
+        "static_scan_sha": canonical_sha_v1(
+            {
+                "scan_schema": "v3m0-b7-reviewer-module-ast.v1",
+                "path": path,
+                "ast_dump": _ast.dump(tree, annotate_fields=True, include_attributes=True),
+            }
+        ),
+    }
+
+
+def validate_reviewer_child_static_surface_v1(
+    *,
+    source_commit_sha,
+    common_commit_sha,
+    route_manifests,
+    source_blobs,
+    production_blobs,
+):
+    """Validate the reviewer-child AST closure using caller-supplied Git blobs."""
+
+    _require_reviewer_git_sha1_v1(source_commit_sha, "reviewer source commit")
+    _require_reviewer_git_sha1_v1(common_commit_sha, "reviewer common commit")
+    if type(route_manifests) is not tuple or len(route_manifests) != 3:
+        raise TypeError("reviewer route manifests must be an exact three-item tuple")
+    if type(source_blobs) is not tuple or len(source_blobs) != 8:
+        raise TypeError("reviewer source blobs must be an exact eight-item tuple")
+    source_by_path = {}
+    for ordinal, blob in enumerate(source_blobs):
+        _require_git_blob_descriptor_v1(blob, f"reviewer source blob {ordinal}")
+        commit_sha, path, mode, source_bytes = blob
+        if commit_sha != source_commit_sha:
+            raise ValueError("reviewer source is not bound to the frozen evidence commit")
+        if mode != "100644" or path in source_by_path:
+            raise ValueError("reviewer source mode/path set drifted")
+        source_by_path[path] = source_bytes
+    expected_paths = (
+        "experiments/v3m0_b7_schema_lab/__init__.py",
+        "experiments/v3m0_b7_schema_lab/common.py",
+        "experiments/v3m0_b7_schema_lab/compare.py",
+        *(entry[3] for entry in _ROUTE_STATIC_REGISTRY_V1),
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/b7_replay_core_v1.py",
+    )
+    if set(source_by_path) != set(expected_paths):
+        raise ValueError("reviewer executed local module set drifted")
+
+    route_ids = []
+    for entry, manifest in zip(_ROUTE_STATIC_REGISTRY_V1, route_manifests):
+        if type(manifest) is not dict or manifest.get("route_id") != entry[0]:
+            raise ValueError("reviewer route manifest order drifted")
+        if manifest.get("common_commit_sha") != common_commit_sha:
+            raise ValueError("reviewer route common commit drifted")
+        route_blob = (
+            manifest.get("route_commit_sha"),
+            entry[3],
+            "100644",
+            source_by_path[entry[3]],
+        )
+        validate_route_static_surface_v1(manifest, route_blob, production_blobs)
+        route_ids.append(entry[0])
+
+    trees = {
+        path: _parse_python_blob_v1(source_by_path[path], path)
+        for path in expected_paths
+    }
+    _validate_reviewer_initializer_v1(
+        trees["experiments/v3m0_b7_schema_lab/__init__.py"],
+        source_by_path["experiments/v3m0_b7_schema_lab/__init__.py"],
+    )
+    _validate_rulespace_initializer_v1(trees["rulespace_v3/__init__.py"])
+    compare_path = "experiments/v3m0_b7_schema_lab/compare.py"
+    functions, definitions = _reviewer_top_level_functions_v1(
+        trees[compare_path], compare_path
+    )
+    child_closures = {}
+    child_edges = {}
+    for role, root in _REVIEWER_ROLE_ROOTS_V1:
+        closure, edges = _reviewer_local_call_closure_v1(root, definitions)
+        if closure.intersection(_REVIEWER_CHILD_FORBIDDEN_OUTER_V1):
+            raise ValueError("reviewer child reaches an outer process symbol")
+        child_closures[role] = closure
+        child_edges[role] = edges
+    module_imports, function_imports = _validate_reviewer_import_surface_v1(
+        trees,
+        child_closures,
+    )
+    outer_helpers = _validate_reviewer_outer_closure_v1(functions, definitions)
+    child_union = set().union(*(closure for closure in child_closures.values()))
+    child_call_records, stdout_location = _validate_reviewer_child_calls_v1(
+        trees,
+        definitions,
+        child_union,
+    )
+    execution_paths = (
+        "experiments/v3m0_b7_schema_lab/__init__.py",
+        compare_path,
+        "experiments/v3m0_b7_schema_lab/common.py",
+        "rulespace_v3/__init__.py",
+        "rulespace_v3/b7_replay_core_v1.py",
+        *(entry[3] for entry in _ROUTE_STATIC_REGISTRY_V1),
+    )
+    module_records = [
+        _reviewer_module_static_scan_record_v1(
+            path,
+            source_by_path[path],
+            trees[path],
+        )
+        for path in execution_paths
+    ]
+    projection = {
+        "static_surface_schema_version": (
+            "experimental.v3m0.b7.reviewer-child-static-surface.v1"
+        ),
+        "source_commit_sha": source_commit_sha,
+        "common_commit_sha": common_commit_sha,
+        "ordered_role_ids": [role for role, _root in _REVIEWER_ROLE_ROOTS_V1],
+        "ordered_route_ids": route_ids,
+        "ordered_executed_module_paths": list(execution_paths),
+        "module_static_scan_records": module_records,
+        "module_level_compare_imports": module_imports,
+        "function_local_compare_imports": function_imports,
+        "role_local_call_edges": [
+            {"role": role, "edges": child_edges[role]}
+            for role, _root in _REVIEWER_ROLE_ROOTS_V1
+        ],
+        "child_call_records": child_call_records,
+        "terminal_stdout_call_location": stdout_location,
+        "outer_helper_closure": list(outer_helpers),
+    }
+    return {
+        **projection,
+        "reviewer_child_static_scan_sha": canonical_sha_v1(projection),
+    }
+
+
 def _validate_e07_static_domain_v1(route_manifest, route_blob, production_blobs):
     manifest = validate_route_static_surface_v1(
         route_manifest,
