@@ -21,3 +21,6 @@ exp4_cache.npz
 
 # 隔离实施工作区
 .worktrees/
+
+# 本地记忆/会话运行态(不入库)
+.workbuddy/
