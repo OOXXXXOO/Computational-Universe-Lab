@@ -207,6 +207,16 @@
     <table id="gate-table"></table>
   </section>
 
+  <!-- 面板 5:M3′ 30 格 pilot -->
+  <section class="panel">
+    <h2>M3′ 30 格 pilot · 可分辨性复核</h2>
+    <div class="cap">数据:<code>data/results/v2m3_pilot.json</code>(判齿)+ <code>v2m3_local_family_certificate.json</code>(准入) · <b>HALT-PILOT-UNRESOLVED = 本构造族对冻结 M0′ evaluator 无牙;不是 M3′ PASS,也不是物理 FAIL</b> · 正式预注册与 10²–10³ 扫描保持锁定</div>
+    <div id="m3-head"></div>
+    <div id="m3-map"></div>
+    <table id="m3-criteria"></table>
+    <div class="m3-note" id="m3-note"></div>
+  </section>
+
   <div class="foot" id="foot"></div>
 </div>
 
@@ -619,6 +629,91 @@
       '<b>M0′ 收口须双环境 8/8(沙盒双跑由车道A 复核执行)+ PI 签字</b>,本面板不宣告 M0′ 收口;无新物理主张。'+
       (d.environment?('<br>环境入册:numpy '+esc(d.environment.numpy_version||"")+' · BLAS '+esc(d.environment.blas||"")+' · '+esc(d.environment.platform||"")):"");
   }
+
+  /* ---------- 面板 5:M3′ 30 格 pilot(独立数据源,不阻塞主面板) ---------- */
+  function renderM3(p,c){
+    var head=document.getElementById("m3-head");
+    var map=document.getElementById("m3-map");
+    var crt=document.getElementById("m3-criteria");
+    var note=document.getElementById("m3-note");
+    if(!p){
+      head.innerHTML='<span class="badge halt"><span class="dot"></span>v2m3_pilot.json 不可读(数据源缺失,不静默造数)</span>';
+      map.innerHTML="";crt.innerHTML="";note.innerHTML="";
+      return;
+    }
+    var halt=(p.status==="HALT-PILOT-UNRESOLVED");
+    var sum=p.summary||{};
+    var sb=sum.sigma_by_direction||{};
+    var crit=(p.resolvability&&p.resolvability.criteria)||{};
+    var rev=p.resource_review||{};
+    var cer=c||{};
+    var dirKey={"axial":"轴向","face-diagonal":"面对角","body-diagonal":"体对角"};
+    // 状态条
+    var s='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px">';
+    s+='<span class="badge '+(halt?"halt":"ok")+'"><span class="dot"></span>'+esc(p.status||"—")+'</span>';
+    s+='<span class="badge '+(p.formal_preregistration_unlocked?"ok":"halt")+'"><span class="dot"></span>formal preregistration '+(p.formal_preregistration_unlocked?"unlocked":"locked")+'</span>';
+    s+='<span class="badge '+(p.formal_scan_unlocked?"ok":"halt")+'"><span class="dot"></span>formal scan '+(p.formal_scan_unlocked?"unlocked":"locked")+'</span>';
+    s+='</div>';
+    // 实测读数表
+    function row(k,v,st){return '<tr><td style="padding:5px 10px 5px 0;color:var(--muted);font-family:var(--mono);font-size:12px">'+k+'</td>'+
+      '<td style="padding:5px 10px;text-align:right;font-family:var(--mono);font-size:13px">'+v+'</td>'+
+      '<td style="padding:5px 0 5px 10px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--'+(st==="PASS"?"ok":(st==="FAIL"?"ceil":"muted"))+')">'+esc(st||"")+'</td></tr>';}
+    var dirFail=[];
+    ["axial","face-diagonal","body-diagonal"].forEach(function(dk){
+      var vc=(sb[dk]||{}).verdict_counts||{};
+      dirFail.push(dirKey[dk]+" FAIL×"+(vc.FAIL||0));
+    });
+    var eGeo=sum.epsilon_geo_global_min_max||[];
+    var h='<table style="width:auto;min-width:min(760px,100%);margin-bottom:4px">';
+    h+='<thead><tr><th style="text-align:left;color:var(--ink-dim)">实测读数(全部来自真实实空间冲激)</th><th></th><th></th></tr></thead><tbody>';
+    h+=row("有效构造格",(sum.valid_cell_count||0)+" / "+(sum.cell_count||0),"PASS");
+    h+=row("实空间测量运行",(sum.delta_realspace_runs||0)+" 冲激 + "+(sum.validation_realspace_runs||0)+" 验证","");
+    h+=row("ε_geo 全方向全格",(eGeo.length===2?(fmt(eGeo[0])+" = "+fmt(eGeo[1])):"—")+"(min=max,唯一值)","");
+    h+=row("唯一 ε 签名数",sum.unique_epsilon_signature_count+"(N_curv=6, j_hand=4 恒定)","FAIL");
+    h+=row("σ 方向判齿","90 / 90 常数模型取胜 · "+dirFail.join(" · "),"FAIL");
+    h+=row("A 轴向 / 面对角 / 体对角",fmt(((sb.axial||{}).A_min_max||[])[0])+" ~ "+fmt(((sb.axial||{}).A_min_max||[])[1])+" / "+fmt(((sb["face-diagonal"]||{}).A_min_max||[])[0])+" ~ "+fmt(((sb["face-diagonal"]||{}).A_min_max||[])[1])+" / "+fmt(((sb["body-diagonal"]||{}).A_min_max||[])[0])+" ~ "+fmt(((sb["body-diagonal"]||{}).A_min_max||[])[1]),"");
+    h+=row("最大平面桥残差",fmt(sum.max_plane_bridge_residual),"PASS");
+    h+=row("最大 Floquet 模误差",fmt(sum.max_floquet_modulus_error),"PASS");
+    h+=row("支撑半径(体积无关)",(cer.support?("r="+cer.support.max_radius+" · L 无关="+cer.support.independent_of_L):"—"),"PASS");
+    h+=row("64³ 全 BZ 最大 Verlet CFL",(fmt(cer.max_verlet_cfl_number)+" < 4"),"PASS");
+    h+=row("fp64 辛缺陷 / Hermitian 缺陷",fmt(cer.max_symplectic_defect_fp64)+" / "+fmt(cer.max_potential_hermitian_defect),"PASS");
+    h+=row("资源裕度(实测)",fmt(rev.margin_factor)+" ≥ "+(rev.required_margin_factor||1.5),(rev.pass?"PASS":"FAIL"));
+    h+='</tbody></table>';
+    head.innerHTML=s+h;
+    // 塌缩诊断图
+    map.innerHTML='<div style="margin:10px 0"><img src="../figs/v2m3_pilot_map.png" alt="M3′ 30 格 pilot 塌缩诊断图" style="width:min(760px,100%);border:1px solid var(--line);border-radius:6px"></div>';
+    // 冻结元判据
+    var critRows=[
+      ["execution validity","30/30 格唯一、完整、均有效",crit.execution_validity],
+      ["epsilon counting teeth","唯一 (N_curv,j_hand) 签名数=1",crit.epsilon_counting_teeth],
+      ["sigma continuous teeth","满足绝对裕度与 LOO 的 witness=0",crit.sigma_continuous_teeth],
+      ["boundary bracket teeth","没有任何方向出现同射线 PASS/FAIL 括区",crit.boundary_bracket_teeth],
+      ["direction completeness","轴/面/体三个方向全部入册",crit.direction_completeness],
+      ["resource margin","实测总裕度 "+(typeof rev.margin_factor==="number"?fmt(rev.margin_factor)+" ≥ "+(rev.required_margin_factor||1.5):"—"),crit.resource_margin]
+    ];
+    var t='<table><thead><tr><th style="text-align:left">冻结元判齿</th><th style="text-align:left">证据</th><th></th></tr></thead><tbody>';
+    critRows.forEach(function(rw){
+      var v=rw[2]||{};
+      var st=(v.pass===true)?"PASS":(v.pass===false?"FAIL":"—");
+      t+='<tr><td style="padding:5px 10px 5px 0;font-family:var(--mono);font-size:12px;color:var(--ink-dim)">'+esc(rw[0])+'</td>'+
+         '<td style="padding:5px 10px;font-size:13px">'+esc(rw[1])+'</td>'+
+         '<td style="padding:5px 0 5px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--'+(st==="PASS"?"ok":(st==="FAIL"?"ceil":"muted"))+')">'+st+'</td></tr>';
+    });
+    t+='</tbody></table>';
+    crt.innerHTML=t;
+    // 注记
+    note.innerHTML='<p style="margin:10px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55">'+
+      '<b style="color:var(--ink-dim)">claim ceiling:</b> '+esc(p.claim_ceiling||"—")+'<br>'+
+      '<b style="color:var(--ink-dim)">next action:</b> '+esc(p.next_action||"—")+'<br>'+
+      '<b style="color:var(--ink-dim)">数据源:</b> data/results/v2m3_pilot.json(schema '+esc(p._schema||"—")+', status '+esc(p.status||"—")+', '+esc((p.generated_utc||"").slice(0,16))+'Z)+ v2m3_local_family_certificate.json · 判读:docsv2/v2-小报告-M3-30格pilot-2026-07-30.md · 方向级 FAIL 不得写成 M3′ 物理 FAIL(纪律)</p>';
+  }
+  var pM3=fetch("../../data/results/v2m3_pilot.json",{cache:"no-store"})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+    .catch(function(err){console.warn("v2m3_pilot.json 不可读:",err);return null;});
+  var pM3C=fetch("../../data/results/v2m3_local_family_certificate.json",{cache:"no-store"})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+    .catch(function(err){console.warn("v2m3_local_family_certificate.json 不可读:",err);return null;});
+  Promise.all([pM3,pM3C]).then(function(res){renderM3(res[0],res[1]);});
 })();
 </script>
 </body>

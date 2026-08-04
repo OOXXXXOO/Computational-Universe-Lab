@@ -25,29 +25,43 @@ dimension is deferred past fixed-3+1D.
 This is not product engineering. Verification is split into syntax/import checks, symbolic
 certificates, physics gates, and long-run reproduction — there is no conventional unit-test framework.
 
-## Status (2026-07-29)
+## Status (2026-07-30)
 
 > **The program has been upgraded to v2 “Emergence Boundary Cartography”; the authoritative entry is
 > now [`docsv2/README.md`](docsv2/README.md).** The v1 North Star (spin-2 emergence M3) was formally
 > sealed on 2026-07-26; `docs/` is frozen as v1 history and evidence chain — append-only, history
-> never rewritten.
+> never rewritten. **A v3 draft paradigm (causal-identifiable emergence boundary cartography) now
+> exists in [`docsv3/`](docsv3/README.md) as design-review material; it does not rewrite v2.**
 
-**v2 has closed two complete loops, M0′–M2′:**
+**v2 has closed two complete loops (M0′–M2′) and run the M3′ 30-cell pilot:**
 
 | Milestone | Content | State |
 |---|---|---|
 | **M0′** | Instrument migration: basis-invariant calibers (principal-angle spectrum), dual-environment consistency, ε_DOF dimension criterion | ✅ |
 | **M1′** | Maxwell full closed loop: one spin-1 rule passes every extreme-language gate; photons exactly 2, **ε_DOF=1 measured, zero hand-built** | ✅ PASS |
 | **M2′** | Spin-2 coupled loop: R30 hand-built complex geometry sets the stage, emergent Dirac matter plays — **(ε_geo=0, ε_mat=1) point on the map** | ✅ PASS |
-| **M3′** | Boundary cartography: the `(ε_geo, σ)` map is frozen as a 30-cell pilot before the formal `10²–10³` scan | ▶ Round 0 `READY-PILOT`; 30 cells unlocked, not run |
+| **M3′** | Boundary cartography: strict-local real-space `q` family (Round 0 passed, fp64 symplectic defect `7.77e-16`, support radius 4, `64³` BZ max Verlet CFL `3.96396 < 4`), 30-cell pilot ran to completion | ⏸ **`HALT-PILOT-UNRESOLVED`** — no boundary teeth; formal preregistration & scan locked |
 
-M3′ now has a signed [task book](docsv2/v2-任务书-M3-涌现边界制图.md) and a reproducible
-[Round 0 report](docsv2/v2-小报告-M3-预飞-2026-07-29.md). The legacy partial-Yee R2 remains
-rejected as spectral bookkeeping, while an independent same-state-space, strict-local real-space
-`q` family passes Round 0 with fp64 symplectic defect `7.77e-16`, measured support radius 4, and a
-`64³` full-Brillouin-zone maximum Verlet CFL number of `3.96396 < 4`.
-**Only the 30-cell pilot is unlocked; it has not run, M3′ has neither passed nor failed, and the
-formal scan remains locked.**
+The 30-cell pilot (`q × κ_C = 5 × 6`, 30×28=840 real-space impulse runs + 30 verification runs) is
+fully executed and valid: 30/30 construction cells, `N_curv=6`, `j_hand=4`, **`ε_geo=1/3` on every
+cell in every direction**, σ constant model wins 90/90 direction fits (`A=1+O(10^-15)`) — the family
+collapses to a single point `(ε_geo, σ)=(1/3, const)` with **no resolvable boundary teeth**.
+`HALT-PILOT-UNRESOLVED` is **neither an M3′ PASS nor a physical FAIL**; it only rules that this
+construction family carries no resolvable teeth for the frozen M0′ evaluator.
+`formal_preregistration_unlocked=false`, `formal_scan_unlocked=false`. The next permitted move is
+back to M0′ evaluator / construction-family root-cause. Evidence:
+[`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`](docsv2/v2-小报告-M3-30格pilot-2026-07-30.md),
+[`data/results/v2m3_pilot.json`](data/results/v2m3_pilot.json),
+[`visualizations/figs/v2m3_pilot_map.png`](visualizations/figs/v2m3_pilot_map.png).
+
+**v3 draft paradigm (design review, 2026-07-30):** the M3′ no-tooth post-mortem triggered a
+cross-audit showing the repo was running three different estimators under one `ε` — construction
+provenance (R30/R23), thresholded constraint compatibility (frozen walk), and final-propagator
+geometry (M3′ pilot) — with M0′/M3 and M2 using **complementary formulas on the same principal
+spectrum (ε_A + ε_B = 1)**. The v3 draft ([`docsv3/README.md`](docsv3/README.md)) splits the single
+axis into `(ε_causal, δ_geom, σ)` and requires paired actual/ablated runs plus a frozen construction
+grammar. It is **design-review material pending PI sign-off**: v2 evidence stays as-is, no
+`rulespace_v3/` implementation, expensive scans remain locked until V3-M0 passes.
 
 **The (ε,σ) map now has three complete closed-loop benchmark points:** R30 (ε=0, bare geometry),
 Maxwell (ε=1, M1′), and the coupled point ((ε_geo=0, ε_mat=1), M2′). The coupled point's entire value
@@ -143,6 +157,22 @@ stepping diagnostic. Usable constraint-shrinkage rate, moving source, live conse
 
 </td>
 </tr>
+<tr>
+<td colspan="2" align="center">
+
+**M3′ · 30-cell pilot collapse diagnostic (current verdict, 2026-07-30)**
+
+<img src="visualizations/figs/v2m3_pilot_map.png" width="70%">
+
+All 30 strict-local real-space construction cells valid (`q × κ_C = 5 × 6`, 840 impulse runs + 30
+verification runs); every direction gives `N_curv=6`, `j_hand=4`, `ε_geo=1/3`; σ constant model wins
+90/90 direction fits with `A = 1 + O(10^-15)`. The family collapses to a single point `(ε_geo, σ) =
+(1/3, A≈1)` — **no resolvable boundary teeth**.
+`HALT-PILOT-UNRESOLVED`: not an M3′ PASS, not a physical FAIL; formal preregistration & `10²–10³`
+scan remain locked. Next move: M0′ evaluator / construction-family root-cause.
+
+</td>
+</tr>
 </table>
 
 Full figure set (PNG/GIF/MP4) in [`visualizations/figs/`](visualizations/figs/); interactive dashboards
@@ -166,6 +196,7 @@ in [`visualizations/dashboards/`](visualizations/dashboards/) (`dashboard_v2.htm
 | `data/runtime/` | runner-resumable state (has delete semantics; never reset without explicit request) |
 | `visualizations/` | dashboards, figs, assets (incl. repo cover) |
 | `docsv2/` | **v2 document system (authoritative entry)**: program, preregistrations, reports, reviews, rulings, closures |
+| `docsv3/` | v3 draft paradigm (design review): causal-identifiable emergence boundary cartography, `(ε_causal, δ_geom, σ)` — pending PI sign-off |
 | `docs/` | v1 history & evidence chain (frozen, append-only) |
 | `tools/` | campaign runner, local observation server |
 
@@ -202,8 +233,16 @@ python tools/tensor_campaign_runner.py status
 2. [`docsv2/v2-纲领-北极星-涌现边界制图.md`](docsv2/v2-纲领-北极星-涌现边界制图.md) — thesis, claim tiers, M0′–M4′ gates
 3. [`docsv2/v2-收口-M1-2026-07-27.md`](docsv2/v2-收口-M1-2026-07-27.md) — M1′ Maxwell closure
 4. [`docsv2/v2-收口-M2-2026-07-27.md`](docsv2/v2-收口-M2-2026-07-27.md) — M2′ coupled-point closure
-5. [`docsv2/v2-资产重审计-2026-07-26.md`](docsv2/v2-资产重审计-2026-07-26.md) — v1 asset triage & v2 inheritance list
-6. [`visualizations/dashboards/v2-progress-atlas.pdf`](visualizations/dashboards/v2-progress-atlas.pdf) — v2 visual field log
+5. [`docsv2/v2-小报告-M3-30格pilot-2026-07-30.md`](docsv2/v2-小报告-M3-30格pilot-2026-07-30.md) — M3′ pilot verdict: `HALT-PILOT-UNRESOLVED`
+6. [`docsv2/v2-资产重审计-2026-07-26.md`](docsv2/v2-资产重审计-2026-07-26.md) — v1 asset triage & v2 inheritance list
+7. [`visualizations/dashboards/v2-progress-atlas.pdf`](visualizations/dashboards/v2-progress-atlas.pdf) — v2 visual field log
+
+**v3 draft (design review, pending PI sign-off):**
+
+1. [`docsv3/README.md`](docsv3/README.md) — why the single `ε` splits into `(ε_causal, δ_geom, σ)`
+2. [`docsv3/v3-裁定草案-从单epsilon到因果可识别双轴-2026-07-30.md`](docsv3/v3-裁定草案-从单epsilon到因果可识别双轴-2026-07-30.md) — the ε_A + ε_B = 1 audit evidence
+3. [`docsv3/v3-纲领草案-北极星-因果可识别涌现边界制图.md`](docsv3/v3-纲领草案-北极星-因果可识别涌现边界制图.md) — v3 thesis draft
+4. [`docsv3/v3-设计-V3M0-因果响应与几何距离仪器-2026-07-30.md`](docsv3/v3-设计-V3M0-因果响应与几何距离仪器-2026-07-30.md) — V3-M0 instrument design
 
 **v1 (history & evidence chain, frozen):**
 
